@@ -54,7 +54,7 @@ When using ASPIRE:
 
 3. **Training Data**: Ensure your training data doesn't contain sensitive information that could be memorized by models.
 
-4. **Dependencies**: Keep dependencies updated. Run `pip install --upgrade aspire-ai` regularly.
+4. **Dependencies**: Keep dependencies updated. Run `pip install --upgrade aspire-si` regularly.
 
 ## Acknowledgments
 

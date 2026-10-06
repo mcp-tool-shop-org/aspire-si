@@ -32,7 +32,7 @@ After training: Critic guides action refinement WITHOUT the teacher
 
 ```bash
 # ASPIRE core
-pip install aspire-ai
+pip install aspire-si
 
 # Isaac Gym (follow NVIDIA's installation guide)
 # https://developer.nvidia.com/isaac-gym
@@ -236,4 +236,4 @@ Fully Windows-compatible with RTX 5080/Blackwell support:
 
 ---
 
-*Part of the [ASPIRE project](https://github.com/mcp-tool-shop-org/aspire-ai)*
+*Part of the [ASPIRE project](https://github.com/mcp-tool-shop-org/aspire-si)*

@@ -5,6 +5,15 @@ All notable changes to ASPIRE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Renamed to **aspire-si**: the repository is `mcp-tool-shop-org/aspire-si` and the PyPI
+  distribution is `aspire-si`. The import package is still `aspire`.
+- Restored as its own repository with a fresh history; the versions below were released from
+  the earlier `aspire-ai` repository, whose tags are not carried over.
+
 ## [1.0.0] - 2026-02-27
 
 ### Added
@@ -128,10 +137,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 4-bit and 8-bit quantization support via bitsandbytes
 - LoRA fine-tuning via PEFT
 - Async teacher API calls
-
-[1.0.0]: https://github.com/mcp-tool-shop-org/aspire-ai/compare/v0.2.0...v1.0.0
-[0.2.0]: https://github.com/mcp-tool-shop-org/aspire-ai/compare/v0.1.3...v0.2.0
-[0.1.3]: https://github.com/mcp-tool-shop-org/aspire-ai/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/mcp-tool-shop-org/aspire-ai/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/mcp-tool-shop-org/aspire-ai/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/mcp-tool-shop-org/aspire-ai/releases/tag/v0.1.0

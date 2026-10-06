@@ -1,5 +1,5 @@
 [project]
-name = "aspire-ai"
+name = "aspire-si"
 version = "1.0.0"
 description = "Adversarial Student-Professor Internalized Reasoning Engine"
 readme = "README.md"
@@ -53,9 +53,9 @@ forge = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mcp-tool-shop-org/aspire-ai"
-Repository = "https://github.com/mcp-tool-shop-org/aspire-ai"
-Issues = "https://github.com/mcp-tool-shop-org/aspire-ai/issues"
+Homepage = "https://github.com/mcp-tool-shop-org/aspire-si"
+Repository = "https://github.com/mcp-tool-shop-org/aspire-si"
+Issues = "https://github.com/mcp-tool-shop-org/aspire-si/issues"
 
 [project.scripts]
 aspire = "aspire.cli:app"

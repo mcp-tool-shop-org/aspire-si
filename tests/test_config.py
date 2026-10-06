@@ -439,7 +439,7 @@ class TestAspireConfig:
         assert config.device == "cuda"
         assert config.experiment_name == "aspire-run"
         assert config.use_wandb == True
-        assert config.wandb_project == "aspire-ai"
+        assert config.wandb_project == "aspire-si"
 
     def test_aspire_config_custom_seed(self):
         """Test custom seed configuration."""

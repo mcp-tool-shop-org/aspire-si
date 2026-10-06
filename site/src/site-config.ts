@@ -1,11 +1,11 @@
 import type { SiteConfig } from '@mcptoolshop/site-theme';
 
 export const config: SiteConfig = {
-  title: 'aspire-ai',
+  title: 'aspire-si',
   description: 'Adversarial Student-Professor Internalized Reasoning Engine — Teaching AI through internalized mentorship with cognitive empathy, syntropy, and perception.',
   logoBadge: 'AS',
-  brandName: 'aspire-ai',
-  repoUrl: 'https://github.com/mcp-tool-shop-org/aspire-ai',
+  brandName: 'aspire-si',
+  repoUrl: 'https://github.com/mcp-tool-shop-org/aspire-si',
   footerText: 'MIT Licensed — built by <a href="https://github.com/mcp-tool-shop-org" style="color:var(--color-muted);text-decoration:underline">mcp-tool-shop-org</a>',
 
   hero: {
@@ -16,7 +16,7 @@ export const config: SiteConfig = {
     primaryCta: { href: '#usage', label: 'Get started' },
     secondaryCta: { href: 'handbook/', label: 'Read the Handbook' },
     previews: [
-      { label: 'Install', code: 'pip install aspire-ai' },
+      { label: 'Install', code: 'pip install aspire-si' },
       { label: 'Dialogue', code: 'aspire dialogue "Explain recursion"\n  --teacher socratic --turns 3' },
       { label: 'Train', code: 'aspire train --config config.yaml\n  --teacher adversarial --epochs 3' },
     ],

@@ -56,8 +56,8 @@ Thumbs.db
 .claude/settings.local.json
 
 # Deliverables archive
-aspire-ai-master-deliverables/
-aspire-ai-master-deliverables.zip
+aspire-si-master-deliverables/
+aspire-si-master-deliverables.zip
 site/.astro/
 site/dist/
 site/node_modules/

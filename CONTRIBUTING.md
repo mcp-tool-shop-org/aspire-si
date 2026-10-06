@@ -30,12 +30,12 @@ Be respectful, inclusive, and constructive. We're all here to build something me
 1. Fork the repository on GitHub
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/aspire-ai.git
-   cd aspire-ai
+   git clone https://github.com/YOUR_USERNAME/aspire-si.git
+   cd aspire-si
    ```
 3. Add the upstream remote:
    ```bash
-   git remote add upstream https://github.com/mcp-tool-shop-org/aspire-ai.git
+   git remote add upstream https://github.com/mcp-tool-shop-org/aspire-si.git
    ```
 
 ## Development Setup

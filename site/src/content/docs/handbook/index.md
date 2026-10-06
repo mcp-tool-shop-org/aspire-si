@@ -1,6 +1,6 @@
 ---
 title: Handbook
-description: The aspire-ai handbook — learn how ASPIRE teaches AI judgment through internalized mentorship.
+description: The aspire-si handbook — learn how ASPIRE teaches AI judgment through internalized mentorship.
 sidebar:
   order: 0
 ---
@@ -13,12 +13,12 @@ ASPIRE gives AI that same experience.
 
 ## What you will find here
 
-- [Beginners Guide](/aspire-ai/handbook/beginners/) — New to ASPIRE? Start here for a plain-language walkthrough.
-- [Getting Started](/aspire-ai/handbook/getting-started/) — Install, configure, and run your first dialogue.
-- [How It Works](/aspire-ai/handbook/how-it-works/) — The four-stage pipeline from adversarial dialogue to inference-time self-refinement.
-- [Teachers](/aspire-ai/handbook/teachers/) — The five teacher personas and how to compose them into committees.
-- [Integrations](/aspire-ai/handbook/integrations/) — Stable Diffusion Forge, Isaac Gym, and code assistant integrations.
-- [CLI Reference](/aspire-ai/handbook/cli/) — Every command, every flag, every option.
+- [Beginners Guide](/aspire-si/handbook/beginners/) — New to ASPIRE? Start here for a plain-language walkthrough.
+- [Getting Started](/aspire-si/handbook/getting-started/) — Install, configure, and run your first dialogue.
+- [How It Works](/aspire-si/handbook/how-it-works/) — The four-stage pipeline from adversarial dialogue to inference-time self-refinement.
+- [Teachers](/aspire-si/handbook/teachers/) — The five teacher personas and how to compose them into committees.
+- [Integrations](/aspire-si/handbook/integrations/) — Stable Diffusion Forge, Isaac Gym, and code assistant integrations.
+- [CLI Reference](/aspire-si/handbook/cli/) — Every command, every flag, every option.
 
 ASPIRE also includes an experimental **perception module** with theory of mind, metacognition, character persistence, and controlled chaos capabilities for building agents with deeper awareness.
 
@@ -26,4 +26,4 @@ ASPIRE also includes an experimental **perception module** with theory of mind, 
 
 A student model generates responses. A teacher model challenges them through adversarial dialogue. A critic model learns to predict the teacher's judgment. The student then trains against the critic's internalized feedback. At inference time the student self-refines using the critic alone — no teacher API calls needed.
 
-[Back to landing page](/aspire-ai/)
+[Back to landing page](/aspire-si/)

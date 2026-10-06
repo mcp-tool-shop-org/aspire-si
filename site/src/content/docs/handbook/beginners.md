@@ -53,8 +53,8 @@ Windows, Linux, and macOS are all supported. Windows users with RTX 5080 / Black
 Install ASPIRE from source:
 
 ```bash
-git clone https://github.com/mcp-tool-shop-org/aspire-ai.git
-cd aspire-ai
+git clone https://github.com/mcp-tool-shop-org/aspire-si.git
+cd aspire-si
 pip install -e .
 ```
 
@@ -100,10 +100,10 @@ This loads a student model, creates a Socratic teacher, and generates three roun
 
 ## Where to go next
 
-- [Getting Started](/aspire-ai/handbook/getting-started/) walks through installation, configuration, and your first interaction in more detail.
-- [How It Works](/aspire-ai/handbook/how-it-works/) explains the four-stage pipeline from adversarial dialogue to inference-time self-refinement.
-- [Teachers](/aspire-ai/handbook/teachers/) covers each persona, composite strategies, curriculum-aware composition, and how to create custom teachers.
-- [Integrations](/aspire-ai/handbook/integrations/) describes the Stable Diffusion Forge, Isaac Gym, and code assistant extensions.
-- [CLI Reference](/aspire-ai/handbook/cli/) documents every command, flag, and option.
+- [Getting Started](/aspire-si/handbook/getting-started/) walks through installation, configuration, and your first interaction in more detail.
+- [How It Works](/aspire-si/handbook/how-it-works/) explains the four-stage pipeline from adversarial dialogue to inference-time self-refinement.
+- [Teachers](/aspire-si/handbook/teachers/) covers each persona, composite strategies, curriculum-aware composition, and how to create custom teachers.
+- [Integrations](/aspire-si/handbook/integrations/) describes the Stable Diffusion Forge, Isaac Gym, and code assistant extensions.
+- [CLI Reference](/aspire-si/handbook/cli/) documents every command, flag, and option.
 
 If something is not working, run `aspire doctor` for a human-readable environment check. For machine-readable output (useful for bug reports), run `aspire diagnose --json` which returns a JSON object with the status of every dependency, your GPU, and the installed ASPIRE version.

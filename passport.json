@@ -3,16 +3,16 @@
     "codemeta:3.0",
     "ro-crate:1.1"
   ],
-  "id": "seed:aspire-ai:0.1.0",
+  "id": "seed:aspire-si:0.1.0",
   "swhid": null,
-  "name": "aspire-ai",
-  "title": "aspire-ai",
+  "name": "aspire-si",
+  "title": "aspire-si",
   "description": "Adversarial Student-Professor Internalized Reasoning Engine - Teaching AI to develop judgment, not just knowledge.",
   "version": "0.1.0",
   "license": "MIT",
   "datePublished": "2026-04-20",
   "dateModified": "2026-04-20",
-  "codeRepository": "https://github.com/mcp-tool-shop-org/aspire-ai",
+  "codeRepository": "https://github.com/mcp-tool-shop-org/aspire-si",
   "author": [
     {
       "name": "mcp-tool-shop"

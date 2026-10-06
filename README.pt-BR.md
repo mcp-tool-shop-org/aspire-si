@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mcp-tool-shop-org/brand/main/logos/aspire-ai/readme.png" width="400" />
+  <img src="https://raw.githubusercontent.com/mcp-tool-shop-org/brand/main/logos/aspire-si/readme.png" width="400" />
 </p>
 
 <p align="center">
@@ -24,11 +24,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/mcp-tool-shop-org/aspire-ai/actions/workflows/ci.yml"><img src="https://github.com/mcp-tool-shop-org/aspire-ai/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://codecov.io/gh/mcp-tool-shop-org/aspire-ai"><img src="https://codecov.io/gh/mcp-tool-shop-org/aspire-ai/branch/main/graph/badge.svg" alt="codecov" /></a>
-  <a href="https://pypi.org/project/aspire-ai/"><img src="https://img.shields.io/pypi/v/aspire-ai" alt="PyPI" /></a>
+  <a href="https://github.com/mcp-tool-shop-org/aspire-si/actions/workflows/ci.yml"><img src="https://github.com/mcp-tool-shop-org/aspire-si/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://codecov.io/gh/mcp-tool-shop-org/aspire-si"><img src="https://codecov.io/gh/mcp-tool-shop-org/aspire-si/branch/main/graph/badge.svg" alt="codecov" /></a>
+  <a href="https://pypi.org/project/aspire-si/"><img src="https://img.shields.io/pypi/v/aspire-si" alt="PyPI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
-  <a href="https://mcp-tool-shop-org.github.io/aspire-ai/"><img src="https://img.shields.io/badge/Landing_Page-live-blue" alt="Landing Page" /></a>
+  <a href="https://mcp-tool-shop-org.github.io/aspire-si/"><img src="https://img.shields.io/badge/Landing_Page-live-blue" alt="Landing Page" /></a>
 </p>
 
 ---
@@ -73,8 +73,8 @@ O **crítico** aprende a prever o que o professor pensaria. Após o treinamento,
 ### Instalação
 
 ```bash
-git clone https://github.com/mcp-tool-shop-org/aspire-ai.git
-cd aspire-ai
+git clone https://github.com/mcp-tool-shop-org/aspire-si.git
+cd aspire-si
 pip install -e .
 ```
 
@@ -430,7 +430,7 @@ Este é um código de pesquisa em estágio inicial. Contribuições são bem-vin
   author = {mcp-tool-shop},
   title = {ASPIRE: Adversarial Student-Professor Internalized Reasoning Engine},
   year = {2026},
-  url = {https://github.com/mcp-tool-shop-org/aspire-ai}
+  url = {https://github.com/mcp-tool-shop-org/aspire-si}
 }
 ```
 

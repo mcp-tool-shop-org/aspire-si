@@ -31,7 +31,7 @@ The key insight: **Humans don't carry their mentors around forever.** We interna
 ## Installation
 
 ```bash
-cd aspire-ai
+cd aspire-si
 pip install -e .
 ```
 
@@ -137,7 +137,7 @@ teacher = CompositeTeacher(
 ## Project Structure
 
 ```
-F:/AI/aspire-ai/
+F:/AI/aspire-si/
 ├── README.md
 ├── ASPIRE-SPEC.md              # This file
 ├── pyproject.toml              # Python project config

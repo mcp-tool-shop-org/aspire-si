@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: Install aspire-ai, set your API key, and run your first adversarial dialogue.
+description: Install aspire-si, set your API key, and run your first adversarial dialogue.
 sidebar:
   order: 1
 ---
@@ -21,8 +21,8 @@ Windows is fully supported, including RTX 5080 / Blackwell GPUs.
 Clone the repository and install in editable mode:
 
 ```bash
-git clone https://github.com/mcp-tool-shop-org/aspire-ai.git
-cd aspire-ai
+git clone https://github.com/mcp-tool-shop-org/aspire-si.git
+cd aspire-si
 pip install -e .
 ```
 
@@ -78,6 +78,6 @@ This creates a configuration file with sensible defaults. Edit it to set your mo
 
 ## Next steps
 
-- Read [How It Works](/aspire-ai/handbook/how-it-works/) to understand the four-stage pipeline.
-- Explore [Teachers](/aspire-ai/handbook/teachers/) to learn about each persona and composite strategies.
-- See the full [CLI Reference](/aspire-ai/handbook/cli/) for every command and flag.
+- Read [How It Works](/aspire-si/handbook/how-it-works/) to understand the four-stage pipeline.
+- Explore [Teachers](/aspire-si/handbook/teachers/) to learn about each persona and composite strategies.
+- See the full [CLI Reference](/aspire-si/handbook/cli/) for every command and flag.

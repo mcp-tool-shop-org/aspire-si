@@ -1,6 +1,6 @@
 ---
 title: CLI Reference
-description: Complete command-line reference for aspire-ai — every command, flag, and option.
+description: Complete command-line reference for aspire-si — every command, flag, and option.
 sidebar:
   order: 5
 ---

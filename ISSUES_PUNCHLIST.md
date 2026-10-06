@@ -1,4 +1,4 @@
-# Aspire AI — Performance-Focused GitHub Issues Punch List
+# aspire-si — Performance-Focused GitHub Issues Punch List
 
 One issue per bullet. Each includes acceptance criteria inline.
 

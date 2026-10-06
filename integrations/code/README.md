@@ -28,7 +28,7 @@ After training: Critic catches bugs and style issues BEFORE output
 ### Installation
 
 ```bash
-pip install aspire-ai
+pip install aspire-si
 
 # Optional: static analysis tools
 pip install ruff mypy bandit
@@ -226,4 +226,4 @@ Fully Windows-compatible:
 
 ---
 
-*Part of the [ASPIRE project](https://github.com/mcp-tool-shop-org/aspire-ai)*
+*Part of the [ASPIRE project](https://github.com/mcp-tool-shop-org/aspire-si)*

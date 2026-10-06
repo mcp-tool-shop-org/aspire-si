@@ -162,7 +162,7 @@ class AspireConfig(BaseSettings):
     # Experiment tracking
     experiment_name: str = "aspire-run"
     use_wandb: bool = True
-    wandb_project: str = "aspire-ai"
+    wandb_project: str = "aspire-si"
 
     # Seeds
     seed: int = 42

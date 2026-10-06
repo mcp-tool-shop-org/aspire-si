@@ -5,13 +5,13 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://mcp-tool-shop-org.github.io',
-  base: '/aspire-ai',
+  base: '/aspire-si',
   integrations: [
     starlight({
-      title: 'aspire-ai',
-      description: 'aspire-ai handbook',
+      title: 'aspire-si',
+      description: 'aspire-si handbook',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/mcp-tool-shop-org/aspire-ai' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/mcp-tool-shop-org/aspire-si' },
       ],
       sidebar: [
         { label: 'Handbook', autogenerate: { directory: 'handbook' } },
