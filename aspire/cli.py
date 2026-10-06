@@ -52,6 +52,9 @@ def train(
     output_dir: Path = typer.Option(Path("outputs"), "--output", "-o", help="Output directory"),
     teacher: str = typer.Option("claude", "--teacher", "-t", help="Teacher model to use"),
     epochs: int = typer.Option(3, "--epochs", "-e", help="Number of epochs"),
+    geometry: bool = typer.Option(
+        False, "--geometry", help="Write a training-dynamics export for ScalarScope (geometry.json)"
+    ),
 ):
     """Train a model using ASPIRE."""
     freeze_support()
@@ -69,6 +72,8 @@ def train(
     cfg.training.output_dir = output_dir
     cfg.training.num_epochs = epochs
     cfg.teacher.default_teacher = teacher
+    if geometry:
+        cfg.training.geometry_export = True
 
     # Load prompts
     if prompts_file and prompts_file.exists():

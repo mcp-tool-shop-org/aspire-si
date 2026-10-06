@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
 from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from torch.optim import AdamW
@@ -24,9 +24,15 @@ from transformers import (
     get_scheduler,
 )
 
+try:  # 8-bit optimizers need bitsandbytes, which not every platform can load.
+    import bitsandbytes as bnb
+except ImportError:  # pragma: no cover - depends on the platform
+    bnb = None
+
 from aspire.config import AspireConfig
 from aspire.critic import CriticHead, SeparateCritic, SharedEncoderCritic
 from aspire.dialogue import DialogueFormatter, DialogueGenerator, DialogueManager
+from aspire.geometry import GeometryRecorder
 from aspire.losses import AspireLoss
 from aspire.teachers import get_teacher
 
@@ -113,6 +119,15 @@ class AspireTrainer:
         # Training state
         self.global_step = 0
         self.current_epoch = 0
+        self.geometry: GeometryRecorder | None = None
+        if config.training.geometry_export:
+            self.geometry = GeometryRecorder(
+                run_id=config.experiment_name,
+                condition=f"{config.teacher.default_teacher} teacher",
+                seed=config.seed,
+                window=config.training.geometry_window,
+                every=config.training.geometry_every,
+            )
 
         console.print("[green]ASPIRE Trainer initialized[/green]")
 
@@ -245,7 +260,8 @@ class AspireTrainer:
                 weight_decay=cfg.weight_decay,
             )
         elif cfg.optimizer in ["adamw_8bit", "paged_adamw_8bit"]:
-            import bitsandbytes as bnb
+            if bnb is None:
+                raise ImportError("The 8-bit optimizer needs bitsandbytes, which is not installed.")
 
             self.student_optimizer = bnb.optim.AdamW8bit(
                 student_params,
@@ -318,7 +334,7 @@ class AspireTrainer:
         console.print(f"  Batch size: {cfg.batch_size}")
         console.print(f"  Total steps: {total_steps}")
 
-        metrics = {"train_loss": [], "critic_loss": [], "student_loss": []}
+        metrics: dict[str, Any] = {"train_loss": [], "critic_loss": [], "student_loss": []}
 
         for epoch in range(cfg.num_epochs):
             self.current_epoch = epoch
@@ -343,7 +359,25 @@ class AspireTrainer:
             if (epoch + 1) % 1 == 0:  # Save every epoch
                 self._save_checkpoint(epoch + 1)
 
+        if self.geometry is not None:
+            metrics["geometry_export"] = self._write_geometry(len(train_prompts))
+
         return metrics
+
+    def _write_geometry(self, training_items: int) -> str | None:
+        """Write the ScalarScope export, or say why there is none."""
+        assert self.geometry is not None
+        try:
+            path = self.geometry.write(
+                Path(self.config.training.output_dir) / "geometry.json",
+                training_items=training_items,
+                cycles=self.config.training.num_epochs,
+            )
+        except ValueError as error:
+            console.print(f"[yellow]No geometry export: {error}[/yellow]")
+            return None
+        console.print(f"  Geometry export: {path}")
+        return str(path)
 
     def _train_epoch(self, dataloader: DataLoader) -> dict[str, float]:
         """Train for one epoch."""
@@ -433,6 +467,14 @@ class AspireTrainer:
         )
         student_hidden = student_outputs.hidden_states[-1]
 
+        if self.geometry is not None:
+            self.geometry.record(
+                student_hidden,
+                attention_mask,
+                [d.final_evaluation for d in dialogues],
+                teacher_name=getattr(self.teacher, "name", "teacher"),
+            )
+
         # Get critic predictions
         critic_output = self.critic(hidden_states=student_hidden, attention_mask=attention_mask)
 
@@ -489,8 +531,6 @@ class AspireTrainer:
     def load_checkpoint(self, checkpoint_dir: Path) -> None:
         """Load from checkpoint."""
         # Load student
-        from peft import PeftModel
-
         self.student_model = PeftModel.from_pretrained(
             self.student_model,
             checkpoint_dir / "student",

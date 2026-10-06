@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mcp-tool-shop-org/brand/main/logos/aspire-si/readme.png" width="400" />
+  <img src="https://raw.githubusercontent.com/mcp-tool-shop-org/brand/main/logos/aspire-ai/readme.png" width="400" />
 </p>
 
 <p align="center">
@@ -223,10 +223,36 @@ aspire train \
     --teacher adversarial \
     --epochs 3
 
+# Train and write a training-dynamics export for ScalarScope
+aspire train --prompts data/prompts.json --geometry
+
 # Evaluate checkpoint
 aspire evaluate checkpoints/epoch-3 \
     --prompts data/eval.json
 ```
+
+---
+
+## Watching a Run in ScalarScope
+
+`aspire train --geometry` (or `training.geometry_export: true` in the config) writes
+`geometry.json` next to the checkpoints: the run's training dynamics in the format
+[ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) reads. Open two of them side by
+side to compare runs.
+
+| Field | What it holds |
+|-------|---------------|
+| Trajectory | The student's last hidden layer, pooled over tokens and the batch, projected onto its first two principal components. Velocity, signed curvature (turning angle over pi, damped when the run barely moves), and effective dimension (participation ratio in a window). |
+| Scalars | Every evaluation dimension the teachers scored, 0 to 1. |
+| Eigenvalues | Per step, the spectrum of how the dimension scores vary together in a window, as fractions. A large first value means one direction explains the teachers' judgements. |
+| Professors | One arrow per teacher: the direction in the state space along which its score rises. A composite teacher gives one per member. |
+| Failures | Steps where a dimension drops at least 0.1 below its recent median. |
+
+No model or API key? `python examples/geometry_demo.py` simulates two runs and writes both
+exports, which is the quickest way to see the views.
+
+The recorder (`aspire.geometry.GeometryRecorder`) keeps one pooled vector per step in memory.
+For long runs set `training.geometry_every` to average several batches into one step.
 
 ---
 

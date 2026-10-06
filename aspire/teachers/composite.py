@@ -218,7 +218,14 @@ class CompositeTeacher(BaseTeacher):
             strengths=list(set(all_strengths)),  # Dedupe
             weaknesses=list(set(all_weaknesses)),
             suggestions=list(set(all_suggestions)),
-            metadata={"strategy": "vote", "num_teachers": len(self.teachers)},
+            metadata={
+                "strategy": "vote",
+                "num_teachers": len(self.teachers),
+                # Each teacher's own score, so a geometry export can draw one professor each.
+                "teacher_scores": {
+                    teacher.name: eval.overall_score for eval, teacher in zip(evaluations, self.teachers)
+                },
+            },
         )
 
     async def _debate_evaluation(
