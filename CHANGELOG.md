@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   distribution is `aspire-si`. The import package is still `aspire`.
 - Restored as its own repository with a fresh history; the versions below were released from
   the earlier `aspire-ai` repository, whose tags are not carried over.
+- CI fails when a test fails (the test step used to be allowed to fail), installs the CPU build
+  of torch, runs the geometry demo, and checks the Atlas map.
+- Dependabot runs monthly, three pull requests at most, with grouped updates.
+
+### Added
+
+- Training-dynamics export for ScalarScope: `aspire.geometry.GeometryRecorder`,
+  `aspire train --geometry`, and the `training.geometry_export`, `geometry_every` and
+  `geometry_window` settings. The trainer records each batch and writes `geometry.json` in the
+  output directory.
+- A composite teacher's vote keeps each member's score in `metadata["teacher_scores"]`.
+- `examples/geometry_demo.py` writes two simulated exports without a model or API key.
+- Atlas map (`atlas/`).
+
+### Fixed
+
+- The trainer tests ran PEFT's real LoRA wrapper on mock models, which never returned; 26 of them
+  hung until the timeout. They now pass the model through, and the epoch tests set up the
+  schedulers that `train()` would create.
+- `PeftModel` and `bitsandbytes` are imported where the trainer module loads, and a missing
+  `bitsandbytes` says so when the 8-bit optimizer is chosen.
+- The long-path test skips, instead of failing, on Windows machines without long paths enabled.
 
 ## [1.0.0] - 2026-02-27
 

@@ -1,0 +1,34 @@
+summary: "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope"
+boundaries:
+  - name: .github
+    globs:
+      - .github/**
+    role: config
+  - name: aspire
+    globs:
+      - aspire/**
+    role: code
+  - name: docs
+    globs:
+      - docs/**
+    role: docs
+  - name: examples
+    globs:
+      - examples/**
+    role: code
+  - name: integrations
+    globs:
+      - integrations/**
+    role: code
+  - name: root
+    globs:
+      - "*"
+    role: config
+  - name: site
+    globs:
+      - site/**
+    role: site
+  - name: tests
+    globs:
+      - tests/**
+    role: test

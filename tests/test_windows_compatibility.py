@@ -213,11 +213,15 @@ class TestWindowsPathHandling:
         for i in range(20):
             deep_path = deep_path / f"level_{i:03d}_directory"
 
-        # Try to create it
-        deep_path.mkdir(parents=True, exist_ok=True)
+        # Try to create it; Windows refuses unless long paths are enabled for the machine.
+        try:
+            deep_path.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            if sys.platform == "win32" and len(str(deep_path)) > 260:
+                pytest.skip(f"Long paths are not enabled on this machine ({error.strerror})")
+            raise
 
-        # Verify it exists (may fail on old Windows without long path support)
-        assert deep_path.exists() or len(str(deep_path)) > 260
+        assert deep_path.exists()
 
     def test_unc_paths(self):
         """UNC paths should be handled correctly."""

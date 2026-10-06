@@ -27,6 +27,14 @@ import torch.nn as nn
 os.environ["XFORMERS_DISABLED"] = "1"
 
 
+@pytest.fixture(autouse=True)
+def _no_real_peft():
+    """The models here are mocks; PEFT's real wrappers loop forever walking a MagicMock's
+    attributes. Pass the model through unchanged instead."""
+    with patch("aspire.trainer.get_peft_model", side_effect=lambda model, config: model),          patch("aspire.trainer.prepare_model_for_kbit_training", side_effect=lambda model: model):
+        yield
+
+
 # ============================================================================
 # AspireDataset Tests
 # ============================================================================
@@ -769,6 +777,9 @@ class TestAspireTrainerTraining:
     def test_trainer_train_epoch_gradient_accumulation(self, mock_trainer):
         """Test gradient accumulation with accumulation_steps=4."""
         mock_trainer.config.training.gradient_accumulation_steps = 4
+        # train() creates the schedulers; this calls the epoch directly.
+        mock_trainer.student_scheduler = MagicMock()
+        mock_trainer.critic_scheduler = MagicMock()
 
         with patch.object(mock_trainer, "_compute_batch_loss") as mock_loss, \
              patch("aspire.trainer.asyncio.run") as mock_asyncio, \
@@ -803,6 +814,10 @@ class TestAspireTrainerTraining:
 
     def test_trainer_train_epoch_gradient_clipping(self, mock_trainer):
         """Test gradient clipping is applied."""
+        # One batch, so an optimizer step (and the clipping before it) happens at once.
+        mock_trainer.config.training.gradient_accumulation_steps = 1
+        mock_trainer.student_scheduler = MagicMock()
+        mock_trainer.critic_scheduler = MagicMock()
         with patch.object(mock_trainer, "_compute_batch_loss") as mock_loss, \
              patch("aspire.trainer.asyncio.run") as mock_asyncio, \
              patch("torch.nn.utils.clip_grad_norm_") as mock_clip:

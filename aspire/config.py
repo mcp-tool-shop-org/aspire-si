@@ -144,6 +144,11 @@ class TrainingConfig(BaseModel):
     # Output
     output_dir: Path = Path("outputs")
 
+    # Training-dynamics export for ScalarScope (output_dir/geometry.json)
+    geometry_export: bool = False
+    geometry_every: int = Field(default=1, ge=1)  # batches averaged into one export step
+    geometry_window: int = Field(default=4, ge=1)  # steps either side in the windowed measures
+
     # Windows compatibility - CRITICAL
     dataloader_num_workers: int = 0  # Must be 0 on Windows
 
