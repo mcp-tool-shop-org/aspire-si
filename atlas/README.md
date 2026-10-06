@@ -1,27 +1,29 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-06 from commit 478093f by Atlas 1.24.0.
+Mapped at 2026-10-06 from commit 65923f9 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (93 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 3 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (96 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since the last map
+## What changed since 2026-10-06 (478093f)
 
-This is the first map.
+- CI now also runs examples/geometry_demo.py.
+- 3 files added, across 3 parts.
 
 ## What comes in
 
-1. **CI.** On a pull request to main touching 7 paths; on a push to main touching 7 paths; or by hand. Runs tests/; checks aspire/ and integrations/.
+1. **CI.** On a pull request to main touching 7 paths; on a push to main touching 7 paths; or by hand. Runs examples/geometry_demo.py and tests/; checks aspire/ and integrations/.
 2. **Publish to PyPI.** When a release is published. Checks aspire/ and integrations/.
 3. **Deploy site to GitHub Pages.** On a push to main touching 2 paths; or by hand. Runs site/astro.config.mjs and site/src/.
 4. **aspire** (a command people run). Runs aspire/cli.py.
 
 ## What happens through CI
 
-1. The workflow runs tests/ in tests; it checks aspire/ in aspire and integrations/ in integrations.
+1. The workflow runs examples/geometry_demo.py in examples and tests/ in tests; it checks aspire/ in aspire and integrations/ in integrations.
+   1. Inside examples/geometry_demo.py, `main` does, in order: `GeometryRecorder` (aspire) and `record_step` (GeometryRecorder).
 2. It uploads coverage to Codecov.
 
 ## Who reads the results
@@ -69,17 +71,17 @@ People write .github/, docs/, the repository root and site/; 3 writes with paths
 
 ## Where to start
 
-aspire/cli.py → aspire/__init__.py → aspire/trainer.py → aspire/config.py
+.github/workflows/ci.yml → examples/geometry_demo.py → aspire/geometry.py
 
-Read those in order to follow one run of aspire end to end. This path follows aspire (a command people run) from its entry, since CI runs only tests and checks.
+Read those in order to follow one pull request end to end.
 
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 14 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `aspire/trainer.py` imports `aspire.geometry`, which is no module on its import path and no declared dependency; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code`, which is no module on its import path and no declared dependency; and 11 more.
+- 13 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code`, which is no module on its import path and no declared dependency; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code.config`, which is no module on its import path and no declared dependency; and 10 more.
 - 3 writes and 8 reads use paths built at run time and are not named here.
-- 4 writes and 18 reads go to a path their caller passes, not to this repository.
+- 5 writes and 18 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
-- Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 20 source files reach 10 revisions.
+- Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.

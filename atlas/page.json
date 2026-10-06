@@ -30,16 +30,42 @@
     }
   ],
   "changes": {
-    "first": true
+    "fileCounts": {
+      "added": 3,
+      "changed": 0,
+      "moved": 0,
+      "parts": 3,
+      "removed": 0
+    },
+    "items": [
+      {
+        "kind": "door",
+        "sentence": "CI now also runs examples/geometry_demo.py.",
+        "subjects": [
+          ".github/workflows/ci.yml",
+          "examples/geometry_demo.py"
+        ]
+      },
+      {
+        "kind": "counts",
+        "sentence": "3 files added, across 3 parts.",
+        "subjects": []
+      }
+    ],
+    "since": {
+      "commit": "478093f31a4ac966b52aa3b76cb4447cf3ea3d73",
+      "generatedAt": "2026-10-06T22:52:09.255Z"
+    },
+    "unchanged": false
   },
   "changesTogether": [],
   "changesTogetherNote": [
     "Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits."
   ],
   "changesTogetherWithTests": 0,
-  "commit": "478093f31a4ac966b52aa3b76cb4447cf3ea3d73",
-  "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (93 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 3 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "commit": "65923f99a814626ff507b6e8a686907dd03c7235",
+  "defaultBranch": "geometry-export",
+  "derived": "8 parts, mostly Python (96 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -57,7 +83,12 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 33
+          "files": 34
+        },
+        {
+          "boundary": "examples",
+          "depth": 0,
+          "files": 1
         },
         {
           "boundary": "integrations",
@@ -67,13 +98,14 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 33
+          "files": 34
         }
       ],
       "runs": [
+        "examples/geometry_demo.py",
         "tests/"
       ],
-      "runsCount": 1,
+      "runsCount": 2,
       "runsMore": 0,
       "sends": [
         "uploads coverage to Codecov"
@@ -101,7 +133,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 33
+          "files": 34
         },
         {
           "boundary": "integrations",
@@ -165,7 +197,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 25
+          "files": 26
         }
       ],
       "runs": [
@@ -184,14 +216,14 @@
   "edges": [],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-06T22:52:09.255Z",
+  "generatedAt": "2026-10-06T22:52:32.502Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "14 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `aspire/trainer.py` imports `aspire.geometry`, which is no module on its import path and no declared dependency; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code`, which is no module on its import path and no declared dependency; and 11 more.",
+    "13 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code`, which is no module on its import path and no declared dependency; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code.config`, which is no module on its import path and no declared dependency; and 10 more.",
     "3 writes and 8 reads use paths built at run time and are not named here.",
-    "4 writes and 18 reads go to a path their caller passes, not to this repository.",
+    "5 writes and 18 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
-    "Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 20 source files reach 10 revisions."
+    "Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions."
   ],
   "mainDoor": ".github/workflows/ci.yml",
   "partLabels": {
@@ -207,20 +239,42 @@
   "parts": 8,
   "readers": [],
   "repo": "mcp-tool-shop-org/aspire-si",
-  "sequences": [],
-  "startDoor": "pyproject.toml#aspire",
-  "startHere": [
-    "aspire/cli.py",
-    "aspire/__init__.py",
-    "aspire/trainer.py",
-    "aspire/config.py"
+  "sequences": [
+    {
+      "entry": "main",
+      "file": "examples/geometry_demo.py",
+      "inner": [],
+      "part": "examples",
+      "partLabel": "examples",
+      "phrase": "`main`",
+      "steps": [
+        {
+          "name": "GeometryRecorder",
+          "part": "aspire",
+          "partLabel": "aspire",
+          "phrase": "`GeometryRecorder`"
+        },
+        {
+          "name": "record_step",
+          "part": "aspire",
+          "partLabel": "aspire",
+          "phrase": "`record_step`",
+          "receiver": "GeometryRecorder"
+        }
+      ]
+    }
   ],
-  "startReason": "This path follows aspire (a command people run) from its entry, since CI runs only tests and checks.",
+  "startDoor": ".github/workflows/ci.yml",
+  "startHere": [
+    ".github/workflows/ci.yml",
+    "examples/geometry_demo.py",
+    "aspire/geometry.py"
+  ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 33,
+  "testFiles": 34,
   "testedBy": {
-    "aspire": 23,
+    "aspire": 24,
     "examples": 0,
     "integrations": 6
   },

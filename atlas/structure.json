@@ -406,6 +406,151 @@
           "path": "aspire/dialogue/manager.py"
         },
         {
+          "entry": "pool_hidden_states",
+          "entryRule": 4,
+          "exports": [
+            "pool_hidden_states"
+          ],
+          "failurePaths": [
+            {
+              "in": "__post_init__",
+              "kind": "raise",
+              "line": 80
+            },
+            {
+              "in": "__post_init__",
+              "kind": "raise",
+              "line": 82
+            },
+            {
+              "in": "__post_init__",
+              "kind": "raise",
+              "line": 84
+            },
+            {
+              "in": "record_step",
+              "kind": "raise",
+              "line": 135
+            },
+            {
+              "in": "build",
+              "kind": "raise",
+              "line": 159
+            },
+            {
+              "in": "pool_hidden_states",
+              "kind": "raise",
+              "line": 250
+            }
+          ],
+          "hash": "6b6be49364603eff0a3f941deb34d5032d97e79c0b5d81d4f9094c86abb9342e",
+          "path": "aspire/geometry.py",
+          "sequences": [
+            {
+              "calls": [
+                {
+                  "line": 263,
+                  "name": "detach",
+                  "target": null,
+                  "via": "_to_numpy"
+                },
+                {
+                  "line": 265,
+                  "name": "float",
+                  "target": null,
+                  "via": "_to_numpy"
+                },
+                {
+                  "line": 266,
+                  "name": "cpu",
+                  "target": null,
+                  "via": "_to_numpy"
+                }
+              ],
+              "exported": true,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "pool_hidden_states"
+            },
+            {
+              "calls": [
+                {
+                  "line": 263,
+                  "name": "detach",
+                  "target": null
+                },
+                {
+                  "line": 265,
+                  "name": "float",
+                  "target": null
+                },
+                {
+                  "line": 266,
+                  "name": "cpu",
+                  "target": null
+                }
+              ],
+              "exported": false,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "_to_numpy"
+            },
+            {
+              "calls": [
+                {
+                  "line": 306,
+                  "name": "mean",
+                  "target": null
+                }
+              ],
+              "exported": false,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "_project"
+            },
+            {
+              "calls": [
+                {
+                  "line": 366,
+                  "name": "mean",
+                  "target": null
+                }
+              ],
+              "exported": false,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "_participation_ratio"
+            },
+            {
+              "calls": [
+                {
+                  "branch": "scores.shape[1] == 1",
+                  "line": 376,
+                  "name": "var",
+                  "target": null
+                }
+              ],
+              "exported": false,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "_score_spectrum"
+            },
+            {
+              "calls": [
+                {
+                  "line": 396,
+                  "name": "mean",
+                  "target": null
+                }
+              ],
+              "exported": false,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "_professor_direction"
+            }
+          ]
+        },
+        {
           "hash": "6c61e464db60091eb94926eae13ffec05a20e7a4a386628973585dd24f48207c",
           "importsFiles": [
             "aspire/losses/combined.py",
@@ -867,6 +1012,7 @@
             "aspire/config.py",
             "aspire/critic/__init__.py",
             "aspire/dialogue/__init__.py",
+            "aspire/geometry.py",
             "aspire/losses/__init__.py",
             "aspire/teachers/__init__.py"
           ],
@@ -902,7 +1048,7 @@
           "where": [
             "caller"
           ],
-          "writes": 3
+          "writes": 4
         },
         {
           "reads": 1,
@@ -913,25 +1059,20 @@
         }
       ],
       "outsideReads": 15,
-      "outsideWrites": 3,
+      "outsideWrites": 4,
       "role": "code",
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 23,
+      "testedBy": 24,
       "unresolvedNamed": [
         {
           "path": "aspire/cli.py",
           "specifier": null,
           "why": "dynamic"
-        },
-        {
-          "path": "aspire/trainer.py",
-          "specifier": "aspire.geometry",
-          "why": "unplaced"
         }
       ],
-      "unresolvedSites": 2
+      "unresolvedSites": 1
     },
     {
       "dynamicReads": 0,
@@ -1013,6 +1154,70 @@
             "aspire/teachers/registry.py"
           ],
           "path": "examples/custom_teacher.py"
+        },
+        {
+          "entry": "main",
+          "entryRule": 1,
+          "exports": [
+            "main",
+            "simulate"
+          ],
+          "hash": "e420840b8602e539b88115f9fb2ff21adf3f0665f5dffee70fd3e7a8e29d0353",
+          "importsFiles": [
+            "aspire/geometry.py",
+            "aspire/teachers/base.py"
+          ],
+          "path": "examples/geometry_demo.py",
+          "sequences": [
+            {
+              "calls": [
+                {
+                  "line": 36,
+                  "name": "GeometryRecorder",
+                  "target": {
+                    "file": "aspire/geometry.py"
+                  }
+                },
+                {
+                  "line": 50,
+                  "name": "record_step",
+                  "receiver": "GeometryRecorder",
+                  "target": {
+                    "file": "aspire/geometry.py"
+                  }
+                }
+              ],
+              "exported": true,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "simulate"
+            },
+            {
+              "calls": [
+                {
+                  "line": 36,
+                  "name": "GeometryRecorder",
+                  "target": {
+                    "file": "aspire/geometry.py"
+                  },
+                  "via": "simulate"
+                },
+                {
+                  "line": 50,
+                  "name": "record_step",
+                  "receiver": "GeometryRecorder",
+                  "target": {
+                    "file": "aspire/geometry.py"
+                  },
+                  "via": "simulate"
+                }
+              ],
+              "exported": true,
+              "invokedAtTopLevel": true,
+              "isDefaultExport": false,
+              "name": "main"
+            }
+          ]
         }
       ],
       "globs": [
@@ -2076,6 +2281,28 @@
         },
         {
           "exports": [
+            "evaluation",
+            "line_run",
+            "recorder"
+          ],
+          "hash": "d8ac8cafb0d14e8f824aa4b0d80ac51dd89b0655cf728ea1a4694815203f4e20",
+          "importOrder": [
+            "aspire/geometry.py",
+            "aspire/teachers/base.py",
+            "aspire/config.py",
+            "aspire/trainer.py"
+          ],
+          "importsFiles": [
+            "aspire/config.py",
+            "aspire/geometry.py",
+            "aspire/teachers/base.py",
+            "aspire/trainer.py"
+          ],
+          "path": "tests/test_geometry.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "batch_size",
             "hidden_dim",
             "random_embeddings",
@@ -2367,7 +2594,12 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 33
+          "files": 34
+        },
+        {
+          "boundary": "examples",
+          "depth": 0,
+          "files": 1
         },
         {
           "boundary": "integrations",
@@ -2377,7 +2609,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 33
+          "files": 34
         }
       ],
       "readers": [],
@@ -2387,6 +2619,11 @@
           "job": "ci",
           "path": "aspire/",
           "runKind": "checks"
+        },
+        {
+          "job": "ci",
+          "path": "examples/geometry_demo.py",
+          "runKind": "executes"
         },
         {
           "directory": true,
@@ -2402,7 +2639,7 @@
           "runKind": "executes"
         }
       ],
-      "runsCount": 3,
+      "runsCount": 4,
       "secrets": [],
       "sends": {
         "deploysPages": false,
@@ -2419,7 +2656,7 @@
         {
           "config": "pyproject.toml",
           "coverage": true,
-          "files": 33,
+          "files": 34,
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
@@ -2702,7 +2939,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 33
+          "files": 34
         },
         {
           "boundary": "integrations",
@@ -2774,7 +3011,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 25
+          "files": 26
         }
       ],
       "readers": [],
@@ -2823,8 +3060,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "478093f31a4ac966b52aa3b76cb4447cf3ea3d73",
-    "tracked": 145
+    "commit": "65923f99a814626ff507b6e8a686907dd03c7235",
+    "tracked": 148
   },
   "landings": [
     {
@@ -2947,6 +3184,6 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 33,
+  "testFiles": 34,
   "unassigned": []
 }
