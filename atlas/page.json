@@ -31,8 +31,8 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 9,
-      "changed": 36,
+      "added": 6,
+      "changed": 20,
       "moved": 0,
       "parts": 6,
       "removed": 0
@@ -40,30 +40,35 @@
     "items": [
       {
         "kind": "landing",
-        "sentence": "examples/local-run/local-teacher.yaml is now read by README.md and site/src/content/docs/handbook/cli.md.",
+        "sentence": "examples/local-run/local-teacher.yaml is now also read by README.es.md, README.fr.md, README.hi.md, README.it.md, README.ja.md, README.pt-BR.md and README.zh.md.",
         "subjects": [
           "examples/local-run/local-teacher.yaml",
-          "README.md",
-          "site/src/content/docs/handbook/cli.md"
+          "README.es.md",
+          "README.fr.md",
+          "README.hi.md",
+          "README.it.md",
+          "README.ja.md",
+          "README.pt-BR.md",
+          "README.zh.md"
         ]
       },
       {
         "kind": "landing",
-        "sentence": "examples/local-run/prompts.json is now read by site/src/content/docs/handbook/cli.md.",
+        "sentence": "examples/local-run/prompts.json is now also read by examples/pod-run/train.sh.",
         "subjects": [
           "examples/local-run/prompts.json",
-          "site/src/content/docs/handbook/cli.md"
+          "examples/pod-run/train.sh"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "9 files added and 36 changed content, across 6 parts.",
+        "sentence": "6 files added and 20 changed content, across 6 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "9ae184bea060fd9347e1c2eb713d228615399a04",
-      "generatedAt": "2026-10-07T00:34:20.970Z"
+      "commit": "9b12d5398140900b0262027109fa484368dc9986",
+      "generatedAt": "2026-10-07T01:50:39.994Z"
     },
     "unchanged": false
   },
@@ -72,9 +77,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits."
   ],
   "changesTogetherWithTests": 0,
-  "commit": "9b12d5398140900b0262027109fa484368dc9986",
+  "commit": "1cd5353b8962e89b83c209ea32379367c5f7418e",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (131 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (134 files), CSS (2), TypeScript (2), shell (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -225,12 +230,12 @@
   "edges": [],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-07T01:50:39.994Z",
+  "generatedAt": "2026-10-07T03:48:16.340Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
-    "3 writes and 8 reads use paths built at run time and are not named here.",
-    "5 writes and 18 reads go to a path their caller passes, not to this repository.",
+    "3 writes and 11 reads use paths built at run time and are not named here.",
+    "7 writes and 23 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions."
   ],
