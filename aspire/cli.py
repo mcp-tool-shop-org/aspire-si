@@ -67,8 +67,23 @@ def report(error: BaseException) -> int:
     return RUNTIME_ERROR
 
 
+def tolerate_unencodable_output() -> None:
+    """Print what the console cannot encode as `?` instead of failing.
+
+    A Windows console or redirected file may use a code page such as cp1252, which has no
+    progress-bar or spinner glyphs; without this, training stopped at the first progress
+    update with a UnicodeEncodeError.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
+        if reconfigure is not None and encoding not in ("utf8", "utf16", "utf32"):
+            reconfigure(errors="replace")
+
+
 def run() -> None:
     """The `aspire` entry point: run the CLI and report errors without a traceback."""
+    tolerate_unencodable_output()
     try:
         app()
     except KeyboardInterrupt:
@@ -128,14 +143,28 @@ def main(
 def train(
     config: Path = typer.Option(None, "--config", "-c", help="Path to config YAML"),
     prompts_file: Path = typer.Option(None, "--prompts", "-p", help="Path to prompts JSON"),
-    output_dir: Path = typer.Option(Path("outputs"), "--output", "-o", help="Output directory"),
-    teacher: str = typer.Option("claude", "--teacher", "-t", help="Teacher model to use"),
-    epochs: int = typer.Option(3, "--epochs", "-e", help="Number of epochs"),
+    output_dir: Path = typer.Option(None, "--output", "-o", help="Output directory [default: outputs]"),
+    teacher: str = typer.Option(
+        None,
+        "--teacher",
+        "-t",
+        help="Teacher: a name from `aspire teachers`, local, or composite [default: claude]",
+    ),
+    teacher_model: str = typer.Option(
+        None, "--teacher-model", help="Model for --teacher local (a Hugging Face name or a path)"
+    ),
+    student_model: str = typer.Option(
+        None, "--student-model", "-m", help="Student model (a Hugging Face name or a path)"
+    ),
+    epochs: int = typer.Option(None, "--epochs", "-e", help="Number of epochs [default: 3]"),
     geometry: bool = typer.Option(
         False, "--geometry", help="Write a training-dynamics export for ScalarScope (geometry.json)"
     ),
 ):
-    """Train a model using ASPIRE."""
+    """Train a model using ASPIRE.
+
+    Options given on the command line override the config file; the rest come from it.
+    """
     freeze_support()
 
     from aspire.config import AspireConfig
@@ -152,9 +181,16 @@ def train(
         cfg = AspireConfig()
 
     # Override with CLI args
-    cfg.training.output_dir = output_dir
-    cfg.training.num_epochs = epochs
-    cfg.teacher.default_teacher = teacher
+    if output_dir is not None:
+        cfg.training.output_dir = output_dir
+    if epochs is not None:
+        cfg.training.num_epochs = epochs
+    if teacher is not None:
+        cfg.teacher.default_teacher = teacher
+    if teacher_model is not None:
+        cfg.teacher.local_model_path = teacher_model
+    if student_model is not None:
+        cfg.student.model_name_or_path = student_model
     if geometry:
         cfg.training.geometry_export = True
 
@@ -229,6 +265,79 @@ def evaluate(
     if output:
         with open(output, "w") as f:
             json.dump(metrics, f, indent=2)
+
+
+def _read_pairs(path: Path) -> list[tuple[str, str]]:
+    if not path.exists():
+        raise ConfigError(f"The pairs file {path} does not exist.", hint="Check the --pairs path.")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ConfigError(
+            f"The pairs file {path} is not valid JSON.",
+            hint='It should be a JSON list like [{"prompt": "...", "response": "..."}].',
+            cause=error,
+        ) from error
+    ok = isinstance(data, list) and all(
+        isinstance(item, dict)
+        and isinstance(item.get("prompt"), str)
+        and isinstance(item.get("response"), str)
+        for item in data
+    )
+    if not ok or not data:
+        raise ConfigError(
+            f"The pairs file {path} is not a list of prompt and response pairs.",
+            hint='It should look like [{"prompt": "What is 2+2?", "response": "4"}].',
+        )
+    return [(item["prompt"], item["response"]) for item in data]
+
+
+@app.command()
+def judge(
+    checkpoint: Path = typer.Argument(..., help="Checkpoint directory written by `aspire train`"),
+    prompt: str = typer.Option(None, "--prompt", help="The prompt the response answers"),
+    response: str = typer.Option(None, "--response", help="The response to score"),
+    pairs_file: Path = typer.Option(
+        None, "--pairs", help='JSON list of {"prompt": ..., "response": ...} to score'
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Print the scores as JSON"),
+    device: str = typer.Option(None, "--device", help="cuda or cpu [default: cuda if available]"),
+):
+    """Score responses with a trained critic, without the teacher (0-10)."""
+    freeze_support()
+
+    if pairs_file is not None:
+        if prompt is not None or response is not None:
+            raise ConfigError("Pass --pairs, or --prompt and --response, not both.")
+        pairs = _read_pairs(pairs_file)
+    elif prompt is not None and response is not None:
+        pairs = [(prompt, response)]
+    else:
+        raise ConfigError(
+            "Nothing to score.",
+            hint="Pass --prompt and --response, or --pairs with a JSON file of pairs.",
+        )
+
+    from aspire.judge import Judge
+
+    loaded = Judge.from_checkpoint(checkpoint, device=device)
+    scores = loaded.score_many([p for p, _ in pairs], [r for _, r in pairs])
+
+    if as_json:
+        print(
+            json.dumps(
+                [{"prompt": p, "response": r, "score": round(s, 4)} for (p, r), s in zip(pairs, scores)],
+                indent=2,
+            )
+        )
+        return
+    table = Table(title="Critic scores (0-10)")
+    table.add_column("Score", style="green", justify="right")
+    table.add_column("Prompt", style="cyan")
+    table.add_column("Response", style="white")
+    for (p, r), s in zip(pairs, scores):
+        table.add_row(f"{s:.2f}", p, r if len(r) <= 80 else r[:77] + "...")
+    console.print(table)
 
 
 @app.command()

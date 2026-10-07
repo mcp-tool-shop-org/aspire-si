@@ -128,12 +128,34 @@ aspire train \
 |------|---------|-------------|
 | `--config`, `-c` | none | Path to the training configuration file (from `aspire init`). If omitted, uses built-in defaults. A path that does not exist is an error. |
 | `--prompts`, `-p` | none | Path to a JSON list of prompt strings. If omitted, uses three built-in demo prompts. A missing or malformed file is an error. |
-| `--teacher`, `-t` | `claude` | Teacher model to use. Overrides the value in the config file. |
-| `--epochs`, `-e` | `3` | Number of training epochs. Overrides the config. |
-| `--output`, `-o` | `outputs` | Output directory for checkpoints, dialogue cache, and logs. |
+| `--teacher`, `-t` | config, else `claude` | Teacher: a name from `aspire teachers`, `local` (a model on this machine, see `--teacher-model`), or `composite` (the config's `teacher.composite_members`). |
+| `--teacher-model` | config | The model for `--teacher local`: a Hugging Face name or a path. |
+| `--student-model`, `-m` | config | The student model: a Hugging Face name or a path. |
+| `--epochs`, `-e` | config, else `3` | Number of training epochs. |
+| `--output`, `-o` | config, else `outputs` | Output directory for checkpoints, dialogue cache, and logs. |
 | `--geometry` | off | Also write `geometry.json`, the run's training dynamics for ScalarScope. See [Watching Runs in ScalarScope](/aspire-si/handbook/scalarscope/). |
 
-Training generates adversarial dialogues, trains the critic and student, and saves a checkpoint after each epoch. If no prompts file is provided, three demo prompts are used so you can verify the pipeline runs end to end.
+A flag given on the command line overrides the config file; a flag left out keeps the config's value. Training generates adversarial dialogues, trains the critic (and, through it, the student's LoRA adapter), and saves a checkpoint after each epoch. If no prompts file is provided, three demo prompts are used so you can verify the pipeline runs end to end.
+
+A run that costs nothing, with a local teacher (a 1B student and a 3B teacher; fits a 24 GB GPU):
+
+```bash
+aspire train --config examples/local-run/local-teacher.yaml     --prompts examples/local-run/prompts.json --geometry
+```
+
+`examples/local-run/composite-teacher.yaml` adds a second local teacher; the two vote. `examples/pod-run/` holds the configs of the runs behind ScalarScope's real fixtures: a 1.5B student with 32B teachers in 4-bit, made on one rented 96 GB GPU.
+
+A composite teacher in a config file names its members, each a registered name or `local:<model>`:
+
+```yaml
+teacher:
+  default_teacher: composite
+  composite_members:
+    - local:Qwen/Qwen2.5-3B-Instruct
+    - local:microsoft/Phi-4-mini-instruct
+  composite_strategy: vote   # or rotate, specialize, random, debate
+  local_load_in_4bit: false  # true loads local teachers in 4-bit
+```
 
 ## aspire evaluate
 
@@ -151,7 +173,28 @@ aspire evaluate outputs/checkpoint-3 \
 | `--prompts`, `-p` | (required) | Path to evaluation prompts (JSON array of strings). |
 | `--output`, `-o` | none | File path for evaluation results (JSON). If omitted, results print to stdout. |
 
-The evaluate command loads the config and model from the checkpoint directory, runs the student on each prompt, scores the results using the configured teacher, and prints a table of metrics (average, min, and max scores).
+The evaluate command loads the config, the student's trained LoRA adapter and the critic from the checkpoint directory, runs the student on each prompt, scores the results using the configured teacher, and prints a table of metrics (average, min, and max scores).
+
+## aspire judge
+
+Score responses with a checkpoint's trained critic, without calling the teacher.
+
+```bash
+aspire judge outputs/checkpoint-2 --prompt "What is 2+2?" --response "4"
+aspire judge outputs/checkpoint-2 --pairs pairs.json --json
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--prompt` | none | The prompt the response answers. Use with `--response`. |
+| `--response` | none | The response to score. |
+| `--pairs` | none | A JSON list of `{"prompt": ..., "response": ...}` objects to score in one batch. |
+| `--json` | `false` | Print the scores as JSON instead of a table. |
+| `--device` | `cuda` if available | Where to load the student and critic. |
+
+Each score is the critic's prediction of the teacher's 0-10 score. In Python, `aspire.judge.Judge.from_checkpoint(path)` gives the same scores through `score` and `score_many`.
 
 ## Project structure
 
@@ -191,6 +234,7 @@ aspire/
 │   ├── syntropy.py          # Coherence and resonance detection
 │   └── integration.py       # Trainer integration hooks
 │
+├── judge.py           # Score responses with a trained critic (Judge, critic_score)
 ├── trainer.py         # Core training loop
 ├── config.py          # Pydantic configuration
 └── cli.py             # Command-line interface (Typer + Rich)

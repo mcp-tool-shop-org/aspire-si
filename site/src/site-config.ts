@@ -12,13 +12,13 @@ export const config: SiteConfig = {
     badge: 'AI training',
     headline: 'Teach AI judgment,',
     headlineAccent: 'not just knowledge.',
-    description: 'An adversarial training framework where student models internalize a teacher\'s reasoning. After training, a critic judges the student\'s responses the way the teacher would, with no teacher API calls.',
+    description: 'An adversarial training framework that distills a teacher\'s judgment into a critic. After training, the critic judges the student\'s responses the way the teacher would, with no teacher calls.',
     primaryCta: { href: '#usage', label: 'Get started' },
     secondaryCta: { href: 'handbook/', label: 'Read the Handbook' },
     previews: [
       { label: 'Install', code: 'git clone https://github.com/mcp-tool-shop-org/aspire-si\ncd aspire-si && pip install -e .' },
       { label: 'Dialogue', code: 'aspire dialogue "Explain recursion"\n  --teacher socratic --turns 3' },
-      { label: 'Train', code: 'aspire train --config config.yaml\n  --teacher adversarial --epochs 3' },
+      { label: 'Train', code: 'aspire train --teacher local\n  --teacher-model Qwen/Qwen2.5-3B-Instruct --geometry' },
     ],
   },
 
@@ -30,8 +30,8 @@ export const config: SiteConfig = {
       subtitle: 'Internalized mentorship for AI models.',
       features: [
         { title: 'Adversarial dialogue', desc: 'Student generates, teacher challenges. Back and forth until the response is sharp, clear, and defensible.' },
-        { title: 'Internalized critic', desc: 'The critic learns to predict the teacher\'s judgment — score and reasoning. After training, no teacher needed.' },
-        { title: 'Pluggable teachers', desc: 'Socratic, Scientific, Creative, Adversarial, Compassionate — or compose multiple teachers into a committee.' },
+        { title: 'Internalized critic', desc: 'The critic learns to predict the teacher\'s score for a response. After training, aspire judge scores responses with no teacher needed.' },
+        { title: 'Pluggable teachers', desc: 'Claude, OpenAI, or a local model with no API key; Socratic, Scientific, Creative, Adversarial and Compassionate personas; or a committee of teachers that vote.' },
         { title: 'Runs you can see', desc: 'aspire train --geometry writes the run\'s training dynamics for ScalarScope: the student\'s path, the teachers\' pull, and every dip.' },
       ],
     },
@@ -42,7 +42,7 @@ export const config: SiteConfig = {
       cards: [
         {
           title: 'CLI',
-          code: '# Generate adversarial dialogue\naspire dialogue "Your prompt" \\\n  --teacher socratic --turns 3\n\n# Train a model\naspire train --config config.yaml \\\n  --teacher adversarial --epochs 3\n\n# Evaluate checkpoint\naspire evaluate outputs/checkpoint-3 \\\n  --prompts data/eval.json',
+          code: '# Generate adversarial dialogue\naspire dialogue "Your prompt" \\\n  --teacher socratic --turns 3\n\n# Train a model\naspire train --config config.yaml \\\n  --teacher adversarial --epochs 3\n\n# Evaluate checkpoint\naspire evaluate outputs/checkpoint-3 \\\n  --prompts data/eval.json\n\n# Score a response, no teacher\naspire judge outputs/checkpoint-3 \\\n  --prompt "..." --response "..."',
         },
         {
           title: 'Python API',

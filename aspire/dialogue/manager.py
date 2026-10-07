@@ -8,7 +8,55 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from aspire.dialogue.generator import DialogueGenerator, GeneratedDialogue
-from aspire.teachers.base import DialogueHistory, TeacherEvaluation
+from aspire.teachers.base import (
+    DialogueHistory,
+    DimensionScore,
+    EvaluationDimension,
+    TeacherEvaluation,
+)
+
+
+def _evaluation_from_dict(data: dict) -> TeacherEvaluation:
+    """A teacher evaluation back from ``TeacherEvaluation.to_dict()``."""
+    dimension_scores = []
+    for item in data.get("dimension_scores") or []:
+        try:
+            dimension = EvaluationDimension(item["dimension"])
+            score = float(item["score"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        dimension_scores.append(DimensionScore(dimension, score, item.get("explanation", "")))
+    return TeacherEvaluation(
+        overall_score=data["overall_score"],
+        dimension_scores=dimension_scores,
+        reasoning=data["reasoning"],
+        improved_response=data.get("improved_response"),
+        strengths=data.get("strengths", []),
+        weaknesses=data.get("weaknesses", []),
+        suggestions=data.get("suggestions", []),
+        metadata=data.get("metadata", {}),
+    )
+
+
+def _dialogue_from_dict(data: dict) -> GeneratedDialogue:
+    """A cached dialogue: the prompt, both responses and the final evaluation in full.
+
+    The turns are not rebuilt; the response the final evaluation scored is kept, falling back
+    to the last cached turn's reply for caches written before it was stored.
+    """
+    turns = data.get("turns") or []
+    final_response = data.get("final_response")
+    if final_response is None:
+        final_response = turns[-1]["response"] if turns else data["initial_response"]
+    return GeneratedDialogue(
+        prompt=data["prompt"],
+        initial_response=data["initial_response"],
+        history=DialogueHistory(prompt=data["prompt"], initial_response=data["initial_response"]),
+        final_evaluation=_evaluation_from_dict(data["final_evaluation"]),
+        turn_evaluations=[],
+        metadata=data.get("metadata", {}),
+        final_response=final_response,
+    )
 
 
 class DialogueManager:
@@ -57,29 +105,7 @@ class DialogueManager:
             with open(cache_path) as f:
                 data = json.load(f)
 
-            # Reconstruct dialogue
-            history = DialogueHistory(
-                prompt=data["prompt"],
-                initial_response=data["initial_response"],
-            )
-
-            # Reconstruct turns (simplified - full reconstruction would need more)
-            # For now, just return the cached evaluation data
-            final_eval = TeacherEvaluation(
-                overall_score=data["final_evaluation"]["overall_score"],
-                dimension_scores=[],
-                reasoning=data["final_evaluation"]["reasoning"],
-                improved_response=data["final_evaluation"].get("improved_response"),
-            )
-
-            return GeneratedDialogue(
-                prompt=data["prompt"],
-                initial_response=data["initial_response"],
-                history=history,
-                final_evaluation=final_eval,
-                turn_evaluations=[],
-                metadata=data.get("metadata", {}),
-            )
+            return _dialogue_from_dict(data)
         except (json.JSONDecodeError, KeyError):
             return None
 
@@ -94,6 +120,7 @@ class DialogueManager:
         data = {
             "prompt": dialogue.prompt,
             "initial_response": dialogue.initial_response,
+            "final_response": dialogue.scored_response,
             "final_evaluation": dialogue.final_evaluation.to_dict(),
             "metadata": dialogue.metadata,
             "turns": [
@@ -188,27 +215,7 @@ class DialogueManager:
                 with open(cache_file) as f:
                     data = json.load(f)
 
-                # Reconstruct (simplified)
-                history = DialogueHistory(
-                    prompt=data["prompt"],
-                    initial_response=data["initial_response"],
-                )
-
-                final_eval = TeacherEvaluation(
-                    overall_score=data["final_evaluation"]["overall_score"],
-                    dimension_scores=[],
-                    reasoning=data["final_evaluation"]["reasoning"],
-                    improved_response=data["final_evaluation"].get("improved_response"),
-                )
-
-                yield GeneratedDialogue(
-                    prompt=data["prompt"],
-                    initial_response=data["initial_response"],
-                    history=history,
-                    final_evaluation=final_eval,
-                    turn_evaluations=[],
-                    metadata=data.get("metadata", {}),
-                )
+                yield _dialogue_from_dict(data)
             except (json.JSONDecodeError, KeyError):
                 continue
 

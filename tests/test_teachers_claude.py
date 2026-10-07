@@ -31,7 +31,7 @@ class TestClaudeTeacherInit:
         with patch("aspire.teachers.claude.anthropic.AsyncAnthropic") as mock_client:
             teacher = ClaudeTeacher(api_key="sk-ant-test-key-12345")
 
-            assert teacher.model == "claude-sonnet-4-20250514"
+            assert teacher.model == "claude-sonnet-5-5"
             assert teacher.name == "Claude Teacher"
             mock_client.assert_called_once_with(api_key="sk-ant-test-key-12345")
 

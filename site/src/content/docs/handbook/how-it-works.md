@@ -1,6 +1,6 @@
 ---
 title: How It Works
-description: The four-stage ASPIRE pipeline — adversarial dialogue, critic training, student training, and judging responses without the teacher.
+description: The four-stage ASPIRE pipeline — adversarial dialogue, critic training, what the student learns, and judging responses without the teacher.
 sidebar:
   order: 2
 ---
@@ -27,58 +27,51 @@ This adversarial exchange produces rich training data: not just right answers, b
 
 ## Stage 2: Critic Training
 
-The critic learns to predict the teacher's judgment. Not just the score, but the reasoning behind it.
+The critic learns to predict the teacher's judgment of a response: its 0-10 score.
 
 ```python
-critic_loss = predict_teacher_judgment(
-    score=True,      # "This deserves a 7/10"
-    reasoning=True,  # "Because the explanation lacks depth on X"
-)
+# The critic reads the student's hidden states over the prompt and the response
+# the teacher judged, and learns to predict the teacher's 0-10 score.
+critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score)
 ```
 
-The critic is a separate model (or a lightweight head on the student's encoder) that internalizes the teacher's evaluation criteria. After training, the critic can assess student outputs the way the teacher would, without calling the teacher at all.
+By default the critic is a lightweight head on the student's last hidden layer (`critic.architecture: head`); a separate model or a shared encoder are the other options. It reads the prompt together with the response the teacher scored, laid out in the student's own chat format, so after training it can score a new response without calling the teacher at all.
 
-This is the key insight: the critic becomes an internalized mentor. It learns not just what the teacher would score, but why.
+The critic also has a head for the teacher's reasoning. The trainer does not train it yet: it has no target for it, so today the critic learns the score.
 
-## Stage 3: Student Training
+## Stage 3: What the Student Learns
 
-The student trains against four signals simultaneously:
+The critic is a head on the student's hidden states, and its loss is not stopped at them: it flows back into the student's LoRA adapter. So today the student learns **representations that help the critic predict the teacher's score**.
 
-```python
-student_loss = (
-    reward_from_critic +      # Higher score = better
-    contrastive_to_teacher +  # Pull toward teacher's improved version
-    trajectory_improvement +  # Get better across dialogue turns
-    coherence_regularization  # Maintain consistent reasoning
-)
-```
-
-**Reward from critic** — The critic scores the student's output. Higher scores mean the response aligns with what the teacher would approve.
-
-**Contrastive to teacher** — The student's representation is pulled toward the teacher's improved version of the response, learning the direction of improvement.
-
-**Trajectory improvement** — The student should get better across dialogue turns, not just produce one good response. This encourages genuine reasoning development.
-
-**Coherence regularization** — Keeps the student's reasoning internally consistent across turns, preventing contradictions or drift during refinement.
+The student is not yet trained toward better answers. `aspire.losses` has reward, contrastive, trajectory and coherence terms, but the trainer does not feed them: the reward term gets a detached critic score and no log-probabilities, so it has no gradient, and the others get no inputs. Training the student on the critic's judgment, with a policy-gradient term through the reward loss, is planned for 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
 ## Stage 4: Judgment without the teacher
 
-After training, the critic scores a response from the student's hidden states, with no teacher API call. A loop that revises until the critic is satisfied is yours to write around it. ASPIRE ships the trained critic; it does not ship the loop.
+After training, the critic scores a response from the student's hidden states, with no teacher call. `aspire.judge` loads a checkpoint and scores; a loop that revises until the critic is satisfied is yours to write around it. ASPIRE ships the trained critic and the judge; it does not ship the loop.
 
 ```python
+from aspire.judge import Judge
+
+judge = Judge.from_checkpoint("outputs/checkpoint-2")  # student, critic and config
+
 def generate_with_judgment(prompt, threshold=7.0, attempts=3):
     response = student.generate(prompt)
     for _ in range(attempts):
-        if critic_score(student, critic, response) >= threshold:  # your wrapper around the critic
+        if judge.score(prompt, response) >= threshold:
             break
         response = student.generate(prompt)  # or a revision prompt of your own
     return response
 ```
 
-Everything here runs locally. The teacher's judgment has been distilled into the critic, and the student was trained toward what the critic rewards.
+`judge.score_many(prompts, responses)` scores a batch. For a model and critic you loaded yourself, `aspire.judge.critic_score(student, tokenizer, critic, prompt, response)` does the same. From the command line:
+
+```bash
+aspire judge outputs/checkpoint-2 --prompt "Why is the sky blue?" --response "Rayleigh scattering..."
+aspire judge outputs/checkpoint-2 --pairs pairs.json --json
+```
+
+Everything here runs locally. The teacher's judgment has been distilled into the critic. The score is the critic's prediction of the teacher's score, and it is only as good as the run behind it: a critic trained on a few dozen prompts has seen a few dozen scores.
 
 ## Why this matters
 
-Standard fine-tuning teaches models to match outputs. ASPIRE teaches models to develop judgment. The difference shows up at inference time: a fine-tuned model produces its best guess in one shot, while an ASPIRE-trained model comes with a critic that can judge its output by the teacher's criteria.
-
-The student doesn't just predict what the teacher would say. It understands what the teacher understands. The map becomes the territory.
+Standard fine-tuning teaches models to match outputs. ASPIRE distills a teacher's judgment into a critic that runs with the student. The difference shows up at inference time: a fine-tuned model produces its best guess in one shot, while an ASPIRE run leaves you a critic that can judge the student's output by the teacher's criteria, so you can choose between attempts without the teacher.

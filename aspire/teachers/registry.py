@@ -32,8 +32,11 @@ class TeacherRegistry:
         return list(cls._teachers.keys())
 
     @classmethod
-    def create(cls, name: str, **kwargs) -> BaseTeacher:
-        """Create a teacher instance by name."""
+    def create(cls, name: str, /, **kwargs) -> BaseTeacher:
+        """Create a teacher instance by name.
+
+        ``name`` is positional-only, so a teacher's own ``name`` can be passed in kwargs.
+        """
         teacher_class = cls.get(name)
         if teacher_class is None:
             raise ValueError(f"Unknown teacher: {name}. Available: {cls.list()}")
@@ -50,8 +53,8 @@ def register_teacher(name: str):
     return decorator
 
 
-def get_teacher(name: str, **kwargs) -> BaseTeacher:
-    """Get a teacher instance by name."""
+def get_teacher(name: str, /, **kwargs) -> BaseTeacher:
+    """Get a teacher instance by registered name; kwargs (a ``name`` too) go to its constructor."""
     return TeacherRegistry.create(name, **kwargs)
 
 

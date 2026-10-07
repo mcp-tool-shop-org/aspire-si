@@ -21,6 +21,11 @@ from aspire.teachers.base import (
 )
 
 
+def uses_chat_template(tokenizer: Any) -> bool:
+    """Whether a tokenizer carries a chat template (instruct models do)."""
+    return isinstance(getattr(tokenizer, "chat_template", None), str)
+
+
 @dataclass
 class GeneratedDialogue:
     """A complete generated dialogue with all metadata."""
@@ -31,6 +36,17 @@ class GeneratedDialogue:
     final_evaluation: TeacherEvaluation
     turn_evaluations: list[TeacherEvaluation | None]
     metadata: dict[str, Any]
+    # The response the final evaluation scored: the last turn's reply, or the initial response.
+    final_response: str | None = None
+
+    @property
+    def scored_response(self) -> str:
+        """The response ``final_evaluation`` judged."""
+        if self.final_response is not None:
+            return self.final_response
+        if self.history.turns:
+            return self.history.turns[-1].student_response
+        return self.initial_response
 
 
 class DialogueGenerator:
@@ -147,6 +163,7 @@ class DialogueGenerator:
                 "num_turns": len(history.turns),
                 "teacher": self.teacher.name,
             },
+            final_response=current_response,
         )
 
     def _generate_student_response(
@@ -166,6 +183,8 @@ class DialogueGenerator:
             return_tensors="pt",
             truncation=True,
             max_length=self.student_max_length,
+            # A chat template already starts with the model's special tokens.
+            add_special_tokens=not uses_chat_template(self.student_tokenizer),
         ).to(self.device)
 
         # Generate
@@ -194,7 +213,13 @@ class DialogueGenerator:
         challenge: str | None = None,
         history: DialogueHistory | None = None,
     ) -> str:
-        """Format input for the student model."""
+        """Format input for the student model.
+
+        An instruct model whose tokenizer has a chat template gets the dialogue in its own chat
+        format; any other model gets it as plain text.
+        """
+        if uses_chat_template(self.student_tokenizer):
+            return self._format_student_chat(prompt, challenge, history)
 
         # Build conversation history
         messages = []
@@ -222,6 +247,29 @@ class DialogueGenerator:
             messages.append("Your response:")
 
         return "\n\n".join(messages)
+
+    def _format_student_chat(
+        self,
+        prompt: str,
+        challenge: str | None,
+        history: DialogueHistory | None,
+    ) -> str:
+        chat = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant engaged in a learning dialogue. "
+                "Respond thoughtfully and be willing to revise your thinking when challenged.",
+            },
+            {"role": "user", "content": prompt},
+        ]
+        if challenge:
+            if history is not None:
+                chat.append({"role": "assistant", "content": history.initial_response})
+                for turn in history.turns:
+                    chat.append({"role": "user", "content": turn.challenge.content})
+                    chat.append({"role": "assistant", "content": turn.student_response})
+            chat.append({"role": "user", "content": challenge})
+        return self.student_tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
 
     async def generate_batch(
         self,

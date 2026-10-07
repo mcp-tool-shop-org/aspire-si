@@ -1,0 +1,20 @@
+# The run behind ScalarScope's real-local-teacher fixture: a 1.5B student, one 32B teacher.
+# Made on one rented 96 GB GPU (RTX PRO 6000); the teacher loads in 4-bit, so an 80 GB card
+# fits it too. Run from the repository root:
+#   aspire train --config examples/pod-run/real-local-teacher.yaml \
+#     --prompts examples/local-run/prompts.json --geometry
+experiment_name: real-local-teacher
+seed: 42
+student:
+  model_name_or_path: Qwen/Qwen2.5-1.5B-Instruct
+  max_length: 1536
+teacher:
+  default_teacher: local
+  local_model_path: Qwen/Qwen2.5-32B-Instruct
+  local_load_in_4bit: true
+  max_dialogue_turns: 1
+training:
+  num_epochs: 2
+  batch_size: 2
+  gradient_accumulation_steps: 1
+  output_dir: outputs/real-local-teacher

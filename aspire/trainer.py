@@ -29,17 +29,93 @@ try:  # 8-bit optimizers need bitsandbytes, which not every platform can load.
 except ImportError:  # pragma: no cover - depends on the platform
     bnb = None
 
-from aspire.config import AspireConfig
+from aspire.config import AspireConfig, TeacherConfig
 from aspire.critic import CriticHead, SeparateCritic, SharedEncoderCritic
 from aspire.dialogue import DialogueFormatter, DialogueGenerator, DialogueManager
+from aspire.errors import ConfigError
 from aspire.geometry import GeometryRecorder
+from aspire.judge import encode_exchanges
 from aspire.losses import AspireLoss
-from aspire.teachers import get_teacher
+from aspire.teachers import BaseTeacher, CompositeTeacher, get_teacher
 
 # Windows compatibility
 os.environ["XFORMERS_DISABLED"] = "1"
 
 console = Console()
+
+# Teachers that call the OpenAI API; every other built-in API teacher calls Claude.
+OPENAI_TEACHERS = ("openai", "gpt4")
+
+
+def _local_name(model: str) -> str:
+    return f"local:{model.replace(chr(92), '/').rstrip('/').rsplit('/', 1)[-1]}"
+
+
+def build_teacher(cfg: TeacherConfig, spec: str | None = None, device: str | None = None) -> BaseTeacher:
+    """The teacher a config names.
+
+    ``spec`` defaults to ``cfg.default_teacher``. It is a registered name, ``local`` (the model
+    at ``cfg.local_model_path``), ``local:<model>``, or ``composite`` (``cfg.composite_members``,
+    each of which is a spec of its own).
+    """
+    spec = (spec or cfg.default_teacher).strip()
+    common = {"temperature": cfg.temperature, "max_tokens": cfg.max_tokens}
+
+    if spec == "composite":
+        if not cfg.composite_members:
+            raise ConfigError(
+                "The composite teacher has no members.",
+                hint="Set teacher.composite_members, "
+                'for example ["local:Qwen/Qwen2.5-3B-Instruct", "claude"].',
+            )
+        members = [build_teacher(cfg, member, device) for member in cfg.composite_members]
+        names = [member.name for member in members]
+        if len(set(names)) != len(names):
+            raise ConfigError(
+                f"Two composite members have the same name ({', '.join(names)}).",
+                hint="Each member's scores are kept under its name, so the members must differ.",
+            )
+        return CompositeTeacher(teachers=members, strategy=cfg.composite_strategy, **common)
+
+    if spec == "local" or spec.startswith("local:"):
+        model = spec[len("local:") :].strip() if spec.startswith("local:") else cfg.local_model_path
+        if not model:
+            raise ConfigError(
+                "The local teacher has no model.",
+                hint="Pass --teacher-model, or set teacher.local_model_path (a Hugging Face name or a path).",
+            )
+        return get_teacher(
+            "local",
+            model_name_or_path=model,
+            load_in_4bit=cfg.local_load_in_4bit,
+            device=device,
+            name=_local_name(model),
+            **common,
+        )
+
+    model = cfg.openai_model if spec.lower() in OPENAI_TEACHERS else cfg.claude_model
+    return get_teacher(spec, model=model, **common)
+
+
+def load_peft_weights_into(model: PeftModel, adapter_dir: Path) -> None:
+    """Load a saved LoRA adapter's weights into a model that already has the adapter."""
+    from peft import load_peft_weights, set_peft_model_state_dict
+
+    result = set_peft_model_state_dict(model, load_peft_weights(str(adapter_dir)))
+    missing = [k for k in getattr(result, "missing_keys", []) or [] if "lora_" in k]
+    if missing:
+        raise ConfigError(
+            f"{adapter_dir} does not match the student's LoRA adapter ({len(missing)} weights missing).",
+            hint="Evaluate with the config the checkpoint was trained with (its config.yaml).",
+        )
+
+
+def describe_teacher(teacher: BaseTeacher) -> str:
+    """A run's teacher in a few words, for the geometry export's condition."""
+    if isinstance(teacher, CompositeTeacher):
+        members = " + ".join(member.name for member in teacher.teachers)
+        return f"composite ({teacher.strategy}): {members}"
+    return str(getattr(teacher, "name", "teacher"))
 
 
 class AspireDataset(Dataset):
@@ -123,7 +199,7 @@ class AspireTrainer:
         if config.training.geometry_export:
             self.geometry = GeometryRecorder(
                 run_id=config.experiment_name,
-                condition=f"{config.teacher.default_teacher} teacher",
+                condition=describe_teacher(self.teacher),
                 seed=config.seed,
                 window=config.training.geometry_window,
                 every=config.training.geometry_every,
@@ -224,12 +300,7 @@ class AspireTrainer:
 
         console.print(f"Initializing teacher: {cfg.default_teacher}")
 
-        self.teacher = get_teacher(
-            cfg.default_teacher,
-            model=cfg.claude_model if cfg.default_teacher == "claude" else cfg.openai_model,
-            temperature=cfg.temperature,
-            max_tokens=cfg.max_tokens,
-        )
+        self.teacher = build_teacher(cfg, device=self.device)
 
     def _init_loss(self) -> None:
         """Initialize loss functions."""
@@ -456,10 +527,19 @@ class AspireTrainer:
         batch: dict[str, torch.Tensor],
         dialogues: list,
     ) -> dict[str, torch.Tensor]:
-        """Compute loss for a batch."""
+        """Compute loss for a batch.
 
-        input_ids = batch["input_ids"].to(self.device)
-        attention_mask = batch["attention_mask"].to(self.device)
+        The critic reads the student's hidden states over each prompt and the response the
+        teacher scored, so that it learns to judge responses (not prompts).
+        """
+        input_ids, attention_mask = encode_exchanges(
+            self.tokenizer,
+            [d.prompt for d in dialogues],
+            [d.scored_response for d in dialogues],
+            max_length=self.config.student.max_length,
+        )
+        input_ids = input_ids.to(self.device)
+        attention_mask = attention_mask.to(self.device)
 
         # Get student outputs
         student_outputs = self.student_model(
@@ -467,7 +547,8 @@ class AspireTrainer:
             attention_mask=attention_mask,
             output_hidden_states=True,
         )
-        student_hidden = student_outputs.hidden_states[-1]
+        # The critic is float32; a bf16 or quantized student hands it bf16 states.
+        student_hidden = student_outputs.hidden_states[-1].float()
 
         if self.geometry is not None:
             self.geometry.record(
@@ -532,11 +613,14 @@ class AspireTrainer:
 
     def load_checkpoint(self, checkpoint_dir: Path) -> None:
         """Load from checkpoint."""
-        # Load student
-        self.student_model = PeftModel.from_pretrained(
-            self.student_model,
-            checkpoint_dir / "student",
-        )
+        student_dir = Path(checkpoint_dir) / "student"
+        if isinstance(self.student_model, PeftModel):
+            # The trainer already wrapped the student in a fresh LoRA adapter; wrapping it
+            # again left the saved weights unloaded (they were looked up under a doubled
+            # prefix), so evaluation ran on an untrained adapter. Load them into it.
+            load_peft_weights_into(self.student_model, student_dir)
+        else:
+            self.student_model = PeftModel.from_pretrained(self.student_model, student_dir)
 
         # Load critic
         self.critic = self.critic.__class__.load(str(checkpoint_dir / "critic.pt"))

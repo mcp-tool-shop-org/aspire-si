@@ -1094,7 +1094,7 @@ class TestAspireTrainerCheckpointing:
              patch("aspire.trainer.DialogueManager"), \
              patch("aspire.trainer.DialogueFormatter"), \
              patch("aspire.trainer.AspireLoss"), \
-             patch("aspire.trainer.PeftModel") as mock_peft:
+             patch("aspire.trainer.PeftModel", type("FakePeft", (), {})) as mock_peft:
 
             # Setup mocks
             mock_model = MagicMock()

@@ -90,6 +90,18 @@ class CriticHead(BaseCritic):
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)
 
+    def init_config(self) -> dict:
+        """The constructor arguments `load` rebuilds this head with."""
+        return {
+            "input_dim": self.input_dim,
+            "hidden_dim": self.hidden_dim,
+            "num_layers": sum(isinstance(m, nn.Linear) for m in self.mlp),
+            "reasoning_dim": self.reasoning_dim,
+            "num_dimensions": self.num_dimensions,
+            "dropout": self.dropout,
+            "pooling": self.pooling,
+        }
+
     def _pool(
         self, hidden_states: torch.Tensor, attention_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
@@ -222,6 +234,13 @@ class MultiHeadCriticHead(CriticHead):
 
         # Learnable query for pooling
         self.pool_query = nn.Parameter(torch.randn(1, 1, input_dim))
+
+    def init_config(self) -> dict:
+        """The constructor arguments `load` rebuilds this head with."""
+        config = super().init_config()
+        del config["pooling"]
+        config["num_heads"] = self.num_heads
+        return config
 
     def _pool(
         self, hidden_states: torch.Tensor, attention_mask: torch.Tensor | None = None

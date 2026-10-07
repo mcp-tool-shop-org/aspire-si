@@ -158,40 +158,43 @@ Teacher: "You say 'stops it' — but how does the computer know
 
 ### 2. 评论者训练
 
-评论者学习预测老师的判断——不仅仅是分数，还有*推理过程*。
+The critic learns to predict the teacher's judgment of a response: its 0-10 score. (It has a
+head for the teacher's reasoning too, which the trainer does not train yet.)
 
 ```python
-critic_loss = predict_teacher_judgment(
-    score=True,      # "This deserves a 7/10"
-    reasoning=True,  # "Because the explanation lacks depth on X"
-)
+# The critic reads the student's hidden states over the prompt and the response
+# the teacher judged, and learns to predict the teacher's 0-10 score.
+critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score)
 ```
 
 ### 3. 学生训练
 
-学生从评论者内化的判断中学习，朝着老师会认可的方向前进。
-
-```python
-student_loss = (
-    reward_from_critic +      # Higher score = better
-    contrastive_to_teacher +  # Pull toward teacher's improved version
-    trajectory_improvement    # Get better across dialogue turns
-)
-```
+The critic is a head on the student's hidden states, and its loss flows back into the
+student's LoRA adapter. So today the student learns **representations that help the critic
+predict the teacher's score**. It is not yet trained toward better answers: the reward,
+contrastive and trajectory terms in `aspire.losses` exist, but the trainer does not feed
+them, so they move nothing. Training the student on the critic's judgment is planned for
+1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
 ### 4. 无需老师的判断
 
 训练后，评论者仅根据学生的隐藏状态对回复进行评分，因此不需要调用老师的 API 来进行判断。你可以围绕它编写一个完善循环；ASPIRE 提供训练好的评论者，而不是循环：
 
 ```python
+from aspire.judge import Judge
+
+judge = Judge.from_checkpoint("outputs/checkpoint-2")  # student, critic and config
+
 def generate_with_judgment(prompt, threshold=7.0, attempts=3):
     response = student.generate(prompt)
     for _ in range(attempts):
-        if critic_score(student, critic, response) >= threshold:  # your wrapper around the critic
+        if judge.score(prompt, response) >= threshold:
             break
         response = student.generate(prompt)  # or a revision prompt of your own
     return response
 ```
+
+From the command line: `aspire judge outputs/checkpoint-2 --prompt "..." --response "..."`.
 
 ---
 

@@ -11,6 +11,18 @@ import torch
 from aspire.config import AspireConfig
 
 
+def _dialogue(evaluation):
+    return SimpleNamespace(prompt="p", scored_response="r", final_evaluation=evaluation)
+
+
+def _encoded(batch, length):
+    """Stand in for tokenizing prompts and responses."""
+    return patch(
+        "aspire.trainer.encode_exchanges",
+        return_value=(torch.zeros(batch, length, dtype=torch.long), torch.ones(batch, length, dtype=torch.long)),
+    )
+
+
 @pytest.fixture
 def make_trainer(tmp_path):
     """Build an AspireTrainer with every heavy dependency mocked out."""
@@ -87,6 +99,7 @@ class TestGeometryWiring:
         make_trainer["GeometryRecorder"].assert_not_called()
 
     def test_recorder_built_from_config(self, make_trainer):
+        make_trainer["get_teacher"].return_value.name = "Prof Plum"
         trainer, config = make_trainer["build"](
             training__geometry_export=True,
             training__geometry_every=3,
@@ -96,7 +109,7 @@ class TestGeometryWiring:
         )
         make_trainer["GeometryRecorder"].assert_called_once_with(
             run_id="exp-1",
-            condition=f"{config.teacher.default_teacher} teacher",
+            condition="Prof Plum",
             seed=123,
             window=7,
             every=3,
@@ -162,12 +175,20 @@ class TestGeometryWiring:
         trainer.loss_fn = MagicMock(return_value={"total": torch.tensor(1.0)})
         trainer.teacher = SimpleNamespace(name="Prof Plum")
         evals = [SimpleNamespace(overall_score=7.0), SimpleNamespace(overall_score=3.0)]
-        dialogues = [SimpleNamespace(final_evaluation=e) for e in evals]
+        dialogues = [
+            SimpleNamespace(prompt=f"p{i}", scored_response=f"r{i}", final_evaluation=e)
+            for i, e in enumerate(evals)
+        ]
         mask = torch.ones(2, 3, dtype=torch.long)
         batch = {"input_ids": torch.zeros(2, 3, dtype=torch.long), "attention_mask": mask}
 
-        trainer._compute_batch_loss(batch, dialogues)
+        with patch(
+            "aspire.trainer.encode_exchanges", return_value=(torch.zeros(2, 3, dtype=torch.long), mask)
+        ) as encode:
+            trainer._compute_batch_loss(batch, dialogues)
 
+        # the critic reads each prompt with the response the teacher scored, not the prompt alone
+        assert encode.call_args.args[1:] == (["p0", "p1"], ["r0", "r1"])
         args, kwargs = trainer.geometry.record.call_args
         assert args[0] is hidden and args[1] is mask
         assert args[2] == evals
@@ -186,12 +207,13 @@ class TestGeometryWiring:
         )
         trainer.loss_fn = MagicMock(return_value={"total": torch.tensor(1.0)})
         trainer.teacher = object()  # no .name attribute
-        dialogues = [SimpleNamespace(final_evaluation=SimpleNamespace(overall_score=5.0))]
+        dialogues = [_dialogue(SimpleNamespace(overall_score=5.0))]
         batch = {
             "input_ids": torch.zeros(1, 2, dtype=torch.long),
             "attention_mask": torch.ones(1, 2, dtype=torch.long),
         }
-        trainer._compute_batch_loss(batch, dialogues)
+        with _encoded(1, 2):
+            trainer._compute_batch_loss(batch, dialogues)
         assert trainer.geometry.record.call_args.kwargs == {"teacher_name": "teacher"}
 
     def test_compute_batch_loss_without_geometry_does_not_record(self, make_trainer):
@@ -202,12 +224,13 @@ class TestGeometryWiring:
             return_value=SimpleNamespace(score=torch.tensor([1.0]), reasoning_embedding=torch.zeros(1, 4))
         )
         trainer.loss_fn = MagicMock(return_value={"total": torch.tensor(1.0)})
-        dialogues = [SimpleNamespace(final_evaluation=SimpleNamespace(overall_score=5.0))]
+        dialogues = [_dialogue(SimpleNamespace(overall_score=5.0))]
         batch = {
             "input_ids": torch.zeros(1, 2, dtype=torch.long),
             "attention_mask": torch.ones(1, 2, dtype=torch.long),
         }
-        out = trainer._compute_batch_loss(batch, dialogues)
+        with _encoded(1, 2):
+            out = trainer._compute_batch_loss(batch, dialogues)
         assert out["total"].item() == 1.0
 
 

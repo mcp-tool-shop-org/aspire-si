@@ -5,6 +5,77 @@ All notable changes to ASPIRE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - unreleased
+
+The first end-to-end run on real models: a local teacher, a composite of two, a checkpoint that
+loads back, and a critic you can score responses with. Running it found the bugs below; each
+is fixed and covered by a test that failed before the fix.
+
+### Added
+
+- `aspire.judge`: `Judge.from_checkpoint(path)` loads what `aspire train` saved (student, its
+  LoRA adapter, critic and config) and scores responses with `score(prompt, response)` and
+  `score_many(...)`; `critic_score(student, tokenizer, critic, prompt, response)` does the same
+  for models you loaded yourself. This is the scoring function the docs used to leave to you.
+- `aspire judge CHECKPOINT --prompt ... --response ...` (or `--pairs file.json`, `--json`):
+  the critic's 0-10 score without calling the teacher.
+- Local and composite teachers from the config and the CLI: `--teacher local --teacher-model
+  <model>`, `teacher.local_model_path`, `teacher.local_load_in_4bit`, and
+  `default_teacher: composite` with `teacher.composite_members` (each a registered name or
+  `local:<model>`) and `teacher.composite_strategy`. `--student-model` sets the student.
+- `examples/local-run/`: a run that costs nothing (1B student, 3B local teacher, 24 GB GPU), its
+  composite variant, and 32 prompts. `examples/pod-run/`: the configs of the runs behind
+  ScalarScope's real fixtures (1.5B student, 32B teachers in 4-bit).
+- The local teacher asks for JSON with a score per evaluation dimension, reads it (fenced or
+  bare), and falls back to a score in the text. `metadata["parse"]` says which happened.
+- An instruct model's own chat template is used for the student's turns, the local teacher's
+  requests and the text the critic reads.
+
+### Changed
+
+- The critic now reads the student's hidden states over the **prompt and the response the
+  teacher scored**. It used to read the prompt alone, so it learned to predict a score from the
+  question and could not judge a response.
+- The README, handbook and landing page say what training does today. The critic learns the
+  teacher's score (its reasoning head is not trained). The student's LoRA adapter learns
+  representations that help the critic predict that score; it is not yet trained toward better
+  answers, because the trainer does not feed the reward, contrastive or trajectory losses. That
+  is planned for 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)). The
+  translated READMEs carry the corrected sections in English until they are regenerated.
+- The Claude teacher defaults to `claude-sonnet-5-5` (was `claude-sonnet-4-20250514`). It sends
+  a `temperature` only to models that accept one (Sonnet 5 and later, Opus 4.7 and later and
+  Fable reject a non-default value), reads the answer from text blocks so a thinking block
+  before it is skipped, and raises `ASPIRE_CLAUDE_TEACHER` when Claude declines a request.
+- The default `device` is `cuda` when torch can use it and `cpu` otherwise (was always `cuda`).
+- `aspire train` options left off the command line keep the config file's values. `--teacher`,
+  `--epochs` and `--output` used to overwrite them with `claude`, 3 and `outputs` every time.
+- A geometry export's condition names the teacher (`local:Qwen2.5-32B-Instruct`, or
+  `composite (vote): ...`) instead of the setting's value.
+
+### Fixed
+
+- Checkpoints could not be loaded: `config.yaml` was written with Python path tags that the
+  YAML reader refuses. `aspire evaluate` failed on every checkpoint.
+- `aspire evaluate` wrapped the student in a second LoRA adapter, so the trained weights were
+  never loaded and evaluation ran on an untrained adapter.
+- The default critic (`CriticHead`) could not be loaded from `critic.pt`: its saved settings
+  lacked the input size. `MultiHeadCriticHead` round-trips too.
+- A bf16 or 4-bit student handed bf16 hidden states to the float32 critic.
+- The local teacher could not be built (the trainer passed it an API model name), and a
+  composite teacher could not be built at all. `get_teacher(name, name=...)` failed because the
+  registry's own parameter was called `name`; it is positional-only now.
+- The local teacher always took 2048 input tokens plus up to 768 new ones, past the context of
+  smaller models, and cut long requests from the end, losing the instructions. It now fits the
+  request to the model's context and drops the beginning.
+- Dialogues reloaded from the cache (every epoch after the first) lost their dimension scores,
+  each composite member's score and the scored response. The geometry export of a run longer
+  than one epoch had no scalars and a single professor after epoch 1.
+- Persona teachers (`socratic`, `scientific`, ...) are Claude teachers but were given the OpenAI
+  model name.
+- On a Windows console or redirected output that uses a code page such as cp1252, the progress
+  bar stopped training with a `UnicodeEncodeError`. Characters the console cannot show print as
+  `?` now.
+
 ## [1.1.0] - 2026-10-06
 
 The first release as aspire-si, and the first on PyPI.

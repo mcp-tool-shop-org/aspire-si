@@ -9,6 +9,12 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
 
+def _default_device() -> str:
+    import torch
+
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
 class StudentConfig(BaseModel):
     """Configuration for the student model being fine-tuned."""
 
@@ -50,13 +56,19 @@ class CriticConfig(BaseModel):
 class TeacherConfig(BaseModel):
     """Configuration for teacher model(s)."""
 
-    # Default teacher
+    # Default teacher: a registered name (`aspire teachers` lists them), "local" for
+    # local_model_path, or "composite" for composite_members.
     default_teacher: str = "claude"
 
     # Teacher-specific settings
-    claude_model: str = "claude-sonnet-4-20250514"
+    claude_model: str = "claude-sonnet-5-5"
     openai_model: str = "gpt-4o"
     local_model_path: str | None = None
+    local_load_in_4bit: bool = False
+
+    # Composite teacher: each member is a registered name or "local:<model name or path>".
+    composite_members: list[str] = Field(default_factory=list)
+    composite_strategy: Literal["vote", "rotate", "specialize", "random", "debate"] = "vote"
 
     # Generation settings
     max_tokens: int = 1024
@@ -173,8 +185,8 @@ class AspireConfig(BaseSettings):
     # Seeds
     seed: int = 42
 
-    # Environment
-    device: str = "cuda"
+    # Environment: cuda when torch can use it, cpu otherwise.
+    device: str = Field(default_factory=lambda: _default_device())
 
     model_config = {"env_prefix": "ASPIRE_", "env_nested_delimiter": "__"}
 
@@ -183,7 +195,7 @@ class AspireConfig(BaseSettings):
         """Load configuration from YAML file."""
         import yaml
 
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return cls(**data)
 
@@ -191,5 +203,7 @@ class AspireConfig(BaseSettings):
         """Save configuration to YAML file."""
         import yaml
 
-        with open(path, "w") as f:
-            yaml.dump(self.model_dump(), f, default_flow_style=False)
+        # JSON mode writes paths as strings: `from_yaml` reads with safe_load, which refuses
+        # the python/object tags a pathlib.Path would otherwise be written with.
+        with open(path, "w", encoding="utf-8") as f:
+            yaml.dump(self.model_dump(mode="json"), f, default_flow_style=False)
