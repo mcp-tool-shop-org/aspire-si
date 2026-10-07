@@ -6,15 +6,32 @@ memory. A rented pod can land on a host that has neither (2026-10-07: an A100 80
 CUDA 12.8 driver failed after setup and a merge had already cost about $0.40). This check takes
 seconds and exits 2 with the reason.
 
+With --speed it checks something else, after the installs, in about 30 s: whether the host can
+fetch the ~130 GB of teachers in time (2026-10-07: a pod whose /workspace was a network
+filesystem took 31 minutes for 26 GB, so seed 43 could not finish inside its cap and was stopped
+after $1.65). It measures the two things that were slow there:
+
+  writes   512 MiB written to the Hugging Face cache directory and flushed, against
+           --min-write-mbps (100). That pod's network filesystem wrote 32 MB/s.
+  network  one plain HTTPS stream of a model file for up to --stream-seconds (20), against
+           --min-stream-mbps (20). That pod got 1.9 MB/s; a home connection gets about 46.
+
+The network probe is plain HTTP on purpose: the huggingface_hub download path measured 2 MB/s on
+a connection where one HTTP stream ran at 46 MB/s, so it would judge the library, not the host.
+
 Usage: python host_check.py [--min-cuda 13.0] [--min-memory-gb 90]
+       python host_check.py --speed [--url URL] [--min-write-mbps 100] [--min-stream-mbps 20]
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
+import time
+from pathlib import Path
 
 
 def driver_cuda(smi_output: str) -> tuple[int, int] | None:
@@ -58,11 +75,81 @@ def problems(
     return found
 
 
+def rate_problem(what: str, nbytes: int, seconds: float, min_mbps: float) -> str | None:
+    """Why a measured transfer is too slow, or None. MB/s here is 10^6 bytes per second."""
+    rate = nbytes / 1e6 / max(seconds, 1e-6)
+    if rate < min_mbps:
+        measured = f"{nbytes / 1e9:.2f} GB in {seconds:.0f} s"
+        return f"{what} ran at {rate:.0f} MB/s ({measured}); this needs {min_mbps:.0f} MB/s"
+    return None
+
+
+def write_rate(directory: Path, megabytes: int = 1024) -> tuple[int, float]:
+    """Bytes written and seconds taken for one file of `megabytes` MiB, flushed to disk, in `directory`."""
+    directory.mkdir(parents=True, exist_ok=True)
+    probe = directory / ".host_check_write_probe"
+    block = os.urandom(1 << 20)
+    started = time.monotonic()
+    try:
+        with open(probe, "wb", buffering=0) as f:
+            for _ in range(megabytes):
+                f.write(block)
+            os.fsync(f.fileno())
+        seconds = time.monotonic() - started
+    finally:
+        probe.unlink(missing_ok=True)
+    return megabytes << 20, seconds
+
+
+DEFAULT_URL = "https://huggingface.co/Qwen/Qwen2.5-32B-Instruct/resolve/main/model-00001-of-00017.safetensors"
+
+
+def stream_rate(url: str, seconds: float, chunk: int = 1 << 20) -> tuple[int, float]:  # pragma: no cover
+    """Bytes read from one HTTPS stream of `url`, and the time taken, stopping after `seconds`."""
+    import urllib.request
+
+    started = time.monotonic()
+    nbytes = 0
+    with urllib.request.urlopen(url, timeout=30) as response:
+        while time.monotonic() - started < seconds:
+            data = response.read(chunk)
+            if not data:
+                break
+            nbytes += len(data)
+    return nbytes, time.monotonic() - started
+
+
+def check_speed(
+    url: str, min_write_mbps: float, min_stream_mbps: float, stream_seconds: float
+) -> None:  # pragma: no cover
+    cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"))
+    found = []
+    nbytes, seconds = write_rate(cache, 512)
+    print(f"write: {nbytes / 1e9:.2f} GB to {cache} in {seconds:.1f} s")
+    found.append(rate_problem(f"writes to {cache}", nbytes, seconds, min_write_mbps))
+    nbytes, seconds = stream_rate(url, stream_seconds)
+    print(f"network: {nbytes / 1e9:.2f} GB in {seconds:.1f} s from {url.split('/resolve/')[0]}")
+    found.append(rate_problem("one download stream", nbytes, seconds, min_stream_mbps))
+    found = [f for f in found if f]
+    if found:
+        print("HOST-REFUSED: " + "; ".join(found), flush=True)
+        sys.exit(2)
+    print("SPEED-OK")
+
+
 def main() -> None:  # pragma: no cover - runs on the pod
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--min-cuda", default="13.0")
     parser.add_argument("--min-memory-gb", type=float, default=0.0)
+    parser.add_argument("--speed", action="store_true", help="check write and download speed, not the GPU")
+    parser.add_argument("--url", default=DEFAULT_URL)
+    parser.add_argument("--min-write-mbps", type=float, default=100.0)
+    parser.add_argument("--min-stream-mbps", type=float, default=20.0)
+    parser.add_argument("--stream-seconds", type=float, default=20.0)
     args = parser.parse_args()
+    if args.speed:
+        check_speed(args.url, args.min_write_mbps, args.min_stream_mbps, args.stream_seconds)
+        return
     major, minor = (int(x) for x in args.min_cuda.split("."))
     smi = subprocess.run(["nvidia-smi"], capture_output=True, text=True).stdout
     query = subprocess.run(
