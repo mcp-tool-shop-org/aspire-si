@@ -17,8 +17,11 @@ import clean_dataset  # noqa: E402
 import eval_heldout  # noqa: E402
 import judge_eval  # noqa: E402
 import lib  # noqa: E402
+import pairwise_teacher  # noqa: E402
 import probe_models  # noqa: E402
+import seed_configs  # noqa: E402
 import sft  # noqa: E402
+import yaml  # noqa: E402
 
 EVAL_PROMPTS = [
     "Why does ice float on water?",
@@ -541,6 +544,20 @@ class TestEvalAndJudge:
             backend, "Qwen/Qwen2.5-32B-Instruct", [tmp_path / "answers-base.json"]
         )
         assert result["base"]["mean"] == 6.0 and result["base"]["json_rate"] == 1.0
+        assert result["base"]["complete_rate"] is None  # answers written before the flag existed
+
+    def test_complete_rate_and_cap_come_from_the_answers_file(self, tmp_path):
+        answers = [{"prompt": "p", "answer": "a", "truncated": k == 0} for k in range(4)]
+        (tmp_path / "answers-sft.json").write_text(
+            json.dumps({"name": "sft", "max_new_tokens": 1024, "answers": answers}), encoding="utf-8"
+        )
+        backend = lib.FakeBackend(lambda chat: '{"overall_score": 7}')
+        result = eval_heldout.score_answers(backend, "t/m", [tmp_path / "answers-sft.json"])
+        assert result["sft"]["complete_rate"] == 0.75 and result["sft"]["max_new_tokens"] == 1024
+
+    def test_an_answer_ended_only_if_it_produced_an_end_token(self):
+        assert eval_heldout.ended([5, 6, 2, 0, 0], {2, 0})
+        assert not eval_heldout.ended([5, 6, 7, 8], {2, 0})
 
     def test_judge_evaluate_counts_strong_wins(self):
         scorer = SimpleNamespace(
@@ -575,6 +592,68 @@ class TestEvalAndJudge:
         subset = result["teacher_detectable"]
         assert subset["accuracy"] == 1.0 and (subset["pairs"], subset["prompts"]) == (4, 4)
         assert judge_eval.evaluate(scorer, missed)["teacher_detectable"] is None
+
+
+class TestSeparableSubset:
+    def pairs(self):
+        return [
+            {"pair_id": k, "prompt_id": k // 2, "prompt": f"p{k // 2}", "strong": "s", "flawed": "f"}
+            for k in range(6)
+        ]
+
+    def test_pairwise_both_orders_must_pick_the_strong_answer(self):
+        replies = iter(["A", "B", "A", "A", "B", "B", "  A.", "Answer B", "A", "B", "maybe", "B"])
+        backend = lib.FakeBackend(lambda chat: next(replies))
+        result = pairwise_teacher.compare(backend, "Qwen/Qwen2.5-32B-Instruct", self.pairs())
+        assert [r["separable"] for r in result["rows"]] == [True, False, False, True, True, False]
+        assert result["separable_ids"] == [0, 3, 4] and result["separable_prompts"] == 3
+        assert result["unparsed"] == 1 and result["first_answer_rate"] == pytest.approx(5 / 12)
+        first = backend.calls[0].turns[-1][1]
+        assert first.index("Answer A:\ns") < first.index("Answer B:\nf")  # strong first, then swapped
+        assert backend.calls[1].turns[-1][1].index("Answer A:\nf") > 0
+
+    def test_parse_choice(self):
+        assert pairwise_teacher.parse_choice("B") == "B"
+        assert pairwise_teacher.parse_choice("Answer A is more correct.") == "A"
+        assert pairwise_teacher.parse_choice("Neither") is None
+
+    def test_add_separable_re_reads_recorded_scores(self):
+        pairs = self.pairs()
+        result = {"critics": {"c": judge_eval.from_scores([9.0, 1, 9, 1, 9, 9], [1.0, 9, 1, 9, 1, 1], pairs)}}
+        judge_eval.add_separable(result, pairs, [0, 2, 4])
+        sep = result["critics"]["c"]["teacher_separable"]
+        assert sep["accuracy"] == 1.0 and (sep["pairs"], sep["prompts"]) == (3, 3)
+        assert result["teacher_separable"]["pairs"] == 3
+        judge_eval.add_separable(result, pairs, [])
+        assert result["critics"]["c"]["teacher_separable"] is None
+
+
+class TestNextRuns:
+    def test_seed_configs_differ_only_where_they_must(self, tmp_path):
+        written = seed_configs.seed_configs(43, "/job/sft-s43/merged", tmp_path)
+        assert sorted(written) == [
+            "control-composite-s43",
+            "control-local-s43",
+            "sft-composite-s43",
+            "sft-local-s43",
+        ]
+        load = lambda name: yaml.safe_load(written[name].read_text(encoding="utf-8"))  # noqa: E731
+        ctl, treated = load("control-composite-s43"), load("sft-composite-s43")
+        assert ctl["seed"] == treated["seed"] == 43
+        assert ctl["training"]["output_dir"] == "outputs/control-composite-s43"
+        assert treated["student"]["model_name_or_path"] == "/job/sft-s43/merged"
+        assert ctl["student"]["model_name_or_path"] == "Qwen/Qwen2.5-1.5B-Instruct"
+        for config in (ctl, treated):
+            del config["seed"], config["experiment_name"], config["training"]["output_dir"]
+            del config["student"]["model_name_or_path"]
+        assert ctl == treated  # teacher, schedule and everything else as in the 2026-10-06 control
+        assert load("control-local-s43")["teacher"]["default_teacher"] == "local"
+
+    def test_sft_merge_only_needs_no_data(self):
+        args = sft.parse_args(["--merge-only", "sft/epoch-2", "--out", "sft"])
+        assert args.merge_only == Path("sft/epoch-2") and args.data is None
+        with pytest.raises(SystemExit):
+            sft.parse_args(["--out", "sft"])
 
 
 class TestProbe:
