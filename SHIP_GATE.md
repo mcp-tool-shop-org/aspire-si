@@ -46,7 +46,7 @@
 ## D. Shipping Hygiene
 
 - [x] `[all]` `verify` script exists (test + build + smoke in one command) (2026-02-27) — Makefile verify target
-- [ ] `[all]` SKIP: no release tag yet in the restored repository; the first aspire-si tag is cut from the version in pyproject.toml
+- [x] `[all]` Version in manifest matches git tag (2026-10-06) — release.yml fails a release whose tag is not `v` + the pyproject version
 - [x] `[all]` Dependency scanning runs in CI (ecosystem-appropriate) (2026-02-27) — dep-audit job
 - [x] `[all]` Automated dependency update mechanism exists (2026-02-27)
 - [ ] `[npm]` SKIP: not an npm package
@@ -57,7 +57,7 @@
 
 ## E. Identity (soft gate — does not block ship)
 
-- [x] `[all]` Logo in README header (2026-10-06) — the artwork still reads Aspire.AI (brand slug aspire-ai); a renamed logo is pending
+- [x] `[all]` Logo in README header (2026-10-06) — ASPIRE-SI rocket mark, brand slug aspire-si
 - [x] `[all]` Translations (polyglot-mcp, 8 languages) (2026-02-27)
 - [x] `[org]` Landing page (@mcptoolshop/site-theme) (2026-02-27)
 - [x] `[all]` GitHub repo metadata: description, homepage, topics (2026-02-27)

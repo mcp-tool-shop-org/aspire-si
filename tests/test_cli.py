@@ -280,4 +280,4 @@ def test_diagnose_checks_version():
     """Test that diagnose includes the package version."""
     result = runner.invoke(app, ["diagnose"])
     assert result.exit_code == 0
-    assert "1.0.0" in result.stdout
+    assert __version__ in result.stdout

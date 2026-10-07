@@ -17,16 +17,16 @@
           "path": ".github/dependabot.yml"
         },
         {
-          "hash": "e516fc83ea47113710a57f5a039464d3705daecef9255f32cb0ef353b1f42aff",
+          "hash": "a181274c0973002492f16d9b5a770ec00a7a494c6f7021031386f7eee3cd2619",
           "path": ".github/workflows/ci.yml"
         },
         {
-          "hash": "93dc62c74dfddae3a1dc3291b236a3e266cc0f9963100f2967357b3f3833b310",
+          "hash": "cf1ad38464c54f14127d46750a5763f224b286cac09ac46aafc8ebbcd993f3ff",
           "path": ".github/workflows/pages.yml"
         },
         {
-          "hash": "6b5872d872fed08d5077fc8bb5aa7dfc9da8803875dd801482cc6ffd946b73b1",
-          "path": ".github/workflows/publish.yml"
+          "hash": "fa7a58d722b7033aeb43bca1da08aa401576830515e4669bb459b9de84b982ab",
+          "path": ".github/workflows/release.yml"
         }
       ],
       "globs": [
@@ -53,7 +53,7 @@
       "externals": 1,
       "files": [
         {
-          "hash": "5ee8eefc9d9b2972fd68361470eb645198b75b710cf0f1e43b75f8c19a1ef93e",
+          "hash": "166a9542d06a4de9a0db6ca987c371f4d2f118b898d2c7e5bf58021580cd1900",
           "importsFiles": [
             "aspire/config.py",
             "aspire/trainer.py"
@@ -2061,7 +2061,7 @@
           "path": "ASPIRE-SPEC.md"
         },
         {
-          "hash": "112b66671c040a0e51fcff6f6b21fdc913f9b2860308ab486260bcb3c9d98830",
+          "hash": "3833597338ed9ed4cadab8cee3a3fe81a5d74f6fcb61125bfa7ff907eb285bb2",
           "path": "CHANGELOG.md"
         },
         {
@@ -2089,35 +2089,35 @@
           "path": "PRESS_RELEASE.md"
         },
         {
-          "hash": "789446a4ff1e6dafc47a1bfd815bd243bc8755c30ff427afe881b251477a52cf",
+          "hash": "bdea45b388e19d003c5fbac836d6ee768adee687dd77cd5b1dee82c95bf10d3a",
           "path": "README.es.md"
         },
         {
-          "hash": "b1e751e6d886ed3de1b2a13617d7e005786b883276ea8424dbf834eec135e3cc",
+          "hash": "b789081d5f9be465a59c6d5867f8bb57af1cf2b4080a89694de648f6664159ca",
           "path": "README.fr.md"
         },
         {
-          "hash": "205cc931895db5ab3b0c8676746b291d71dc86dbad2c3ec04105e27a0061d7e5",
+          "hash": "7cb74b55583a8884a7afc7f102a43ad17d5935f9d06d6c08a691b2c79d4e34ea",
           "path": "README.hi.md"
         },
         {
-          "hash": "1435952b1f58e1868bc3e69abf7c15f94f355be1f72806077b473eae3a8bc0be",
+          "hash": "16729afa4661beb0e8208394f2e71fbe8412444f5ba71386649e7b6d85922978",
           "path": "README.it.md"
         },
         {
-          "hash": "c9b3251932916ca43dbf7db39bc6768c0113b5637bd6cc8a0e7884263b9f1c9d",
+          "hash": "c7cf568bd01a931f5d6a235180efcd2e7705d096bbac2b36b74204dc79615167",
           "path": "README.ja.md"
         },
         {
-          "hash": "b275c80d424038177f1b9b2f7163af2891a8faa2a793766b8685241cbb1200e6",
+          "hash": "9eb260a6d74c663327a52ee9969527529306aa4bc606fc8e366744c5df1169b5",
           "path": "README.md"
         },
         {
-          "hash": "f587ca13f479fd069393d80e57a1d04b389b5f2c628772735365a2c9c4b62bf1",
+          "hash": "a66813dc1f2c83d4cc36342c07cb7d4cc876d62e9f470ebd4ef13458ec9bda9c",
           "path": "README.pt-BR.md"
         },
         {
-          "hash": "f4fc7718ca8cbee0bb48f73d22ffdd3d0f4d6c560b8dae979e3ff966d3ed8016",
+          "hash": "38298eaa7585816af419a964b7ebb236c97dae8d6c5b69135e53c809ed60985d",
           "path": "README.zh.md"
         },
         {
@@ -2129,7 +2129,7 @@
           "path": "SECURITY.md"
         },
         {
-          "hash": "52502d8e6bf76fc57955dc1fc0097e33e9836c7a183951e4440bf1f9c619ab06",
+          "hash": "f5c8057b8ff39d35288aee03e2aa4e9bfe705bdb73815f97be3f6dce3126408e",
           "path": "SHIP_GATE.md"
         },
         {
@@ -2149,7 +2149,7 @@
           "path": "passport.json"
         },
         {
-          "hash": "eb1021c2e4bf36e32409c4497789b1babab97700fcbd051c4a2e850ed5c2964b",
+          "hash": "269b92afaef0604c2e37eff6ffb20828a0798e23a4a873c5a8099335c8b51e9c",
           "path": "pyproject.toml"
         },
         {
@@ -2188,7 +2188,7 @@
           "path": "site/package.json"
         },
         {
-          "hash": "1f0ff0e5fafc2db9c07054bd6ea91381d35b21b56d3f6cfe20b4b5e354a3c3ab",
+          "hash": "1f959d9d1f9331dd815b74e9cdbbc429905637fc579800a3956de8e966ee70e0",
           "path": "site/src/assets/logo.png"
         },
         {
@@ -2746,7 +2746,7 @@
             "test_version_flag_long",
             "test_version_flag_short"
           ],
-          "hash": "a2dd87eb07383bff5b0ec25eec42972e3c273d8455dae4dd16224f3594c96924",
+          "hash": "9bf65d6872b0d3b095a0ce9bc95a358948add5705cb1179a20acb71b77a09984",
           "importsFiles": [
             "aspire/__init__.py",
             "aspire/cli.py"
@@ -3505,6 +3505,15 @@
           "dir": "",
           "job": "build",
           "programs": [
+            "echo",
+            "python"
+          ],
+          "step": "Tag matches the package version"
+        },
+        {
+          "dir": "",
+          "job": "build",
+          "programs": [
             "python"
           ],
           "step": "Build package"
@@ -3519,7 +3528,7 @@
         }
       ],
       "elsewhere": [],
-      "file": ".github/workflows/publish.yml",
+      "file": ".github/workflows/release.yml",
       "jobs": [
         {
           "basis": "declared",
@@ -3571,9 +3580,15 @@
         }
       ],
       "landings": [],
-      "mentions": [],
-      "name": "Publish to PyPI",
+      "mentions": [
+        {
+          "job": "build",
+          "path": "pyproject.toml"
+        }
+      ],
+      "name": "Release to PyPI",
       "permissions": [
+        "contents:read",
         "id-token:write"
       ],
       "pushes": false,
@@ -3702,7 +3717,7 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "35b5597849bca5e92bc2e958ef99d4c590837585",
+    "commit": "9ae184bea060fd9347e1c2eb713d228615399a04",
     "tracked": 182
   },
   "landings": [
@@ -3810,6 +3825,16 @@
         }
       ],
       "target": "integrations/forge",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": ".github/workflows/release.yml",
+          "confidence": "config"
+        }
+      ],
+      "target": "pyproject.toml",
       "writers": []
     },
     {
