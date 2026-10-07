@@ -651,7 +651,7 @@
           ]
         },
         {
-          "hash": "bcf69974c422d480c9b2a6344e9e3c70965aac7393a9ce5bc74ec2cbb428f6e5",
+          "hash": "abf5be27c0a59bf5faa578cdf97fed96c5fde70b1e4007b974981f3bfd0a1a9f",
           "path": "aspire/config.py"
         },
         {
@@ -742,7 +742,7 @@
           "exports": [
             "uses_chat_template"
           ],
-          "hash": "8ae51ed2e6d3e3bd68b0bd8696f03accbbbdfc1320f3f07cf9b558297272a020",
+          "hash": "8fcfe4d0a03767c9f86e810fae72b3d1b6701b567a34856980677603b86e639a",
           "importsFiles": [
             "aspire/teachers/base.py"
           ],
@@ -790,53 +790,68 @@
             {
               "in": "__post_init__",
               "kind": "raise",
-              "line": 80
+              "line": 91
             },
             {
               "in": "__post_init__",
               "kind": "raise",
-              "line": 82
+              "line": 93
             },
             {
               "in": "__post_init__",
               "kind": "raise",
-              "line": 84
+              "line": 95
+            },
+            {
+              "in": "__post_init__",
+              "kind": "raise",
+              "line": 99
+            },
+            {
+              "in": "__post_init__",
+              "kind": "raise",
+              "line": 101
+            },
+            {
+              "in": "__post_init__",
+              "kind": "raise",
+              "line": 103
             },
             {
               "in": "record_step",
               "kind": "raise",
-              "line": 135
+              "line": 161
             },
             {
               "in": "build",
               "kind": "raise",
-              "line": 159
+              "line": 185
             },
             {
               "in": "pool_hidden_states",
               "kind": "raise",
-              "line": 250
+              "line": 277
             }
           ],
-          "hash": "6b6be49364603eff0a3f941deb34d5032d97e79c0b5d81d4f9094c86abb9342e",
+          "hash": "c013b54ea914fbccdc0518c283e552af1958cc0eeedb00bddabd1b41f3413133",
           "path": "aspire/geometry.py",
           "sequences": [
             {
               "calls": [
                 {
-                  "line": 263,
+                  "line": 290,
                   "name": "detach",
                   "target": null,
                   "via": "_to_numpy"
                 },
                 {
-                  "line": 265,
+                  "line": 292,
                   "name": "float",
                   "target": null,
                   "via": "_to_numpy"
                 },
                 {
-                  "line": 266,
+                  "line": 293,
                   "name": "cpu",
                   "target": null,
                   "via": "_to_numpy"
@@ -850,17 +865,17 @@
             {
               "calls": [
                 {
-                  "line": 263,
+                  "line": 290,
                   "name": "detach",
                   "target": null
                 },
                 {
-                  "line": 265,
+                  "line": 292,
                   "name": "float",
                   "target": null
                 },
                 {
-                  "line": 266,
+                  "line": 293,
                   "name": "cpu",
                   "target": null
                 }
@@ -873,7 +888,7 @@
             {
               "calls": [
                 {
-                  "line": 306,
+                  "line": 333,
                   "name": "mean",
                   "target": null
                 }
@@ -886,7 +901,7 @@
             {
               "calls": [
                 {
-                  "line": 366,
+                  "line": 393,
                   "name": "mean",
                   "target": null
                 }
@@ -900,7 +915,7 @@
               "calls": [
                 {
                   "branch": "scores.shape[1] == 1",
-                  "line": 376,
+                  "line": 403,
                   "name": "var",
                   "target": null
                 }
@@ -913,7 +928,7 @@
             {
               "calls": [
                 {
-                  "line": 396,
+                  "line": 423,
                   "name": "mean",
                   "target": null
                 }
@@ -1376,20 +1391,20 @@
             {
               "in": "extract_json_object",
               "kind": "except",
-              "line": 46
+              "line": 50
             },
             {
               "in": "_clamp_score",
               "kind": "except",
-              "line": 56
+              "line": 65
             },
             {
               "in": "_parse_evaluation",
               "kind": "except",
-              "line": 259
+              "line": 270
             }
           ],
-          "hash": "ffc9503dca8baf2041385a5c09fa9b3368e41629210b64cf7da40589da4c2ee3",
+          "hash": "86d2bb2a9c3d8cff5991d5a064987d8183a1b7fc2d1a43aedd45f590f4802024",
           "importsFiles": [
             "aspire/teachers/base.py"
           ],
@@ -1618,25 +1633,25 @@
             {
               "in": "_init_critic",
               "kind": "raise",
-              "line": 293
+              "line": 297
             },
             {
               "in": "_init_optimizers",
               "kind": "raise",
-              "line": 335
+              "line": 339
             },
             {
               "in": "_init_optimizers",
               "kind": "raise",
-              "line": 343
+              "line": 347
             },
             {
               "in": "_write_geometry",
               "kind": "except",
-              "line": 449
+              "line": 464
             }
           ],
-          "hash": "139109439d989db49306b1252f91cba03973d5ca89b521f63a4ab938369e4179",
+          "hash": "0dc85cca7b4904627b884b6c9c36357aae9a0040524e6f7fb201789892b0a608",
           "importsFiles": [
             "aspire/config.py",
             "aspire/critic/__init__.py",
@@ -1739,7 +1754,7 @@
             {
               "calls": [
                 {
-                  "line": 638,
+                  "line": 655,
                   "name": "AspireConfig",
                   "target": {
                     "file": "aspire/config.py"
@@ -1805,6 +1820,10 @@
           "path": "docs/perception-module.md"
         },
         {
+          "hash": "d27d5ae88249f857371e331c8ee7b314436c86d9761a52b6173e674ea7263978",
+          "path": "docs/runs/2026-10-06-pod-run.md"
+        },
+        {
           "hash": "168412b204d82fab976ee0eea3e0c27a64394acadd5a2cc6cb8a042a2cc21a7a",
           "path": "docs/spec-feature-enhancements.md"
         }
@@ -1820,7 +1839,7 @@
       "unresolvedSites": 0
     },
     {
-      "dynamicReads": 0,
+      "dynamicReads": 3,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 0,
@@ -1950,12 +1969,47 @@
           "path": "examples/local-run/prompts.json"
         },
         {
-          "hash": "85956b2485612b26257fad80cb7a8c4014d59159b284502f1784f8716788552f",
+          "hash": "a91c5a23d8f435e6bf3f2796e62a53657dbfb19b89ab846143d8793219965c9f",
+          "importsFiles": [
+            "aspire/geometry.py"
+          ],
+          "path": "examples/pod-run/drift.py"
+        },
+        {
+          "exports": [
+            "cos_dist",
+            "states_for"
+          ],
+          "hash": "168d1760cf59e77f1e9ba1419651811794ff6374554edfb922bcfa0144417564",
+          "importsFiles": [
+            "aspire/config.py",
+            "aspire/geometry.py",
+            "aspire/judge.py"
+          ],
+          "path": "examples/pod-run/probe.py"
+        },
+        {
+          "hash": "760847461f46ff6e7e1242150bbb6df281713f0af8b8abafe5f655f89194bddc",
           "path": "examples/pod-run/real-composite-teacher.yaml"
         },
         {
-          "hash": "3196ef321bf6cca850dac7fe4060f59777811d81dd6b3758bb2078f0583ca1f1",
+          "hash": "6c97c3941df987f3e28793814ee9633db64c6943aa1b947dcb5474152564da0e",
           "path": "examples/pod-run/real-local-teacher.yaml"
+        },
+        {
+          "hash": "4d2182770bc35cde33701964eff86610d0883f50baa82cc85d7dbe6ddffdf59c",
+          "path": "examples/pod-run/setup.sh"
+        },
+        {
+          "hash": "c82180ca28b5b631fa4eaed0832f8b053051257f9a02d8d89cc7bde18c1411d6",
+          "path": "examples/pod-run/train.sh"
+        },
+        {
+          "hash": "0c6565ec1308909f212ab49619652a64677e6ede6abcc8249e87e2debb717e40",
+          "importsFiles": [
+            "aspire/geometry.py"
+          ],
+          "path": "examples/pod-run/upgrade_export.py"
         }
       ],
       "globs": [
@@ -1964,6 +2018,17 @@
       "importConfidence": "full",
       "name": "examples",
       "origin": "authored",
+      "outsidePlaces": [
+        {
+          "reads": 5,
+          "where": [
+            "caller"
+          ],
+          "writes": 2
+        }
+      ],
+      "outsideReads": 5,
+      "outsideWrites": 2,
       "role": "code",
       "testedBy": 0,
       "unresolvedSites": 0
@@ -2565,7 +2630,7 @@
           "path": "ASPIRE-SPEC.md"
         },
         {
-          "hash": "5e7d995c032402187fe0e62d0d7fc3e1dfcc18bd35e8ffff3e58c71d88268a8f",
+          "hash": "251f146d6410c970fa3ed8a001a7762bf28aa311034b77962fdc65cd7fdfede4",
           "path": "CHANGELOG.md"
         },
         {
@@ -2593,35 +2658,35 @@
           "path": "PRESS_RELEASE.md"
         },
         {
-          "hash": "15821d3fce66b4025656c1580c8d6feffed8411c80a6ddb45417c5d55dda2863",
+          "hash": "15daa0ccbaa30a04d94eadd17ef7cbdbe17e58c3263dd57ed0f89525f5f55122",
           "path": "README.es.md"
         },
         {
-          "hash": "ed1b906960c1733e0304ffd3b4bb48836223d4310f8eea68e5cd33941b2a1788",
+          "hash": "c2ce6e12495b6d7dec1e83adeff6d47bdfa3508d7ab505fb6cb10729ba3349fe",
           "path": "README.fr.md"
         },
         {
-          "hash": "2747934925381e314086ee07afddd91d27612b8bebb647083e7503cbec4d0b72",
+          "hash": "c572a3dd9e72019eaae5015bc4c0eac8d9b0b8a1da4be37bb3a7acbd5aa0bad4",
           "path": "README.hi.md"
         },
         {
-          "hash": "358ec8c5d5f71daa0f512ab56062a6c89fd67050ed122cf6065d2ced2fac4c12",
+          "hash": "19ae5657025ca2f65e145d62abf5f65a1a4286b1c155a8e38c39b9bf7763adfe",
           "path": "README.it.md"
         },
         {
-          "hash": "803501d5b956443cf2292dc19a88d9f7a209be46c6237641715937165ddee5a8",
+          "hash": "7e06682bd8771f64110d83f63254ed5a86c5b6e42f261df6520cbfd5ae55310b",
           "path": "README.ja.md"
         },
         {
-          "hash": "dce5d7d17538021423235c22068adec54611ffc4778406a552706d1cc1eb47b7",
+          "hash": "048eeb38d1761ea5b2a22dca1ca0c8b8e7da534709f57b7edd254d4af3816dfd",
           "path": "README.md"
         },
         {
-          "hash": "22d9321ace4348f799daeaf5e0c74c6098faf5b03b012833a830090408994a2a",
+          "hash": "07aaad2ad17a6f40ab33acd04016364fa235d0785b37dfcc88150aa5285ec033",
           "path": "README.pt-BR.md"
         },
         {
-          "hash": "17052833fb2a32176e271da0ae7bef7877a93719ced19a43486a53908366cbb6",
+          "hash": "35bacfe55ee101af9b7d643db8c01299191ea14c532460b0bba4bbe66b5d24bf",
           "path": "README.zh.md"
         },
         {
@@ -2725,7 +2790,7 @@
           "path": "site/src/content/docs/handbook/integrations.md"
         },
         {
-          "hash": "9d3080051d54b675e7fa593b513f2fb2d1b0b72c76ea5abb48d6ae3d82f9baf3",
+          "hash": "956b6bb6ff2c2ce39d9612644584f1d5afefc6933bfb48e599f1cf9691a382f9",
           "path": "site/src/content/docs/handbook/scalarscope.md"
         },
         {
@@ -3366,7 +3431,7 @@
           "exports": [
             "make_trainer"
           ],
-          "hash": "aa15633bb9cfadcc6d22e37bd4299c6b300eb071dfe3bcd9c8c324d62c89839b",
+          "hash": "cfec0b5bd3c08072150c759470b36a526aabdd7fbab1429af4d8a265068e0df6",
           "importsFiles": [
             "aspire/config.py",
             "aspire/trainer.py"
@@ -3434,7 +3499,7 @@
             "line_run",
             "recorder"
           ],
-          "hash": "bb02e06ee67d832cfcd218aff425d520a9e4b446cce025201bd9c54dbf9ea66c",
+          "hash": "92cfc74f5ba4a9e1b26c1b9a7e3bafdc71bffed60b85b5ea64c92e23a4a0c078",
           "importOrder": [
             "aspire/geometry.py",
             "aspire/teachers/base.py",
@@ -3508,8 +3573,8 @@
             "make_local",
             "manager"
           ],
-          "hash": "280ffb5346a198d502bf1ed37b063318f4d18aad010d8f2cb75052af951d8bb8",
-          "importsFiles": [
+          "hash": "cf8b9a75191d8d6f59edcd54141ea9158f7201e7fff4f9edec9c62d52504b8c6",
+          "importOrder": [
             "aspire/cli.py",
             "aspire/config.py",
             "aspire/critic/head.py",
@@ -3520,7 +3585,24 @@
             "aspire/teachers/base.py",
             "aspire/teachers/local.py",
             "aspire/teachers/registry.py",
-            "aspire/trainer.py"
+            "aspire/trainer.py",
+            "aspire/__init__.py",
+            "tests/test_coverage_teachers.py"
+          ],
+          "importsFiles": [
+            "aspire/__init__.py",
+            "aspire/cli.py",
+            "aspire/config.py",
+            "aspire/critic/head.py",
+            "aspire/dialogue/generator.py",
+            "aspire/dialogue/manager.py",
+            "aspire/errors.py",
+            "aspire/teachers/__init__.py",
+            "aspire/teachers/base.py",
+            "aspire/teachers/local.py",
+            "aspire/teachers/registry.py",
+            "aspire/trainer.py",
+            "tests/test_coverage_teachers.py"
           ],
           "path": "tests/test_real_run_fixes.py",
           "testFramework": "pytest"
@@ -4280,8 +4362,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "9b12d5398140900b0262027109fa484368dc9986",
-    "tracked": 191
+    "commit": "1cd5353b8962e89b83c209ea32379367c5f7418e",
+    "tracked": 197
   },
   "landings": [
     {
@@ -4331,7 +4413,42 @@
     {
       "readers": [
         {
+          "by": "README.es.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
+          "by": "README.fr.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
+          "by": "README.hi.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
+          "by": "README.it.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
+          "by": "README.ja.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
           "by": "README.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
+          "by": "README.pt-BR.md",
+          "call": "--config",
+          "confidence": "text"
+        },
+        {
+          "by": "README.zh.md",
           "call": "--config",
           "confidence": "text"
         },
@@ -4346,6 +4463,11 @@
     },
     {
       "readers": [
+        {
+          "by": "examples/pod-run/train.sh",
+          "call": "literal",
+          "confidence": "text"
+        },
         {
           "by": "site/src/content/docs/handbook/cli.md",
           "call": "--prompts",
