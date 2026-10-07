@@ -146,6 +146,25 @@ class TestGeometryWiring:
         _, kwargs = trainer.geometry.write.call_args
         assert kwargs == {"training_items": 4, "cycles": 2}
 
+    def test_train_writes_the_export_after_every_epoch(self, make_trainer):
+        """A run stopped early (a deadline, Ctrl+C) keeps the steps it recorded."""
+        trainer, _ = make_trainer["build"](training__geometry_export=True, training__num_epochs=3)
+        trainer.geometry.write.return_value = Path("g.json")
+        epoch_metrics = {"loss": 1.0, "critic_loss": 0.5, "student_loss": 0.25}
+        with patch("aspire.trainer.get_scheduler"), patch.object(
+            trainer, "_train_epoch", return_value=epoch_metrics
+        ), patch.object(trainer, "_save_checkpoint"):
+            trainer.train(["a", "b"])
+        cycles = [c.kwargs["cycles"] for c in trainer.geometry.write.call_args_list]
+        assert cycles == [1, 2, 3]
+
+    def test_an_epoch_export_too_short_to_write_is_quiet(self, make_trainer):
+        trainer, _ = make_trainer["build"](training__geometry_export=True)
+        trainer.geometry.write.side_effect = ValueError("too few steps")
+        assert trainer._write_geometry(3, cycles=1, quiet=True) is None
+        printed = " ".join(str(c.args[0]) for c in make_trainer["console"].print.call_args_list)
+        assert "No geometry export" not in printed
+
     def test_train_geometry_failure_records_none(self, make_trainer):
         trainer, _ = make_trainer["build"](training__geometry_export=True, training__num_epochs=1)
         trainer.geometry.write.side_effect = ValueError("nope")

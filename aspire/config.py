@@ -76,6 +76,9 @@ class TeacherConfig(BaseModel):
 
     # Dialogue settings
     max_dialogue_turns: int = 3
+    # Score every turn as well as the last. Training reads only the final evaluation, so
+    # turning this off halves the teacher's work without changing what is trained on.
+    evaluate_each_turn: bool = True
     challenge_types: list[str] = Field(
         default_factory=lambda: [
             "probe_reasoning",

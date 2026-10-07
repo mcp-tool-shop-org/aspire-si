@@ -38,6 +38,15 @@ is fixed and covered by a test that failed before the fix.
   bare), and falls back to a score in the text. `metadata["parse"]` says which happened.
 - An instruct model's own chat template is used for the student's turns, the local teacher's
   requests and the text the critic reads.
+- `teacher.evaluate_each_turn` (default on): the teacher scores every turn as well as the last.
+  Training reads only the final evaluation, so turning it off halves the teacher's work without
+  changing what the student and critic train on.
+- The geometry export is written after every epoch as well as at the end, so a run stopped
+  early (a deadline, Ctrl+C, a crash) keeps the epochs it finished.
+- `examples/pod-run/`: the configs and scripts of the first real-model runs, including
+  `probe.py` and `drift.py`. `probe.py` replays a fixed set of exchanges through the base student
+  and every epoch checkpoint; `drift.py` writes a geometry export of what training changed, with
+  prompt identity removed. Run report: `docs/runs/2026-10-06-pod-run.md`.
 
 ### Changed
 
@@ -83,6 +92,22 @@ is fixed and covered by a test that failed before the fix.
 - On a Windows console or redirected output that uses a code page such as cp1252, the progress
   bar stopped training with a `UnicodeEncodeError`. Characters the console cannot show print as
   `?` now.
+
+Found by the real-model run on a rented GPU (a 1.5B student, 32B teachers), each with a test:
+
+- The student's turns were cut at 512 tokens from the end: the trainer never passed
+  `student.max_length` to the dialogue generator, and truncation dropped the end of the input.
+  By the third turn the cue to answer was gone, the student continued the dialogue
+  mid-sentence, and that reply was what the teacher scored. The generator now gets the
+  student's `max_length` and, past it, drops the beginning of the dialogue instead.
+  (`TestPodRunFixes::test_student_input_loses_its_beginning_not_the_cue_to_answer`,
+  `test_trainer_passes_the_students_max_length_and_turn_evaluation`)
+- Local teachers wrote LaTeX (`\(`) and raw newlines inside JSON strings, so complete
+  evaluations were rejected and fell back to the default 5.0. Invalid escapes are repaired and
+  raw newlines accepted. (`test_teacher_json_with_latex_escapes_and_raw_newlines_parses`)
+- An evaluation could take only 768 tokens, which cut verbose teachers off mid-JSON (a score
+  and an explanation for each of nine dimensions, plus an improved response). It may take
+  1536. (`test_evaluations_have_room_for_every_dimension`)
 
 ## [1.1.0] - 2026-10-06
 

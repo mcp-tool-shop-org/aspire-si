@@ -812,3 +812,69 @@ class TestTrainConfigPrecedence:
         assert cfg.teacher.default_teacher == "claude"
         assert cfg.training.num_epochs == 3
         assert cfg.training.output_dir == Path("outputs")
+
+
+class TestPodRunFixes:
+    """Bugs the first real-model pod run found (2026-10-06)."""
+
+    def test_teacher_json_with_latex_escapes_and_raw_newlines_parses(self):
+        from aspire.teachers.local import extract_json_object
+
+        reply = (
+            '{"overall_score": 6, "reasoning": "switching wins \\( \\frac{n-1}{n} \\) of the time\n'
+            'so it is right", "dimension_scores": []}'
+        )
+        data = extract_json_object(reply)
+        assert data is not None and data["overall_score"] == 6
+        assert "\\(" in data["reasoning"]
+
+    def test_evaluations_have_room_for_every_dimension(self, local_teacher_factory):
+        from aspire.teachers.local import EVALUATION_TOKENS
+
+        make, created = local_teacher_factory
+        teacher = make()
+        created["tok"].decoded = '{"overall_score": 7}'
+        import asyncio
+
+        asyncio.run(teacher.evaluate("p", "r"))
+        assert created["model"].generate.call_args.kwargs["max_new_tokens"] == EVALUATION_TOKENS >= 1536
+
+    def test_student_input_loses_its_beginning_not_the_cue_to_answer(self):
+        from unittest.mock import MagicMock
+
+        import torch
+
+        from aspire.dialogue.generator import DialogueGenerator
+
+        tokenizer = MagicMock()
+        tokenizer.pad_token = "<pad>"
+        tokenizer.chat_template = None
+        batch = MagicMock()
+        batch.__getitem__.side_effect = lambda k: torch.ones(1, 3, dtype=torch.long)
+        batch.to.return_value = batch
+        tokenizer.return_value = batch
+        model = MagicMock()
+        model.generate.return_value = torch.ones(1, 5, dtype=torch.long)
+        tokenizer.decode.return_value = "reply"
+        generator = DialogueGenerator(model, tokenizer, MagicMock(), student_max_length=1536, device="cpu")
+        generator._generate_student_response("p", "challenge")
+        assert tokenizer.truncation_side == "left"
+        assert tokenizer.call_args.kwargs["max_length"] == 1536
+
+    def test_trainer_passes_the_students_max_length_and_turn_evaluation(self):
+        import inspect
+
+        from aspire import trainer
+
+        source = inspect.getsource(trainer.AspireTrainer.__init__)
+        assert "student_max_length=config.student.max_length" in source
+        assert "evaluate_each_turn=config.teacher.evaluate_each_turn" in source
+
+    def test_turn_evaluation_is_on_by_default(self):
+        from aspire.config import TeacherConfig
+
+        assert TeacherConfig().evaluate_each_turn is True
+        assert TeacherConfig(evaluate_each_turn=False).evaluate_each_turn is False
+
+
+from tests.test_coverage_teachers import local_teacher_factory  # noqa: E402,F401  (fixture)

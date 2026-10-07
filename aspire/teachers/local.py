@@ -26,6 +26,8 @@ from aspire.teachers.base import (
 
 # The most request tokens a teacher is given, whatever its context.
 MAX_INPUT_TOKENS = 4096
+# The most tokens an evaluation may take.
+EVALUATION_TOKENS = 1536
 
 
 def default_device() -> str:
@@ -41,13 +43,20 @@ def extract_json_object(text: str) -> dict | None:
     if start != -1 and end > start:
         candidates.append(text[start : end + 1])
     for candidate in candidates:
-        try:
-            data = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(data, dict):
-            return data
+        for text_ in (candidate, _repair_escapes(candidate)):
+            try:
+                # strict=False allows raw newlines inside strings, which models write.
+                data = json.loads(text_, strict=False)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict):
+                return data
     return None
+
+
+def _repair_escapes(text: str) -> str:
+    r"""Double a backslash that does not start a JSON escape (models write LaTeX such as \( in strings)."""
+    return re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", text)
 
 
 def _clamp_score(value: object) -> float | None:
@@ -242,7 +251,9 @@ Reply with JSON only, in this shape:
   "weaknesses": ["..."]{improved_line}
 }}"""
 
-        response = self._generate(self._format(request), 768, 0.3)
+        # A score and an explanation per dimension plus an improved response run long;
+        # 768 tokens cut verbose teachers off mid-JSON.
+        response = self._generate(self._format(request), EVALUATION_TOKENS, 0.3)
         return self._parse_evaluation(response, generate_improved)
 
     def _parse_evaluation(self, response: str, generate_improved: bool) -> TeacherEvaluation:

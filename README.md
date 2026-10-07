@@ -295,7 +295,17 @@ No model or API key? `python examples/geometry_demo.py` simulates two runs and w
 exports, which is the quickest way to see the views.
 
 The recorder (`aspire.geometry.GeometryRecorder`) keeps one pooled vector per step in memory.
-For long runs set `training.geometry_every` to average several batches into one step.
+For long runs set `training.geometry_every` to average several batches into one step. The export
+is written after every epoch as well as at the end, so a run stopped early keeps what it recorded.
+
+**Reading a real run.** In the first real-model runs (1.5B student, 32B teachers, 3 epochs;
+[run report](docs/runs/2026-10-06-pod-run.md)), each step's hidden state mostly reflected *which
+prompt* the step trained on: two prompts sit about 10,000 times further apart than three epochs of
+training moved the student. The scalars repeat each epoch, because epochs after the first replay the
+cached teacher scores. To see what training changed, `examples/pod-run/probe.py` and `drift.py` send
+the same fixed exchanges through the base student and every epoch checkpoint and write a *drift*
+export with prompt identity removed. ScalarScope's real fixtures are both kinds, and all of them
+cover all three epochs.
 
 ---
 
