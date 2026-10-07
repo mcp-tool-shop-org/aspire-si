@@ -1,5 +1,13 @@
 # Run report: fine-tune, then ASPIRE (2026-10-07)
 
+> **Correction (seeds 43 and 44, 2026-10-07).** This report's headline does not hold. It said that
+> with the composite teacher, the critic trained after the fine-tune was worse (0.646 against
+> 0.866), on one training run per condition. Over three seeds there is no reliable difference for
+> either teacher: the mean drop is 0.06 for the composite teacher and 0.008 for the local one, and
+> seed 44 reverses the order. The critics vary far more between training runs than between
+> conditions; the composite control ranged from 0.425 to 0.866. The hidden-state trajectory
+> described below does replicate. See the [run 1 report](2026-10-07-run-1-seeds.md).
+
 This experiment asked whether ASPIRE does better on a student that was first fine-tuned on the
 same material ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
@@ -163,7 +171,8 @@ the teacher's scores beyond a random-direction null (|r| at most 0.18, against a
 
 ## What this says
 
-- **The fine-tune did not help ASPIRE here, and with the composite teacher it hurt.**
+- **The fine-tune did not help ASPIRE here, and with the composite teacher it hurt.** (Corrected:
+  over three seeds there is no reliable difference; see the note at the top.)
   - The critic trained after the fine-tune lost 0.22 of pairwise accuracy at spotting planted
     errors.
   - The held-out answers did not get better.

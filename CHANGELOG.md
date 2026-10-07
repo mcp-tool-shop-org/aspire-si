@@ -16,12 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - a cleaning step that records every drop;
   - QLoRA fine-tuning;
   - probes with schema 1.1 drift exports;
-  - the held-out and judge measures, with intervals that resample prompts.
+  - the held-out and judge measures, with intervals that resample prompts;
+  - pod scripts that check the rented host's CUDA driver, GPU memory and download speed before
+    installing anything.
 
-  Result: with the composite teacher, the critic trained after the fine-tune was worse at
-  spotting planted errors than the control's (0.65 against 0.87; one training run per condition,
-  so the report gives the intervals and what they do not cover). The fine-tune moved the
-  hidden states about 30 times as far as ASPIRE does, and ASPIRE's own drift ran against it.
+  Result, over three training seeds ([run 1 report](docs/runs/2026-10-07-run-1-seeds.md)):
+  fine-tuning the student before ASPIRE makes no reliable difference to how well the critic spots
+  planted errors, with either teacher. A first single-seed result said it hurt the composite
+  critic (0.65 against 0.87); two more seeds did not bear that out. The critic's accuracy varies
+  much more between training runs than between conditions (the composite control ranged from
+  0.43 to 0.87). The hidden-state trajectory replicates: the fine-tune moves the student about
+  30 times as far as ASPIRE does, always in the same direction, and ASPIRE's own drift opposes
+  that direction in every seed, with or without the fine-tune.
 
 ### Changed
 
