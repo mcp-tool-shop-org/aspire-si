@@ -15,7 +15,8 @@
 #   prev/judge.json       the seed-42 judge results
 # Each stage leaves a marker in /workspace/job/stages-d, so running this again resumes.
 set -euo pipefail
-export HF_HOME=/workspace/hf PYTHONUNBUFFERED=1
+# HF_HOME may be set by the caller, e.g. to a container disk: HF_HOME=/root/hf bash plan_d.sh
+export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1
 J=/workspace/job
 E=$J/aspire-si/examples/sft-experiment
 R=$J/results-d

@@ -10,7 +10,8 @@
 # Each stage leaves a marker in /workspace/job/stages-sSEED, so running this again resumes.
 set -euo pipefail
 SEED=${1:?usage: plan_c.sh SEED}
-export HF_HOME=/workspace/hf PYTHONUNBUFFERED=1
+# HF_HOME may be set by the caller, e.g. to a container disk: HF_HOME=/root/hf bash plan_c.sh 44
+export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1
 J=/workspace/job
 E=$J/aspire-si/examples/sft-experiment
 R=$J/results-s$SEED
