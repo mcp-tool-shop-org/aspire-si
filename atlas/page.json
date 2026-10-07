@@ -27,48 +27,44 @@
       "kind": "part",
       "name": "integrations",
       "partLabel": "integrations"
+    },
+    {
+      "doors": 1,
+      "importedBy": [],
+      "importedByTests": [
+        "tests"
+      ],
+      "kind": "part",
+      "name": "examples",
+      "partLabel": "examples"
     }
   ],
   "changes": {
     "fileCounts": {
       "added": 6,
-      "changed": 20,
+      "changed": 4,
       "moved": 0,
-      "parts": 6,
+      "parts": 3,
       "removed": 0
     },
     "items": [
       {
         "kind": "landing",
-        "sentence": "examples/local-run/local-teacher.yaml is now also read by README.es.md, README.fr.md, README.hi.md, README.it.md, README.ja.md, README.pt-BR.md and README.zh.md.",
-        "subjects": [
-          "examples/local-run/local-teacher.yaml",
-          "README.es.md",
-          "README.fr.md",
-          "README.hi.md",
-          "README.it.md",
-          "README.ja.md",
-          "README.pt-BR.md",
-          "README.zh.md"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "examples/local-run/prompts.json is now also read by examples/pod-run/train.sh.",
+        "sentence": "examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_b.sh.",
         "subjects": [
           "examples/local-run/prompts.json",
-          "examples/pod-run/train.sh"
+          "examples/sft-experiment/pod/plan_b.sh"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "6 files added and 20 changed content, across 6 parts.",
+        "sentence": "6 files added and 4 changed content, across 3 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "9b12d5398140900b0262027109fa484368dc9986",
-      "generatedAt": "2026-10-07T01:50:39.994Z"
+      "commit": "ddf58cee4062994aa7fdf2205f9d4fbfa16a7471",
+      "generatedAt": "2026-10-07T04:17:30.315Z"
     },
     "unchanged": false
   },
@@ -77,9 +73,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits."
   ],
   "changesTogetherWithTests": 0,
-  "commit": "1cd5353b8962e89b83c209ea32379367c5f7418e",
+  "commit": "5c5346d7cb37d1430f93eafab5e3a5cabad4f123",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (134 files), CSS (2), TypeScript (2), shell (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (142 files), shell (5), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -102,7 +98,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 1
+          "files": 8
         },
         {
           "boundary": "integrations",
@@ -112,7 +108,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 67
+          "files": 68
         }
       ],
       "runs": [
@@ -227,15 +223,21 @@
   "duplicates": [],
   "duplicatesLead": null,
   "duplicatesNote": [],
-  "edges": [],
+  "edges": [
+    {
+      "from": "examples",
+      "fromTests": false,
+      "to": "aspire"
+    }
+  ],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-07T03:48:16.340Z",
+  "generatedAt": "2026-10-07T05:07:38.731Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
-    "3 writes and 11 reads use paths built at run time and are not named here.",
-    "7 writes and 23 reads go to a path their caller passes, not to this repository.",
+    "3 writes and 13 reads use paths built at run time and are not named here.",
+    "20 writes and 32 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions."
   ],
@@ -286,23 +288,17 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 67,
+  "testFiles": 68,
   "testedBy": {
-    "aspire": 42,
-    "examples": 0,
+    "aspire": 43,
+    "examples": 1,
     "integrations": 21
   },
   "unnamedWrites": 3,
   "unread": [],
   "unreadFiles": 0,
   "unreadNote": [],
-  "untested": [
-    {
-      "part": "examples",
-      "partLabel": "examples",
-      "testedBy": 0
-    }
-  ],
+  "untested": [],
   "untestedNote": [],
   "written": 0
 }

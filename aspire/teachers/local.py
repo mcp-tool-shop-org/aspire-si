@@ -69,6 +69,102 @@ def _clamp_score(value: object) -> float | None:
     return min(10.0, max(0.0, score))
 
 
+def evaluation_request(
+    prompt: str,
+    student_response: str,
+    dimensions: list[str],
+    history_context: str = "",
+    generate_improved: bool = True,
+) -> str:
+    """The request a local teacher scores a response with (shared with batch scoring scripts)."""
+    dimension_lines = ",\n".join(
+        f'    {{"dimension": "{d}", "score": 0-10, "explanation": "one sentence"}}' for d in dimensions
+    )
+    improved_line = (
+        ',\n  "improved_response": "an improved version of the response"' if generate_improved else ""
+    )
+    return f"""Evaluate this student response on a scale of 0-10.
+
+Original prompt: {prompt}
+
+Student's response: {student_response}
+{history_context}
+
+Score it overall and on each of these dimensions: {", ".join(dimensions)}.
+Reply with JSON only, in this shape:
+{{
+  "overall_score": 0-10,
+  "dimension_scores": [
+{dimension_lines}
+  ],
+  "reasoning": "two or three sentences",
+  "strengths": ["..."],
+  "weaknesses": ["..."]{improved_line}
+}}"""
+
+
+def parse_evaluation(response: str, generate_improved: bool, teacher_name: str) -> TeacherEvaluation:
+    """Read a teacher's reply: JSON if it gave JSON, a score found in the text otherwise."""
+    data = extract_json_object(response)
+    overall = _clamp_score(data.get("overall_score")) if data else None
+    if data is not None and overall is not None:
+        dimension_scores = []
+        for item in data.get("dimension_scores") or []:
+            if not isinstance(item, dict):
+                continue
+            try:
+                dimension = EvaluationDimension(str(item.get("dimension", "")).strip().lower())
+            except ValueError:
+                continue
+            score = _clamp_score(item.get("score"))
+            if score is None:
+                continue
+            dimension_scores.append(DimensionScore(dimension, score, str(item.get("explanation", ""))))
+        improved = data.get("improved_response") if generate_improved else None
+        return TeacherEvaluation(
+            overall_score=overall,
+            dimension_scores=dimension_scores,
+            reasoning=str(data.get("reasoning", "")) or response,
+            improved_response=improved if isinstance(improved, str) and improved.strip() else None,
+            strengths=[str(s) for s in data.get("strengths") or [] if isinstance(s, str)],
+            weaknesses=[str(s) for s in data.get("weaknesses") or [] if isinstance(s, str)],
+            metadata={"teacher": teacher_name, "parse": "json"},
+        )
+
+    score = extract_score(response)
+    return TeacherEvaluation(
+        overall_score=5.0 if score is None else score,
+        dimension_scores=[],
+        reasoning=response,
+        improved_response=extract_improved(response) if generate_improved else None,
+        metadata={"teacher": teacher_name, "parse": "default" if score is None else "text"},
+    )
+
+
+def extract_score(response: str) -> float | None:
+    """A 0-10 score found in free text ("Score: 7", "7/10", a leading number), or None."""
+    patterns = [
+        r"[Ss]core:?\s*(\d+(?:\.\d+)?)",
+        r"(\d+(?:\.\d+)?)\s*/\s*10",
+        r"^(\d+(?:\.\d+)?)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, response)
+        if match:
+            return min(10.0, max(0.0, float(match.group(1))))
+    return None
+
+
+def extract_improved(response: str) -> str | None:
+    """The improved response after a marker such as "Improved version:", if present."""
+    lower_response = response.lower()
+    for marker in ("improved version:", "better response:", "improved:"):
+        if marker in lower_response:
+            idx = lower_response.index(marker)
+            return response[idx + len(marker) :].strip()
+    return None
+
+
 class LocalTeacher(BaseTeacher):
     """
     Teacher powered by a local model.
@@ -225,31 +321,13 @@ Generate a single challenging question or statement. Reply with the challenge on
                 history_context += f"Challenge: {turn.challenge.content}\n"
                 history_context += f"Student: {turn.student_response}\n\n"
 
-        dimensions = [d.value for d in self.evaluation_dimensions]
-        dimension_lines = ",\n".join(
-            f'    {{"dimension": "{d}", "score": 0-10, "explanation": "one sentence"}}' for d in dimensions
+        request = evaluation_request(
+            prompt,
+            student_response,
+            [d.value for d in self.evaluation_dimensions],
+            history_context,
+            generate_improved,
         )
-        improved_line = (
-            ',\n  "improved_response": "an improved version of the response"' if generate_improved else ""
-        )
-        request = f"""Evaluate this student response on a scale of 0-10.
-
-Original prompt: {prompt}
-
-Student's response: {student_response}
-{history_context}
-
-Score it overall and on each of these dimensions: {", ".join(dimensions)}.
-Reply with JSON only, in this shape:
-{{
-  "overall_score": 0-10,
-  "dimension_scores": [
-{dimension_lines}
-  ],
-  "reasoning": "two or three sentences",
-  "strengths": ["..."],
-  "weaknesses": ["..."]{improved_line}
-}}"""
 
         # A score and an explanation per dimension plus an improved response run long;
         # 768 tokens cut verbose teachers off mid-JSON.
@@ -258,68 +336,12 @@ Reply with JSON only, in this shape:
 
     def _parse_evaluation(self, response: str, generate_improved: bool) -> TeacherEvaluation:
         """Read the model's reply: JSON if it gave JSON, a score found in the text otherwise."""
-        data = extract_json_object(response)
-        overall = _clamp_score(data.get("overall_score")) if data else None
-        if data is not None and overall is not None:
-            dimension_scores = []
-            for item in data.get("dimension_scores") or []:
-                if not isinstance(item, dict):
-                    continue
-                try:
-                    dimension = EvaluationDimension(str(item.get("dimension", "")).strip().lower())
-                except ValueError:
-                    continue
-                score = _clamp_score(item.get("score"))
-                if score is None:
-                    continue
-                dimension_scores.append(
-                    DimensionScore(dimension, score, str(item.get("explanation", "")))
-                )
-            improved = data.get("improved_response") if generate_improved else None
-            return TeacherEvaluation(
-                overall_score=overall,
-                dimension_scores=dimension_scores,
-                reasoning=str(data.get("reasoning", "")) or response,
-                improved_response=improved if isinstance(improved, str) and improved.strip() else None,
-                strengths=[str(s) for s in data.get("strengths") or [] if isinstance(s, str)],
-                weaknesses=[str(s) for s in data.get("weaknesses") or [] if isinstance(s, str)],
-                metadata={"teacher": self.name, "parse": "json"},
-            )
-
-        score = self._extract_score(response)
-        return TeacherEvaluation(
-            overall_score=5.0 if score is None else score,
-            dimension_scores=[],
-            reasoning=response,
-            improved_response=self._extract_improved(response) if generate_improved else None,
-            metadata={"teacher": self.name, "parse": "default" if score is None else "text"},
-        )
+        return parse_evaluation(response, generate_improved, self.name)
 
     def _extract_score(self, response: str) -> float | None:
         """Extract a 0-10 score from free text, or None when there is none."""
-        # Look for patterns like "Score: 7" or "7/10" or just a number
-        patterns = [
-            r"[Ss]core:?\s*(\d+(?:\.\d+)?)",
-            r"(\d+(?:\.\d+)?)\s*/\s*10",
-            r"^(\d+(?:\.\d+)?)",
-        ]
-
-        for pattern in patterns:
-            match = re.search(pattern, response)
-            if match:
-                score = float(match.group(1))
-                return min(10.0, max(0.0, score))
-
-        return None
+        return extract_score(response)
 
     def _extract_improved(self, response: str) -> str | None:
         """Extract improved response if present."""
-        markers = ["improved version:", "better response:", "improved:"]
-        lower_response = response.lower()
-
-        for marker in markers:
-            if marker in lower_response:
-                idx = lower_response.index(marker)
-                return response[idx + len(marker) :].strip()
-
-        return None
+        return extract_improved(response)
