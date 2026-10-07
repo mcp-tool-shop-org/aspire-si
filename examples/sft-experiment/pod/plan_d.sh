@@ -37,6 +37,8 @@ stage() {
 setup() {
   cd $J
   rm -rf aspire-si && mkdir aspire-si && tar -xzf aspire-si.tar.gz -C aspire-si
+  # Refuse a host whose driver or GPU cannot run this, before installing anything.
+  python aspire-si/examples/sft-experiment/host_check.py --min-cuda 13.0 --min-memory-gb 80
   python -m pip install -q --upgrade pip
   python -m pip install -q vllm
   python -m pip install -q -e ./aspire-si
