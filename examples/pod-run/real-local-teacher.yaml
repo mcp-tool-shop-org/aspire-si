@@ -12,7 +12,7 @@ teacher:
   default_teacher: local
   local_model_path: Qwen/Qwen2.5-32B-Instruct
   local_load_in_4bit: true
-  max_dialogue_turns: 2
+  max_dialogue_turns: 1
 training:
   num_epochs: 2
   batch_size: 2
