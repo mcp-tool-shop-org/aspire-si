@@ -184,6 +184,8 @@ class AspireTrainer:
             student_tokenizer=self.tokenizer,
             teacher=self.teacher,
             max_turns=config.teacher.max_dialogue_turns,
+            evaluate_each_turn=config.teacher.evaluate_each_turn,
+            student_max_length=config.student.max_length,
             device=self.device,
         )
         self.dialogue_manager = DialogueManager(

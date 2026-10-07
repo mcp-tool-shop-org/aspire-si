@@ -177,7 +177,9 @@ class DialogueGenerator:
         # Format input
         formatted_input = self._format_student_input(prompt, challenge, history)
 
-        # Tokenize
+        # Tokenize. Too long a dialogue loses its beginning: cutting the end would cut the
+        # cue to answer, and the student would continue the text mid-sentence instead.
+        self.student_tokenizer.truncation_side = "left"
         inputs = self.student_tokenizer(
             formatted_input,
             return_tensors="pt",

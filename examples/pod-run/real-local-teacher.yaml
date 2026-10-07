@@ -13,6 +13,8 @@ teacher:
   local_model_path: Qwen/Qwen2.5-32B-Instruct
   local_load_in_4bit: true
   max_dialogue_turns: 3
+  # Training reads only the final evaluation; skipping the per-turn ones halves teacher time.
+  evaluate_each_turn: false
 training:
   num_epochs: 3
   batch_size: 1

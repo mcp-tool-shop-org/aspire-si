@@ -16,6 +16,8 @@ teacher:
   composite_strategy: vote
   local_load_in_4bit: true
   max_dialogue_turns: 3
+  # Training reads only the final evaluation; skipping the per-turn ones halves teacher time.
+  evaluate_each_turn: false
 training:
   num_epochs: 3
   batch_size: 1
