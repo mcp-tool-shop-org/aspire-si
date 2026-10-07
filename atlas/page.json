@@ -41,38 +41,30 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 8,
-      "changed": 1,
+      "added": 6,
+      "changed": 4,
       "moved": 0,
       "parts": 3,
       "removed": 0
     },
     "items": [
       {
-        "kind": "import-added",
-        "sentence": "tests now imports examples.",
-        "subjects": [
-          "tests",
-          "examples"
-        ]
-      },
-      {
         "kind": "landing",
-        "sentence": "examples/sft-experiment/ is now read by tests/test_sft_experiment.py.",
+        "sentence": "examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_b.sh.",
         "subjects": [
-          "examples/sft-experiment/",
-          "tests/test_sft_experiment.py"
+          "examples/local-run/prompts.json",
+          "examples/sft-experiment/pod/plan_b.sh"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "8 files added and 1 changed content, across 3 parts.",
+        "sentence": "6 files added and 4 changed content, across 3 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "1cd5353b8962e89b83c209ea32379367c5f7418e",
-      "generatedAt": "2026-10-07T03:48:16.340Z"
+      "commit": "ddf58cee4062994aa7fdf2205f9d4fbfa16a7471",
+      "generatedAt": "2026-10-07T04:17:30.315Z"
     },
     "unchanged": false
   },
@@ -81,9 +73,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits."
   ],
   "changesTogetherWithTests": 0,
-  "commit": "ddf58cee4062994aa7fdf2205f9d4fbfa16a7471",
+  "commit": "5c5346d7cb37d1430f93eafab5e3a5cabad4f123",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (141 files), shell (3), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (142 files), shell (5), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -106,7 +98,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 7
+          "files": 8
         },
         {
           "boundary": "integrations",
@@ -240,12 +232,12 @@
   ],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-07T04:17:30.315Z",
+  "generatedAt": "2026-10-07T05:07:38.731Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
     "3 writes and 13 reads use paths built at run time and are not named here.",
-    "17 writes and 29 reads go to a path their caller passes, not to this repository.",
+    "20 writes and 32 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions."
   ],

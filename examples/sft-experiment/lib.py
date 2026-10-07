@@ -228,16 +228,24 @@ Student's response: {response}
 Generate a single challenging question or statement. Reply with the challenge only."""
 
 
-FLAWED_REQUEST = """Here is a question and a strong answer to it.
+FLAW_KINDS = (
+    "one wrong fact or number",
+    "one reasoning step that does not follow from the step before it",
+)
+
+MINIMAL_EDIT_REQUEST = """Here is a question and a strong answer to it.
 
 Question: {prompt}
 
 Strong answer: {answer}
 
-Rewrite the answer so that it reads just as confident and fluent and has about the same length
-and style, but contains one clear, substantive error: a wrong fact, a wrong number, or a reasoning
-step that does not follow, which changes the conclusion. Do not mark or hint at the error.
-Reply with the rewritten answer only."""
+Copy the answer word for word, except for {kind}, which you change so that the answer becomes
+wrong in substance. Change as few words as you can: one sentence at most. Keep everything else
+identical, including the formatting and the length. Do not mark, hint at, explain or correct the
+change anywhere. Reply with the edited answer only."""
+
+# Words a rewrite uses when it points at its own planted error.
+SELF_FLAG_MARKERS = ("error", "(this is", "should be", "incorrect", "mistake", "note:")
 
 
 def scoring_request(prompt: str, response: str, history: str = "") -> str:
@@ -266,22 +274,31 @@ class Chat:
 
 
 class Backend:
-    """Batched chat generation. `generate(chats, max_tokens, temperature)` returns one text per chat."""
+    """Batched chat generation. `generate(chats, max_tokens, temperature)` returns one text per chat.
+
+    After each call, `last_truncated[i]` says whether reply i stopped at `max_tokens`.
+    """
+
+    last_truncated: list[bool] = []
 
     def generate(self, chats: Sequence[Chat], max_tokens: int, temperature: float) -> list[str]:
         raise NotImplementedError
 
 
 class FakeBackend(Backend):
-    """Answers from a function of the last user message; for CPU tests."""
+    """Answers from a function of the chat; for CPU tests. One character counts as one token, so a
+    reply longer than `max_tokens` is cut there and flagged as truncated."""
 
     def __init__(self, answer: Callable[[Chat], str]):
         self.answer = answer
         self.calls: list[Chat] = []
+        self.last_truncated = []
 
     def generate(self, chats: Sequence[Chat], max_tokens: int, temperature: float) -> list[str]:
         self.calls.extend(chats)
-        return [self.answer(c) for c in chats]
+        replies = [self.answer(c) for c in chats]
+        self.last_truncated = [len(r) > max_tokens for r in replies]
+        return [r[:max_tokens] for r in replies]
 
 
 class VllmBackend(Backend):  # pragma: no cover - needs a GPU and vllm
@@ -306,6 +323,7 @@ class VllmBackend(Backend):  # pragma: no cover - needs a GPU and vllm
         # identical requests still sample independently, which the noise-floor rescoring needs.
         params = SamplingParams(max_tokens=max_tokens, temperature=temperature)
         outputs = self.llm.chat([c.messages() for c in chats], params, use_tqdm=False)
+        self.last_truncated = [o.outputs[0].finish_reason == "length" for o in outputs]
         return [o.outputs[0].text for o in outputs]
 
 
@@ -337,14 +355,26 @@ def pairwise_accuracy(strong: Sequence[float], flawed: Sequence[float]) -> float
 
 
 def bootstrap_ci(
-    strong: Sequence[float], flawed: Sequence[float], resamples: int = 2000, seed: int = 0
+    strong: Sequence[float],
+    flawed: Sequence[float],
+    resamples: int = 2000,
+    seed: int = 0,
+    groups: Sequence[Any] | None = None,
 ) -> tuple[float, float]:
-    """A 95% percentile bootstrap interval for pairwise_accuracy, resampling pairs."""
+    """A 95% percentile bootstrap interval for pairwise_accuracy.
+
+    With `groups` (one label per pair, e.g. the prompt), whole groups are resampled, so pairs that
+    share a prompt are not counted as independent evidence.
+    """
     rng = random.Random(seed)
-    n = len(strong)
+    labels = list(groups) if groups is not None else list(range(len(strong)))
+    members: dict[Any, list[int]] = {}
+    for i, g in enumerate(labels):
+        members.setdefault(g, []).append(i)
+    clusters = list(members.values())
     stats = []
     for _ in range(resamples):
-        idx = [rng.randrange(n) for _ in range(n)]
+        idx = [i for _ in clusters for i in clusters[rng.randrange(len(clusters))]]
         stats.append(pairwise_accuracy([strong[i] for i in idx], [flawed[i] for i in idx]))
     stats.sort()
     return stats[int(0.025 * resamples)], stats[int(0.975 * resamples) - 1]

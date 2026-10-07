@@ -12,9 +12,14 @@ control prompts or their cached answers: new prompts near any of them are droppe
      revision is scored with ASPIRE's own scoring request; only those at `--min-score` or above
      are kept. That is up to two examples per prompt: [prompt -> answer] and
      [prompt -> answer -> challenge -> revision].
-  4. Judge set: per held-out prompt, a strong answer and a flawed rewrite with one substantive
-     error, both scored.
+  4. Judge set: per held-out prompt, a strong answer and `--flaws-per-prompt` minimal edits of
+     it, each changing one fact, number or reasoning step. The planted error is the label; the
+     teacher scores both sides only as a reference.
   5. Noise floor: the held-out strong answers are scored a second time.
+
+Every generated answer records whether it stopped at the token cap (`truncated`), so
+clean_dataset.py can drop it. `--questions` reuses an earlier run's questions.json, which with
+the same seed gives the same training and held-out prompts.
 
 Writes to --out: questions.json, train.jsonl, held_out.json, judge_set.json, noise.json and
 report.json (counts, drop reasons, parse rates, score spreads).
@@ -34,7 +39,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from lib import (  # noqa: E402
-    FLAWED_REQUEST,
+    FLAW_KINDS,
+    MINIMAL_EDIT_REQUEST,
     STUDENT_SYSTEM,
     TOPICS,
     Backend,
@@ -42,6 +48,7 @@ from lib import (  # noqa: E402
     challenge_request,
     challenge_types,
     dedupe,
+    pairwise_accuracy,
     parse_question_list,
     question_request,
     score_of,
@@ -63,27 +70,35 @@ def build(
     min_score: float = 8.0,
     seed: int = 42,
     embed=None,
+    questions: dict | None = None,
+    answer_tokens: int = 1200,
+    flaws_per_prompt: int = 2,
 ) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     system = teacher_system_prompt(teacher)
     report: dict = {"teacher": teacher, "seed": seed}
 
-    # 1. Questions, in batches of 15 per request so the lists stay well-formed.
-    chats, topics = [], []
-    for topic, description in TOPICS.items():
-        for _ in range(max(1, questions_per_topic // 15)):
-            chats.append(Chat(system, [("user", question_request(description, 15))]))
-            topics.append(topic)
-    replies = backend.generate(chats, 2048, 0.9)
-    candidates = [(t, q) for t, r in zip(topics, replies) for q in parse_question_list(r)]
-    kept, dropped = dedupe(candidates, eval_prompts, embed=embed)
-    report["questions"] = {
-        "requested": questions_per_topic * len(TOPICS),
-        "parsed": len(candidates),
-        "kept": len(kept),
-        "dropped_near_eval": sum(d["reason"] == "near an evaluation prompt" for d in dropped),
-        "dropped_duplicate": sum(d["reason"] == "duplicate" for d in dropped),
-    }
+    # 1. Questions, in batches of 15 per request so the lists stay well-formed, unless reused.
+    if questions is not None:
+        kept = [tuple(q) for q in questions["kept"]]
+        dropped = questions["dropped"]
+        report["questions"] = {"reused": True, "kept": len(kept)}
+    else:
+        chats, topics = [], []
+        for topic, description in TOPICS.items():
+            for _ in range(max(1, questions_per_topic // 15)):
+                chats.append(Chat(system, [("user", question_request(description, 15))]))
+                topics.append(topic)
+        replies = backend.generate(chats, 2048, 0.9)
+        candidates = [(t, q) for t, r in zip(topics, replies) for q in parse_question_list(r)]
+        kept, dropped = dedupe(candidates, eval_prompts, embed=embed)
+        report["questions"] = {
+            "requested": questions_per_topic * len(TOPICS),
+            "parsed": len(candidates),
+            "kept": len(kept),
+            "dropped_near_eval": sum(d["reason"] == "near an evaluation prompt" for d in dropped),
+            "dropped_duplicate": sum(d["reason"] == "duplicate" for d in dropped),
+        }
     (out / "questions.json").write_text(
         json.dumps({"kept": kept, "dropped": dropped}, indent=1, ensure_ascii=False), encoding="utf-8"
     )
@@ -94,7 +109,8 @@ def build(
 
     # 3. Answers, challenges, revisions, scores.
     student = lambda turns: Chat(STUDENT_SYSTEM, turns)  # noqa: E731
-    answers = backend.generate([student([("user", p)]) for _, p in train], 700, 0.7)
+    answers = backend.generate([student([("user", p)]) for _, p in train], answer_tokens, 0.7)
+    answers_cut = backend.last_truncated
     kind = challenge_types(seed)
     kinds = [kind() for _ in train]
     challenges = backend.generate(
@@ -108,9 +124,10 @@ def build(
             student([("user", p), ("assistant", a), ("user", c)])
             for (_, p), a, c in zip(train, answers, challenges)
         ],
-        700,
+        answer_tokens,
         0.7,
     )
+    revisions_cut = backend.last_truncated
     answer_scores = backend.generate(
         [Chat(system, [("user", scoring_request(p, a))]) for (_, p), a in zip(train, answers)], 1536, 0.3
     )
@@ -126,8 +143,16 @@ def build(
         0.3,
     )
     rows, parses, all_scores = [], [], []
-    for (topic, prompt), a, k, c, r, sa, sr in zip(
-        train, answers, kinds, challenges, revisions, answer_scores, revision_scores
+    for (topic, prompt), a, k, c, r, sa, sr, cut_a, cut_r in zip(
+        train,
+        answers,
+        kinds,
+        challenges,
+        revisions,
+        answer_scores,
+        revision_scores,
+        answers_cut,
+        revisions_cut,
     ):
         score_a, parse_a, _ = score_of(sa, teacher)
         score_r, parse_r, _ = score_of(sr, teacher)
@@ -139,6 +164,7 @@ def build(
                     "topic": topic,
                     "kind": "answer",
                     "score": score_a,
+                    "truncated": cut_a,
                     "messages": [
                         {"role": "system", "content": STUDENT_SYSTEM},
                         {"role": "user", "content": prompt},
@@ -153,6 +179,7 @@ def build(
                     "kind": "revision",
                     "challenge_type": k,
                     "score": score_r,
+                    "truncated": cut_a or cut_r,
                     "messages": [
                         {"role": "system", "content": STUDENT_SYSTEM},
                         {"role": "user", "content": prompt},
@@ -173,43 +200,64 @@ def build(
         "kept_rate": len(rows) / max(2 * len(train), 1),
     }
 
-    # 4. Judge set on the held-out prompts.
-    strong = backend.generate([student([("user", p)]) for _, p in held], 700, 0.7)
+    # 4. Judge set on the held-out prompts: minimal edits of one strong answer per prompt.
+    strong = backend.generate([student([("user", p)]) for _, p in held], answer_tokens, 0.7)
+    strong = [x.strip() for x in strong]
+    strong_cut = backend.last_truncated
+    edits = [(i, kind) for i in range(len(held)) for kind in FLAW_KINDS[:flaws_per_prompt]]
     flawed = backend.generate(
         [
-            Chat(system, [("user", FLAWED_REQUEST.format(prompt=p, answer=s))])
-            for (_, p), s in zip(held, strong)
+            Chat(
+                system,
+                [("user", MINIMAL_EDIT_REQUEST.format(prompt=held[i][1], answer=strong[i], kind=kind))],
+            )
+            for i, kind in edits
         ],
-        900,
+        answer_tokens + 300,
         0.7,
     )
-    score_requests = [Chat(system, [("user", scoring_request(p, x))]) for (_, p), x in zip(held, strong)]
-    score_requests += [Chat(system, [("user", scoring_request(p, x))]) for (_, p), x in zip(held, flawed)]
-    scored = backend.generate(score_requests, 1536, 0.3)
+    flawed_cut = backend.last_truncated
     n = len(held)
-    strong_scores = [score_of(s, teacher)[0] for s in scored[:n]]
-    flawed_scores = [score_of(s, teacher)[0] for s in scored[n:]]
+    score_requests = [Chat(system, [("user", scoring_request(p, x))]) for (_, p), x in zip(held, strong)]
+    score_requests += [
+        Chat(system, [("user", scoring_request(held[i][1], f))]) for (i, _), f in zip(edits, flawed)
+    ]
+    scored = backend.generate(score_requests, 1536, 0.3)
+    strong_scores = [score_of(x, teacher)[0] for x in scored[:n]]
+    flawed_scores = [score_of(x, teacher)[0] for x in scored[n:]]
     judge = [
         {
-            "topic": t,
-            "prompt": p,
-            "strong": s.strip(),
+            "pair_id": k,
+            "prompt_id": i,
+            "topic": held[i][0],
+            "prompt": held[i][1],
+            "flaw_kind": kind,
+            "strong": strong[i],
             "flawed": f.strip(),
-            "teacher_strong": ss,
+            "strong_truncated": strong_cut[i],
+            "flawed_truncated": cut,
+            "teacher_strong": strong_scores[i],
             "teacher_flawed": fs,
         }
-        for (t, p), s, f, ss, fs in zip(held, strong, flawed, strong_scores, flawed_scores)
+        for k, ((i, kind), f, cut, fs) in enumerate(zip(edits, flawed, flawed_cut, flawed_scores))
     ]
     (out / "held_out.json").write_text(
         json.dumps([{"topic": t, "prompt": p} for t, p in held], indent=1, ensure_ascii=False),
         encoding="utf-8",
     )
     (out / "judge_set.json").write_text(json.dumps(judge, indent=1, ensure_ascii=False), encoding="utf-8")
+    pair_strong = [j["teacher_strong"] for j in judge]
+    pair_flawed = [j["teacher_flawed"] for j in judge]
     report["judge_set"] = {
-        "pairs": n,
-        "teacher_prefers_strong": sum(s > f for s, f in zip(strong_scores, flawed_scores)) / max(n, 1),
+        "prompts": n,
+        "pairs": len(judge),
+        "label": "the planted error: the strong answer is always the better one",
+        "teacher_reference_accuracy": pairwise_accuracy(pair_strong, pair_flawed) if judge else None,
+        "teacher_prefers_strong": sum(a > b for a, b in zip(pair_strong, pair_flawed)) / max(len(judge), 1),
         "teacher_strong_mean": statistics.fmean(strong_scores) if n else None,
-        "teacher_flawed_mean": statistics.fmean(flawed_scores) if n else None,
+        "teacher_flawed_mean": statistics.fmean(flawed_scores) if judge else None,
+        "strong_truncated": sum(strong_cut),
+        "flawed_truncated": sum(flawed_cut),
     }
 
     # 5. Noise floor: the strong answers scored again.
@@ -238,11 +286,15 @@ def main() -> None:  # pragma: no cover - runs on the pod
     parser.add_argument("--train-cap", type=int, default=400)
     parser.add_argument("--min-score", type=float, default=8.0)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--questions", type=Path, help="reuse this questions.json (same seed, same split)")
+    parser.add_argument("--answer-tokens", type=int, default=1200)
+    parser.add_argument("--flaws-per-prompt", type=int, default=2, choices=[1, 2])
     args = parser.parse_args()
 
     from lib import Embedder, VllmBackend
 
-    embed = Embedder()  # on the CPU: the GPU is the teacher's
+    questions = json.loads(args.questions.read_text(encoding="utf-8")) if args.questions else None
+    embed = None if questions else Embedder()  # on the CPU: the GPU is the teacher's
     backend = VllmBackend(args.teacher, seed=args.seed)
     eval_prompts = json.loads(args.eval_prompts.read_text(encoding="utf-8"))
     report = build(
@@ -256,6 +308,9 @@ def main() -> None:  # pragma: no cover - runs on the pod
         args.min_score,
         args.seed,
         embed,
+        questions,
+        args.answer_tokens,
+        args.flaws_per_prompt,
     )
     print(json.dumps(report, indent=1))
     print("DATASET-OK")

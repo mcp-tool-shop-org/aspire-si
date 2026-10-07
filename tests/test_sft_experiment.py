@@ -13,6 +13,7 @@ EXPERIMENT = Path(__file__).resolve().parent.parent / "examples" / "sft-experime
 sys.path.insert(0, str(EXPERIMENT))
 
 import build_dataset  # noqa: E402
+import clean_dataset  # noqa: E402
 import eval_heldout  # noqa: E402
 import judge_eval  # noqa: E402
 import lib  # noqa: E402
@@ -117,8 +118,8 @@ def fake_teacher(chat: lib.Chat) -> str:
         return json.dumps(questions)
     if user.startswith("Generate a"):
         return "  But what about the edge case?  "
-    if "Rewrite the answer" in user:
-        return "A confident but wrong answer."
+    if "Copy the answer word for word" in user:
+        return "A wrong answer."
     if user.startswith("Evaluate this student response"):
         score = 3 if "wrong answer" in user else 9
         return json.dumps(
@@ -176,8 +177,15 @@ class TestBuildDataset:
     def test_judge_set_and_noise_floor(self, built):
         report, out, backend = built
         judge = json.loads((out / "judge_set.json").read_text(encoding="utf-8"))
-        assert len(judge) == 12 and judge[0]["teacher_strong"] == 9 and judge[0]["teacher_flawed"] == 3
+        # two minimal edits per held-out prompt, one per flaw kind, labelled by prompt
+        assert len(judge) == 24 and judge[0]["teacher_strong"] == 9 and judge[0]["teacher_flawed"] == 3
+        assert [j["prompt_id"] for j in judge[:4]] == [0, 0, 1, 1]
+        assert {j["flaw_kind"] for j in judge} == set(lib.FLAW_KINDS)
+        assert judge[0]["strong_truncated"] is False and judge[0]["flawed_truncated"] is False
         assert report["judge_set"]["teacher_prefers_strong"] == 1.0
+        assert report["judge_set"]["prompts"] == 12 and report["judge_set"]["pairs"] == 24
+        edits = [c for c in backend.calls if "Copy the answer word for word" in c.turns[-1][1]]
+        assert len(edits) == 24 and "Strong answer: A strong answer." in edits[0].turns[-1][1]
         assert report["noise_floor"]["mean_abs_diff"] == 0.0
         # scoring uses aspire-si's own request and the control teacher's system prompt
         scoring = [c for c in backend.calls if c.turns[-1][1].startswith("Evaluate this student response")]
@@ -205,6 +213,132 @@ class TestBuildDataset:
             train_cap=20,
         )
         assert report["train_examples"]["kept"] == 0
+
+    def test_reused_questions_give_the_same_split_without_asking_again(self, built, tmp_path):
+        _, first, _ = built
+        backend = lib.FakeBackend(fake_teacher)
+        questions = json.loads((first / "questions.json").read_text(encoding="utf-8"))
+        again = tmp_path / "again"
+        report = build_dataset.build(
+            backend,
+            "Qwen/Qwen2.5-32B-Instruct",
+            EVAL_PROMPTS,
+            again,
+            held_out=12,
+            train_cap=60,
+            questions=questions,
+        )
+        assert report["questions"] == {"reused": True, "kept": len(questions["kept"])}
+        assert not [c for c in backend.calls if c.turns[-1][1].startswith("Write 15 distinct questions")]
+        held = lambda d: (d / "held_out.json").read_text(encoding="utf-8")  # noqa: E731
+        assert held(again) == held(first)
+        prompts = lambda d: [r["messages"][1]["content"] for r in lib.read_jsonl(d / "train.jsonl")]  # noqa: E731
+        assert prompts(again) == prompts(first)
+
+    def test_answers_at_the_cap_are_flagged_truncated(self, tmp_path):
+        def verbose(chat):
+            if chat.system == lib.STUDENT_SYSTEM and len(chat.turns) == 1:
+                return "x" * 50
+            return fake_teacher(chat)
+
+        build_dataset.build(
+            lib.FakeBackend(verbose),
+            "Qwen/Qwen2.5-32B-Instruct",
+            EVAL_PROMPTS,
+            tmp_path,
+            questions_per_topic=15,
+            held_out=12,
+            train_cap=20,
+            answer_tokens=40,
+        )
+        rows = lib.read_jsonl(tmp_path / "train.jsonl")
+        assert rows and all(r["truncated"] for r in rows)  # a revision whose first answer was cut, too
+        judge = json.loads((tmp_path / "judge_set.json").read_text(encoding="utf-8"))
+        assert all(j["strong_truncated"] and not j["flawed_truncated"] for j in judge)
+
+
+STRONG = (
+    "The probability is computed step by step. First, the chance of blue is 15/25 = 3/5. "
+    "Then, with one blue removed, the chance of red is 10/24 = 5/12. Multiplying gives 1/4. "
+    "So the answer is 1/4, and the order of the draws matters for the intermediate steps."
+)
+
+
+def judge_pair(pair_id, flawed, strong=STRONG, **flags):
+    return {
+        "pair_id": pair_id,
+        "prompt_id": pair_id // 2,
+        "prompt": "p",
+        "strong": strong,
+        "flawed": flawed,
+    } | flags
+
+
+class TestCleanDataset:
+    @pytest.fixture
+    def data(self, tmp_path):
+        d = tmp_path / "raw"
+        d.mkdir()
+
+        def msg(text):
+            return [
+                {"role": "system", "content": "s"},
+                {"role": "user", "content": "q"},
+                {"role": "assistant", "content": text},
+            ]
+
+        lib.write_jsonl(
+            d / "train.jsonl",
+            [
+                {"kind": "answer", "truncated": False, "messages": msg("Done.")},
+                {"kind": "answer", "truncated": True, "messages": msg("Cut off in the")},
+                {"kind": "revision", "messages": msg("No flag, ends cleanly.")},
+                {"kind": "revision", "messages": msg("No flag, cut off in the")},
+            ],
+        )
+        pairs = [
+            judge_pair(0, STRONG.replace("1/4", "1/5"), strong_truncated=False, flawed_truncated=False),
+            judge_pair(1, STRONG.replace("5/12", "7/12")),
+            judge_pair(2, "A paraphrase that says something else entirely and is much shorter."),
+            judge_pair(3, STRONG.replace("1/4.", "1/5 (this is the error).")),
+            judge_pair(4, STRONG, strong_truncated=False, flawed_truncated=False),
+            judge_pair(5, STRONG.replace("1/4", "1/5"), strong_truncated=True, flawed_truncated=False),
+            judge_pair(6, STRONG + " Also, the draws should be independent in this case, so ignore it."),
+        ]
+        (d / "judge_set.json").write_text(json.dumps(pairs), encoding="utf-8")
+        (d / "held_out.json").write_text("[]", encoding="utf-8")
+        (d / "report.json").write_text(json.dumps({"teacher": "t"}), encoding="utf-8")
+        return d
+
+    def test_drops_truncated_examples_by_flag_or_ending(self, data, tmp_path):
+        section = clean_dataset.clean(data, tmp_path / "out", min_pairs=2)
+        kept = lib.read_jsonl(tmp_path / "out" / "train.jsonl")
+        assert [r["messages"][-1]["content"] for r in kept] == ["Done.", "No flag, ends cleanly."]
+        assert section["train"]["dropped_truncated"] == 2
+        assert [d["index"] for d in section["dropped_examples"]] == [1, 3]
+
+    def test_keeps_only_minimal_untruncated_unflagged_edits(self, data, tmp_path):
+        section = clean_dataset.clean(data, tmp_path / "out", min_pairs=2)
+        kept = json.loads((tmp_path / "out" / "judge_set.json").read_text(encoding="utf-8"))
+        assert [p["pair_id"] for p in kept] == [0, 1]
+        reasons = {d["pair_id"]: " | ".join(d["reasons"]) for d in section["dropped_pairs"]}
+        assert "similarity" in reasons[2] and "length" in reasons[2]
+        assert "self-flagging: error, (this is" in reasons[3]
+        assert reasons[4] == "no edit"
+        assert reasons[5] == "strong truncated"
+        assert "self-flagging: should be" in reasons[6] and "length" in reasons[6]
+        assert section["judge"]["enough_pairs"] and section["judge"]["prompts_kept"] == 1
+        report = json.loads((tmp_path / "out" / "report.json").read_text(encoding="utf-8"))
+        assert report["teacher"] == "t" and report["clean"]["judge"]["kept"] == 2
+        assert (tmp_path / "out" / "held_out.json").exists()
+
+    def test_too_few_pairs_is_reported(self, data, tmp_path):
+        section = clean_dataset.clean(data, tmp_path / "out")
+        assert section["judge"]["min_pairs"] == 96 and not section["judge"]["enough_pairs"]
+
+    def test_a_marker_already_in_the_strong_answer_is_not_a_flag(self):
+        strong = "Food should be cooked to 165F. " * 3
+        assert clean_dataset.self_flags(strong, strong.replace("165F", "150F")) == []
 
 
 class FakeTokenizer:
@@ -260,6 +394,13 @@ class TestStatistics:
         lo, hi = lib.bootstrap_ci([5, 1] * 20, [1, 5] * 20)
         assert lo < 0.5 < hi
 
+    def test_grouped_interval_resamples_prompts_not_pairs(self):
+        strong, flawed = [5] * 10 + [1] * 10, [1] * 20
+        lo, _ = lib.bootstrap_ci(strong, flawed)
+        assert lo > 0.6  # twenty pairs look like strong evidence...
+        lo, hi = lib.bootstrap_ci(strong, flawed, groups=["a"] * 10 + ["b"] * 10)
+        assert (lo, hi) == (0.5, 1.0)  # ...but they are two prompts
+
     def test_mean_interval(self):
         mean, lo, hi = lib.mean_ci([7.0] * 10)
         assert (mean, lo, hi) == (7.0, 7.0, 7.0)
@@ -283,6 +424,7 @@ class TestEvalAndJudge:
         pairs = [{"prompt": "p", "strong": "good", "flawed": "bad"}] * 10
         result = judge_eval.evaluate(scorer, pairs)
         assert result["accuracy"] == 1.0 and result["mean_gap"] == 7.0
+        assert judge_eval.prompt_groups([{"prompt": "p", "prompt_id": 3}, {"prompt": "q"}]) == [3, "q"]
 
 
 class TestProbe:

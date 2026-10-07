@@ -1,18 +1,17 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-07 from commit ddf58ce by Atlas 1.24.0.
+Mapped at 2026-10-07 from commit 5c5346d by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (141 files), shell (3), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (142 files), shell (5), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-07 (1cd5353)
+## What changed since 2026-10-07 (ddf58ce)
 
-- tests now imports examples.
-- examples/sft-experiment/ is now read by tests/test_sft_experiment.py.
-- 8 files added and 1 changed content, across 3 parts.
+- examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_b.sh.
+- 6 files added and 4 changed content, across 3 parts.
 
 ## What comes in
 
@@ -82,7 +81,7 @@ Read those in order to follow one pull request end to end.
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
 - 3 writes and 13 reads use paths built at run time and are not named here.
-- 17 writes and 29 reads go to a path their caller passes, not to this repository.
+- 20 writes and 32 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
 

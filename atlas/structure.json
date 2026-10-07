@@ -2020,11 +2020,35 @@
             "build",
             "main"
           ],
-          "hash": "7102a1418a5a0210f60801ef5e1c46e1df533f2d3ee9d22d653f366446a1d335",
+          "hash": "064712df27cf1a75f4fc22d3ba2b0e52f5783482d62a742f678e142fe24a919e",
           "importsFiles": [
             "examples/sft-experiment/lib.py"
           ],
           "path": "examples/sft-experiment/build_dataset.py"
+        },
+        {
+          "exports": [
+            "char_similarity",
+            "clean",
+            "example_truncated",
+            "looks_truncated",
+            "main",
+            "pair_problems",
+            "self_flags"
+          ],
+          "hash": "1f18f33e2708f90c7e4ed509065f431e811a872031a02cc5d59b17d0b3c913f9",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/clean_dataset.py"
+        },
+        {
+          "hash": "11eb51c7a83d82de0f886929ce9405e48c29557d6bea447d37bbcccdc2ed71d3",
+          "path": "examples/sft-experiment/configs/sft-composite-teacher.yaml"
+        },
+        {
+          "hash": "879b8fb6b09a24974f88c621d6bd31d962745050a53071f797dc89ad799f017e",
+          "path": "examples/sft-experiment/configs/sft-local-teacher.yaml"
         },
         {
           "exports": [
@@ -2042,9 +2066,10 @@
         {
           "exports": [
             "evaluate",
-            "main"
+            "main",
+            "prompt_groups"
           ],
-          "hash": "0ce05015105f738c08e9e6f9e5a5cc3a8457cb95673a48df1e8c2ecacde765bf",
+          "hash": "f49d26c2f1eb2089d832cef7b2009ef92c897000a0f2a50c994a03400015407d",
           "importOrder": [
             "examples/sft-experiment/lib.py",
             "aspire/judge.py"
@@ -2084,10 +2109,10 @@
             {
               "in": "generate",
               "kind": "raise",
-              "line": 272
+              "line": 285
             }
           ],
-          "hash": "5d6e23699ea5d982a846c0a3fb02dcb7d3747dd2da572cfce64e6316362a8a22",
+          "hash": "8c11db3320b741a43c6563798d2c89e56d047d68f5666ddf5d48c7e8d311d456",
           "importsFiles": [
             "aspire/teachers/base.py",
             "aspire/teachers/local.py"
@@ -2097,6 +2122,14 @@
         {
           "hash": "5408dcc64188568afec924b6b077baead125f4df8a6c3f2b2d3d4fecd18aa378",
           "path": "examples/sft-experiment/pod/plan_a.sh"
+        },
+        {
+          "hash": "ee5598f2f0d96a90d7a475abf58617479706a089cec072b507b7761d724928f1",
+          "path": "examples/sft-experiment/pod/plan_a2.sh"
+        },
+        {
+          "hash": "49e09beb84acf93b477e05cbef5987bf53f47c56c1b226759ebb2028df9fec4b",
+          "path": "examples/sft-experiment/pod/plan_b.sh"
         },
         {
           "exports": [
@@ -2142,15 +2175,15 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 11,
+          "reads": 14,
           "where": [
             "caller"
           ],
-          "writes": 12
+          "writes": 15
         }
       ],
-      "outsideReads": 11,
-      "outsideWrites": 12,
+      "outsideReads": 14,
+      "outsideWrites": 15,
       "role": "code",
       "testRunners": [
         "pytest"
@@ -2746,6 +2779,10 @@
       "entryPoints": [],
       "externals": 0,
       "files": [
+        {
+          "hash": "cb5244869256b8222a44c497561363b94fdb447f30c2924b1b8763fbbccee5f7",
+          "path": ".gitattributes"
+        },
         {
           "hash": "12fa1869829452ce6725155d741a5196f6ab65e542dc7283242b2cdecd912de9",
           "path": ".gitignore"
@@ -3734,11 +3771,13 @@
         },
         {
           "exports": [
-            "fake_teacher"
+            "fake_teacher",
+            "judge_pair"
           ],
-          "hash": "4dd7e5fe0ba8d8e3e04101490f944b973366d1518428acda8778792f8e08120f",
+          "hash": "45bf4409284edaa2bb1e71fdaa90c4d5fc843c9c3e2d5de19157467951bd40b4",
           "importsFiles": [
             "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/clean_dataset.py",
             "examples/sft-experiment/eval_heldout.py",
             "examples/sft-experiment/judge_eval.py",
             "examples/sft-experiment/lib.py",
@@ -4027,7 +4066,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 7
+          "files": 8
         },
         {
           "boundary": "integrations",
@@ -4509,8 +4548,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "ddf58cee4062994aa7fdf2205f9d4fbfa16a7471",
-    "tracked": 205
+    "commit": "5c5346d7cb37d1430f93eafab5e3a5cabad4f123",
+    "tracked": 211
   },
   "landings": [
     {
@@ -4612,6 +4651,11 @@
       "readers": [
         {
           "by": "examples/pod-run/train.sh",
+          "call": "literal",
+          "confidence": "text"
+        },
+        {
+          "by": "examples/sft-experiment/pod/plan_b.sh",
           "call": "literal",
           "confidence": "text"
         },
