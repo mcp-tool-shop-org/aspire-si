@@ -8,7 +8,7 @@ that evaluates precision, stability, and part alignment.
 import numpy as np
 from dataclasses import dataclass
 
-from aspire.integrations.isaac.motion_teacher import (
+from integrations.isaac.motion_teacher import (
     BaseMotionTeacher,
     MotionDimension,
     MotionCritique,

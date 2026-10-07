@@ -13,9 +13,10 @@ After training, the policy self-refines using the internalized critic.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 import time
 
 import numpy as np
@@ -28,6 +29,21 @@ from .config import IsaacAspireConfig, CriticConfig
 from .motion_teacher import MotionTeacher, MotionCritique, TrajectoryData
 from .trajectory_critic import TrajectoryCritic, TrajectoryCriticLoss, CriticOutput
 from .isaac_wrapper import AspireIsaacEnv, TrajectoryBuffer, Trajectory
+
+
+def _plain(value: Any) -> Any:
+    """A dataclass as nested dicts of plain values (enums by value, paths as strings)."""
+    if is_dataclass(value) and not isinstance(value, type):
+        return {item.name: _plain(getattr(value, item.name)) for item in fields(value)}
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return [_plain(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _plain(item) for key, item in value.items()}
+    return value
 
 
 @dataclass
@@ -124,8 +140,9 @@ class SimplePolicy(nn.Module):
 
         self.backbone = nn.Sequential(*layers)
 
-        # Mean and log_std for Gaussian policy
-        self.mean_head = nn.Linear(hidden_dim, action_dim)
+        # Mean and log_std for Gaussian policy. With one layer the backbone is empty and the
+        # head reads the state directly.
+        self.mean_head = nn.Linear(in_dim, action_dim)
         self.log_std = nn.Parameter(torch.zeros(action_dim))
 
     def forward(
@@ -455,7 +472,7 @@ class AspireIsaacTrainer:
         Returns:
             List of training metrics for each epoch
         """
-        epochs = epochs or self.config.training.epochs
+        epochs = self.config.training.epochs if epochs is None else epochs
 
         print(f"Starting ASPIRE Isaac training for {epochs} epochs")
         print(f"  Parallel environments: {self.env.num_envs}")
@@ -552,8 +569,10 @@ class AspireIsaacTrainer:
                 "policy_state_dict": self.policy.state_dict(),
                 "critic_optimizer": self.critic_optimizer.state_dict(),
                 "policy_optimizer": self.policy_optimizer.state_dict(),
-                "config": self.config,
-                "metrics_history": self.metrics_history,
+                # Plain values only, so the checkpoint loads with torch.load(weights_only=True)
+                # and loading it cannot run code.
+                "config": _plain(self.config),
+                "metrics_history": [_plain(metrics) for metrics in self.metrics_history],
             },
             path,
         )
@@ -567,7 +586,10 @@ class AspireIsaacTrainer:
         self.policy.load_state_dict(checkpoint["policy_state_dict"])
         self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer"])
         self.policy_optimizer.load_state_dict(checkpoint["policy_optimizer"])
-        self.metrics_history = checkpoint.get("metrics_history", [])
+        self.metrics_history = [
+            metrics if isinstance(metrics, TrainingMetrics) else TrainingMetrics(**metrics)
+            for metrics in checkpoint.get("metrics_history", [])
+        ]
 
         print(f"Loaded checkpoint from {path} (epoch {checkpoint['epoch']})")
 

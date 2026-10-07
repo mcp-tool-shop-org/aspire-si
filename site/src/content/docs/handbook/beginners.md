@@ -11,7 +11,7 @@ This page is for people who are new to ASPIRE and want to understand what it doe
 
 ASPIRE stands for **Adversarial Student-Professor Internalized Reasoning Engine**. It is a Python framework for fine-tuning AI language models so they develop judgment, not just knowledge.
 
-Standard fine-tuning gives a model a set of correct answers and says "match these." ASPIRE gives a model a wise teacher and says "learn to think like this teacher does." The difference matters at inference time: a standard model produces its best guess in one shot, while an ASPIRE-trained model refines its own output using an internalized sense of quality.
+Standard fine-tuning gives a model a set of correct answers and says "match these." ASPIRE gives a model a wise teacher and says "learn to think like this teacher does." The difference matters after training: a standard model produces its best guess with nothing to judge it, while an ASPIRE-trained model comes with a critic that scores its output the way the teacher would.
 
 The framework provides a CLI, a Python API, and integrations for image generation (Stable Diffusion Forge), robotics (Isaac Gym), and code review.
 
@@ -20,7 +20,7 @@ The framework provides a CLI, a Python API, and integrations for image generatio
 ASPIRE is designed for:
 
 - **ML researchers** exploring alternatives to RLHF and standard fine-tuning who want adversarial dialogue as a training signal.
-- **AI engineers** who want their models to self-critique at inference time without calling an external API.
+- **AI engineers** who want a model's output judged at inference time without calling an external API.
 - **Hobbyists with a GPU** (16GB+ VRAM recommended) who want to experiment with training small language models using teacher feedback from Claude or GPT-4.
 
 You need familiarity with Python and a basic understanding of what language model fine-tuning is. You do not need to be an expert in reinforcement learning or loss functions to use the CLI.
@@ -31,7 +31,7 @@ You need familiarity with Python and a basic understanding of what language mode
 
 **Teacher model** -- The source of wisdom. Teachers challenge the student's responses through adversarial dialogue. ASPIRE ships with five teacher personas (Socratic, Scientific, Creative, Adversarial, Compassionate) backed by Claude or GPT-4 APIs.
 
-**Critic model** -- The internalized judge. The critic learns to predict what the teacher would think of a response. After training, the student uses the critic to self-refine without any teacher API calls. Three critic architectures are available: a lightweight MLP head, a separate encoder, or a shared encoder with the student.
+**Critic model** -- The internalized judge. The critic learns to predict what the teacher would think of a response. After training, the critic judges the student's responses without any teacher API calls. Three critic architectures are available: a lightweight MLP head, a separate encoder, or a shared encoder with the student.
 
 **Adversarial dialogue** -- The core training signal. The student generates a response, the teacher challenges it, and they go back and forth. This produces richer training data than flat question-answer pairs because it exposes gaps in reasoning that simple supervision would miss.
 
@@ -101,9 +101,10 @@ This loads a student model, creates a Socratic teacher, and generates three roun
 ## Where to go next
 
 - [Getting Started](/aspire-si/handbook/getting-started/) walks through installation, configuration, and your first interaction in more detail.
-- [How It Works](/aspire-si/handbook/how-it-works/) explains the four-stage pipeline from adversarial dialogue to inference-time self-refinement.
+- [How It Works](/aspire-si/handbook/how-it-works/) explains the four-stage pipeline from adversarial dialogue to judging responses without the teacher.
 - [Teachers](/aspire-si/handbook/teachers/) covers each persona, composite strategies, curriculum-aware composition, and how to create custom teachers.
 - [Integrations](/aspire-si/handbook/integrations/) describes the Stable Diffusion Forge, Isaac Gym, and code assistant extensions.
 - [CLI Reference](/aspire-si/handbook/cli/) documents every command, flag, and option.
+- [Watching Runs in ScalarScope](/aspire-si/handbook/scalarscope/) shows how to see a training run's dynamics.
 
 If something is not working, run `aspire doctor` for a human-readable environment check. For machine-readable output (useful for bug reports), run `aspire diagnose --json` which returns a JSON object with the status of every dependency, your GPU, and the installed ASPIRE version.

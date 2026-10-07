@@ -15,12 +15,12 @@ from multiprocessing import freeze_support
 
 def main():
     # Import ASPIRE Isaac components
-    from aspire.integrations.isaac import (
+    from integrations.isaac import (
         AspireIsaacTrainer,
         MotionTeacher,
         IsaacAspireConfig,
     )
-    from aspire.integrations.isaac.isaac_wrapper import DummyIsaacEnv, AspireIsaacEnv
+    from integrations.isaac.isaac_wrapper import DummyIsaacEnv, AspireIsaacEnv
 
     # Configuration
     config = IsaacAspireConfig()
@@ -60,7 +60,7 @@ def main():
         )
         env = AspireIsaacEnv(base_env)
     else:
-        from aspire.integrations.isaac.isaac_wrapper import create_isaac_env
+        from integrations.isaac.isaac_wrapper import create_isaac_env
         env = create_isaac_env(
             env_name,
             num_envs=config.training.num_envs,

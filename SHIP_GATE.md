@@ -12,7 +12,7 @@
 - [x] `[all]` SECURITY.md exists (report email, supported versions, response timeline) (2026-02-27)
 - [x] `[all]` README includes threat model paragraph (data touched, data NOT touched, permissions required) (2026-02-27)
 - [x] `[all]` No secrets, tokens, or credentials in source or diagnostics output (2026-02-27) — API keys read from env vars only
-- [x] `[all]` No telemetry by default — state it explicitly even if obvious (2026-02-27)
+- [x] `[all]` No telemetry by default — state it explicitly even if obvious (2026-10-06) — `use_wandb` defaults to off; nothing is sent unless a teacher API is configured
 
 ### Default safety posture
 
@@ -23,9 +23,9 @@
 
 ## B. Error Handling
 
-- [x] `[all]` Errors follow the Structured Error Shape: `code`, `message`, `hint`, `cause?`, `retryable?` (2026-02-27) — custom error classes (ClaudeTeacherError, OpenAITeacherError, InputValidationError)
-- [x] `[cli]` Exit codes: 0 ok · 1 user error · 2 runtime error · 3 partial success (2026-02-27) — typer CLI with proper exit codes
-- [x] `[cli]` No raw stack traces without `--debug` (2026-02-27) — rich console output with user-friendly error messages
+- [x] `[all]` Errors follow the Structured Error Shape: `code`, `message`, `hint`, `cause?`, `retryable?` (2026-10-06) — `aspire.errors.AspireError`; teacher, config and input errors subclass it
+- [x] `[cli]` Exit codes: 0 ok · 1 user error · 2 runtime error · 3 partial success (2026-10-06) — `aspire.cli.run`: 1 for AspireError user errors, 2 for runtime, 130 on interrupt; no partial-success case exists
+- [x] `[cli]` No raw stack traces without `--debug` (2026-10-06) — `run()` prints code/message/hint; `--debug` re-raises (tests/test_cli_errors.py)
 - [ ] `[mcp]` SKIP: not an MCP server
 - [ ] `[mcp]` SKIP: not an MCP server
 - [ ] `[desktop]` SKIP: not a desktop application
@@ -37,16 +37,16 @@
 - [x] `[all]` CHANGELOG.md (Keep a Changelog format) (2026-02-27)
 - [x] `[all]` LICENSE file present and repo states support status (2026-02-27)
 - [x] `[cli]` `--help` output accurate for all commands and flags (2026-02-27) — typer auto-generates help
-- [x] `[cli|mcp|desktop]` Logging levels defined: silent / normal / verbose / debug — secrets redacted at all levels (2026-02-27) — rich console with verbosity control
+- [x] `[cli|mcp|desktop]` Logging levels defined: silent / normal / verbose / debug — secrets redacted at all levels (2026-10-06) — `--quiet` / default / `--verbose` / `--debug`; keys live only in env vars and are never printed
 - [ ] `[mcp]` SKIP: not an MCP server
-- [ ] `[complex]` SKIP: HANDBOOK not required — README + integration docs are comprehensive
+- [x] `[complex]` HANDBOOK (2026-10-06) — Starlight handbook, 8 pages, at /aspire-si/handbook/
 
 ## C. Operator Docs
 
 ## D. Shipping Hygiene
 
 - [x] `[all]` `verify` script exists (test + build + smoke in one command) (2026-02-27) — Makefile verify target
-- [x] `[all]` Version in manifest matches git tag (2026-02-27)
+- [ ] `[all]` SKIP: no release tag yet in the restored repository; the first aspire-si tag is cut from the version in pyproject.toml
 - [x] `[all]` Dependency scanning runs in CI (ecosystem-appropriate) (2026-02-27) — dep-audit job
 - [x] `[all]` Automated dependency update mechanism exists (2026-02-27)
 - [ ] `[npm]` SKIP: not an npm package
@@ -57,7 +57,7 @@
 
 ## E. Identity (soft gate — does not block ship)
 
-- [x] `[all]` Logo in README header (2026-02-27)
+- [x] `[all]` Logo in README header (2026-10-06) — the artwork still reads Aspire.AI (brand slug aspire-ai); a renamed logo is pending
 - [x] `[all]` Translations (polyglot-mcp, 8 languages) (2026-02-27)
 - [x] `[org]` Landing page (@mcptoolshop/site-theme) (2026-02-27)
 - [x] `[all]` GitHub repo metadata: description, homepage, topics (2026-02-27)

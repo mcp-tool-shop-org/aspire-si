@@ -166,7 +166,8 @@ class AspireConfig(BaseSettings):
 
     # Experiment tracking
     experiment_name: str = "aspire-run"
-    use_wandb: bool = True
+    # Off by default, as in the integrations: logging to Weights & Biases sends run data to a third party.
+    use_wandb: bool = False
     wandb_project: str = "aspire-si"
 
     # Seeds

@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="README.ja.md">日本語</a> | <a href="README.zh.md">中文</a> | <a href="README.es.md">Español</a> | <a href="README.fr.md">Français</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.it.md">Italiano</a> | <a href="README.pt-BR.md">Português (BR)</a>
+  <a href="README.md">English</a> | <a href="README.ja.md">日本語</a> | <a href="README.zh.md">中文</a> | <a href="README.es.md">Español</a> | <a href="README.fr.md">Français</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.it.md">Italiano</a> | <a href="README.pt-BR.md">Português (BR)</a>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
   <a href="#teacher-personas">Teachers</a> •
   <a href="#how-it-works">How It Works</a> •
   <a href="#integrations">Integrations</a> •
-  <a href="#documentation">Docs</a>
+  <a href="https://mcp-tool-shop-org.github.io/aspire-si/handbook/">Handbook</a>
 </p>
 
 <p align="center">
@@ -179,18 +179,20 @@ student_loss = (
 )
 ```
 
-### 4. Inference Magic
+### 4. Judgment Without the Teacher
 
-After training, the student self-refines using the internalized critic. **No teacher API calls needed.**
+After training, the critic scores a response from the student's hidden states alone, so no
+teacher API call is needed to judge one. A refine loop is yours to write around it; ASPIRE
+ships the trained critic, not the loop:
 
 ```python
-def generate_with_judgment(prompt):
+def generate_with_judgment(prompt, threshold=7.0, attempts=3):
     response = student.generate(prompt)
-
-    while critic.score(response) < threshold:
-        response = student.refine(response, critic.feedback)
-
-    return response  # Self-improved through internalized judgment
+    for _ in range(attempts):
+        if critic_score(student, critic, response) >= threshold:  # your wrapper around the critic
+            break
+        response = student.generate(prompt)  # or a revision prompt of your own
+    return response
 ```
 
 ---
@@ -198,6 +200,11 @@ def generate_with_judgment(prompt):
 ## CLI Reference
 
 ```bash
+# Global options go before the command
+aspire --quiet ...     # errors only
+aspire --verbose ...   # also print the resolved settings
+aspire --debug ...     # verbose, and show tracebacks on errors
+
 # Check your environment
 aspire doctor
 
@@ -227,9 +234,19 @@ aspire train \
 aspire train --prompts data/prompts.json --geometry
 
 # Evaluate checkpoint
-aspire evaluate checkpoints/epoch-3 \
+aspire evaluate outputs/checkpoint-3 \
     --prompts data/eval.json
 ```
+
+Errors print a code, a message, and what to do, without a traceback:
+
+```
+ASPIRE_MISSING_API_KEY  ANTHROPIC_API_KEY not found.
+To fix this, set your API key: ...
+```
+
+Exit codes: `0` success, `1` something you can fix (a missing key, a bad config or prompts
+file), `2` a failure while running, `130` interrupted.
 
 ---
 
@@ -305,7 +322,8 @@ aspire/
 
 - Python 3.10+
 - PyTorch 2.0+
-- CUDA GPU (16GB+ VRAM recommended)
+- A CUDA GPU for training (16GB+ VRAM recommended). The tests, the geometry demo and the
+  integration examples run on CPU.
 - Anthropic API key (for Claude teacher) or OpenAI API key
 
 ### Windows Compatibility
@@ -377,7 +395,7 @@ integrations/isaac/
 
 **Quick Start:**
 ```python
-from aspire.integrations.isaac import AspireIsaacTrainer, MotionTeacher
+from integrations.isaac import AspireIsaacTrainer, MotionTeacher
 
 teacher = MotionTeacher(
     personas=["safety_inspector", "efficiency_expert", "grace_coach"],
@@ -387,6 +405,9 @@ teacher = MotionTeacher(
 trainer = AspireIsaacTrainer(env="FrankaCubeStack-v0", teacher=teacher)
 trainer.train(epochs=100)
 ```
+
+Without Isaac Gym installed, `python -m integrations.isaac.examples.basic_training` runs the same
+loop on a small built-in stand-in environment, on CPU.
 
 | Motion Teacher | Focus |
 |----------------|-------|
@@ -419,15 +440,15 @@ integrations/code/
 
 **Quick Start:**
 ```python
-from aspire.integrations.code import CodeTeacher, CodeSample
+from integrations.code import CodeSample, CodeTeacher, Language
 
 teacher = CodeTeacher(
     personas=["correctness_checker", "style_guide", "security_auditor"],
     strategy="vote",
 )
 
-critique = teacher.critique(CodeSample(code="def f(): eval(input())", language="python"))
-print(f"Score: {critique.overall_score}/10")  # Low score - security issue!
+critique = teacher.critique(CodeSample(code="def f(): eval(input())", language=Language.PYTHON))
+print(critique.weaknesses)  # ['Line 1: Code injection risk (eval of user input)', ...]
 ```
 
 | Code Teacher | Focus |

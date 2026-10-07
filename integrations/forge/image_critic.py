@@ -93,7 +93,10 @@ class CLIPImageCritic(nn.Module):
         self._init_weights()
 
     def _init_weights(self):
+        # Only the critic's own layers; the frozen CLIP encoder keeps its pre-trained weights
         for module in self.modules():
+            if any(module is clip_module for clip_module in self.clip_model.modules()):
+                continue
             if isinstance(module, nn.Linear):
                 nn.init.xavier_uniform_(module.weight)
                 if module.bias is not None:

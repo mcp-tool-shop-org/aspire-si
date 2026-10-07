@@ -30,6 +30,10 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write  # Codecov upload over OIDC; no stored token
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -69,18 +73,22 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -q --tb=short --ignore=tests/integration --timeout=30 \
-            --cov=aspire --cov=integrations --cov-report=xml --cov-report=term-missing
+          pytest tests/ -q --tb=short --ignore=tests/integration --timeout=30 -n 4 \
+            --cov=aspire --cov=integrations --cov-report=xml --cov-report=term-missing:skip-covered \
+            --cov-fail-under=90
 
       - name: Geometry demo writes ScalarScope exports
         run: python examples/geometry_demo.py outputs/geometry-demo
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         if: matrix.python-version == '3.12'
         with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
+          version: v11.3.1
+          use_oidc: true
+          fail_ci_if_error: true
+          disable_search: true
+          files: coverage.xml
 
       - name: Build package
         run: |

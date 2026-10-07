@@ -12,11 +12,11 @@ export const config: SiteConfig = {
     badge: 'AI training',
     headline: 'Teach AI judgment,',
     headlineAccent: 'not just knowledge.',
-    description: 'An adversarial training framework where student models internalize a teacher\'s reasoning. After training, students self-refine using an internalized critic — no teacher API calls needed at inference.',
+    description: 'An adversarial training framework where student models internalize a teacher\'s reasoning. After training, a critic judges the student\'s responses the way the teacher would, with no teacher API calls.',
     primaryCta: { href: '#usage', label: 'Get started' },
     secondaryCta: { href: 'handbook/', label: 'Read the Handbook' },
     previews: [
-      { label: 'Install', code: 'pip install aspire-si' },
+      { label: 'Install', code: 'git clone https://github.com/mcp-tool-shop-org/aspire-si\ncd aspire-si && pip install -e .' },
       { label: 'Dialogue', code: 'aspire dialogue "Explain recursion"\n  --teacher socratic --turns 3' },
       { label: 'Train', code: 'aspire train --config config.yaml\n  --teacher adversarial --epochs 3' },
     ],
@@ -32,6 +32,7 @@ export const config: SiteConfig = {
         { title: 'Adversarial dialogue', desc: 'Student generates, teacher challenges. Back and forth until the response is sharp, clear, and defensible.' },
         { title: 'Internalized critic', desc: 'The critic learns to predict the teacher\'s judgment — score and reasoning. After training, no teacher needed.' },
         { title: 'Pluggable teachers', desc: 'Socratic, Scientific, Creative, Adversarial, Compassionate — or compose multiple teachers into a committee.' },
+        { title: 'Runs you can see', desc: 'aspire train --geometry writes the run\'s training dynamics for ScalarScope: the student\'s path, the teachers\' pull, and every dip.' },
       ],
     },
     {
@@ -41,7 +42,7 @@ export const config: SiteConfig = {
       cards: [
         {
           title: 'CLI',
-          code: '# Generate adversarial dialogue\naspire dialogue "Your prompt" \\\n  --teacher socratic --turns 3\n\n# Train a model\naspire train --config config.yaml \\\n  --teacher adversarial --epochs 3\n\n# Evaluate checkpoint\naspire evaluate checkpoints/epoch-3 \\\n  --prompts data/eval.json',
+          code: '# Generate adversarial dialogue\naspire dialogue "Your prompt" \\\n  --teacher socratic --turns 3\n\n# Train a model\naspire train --config config.yaml \\\n  --teacher adversarial --epochs 3\n\n# Evaluate checkpoint\naspire evaluate outputs/checkpoint-3 \\\n  --prompts data/eval.json',
         },
         {
           title: 'Python API',

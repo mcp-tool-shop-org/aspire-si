@@ -7,6 +7,7 @@ import os
 
 import anthropic
 
+from aspire.errors import AspireError, missing_api_key
 from aspire.teachers.base import (
     BaseTeacher,
     ChallengeType,
@@ -18,10 +19,10 @@ from aspire.teachers.base import (
 )
 
 
-class ClaudeTeacherError(Exception):
+class ClaudeTeacherError(AspireError):
     """Error specific to Claude teacher operations."""
 
-    pass
+    code = "ASPIRE_CLAUDE_TEACHER"
 
 
 class ClaudeTeacher(BaseTeacher):
@@ -47,12 +48,8 @@ class ClaudeTeacher(BaseTeacher):
         resolved_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not resolved_key:
             raise ClaudeTeacherError(
-                "ANTHROPIC_API_KEY not found.\n\n"
-                "To fix this, set your API key:\n"
-                "  Windows:   set ANTHROPIC_API_KEY=your-key-here\n"
-                "  Linux/Mac: export ANTHROPIC_API_KEY=your-key-here\n\n"
-                "Or pass it directly: ClaudeTeacher(api_key='your-key')\n\n"
-                "Get your API key at: https://console.anthropic.com/settings/keys"
+                "ANTHROPIC_API_KEY not found.",
+                **missing_api_key("ANTHROPIC_API_KEY", "ClaudeTeacher", "https://console.anthropic.com/settings/keys"),
             )
 
         self.client = anthropic.AsyncAnthropic(api_key=resolved_key)

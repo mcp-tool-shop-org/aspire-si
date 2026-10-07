@@ -15,12 +15,88 @@ from rich.panel import Panel
 from rich.table import Table
 
 from aspire import __version__
+from aspire.errors import RUNTIME_ERROR, AspireError, ConfigError
 
 app = typer.Typer(
     help="ASPIRE: Adversarial Student-Professor Internalized Reasoning Engine",
     no_args_is_help=True,
+    # Errors are reported by `run`, without a traceback unless --debug is given.
+    pretty_exceptions_enable=False,
 )
 console = Console()
+error_console = Console(stderr=True)
+
+# Output level for this invocation: quiet, normal, verbose or debug.
+LEVELS = ("quiet", "normal", "verbose", "debug")
+state = {"level": "normal"}
+
+
+def set_level(level: str) -> None:
+    """Apply an output level to every console ASPIRE prints to.
+
+    quiet prints errors only; verbose adds the resolved settings; debug adds tracebacks.
+    """
+    if level not in LEVELS:
+        raise ValueError(f"Unknown output level {level!r}; use one of {', '.join(LEVELS)}.")
+    state["level"] = level
+    console.quiet = level == "quiet"
+    trainer = sys.modules.get("aspire.trainer")
+    if trainer is not None:
+        trainer.console.quiet = level == "quiet"
+
+
+def verbose(message: str) -> None:
+    """Print only at the verbose and debug levels."""
+    if state["level"] in ("verbose", "debug"):
+        console.print(message, markup=False)
+
+
+def report(error: BaseException) -> int:
+    """Print an error as code, message and hint; return the exit code."""
+    if isinstance(error, AspireError):
+        error_console.print(f"[bold red]{error.code}[/bold red]  {error.message}", highlight=False)
+        if error.hint:
+            error_console.print(error.hint, markup=False, highlight=False)
+        if error.cause is not None:
+            error_console.print(f"Cause: {type(error.cause).__name__}: {error.cause}", markup=False)
+        return error.exit_code
+    error_console.print(
+        f"[bold red]ASPIRE_UNEXPECTED[/bold red]  {type(error).__name__}: {error}", highlight=False
+    )
+    error_console.print("Run the command again with --debug to see the traceback.", markup=False)
+    return RUNTIME_ERROR
+
+
+def run() -> None:
+    """The `aspire` entry point: run the CLI and report errors without a traceback."""
+    try:
+        app()
+    except KeyboardInterrupt:
+        error_console.print("Interrupted.")
+        sys.exit(130)
+    except Exception as error:  # noqa: BLE001 - every error is reported, not raised
+        if state["level"] == "debug":
+            raise
+        sys.exit(report(error))
+
+
+def _read_prompts(path: Path) -> list[str]:
+    if not path.exists():
+        raise ConfigError(f"The prompts file {path} does not exist.", hint="Check the --prompts path.")
+    try:
+        prompts = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ConfigError(
+            f"The prompts file {path} is not valid JSON.",
+            hint="It should be a JSON list of prompt strings.",
+            cause=error,
+        ) from error
+    if not isinstance(prompts, list) or not all(isinstance(prompt, str) for prompt in prompts):
+        raise ConfigError(
+            f"The prompts file {path} is not a list of strings.",
+            hint='It should look like ["first prompt", "second prompt"].',
+        )
+    return prompts
 
 
 def version_callback(value: bool) -> None:
@@ -40,9 +116,12 @@ def main(
         is_eager=True,
         help="Show version and exit.",
     ),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Print errors only."),
+    verbose_output: bool = typer.Option(False, "--verbose", "-v", help="Also print the resolved settings."),
+    debug: bool = typer.Option(False, "--debug", help="Verbose, and show tracebacks on errors."),
 ) -> None:
     """ASPIRE: Teaching AI to develop judgment, not just knowledge."""
-    pass
+    set_level("debug" if debug else "verbose" if verbose_output else "quiet" if quiet else "normal")
 
 
 @app.command()
@@ -63,7 +142,11 @@ def train(
     from aspire.trainer import AspireTrainer
 
     # Load or create config
-    if config and config.exists():
+    if config is not None:
+        if not config.exists():
+            raise ConfigError(
+                f"The config file {config} does not exist.", hint="Run `aspire init` to write one."
+            )
         cfg = AspireConfig.from_yaml(config)
     else:
         cfg = AspireConfig()
@@ -76,9 +159,8 @@ def train(
         cfg.training.geometry_export = True
 
     # Load prompts
-    if prompts_file and prompts_file.exists():
-        with open(prompts_file) as f:
-            prompts = json.load(f)
+    if prompts_file is not None:
+        prompts = _read_prompts(prompts_file)
     else:
         # Demo prompts
         prompts = [
@@ -88,8 +170,11 @@ def train(
         ]
         console.print("[yellow]No prompts file provided, using demo prompts[/yellow]")
 
+    verbose(f"Settings: {cfg.model_dump_json(indent=2)}")
+
     # Train
     trainer = AspireTrainer(cfg)
+    set_level(state["level"])
     trainer.train(prompts)
 
     console.print("[bold green]Training complete![/bold green]")
@@ -110,14 +195,21 @@ def evaluate(
     from aspire.trainer import AspireTrainer
 
     # Load config from checkpoint
-    cfg = AspireConfig.from_yaml(checkpoint / "config.yaml")
+    config_path = checkpoint / "config.yaml"
+    if not config_path.exists():
+        raise ConfigError(
+            f"{checkpoint} has no config.yaml.",
+            hint="Pass a checkpoint directory written by `aspire train` (for example outputs/checkpoint-1).",
+        )
+    cfg = AspireConfig.from_yaml(config_path)
 
     # Load prompts
-    with open(prompts_file) as f:
-        prompts = json.load(f)
+    prompts = _read_prompts(prompts_file)
+    verbose(f"Settings: {cfg.model_dump_json(indent=2)}")
 
     # Create trainer and load checkpoint
     trainer = AspireTrainer(cfg)
+    set_level(state["level"])
     trainer.load_checkpoint(checkpoint)
 
     # Evaluate
@@ -463,4 +555,4 @@ def diagnose(
 
 
 if __name__ == "__main__":
-    app()
+    run()

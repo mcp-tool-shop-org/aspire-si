@@ -64,7 +64,7 @@ Motion teachers evaluate full trajectories, not individual frames. They consider
 Isaac Gym runs 512+ parallel environments on a single GPU. ASPIRE leverages this for massive throughput: each environment runs a different scenario, and the critic trains on all of them simultaneously.
 
 ```python
-from aspire.integrations.isaac import AspireIsaacTrainer, MotionTeacher
+from integrations.isaac import AspireIsaacTrainer, MotionTeacher
 
 teacher = MotionTeacher(
     personas=["safety_inspector", "efficiency_expert", "grace_coach"],
@@ -77,6 +77,9 @@ trainer = AspireIsaacTrainer(
 )
 trainer.train(epochs=100)
 ```
+
+Without Isaac Gym, `python -m integrations.isaac.examples.basic_training` runs the same loop on
+a small built-in stand-in environment, on CPU.
 
 ### Self-refinement for robots
 
@@ -108,7 +111,7 @@ The static analysis results become part of the teacher's evaluation, combining t
 ### Training code critics
 
 ```python
-from aspire.integrations.code import CodeTeacher, CodeSample
+from integrations.code import CodeSample, CodeTeacher, Language
 
 teacher = CodeTeacher(
     personas=["correctness_checker", "style_guide", "security_auditor"],
@@ -116,9 +119,9 @@ teacher = CodeTeacher(
 )
 
 critique = teacher.critique(
-    CodeSample(code="def f(): eval(input())", language="python")
+    CodeSample(code="def f(): eval(input())", language=Language.PYTHON)
 )
-print(f"Score: {critique.overall_score}/10")  # Low — security issue
+print(critique.weaknesses)  # includes the code-injection risk of eval on user input
 ```
 
 The code critic learns to predict these multi-teacher evaluations from the code embedding alone. After training, it can flag issues in generated code without calling any teacher API.

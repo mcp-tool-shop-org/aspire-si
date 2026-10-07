@@ -16,6 +16,7 @@ New evaluation dimensions focus on:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -308,6 +309,7 @@ class PerceptionEvaluation:
         self.robustness_score = avg_category(robustness_dims)
 
         # Weighted overall
+        # Categories with no scored dimension do not take part in the average
         weights = [1.2, 1.1, 1.0, 1.0]  # Empathy weighted highest
         scores = [
             self.cognitive_empathy_score,
@@ -315,7 +317,17 @@ class PerceptionEvaluation:
             self.character_score,
             self.robustness_score,
         ]
-        self.overall_perception_score = sum(w * s for w, s in zip(weights, scores)) / sum(weights)
+        scored = [
+            any(s.dimension in dims for s in self.perception_scores)
+            for dims in (empathy_dims, meta_dims, character_dims, robustness_dims)
+        ]
+        total_weight = sum(w for w, has_score in zip(weights, scored) if has_score)
+        self.overall_perception_score = (
+            sum(w * s for w, s, has_score in zip(weights, scores, scored) if has_score)
+            / total_weight
+            if total_weight
+            else 0.0
+        )
 
     def to_teacher_evaluation(
         self,
@@ -546,7 +558,9 @@ class PerceptionEvaluator:
             "clearly",
         ]
 
-        hedge_count = sum(1 for h in hedges if h in response_lower)
+        hedge_count = sum(
+            1 for h in hedges if re.search(rf"(?<!\w){re.escape(h)}(?!\w)", response_lower)
+        )
         certainty_count = sum(1 for c in certainties if c in response_lower)
 
         evidence = []

@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI fails when a test fails (the test step used to be allowed to fail), installs the CPU build
   of torch, runs the geometry demo, and checks the Atlas map.
 - Dependabot runs monthly, three pull requests at most, with grouped updates.
+- Coverage is held at 90%: CI runs `pytest --cov-fail-under=90` over `aspire/` and
+  `integrations/`, and `codecov.yml` sets the same target for the project and for each pull
+  request. Codecov uploads over OIDC, without a stored token. Coverage is now 99%, up from 62%.
+- `use_wandb` defaults to off, as it already did in the integrations: logging to Weights &
+  Biases sends run data to a third party.
+- The Isaac integration's default device is `cuda` only when torch can use one, and `cpu`
+  otherwise, so its examples run on a machine without a GPU.
+- The code integration's security auditor deducts by severity (high 3, medium 1.5, low 1) instead
+  of a flat 1.5 per pattern. `eval` or `exec` applied straight to `input()` costs 4 more and is
+  named as such, so `def f(): eval(input())` now scores 2.5 instead of 8.
+- The handbook and landing page run on Astro 7 and Starlight 0.42, with the sidebar in the shape
+  Starlight 0.39 and later require.
+- The README, landing page and handbook no longer say the student refines its own output at
+  inference time. ASPIRE ships the trained critic, which judges a response without the teacher;
+  a refine loop around it is the user's to write, and the docs now show one.
 
 ### Added
 
@@ -26,6 +41,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A composite teacher's vote keeps each member's score in `metadata["teacher_scores"]`.
 - `examples/geometry_demo.py` writes two simulated exports without a model or API key.
 - Atlas map (`atlas/`).
+- `aspire.errors.AspireError`: every error ASPIRE raises on purpose has a `code`, `message`,
+  `hint`, optional `cause` and `retryable`. Teacher, config and input errors subclass it.
+- The CLI reports errors as code, message and hint without a traceback, and exits 1 for
+  something the user can fix, 2 for a failure while running, 130 when interrupted. New global
+  options `--quiet`, `--verbose` (prints the resolved settings) and `--debug` (shows tracebacks).
+  The `aspire` entry point is now `aspire.cli:run`.
+- `aspire train` and `aspire evaluate` say so when a config, prompts or checkpoint file is
+  missing or malformed, instead of failing with a traceback or quietly using the defaults.
+- `integrations.code` exports `CodeSample`, `CodeCritique` and `Language`, which its README and
+  examples already imported from it.
+- Handbook page "Watching Runs in ScalarScope".
+- About 1,550 new tests, covering the Isaac, Forge and code integrations and the perception
+  modules, which were mostly untested.
 
 ### Fixed
 
@@ -35,6 +63,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PeftModel` and `bitsandbytes` are imported where the trainer module loads, and a missing
   `bitsandbytes` says so when the 8-bit optimizer is chosen.
 - The long-path test skips, instead of failing, on Windows machines without long paths enabled.
+- The integration READMEs, examples and quick starts imported `aspire.integrations`, which does
+  not exist; they import `integrations` now.
+
+Bugs the new tests found, each now covered by a test that failed before the fix:
+
+- **Isaac:** a trajectory scored 0.0 got the lowest replay priority instead of the highest;
+  `DummyIsaacEnv` never started a new episode, so collection could loop forever; `train(epochs=0)`
+  ran the full schedule; checkpoints could not be loaded back (they now hold plain values and
+  load with `weights_only=True`); a one-layer policy failed on any state size; the LSTM critic's
+  improvement shape shrank under a padding mask.
+- **Code:** Rust was detected as JavaScript; `async def` functions were not counted; `a / 0.5`
+  was flagged as division by zero; the SQL-injection regex never matched; the `secrets` module was
+  flagged as a leaked secret; an LLM score of `45/100` read as 10/10; a repository under a folder
+  named like a skip word yielded no files; one failed clone stopped every remaining one; an empty
+  balanced dataset raised; a sample's `commit` was lost on a round trip; a module student had no
+  tokenizer; checkpointing an unknown component raised `UnboundLocalError`.
+- **Forge:** the image critic re-initialised the frozen CLIP encoder's weights; a vision teacher
+  reply that was JSON but not an object raised instead of falling back.
+- **Perception:** a chaos injection carried over to later chaos-free prompts; an evaluation that
+  scored some categories was diluted by the unscored ones (a perfect partial score read about
+  2.6/10); "may" was found in "mayor" as a hedge; a character's saved activation contexts and
+  values were lost on load, and a string priority crashed sorting; the uncertainty variance was
+  NaN for one sample; the completeness reflection prompt could be dropped; `[batch, vocab]`
+  logits failed; five chaos types had no generator and a requested type could come back as
+  another; empty text and a zero-epoch ramp raised; syntropy coherence was NaN for one token;
+  gratitude and anxiety were left out of the emotional trend.
+- **Core:** a chat-formatted dialogue with no turns dropped the prompt; an unknown optimizer name
+  left the trainer without one (it now raises).
 
 ## [1.0.0] - 2026-02-27
 

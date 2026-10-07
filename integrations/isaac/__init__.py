@@ -7,7 +7,7 @@ This integration brings ASPIRE's adversarial learning to robotics:
 - Robots self-refine actions before execution
 
 Example:
-    from aspire.integrations.isaac import (
+    from integrations.isaac import (
         MotionTeacher,
         TrajectoryCritic,
         AspireIsaacTrainer,

@@ -238,6 +238,7 @@ class PerceptionModule(nn.Module):
 
         # Apply chaos if enabled and dice roll succeeds
         processed_prompt = prompt
+        self._chaos_injection = None
         if apply_chaos and self.chaos_generator is not None:
             injection = self.chaos_generator.inject(prompt)
             if injection:

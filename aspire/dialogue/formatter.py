@@ -131,7 +131,8 @@ class DialogueFormatter:
                 messages.append(f"<|user|>\n{turn.challenge.content}\n<|end|>")
                 messages.append(f"<|assistant|>\n{turn.student_response}\n<|end|>")
 
-        input_text = "\n".join(messages[:-1])  # Everything except last assistant turn
+        # Everything except the last assistant turn (with no turns, the prompt is the last message)
+        input_text = "\n".join(messages[:-1] if dialogue.history.turns else messages)
 
         # Target
         if use_improved_as_target and dialogue.final_evaluation.improved_response:

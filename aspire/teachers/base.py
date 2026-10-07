@@ -11,15 +11,18 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from aspire.errors import USER_ERROR, AspireError
+
 # Input validation constants
 MAX_PROMPT_LENGTH = 100_000  # Maximum characters for prompts
 MAX_RESPONSE_LENGTH = 100_000  # Maximum characters for responses
 
 
-class InputValidationError(ValueError):
+class InputValidationError(AspireError, ValueError):
     """Error raised when input validation fails."""
 
-    pass
+    code = "ASPIRE_INVALID_INPUT"
+    exit_code = USER_ERROR
 
 
 class ChallengeType(str, Enum):

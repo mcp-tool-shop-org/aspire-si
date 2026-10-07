@@ -471,7 +471,7 @@ class SyntropicIntegrator(nn.Module):
         attention_entropy = (
             -(attention_weights * torch.log(attention_weights + 1e-10)).sum(dim=-1).mean(dim=-1)
         )
-        max_entropy = math.log(seq_len)
+        max_entropy = math.log(seq_len) if seq_len > 1 else 1.0  # one token: entropy is 0
         normalized_entropy = attention_entropy / max_entropy
 
         # Integration coherence (inverse of entropy)

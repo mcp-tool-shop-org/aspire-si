@@ -15,15 +15,16 @@ ASPIRE gives AI that same experience.
 
 - [Beginners Guide](/aspire-si/handbook/beginners/) — New to ASPIRE? Start here for a plain-language walkthrough.
 - [Getting Started](/aspire-si/handbook/getting-started/) — Install, configure, and run your first dialogue.
-- [How It Works](/aspire-si/handbook/how-it-works/) — The four-stage pipeline from adversarial dialogue to inference-time self-refinement.
+- [How It Works](/aspire-si/handbook/how-it-works/) — The four-stage pipeline from adversarial dialogue to judging responses without the teacher.
 - [Teachers](/aspire-si/handbook/teachers/) — The five teacher personas and how to compose them into committees.
 - [Integrations](/aspire-si/handbook/integrations/) — Stable Diffusion Forge, Isaac Gym, and code assistant integrations.
 - [CLI Reference](/aspire-si/handbook/cli/) — Every command, every flag, every option.
+- [Watching Runs in ScalarScope](/aspire-si/handbook/scalarscope/) — Export a run's training dynamics and compare runs side by side.
 
 ASPIRE also includes an experimental **perception module** with theory of mind, metacognition, character persistence, and controlled chaos capabilities for building agents with deeper awareness.
 
 ## The short version
 
-A student model generates responses. A teacher model challenges them through adversarial dialogue. A critic model learns to predict the teacher's judgment. The student then trains against the critic's internalized feedback. At inference time the student self-refines using the critic alone — no teacher API calls needed.
+A student model generates responses. A teacher model challenges them through adversarial dialogue. A critic model learns to predict the teacher's judgment. The student then trains against the critic's internalized feedback. After training, the critic judges the student's responses alone — no teacher API calls needed.
 
 [Back to landing page](/aspire-si/)

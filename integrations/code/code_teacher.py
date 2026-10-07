@@ -13,6 +13,7 @@ Each teacher persona evaluates code from a different perspective:
 from __future__ import annotations
 
 import os
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Literal
@@ -175,7 +176,7 @@ class CorrectnessChecker(BaseCodeTeacher):
             weaknesses.append("Potential infinite loop: while True without break")
 
         # Division by zero risk
-        if "/ 0" in sample.code or "/0" in sample.code:
+        if re.search(r"/\s*0(?:\.0*)?(?![\d.])", sample.code):
             score -= 2.0
             weaknesses.append("Possible division by zero")
 
@@ -365,25 +366,33 @@ class SecurityAuditor(BaseCodeTeacher):
         if use_static_analysis:
             self.analyzer = CodeAnalyzer(use_ruff=False, use_mypy=False, use_bandit=True)
 
-    # Common dangerous patterns
+    # Common dangerous patterns: pattern -> (risk, suggestion, severity)
     DANGEROUS_PATTERNS = {
-        "eval(": ("Code injection risk", "Never use eval() with untrusted input"),
-        "exec(": ("Code injection risk", "Avoid exec() - use safer alternatives"),
-        "os.system(": ("Command injection risk", "Use subprocess with shell=False"),
-        "shell=True": ("Command injection risk", "Avoid shell=True in subprocess"),
-        "pickle.load": ("Deserialization attack risk", "Don't unpickle untrusted data"),
-        "yaml.load(": ("YAML deserialization risk", "Use yaml.safe_load() instead"),
-        "SELECT.*%s": ("SQL injection risk", "Use parameterized queries"),
-        "f\"SELECT": ("SQL injection risk", "Never use f-strings for SQL"),
-        "password": ("Sensitive data exposure", "Don't hardcode passwords"),
-        "secret": ("Sensitive data exposure", "Use environment variables for secrets"),
-        "api_key": ("Sensitive data exposure", "Don't commit API keys"),
-        "md5(": ("Weak cryptography", "Use SHA-256 or better"),
-        "sha1(": ("Weak cryptography", "Use SHA-256 or better"),
-        "random.random": ("Weak randomness", "Use secrets module for security"),
-        ".verify = False": ("SSL verification disabled", "Never disable SSL verification"),
-        "CORS(app)": ("Potential CORS misconfiguration", "Configure CORS restrictively"),
+        "eval(": ("Code injection risk", "Never use eval() with untrusted input", "HIGH"),
+        "exec(": ("Code injection risk", "Avoid exec() - use safer alternatives", "HIGH"),
+        "os.system(": ("Command injection risk", "Use subprocess with shell=False", "HIGH"),
+        "shell=True": ("Command injection risk", "Avoid shell=True in subprocess", "HIGH"),
+        "pickle.load": ("Deserialization attack risk", "Don't unpickle untrusted data", "HIGH"),
+        "yaml.load(": ("YAML deserialization risk", "Use yaml.safe_load() instead", "HIGH"),
+        "SELECT.*%s": ("SQL injection risk", "Use parameterized queries", "HIGH"),
+        "f\"SELECT": ("SQL injection risk", "Never use f-strings for SQL", "HIGH"),
+        "password": ("Sensitive data exposure", "Don't hardcode passwords", "MEDIUM"),
+        r"secret(?!s\b)": ("Sensitive data exposure", "Use environment variables for secrets", "MEDIUM"),
+        "api_key": ("Sensitive data exposure", "Don't commit API keys", "MEDIUM"),
+        ".verify = False": ("SSL verification disabled", "Never disable SSL verification", "MEDIUM"),
+        "md5(": ("Weak cryptography", "Use SHA-256 or better", "LOW"),
+        "sha1(": ("Weak cryptography", "Use SHA-256 or better", "LOW"),
+        "random.random": ("Weak randomness", "Use secrets module for security", "LOW"),
+        "CORS(app)": ("Potential CORS misconfiguration", "Configure CORS restrictively", "LOW"),
     }
+
+    # Patterns in DANGEROUS_PATTERNS that are regular expressions, not literals
+    REGEX_PATTERNS = frozenset({"SELECT.*%s", r"secret(?!s\b)"})
+
+    SEVERITY_PENALTY = {"HIGH": 3.0, "MEDIUM": 1.5, "LOW": 1.0}
+
+    # Extra deduction when eval/exec is handed raw input() on the same line
+    USER_INPUT_PENALTY = 4.0
 
     def critique(self, sample: CodeSample) -> CodeCritique:
         """Evaluate code security."""
@@ -415,16 +424,22 @@ class SecurityAuditor(BaseCodeTeacher):
         code_lower = sample.code.lower()
         lines = sample.code.split('\n')
 
-        for pattern, (risk, suggestion) in self.DANGEROUS_PATTERNS.items():
-            if pattern.lower() in code_lower:
-                # Find the line number
-                for i, line in enumerate(lines, 1):
-                    if pattern.lower() in line.lower():
-                        score -= 1.5
-                        weaknesses.append(f"Line {i}: {risk}")
-                        suggestions.append(suggestion)
-                        line_comments[i] = f"SECURITY: {risk}"
-                        break
+        for pattern, (risk, suggestion, severity) in self.DANGEROUS_PATTERNS.items():
+            regex = pattern if pattern in self.REGEX_PATTERNS else re.escape(pattern)
+            compiled = re.compile(regex, re.IGNORECASE)
+            # Find the line number
+            for i, line in enumerate(lines, 1):
+                if compiled.search(line):
+                    score -= self.SEVERITY_PENALTY[severity]
+                    if pattern in ("eval(", "exec(") and re.search(
+                        re.escape(pattern) + r"\s*input\(", line
+                    ):
+                        score -= self.USER_INPUT_PENALTY
+                        risk = f"{risk} ({pattern[:-1]} of user input)"
+                    weaknesses.append(f"Line {i}: {risk}")
+                    suggestions.append(suggestion)
+                    line_comments[i] = f"SECURITY: {risk}"
+                    break
 
         # Check for input validation
         if "input(" in sample.code and "validate" not in code_lower and "check" not in code_lower:
@@ -909,10 +924,9 @@ Be concise but thorough."""
 
             # Parse the response (simplified)
             score = 7.0  # Default
-            import re
-            score_match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*10', text)
-            if score_match:
-                score = float(score_match.group(1))
+            score_match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*(\d+)', text)
+            if score_match and float(score_match.group(2)) > 0:
+                score = float(score_match.group(1)) / float(score_match.group(2)) * 10
 
             return CodeCritique(
                 overall_score=min(10, max(0, score)),

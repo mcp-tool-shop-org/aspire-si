@@ -7,7 +7,7 @@ This integration brings ASPIRE's adversarial learning to code generation:
 - Models self-refine before outputting code
 
 Example:
-    from aspire.integrations.code import (
+    from integrations.code import (
         CodeTeacher,
         CodeCritic,
         AspireCodeTrainer,
@@ -29,6 +29,8 @@ Example:
 """
 
 from .code_teacher import (
+    CodeCritique,
+    CodeSample,
     CodeTeacher,
     CorrectnessChecker,
     StyleGuide,
@@ -49,7 +51,7 @@ from .analysis import (
     parse_code,
 )
 from .trainer import AspireCodeTrainer
-from .config import CodeAspireConfig
+from .config import CodeAspireConfig, Language
 from .data import (
     CodeReviewDataset,
     GitHubRepoCollector,
@@ -58,6 +60,9 @@ from .data import (
 
 __all__ = [
     # Teachers
+    "CodeSample",
+    "CodeCritique",
+    "Language",
     "CodeTeacher",
     "CorrectnessChecker",
     "StyleGuide",

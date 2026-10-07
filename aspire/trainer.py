@@ -268,6 +268,8 @@ class AspireTrainer:
                 lr=cfg.learning_rate,
                 weight_decay=cfg.weight_decay,
             )
+        else:
+            raise ValueError(f"Unknown optimizer: {cfg.optimizer!r}")
 
         # Critic optimizer
         critic_params = self.critic.get_trainable_parameters()

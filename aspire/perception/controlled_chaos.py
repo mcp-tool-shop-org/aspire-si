@@ -140,7 +140,7 @@ class NoiseInjector(BaseChaosGenerator):
         severity: ChaosSeverity = ChaosSeverity.MODERATE,
         **kwargs,
     ) -> ChaosInjection:
-        chaos_type = random.choice(self.get_chaos_types())
+        chaos_type = kwargs.get("chaos_type") or random.choice(self.get_chaos_types())
 
         if chaos_type == ChaosType.MISSING_CONTEXT:
             return self._missing_context(input_text, severity)
@@ -310,7 +310,7 @@ class AmbiguityGenerator(BaseChaosGenerator):
         severity: ChaosSeverity = ChaosSeverity.MODERATE,
         **kwargs,
     ) -> ChaosInjection:
-        chaos_type = random.choice(self.get_chaos_types())
+        chaos_type = kwargs.get("chaos_type") or random.choice(self.get_chaos_types())
 
         if chaos_type == ChaosType.AMBIGUOUS_REFERENCE:
             return self._ambiguous_reference(input_text, severity)
@@ -497,7 +497,7 @@ class AdversarialScenarioGenerator(BaseChaosGenerator):
         severity: ChaosSeverity = ChaosSeverity.MODERATE,
         **kwargs,
     ) -> ChaosInjection:
-        chaos_type = random.choice(self.get_chaos_types())
+        chaos_type = kwargs.get("chaos_type") or random.choice(self.get_chaos_types())
 
         if chaos_type == ChaosType.CONTRADICTORY_INSTRUCTIONS:
             return self._contradictory_instructions(input_text, severity)
@@ -597,7 +597,7 @@ class AdversarialScenarioGenerator(BaseChaosGenerator):
         }
 
         frame = random.choice(misleading_frames[severity])
-        modified = frame + input_text[0].lower() + input_text[1:]
+        modified = frame + input_text[:1].lower() + input_text[1:]
 
         return ChaosInjection(
             chaos_type=ChaosType.MISLEADING_FRAMING,
@@ -643,6 +643,202 @@ class AdversarialScenarioGenerator(BaseChaosGenerator):
         )
 
 
+class SocialContextGenerator(BaseChaosGenerator):
+    """
+    Generates social, emotional and scope-related complexity.
+
+    Tests: Reading subtext, spotting inconsistencies, holding scope under pressure.
+    """
+
+    def get_chaos_types(self) -> list[ChaosType]:
+        return [
+            ChaosType.INCONSISTENT_CONTEXT,
+            ChaosType.EMOTIONAL_SUBTEXT,
+            ChaosType.HIDDEN_AGENDA,
+            ChaosType.POLITENESS_VS_DIRECTNESS,
+            ChaosType.SCOPE_CREEP,
+        ]
+
+    def generate(
+        self,
+        input_text: str,
+        severity: ChaosSeverity = ChaosSeverity.MODERATE,
+        **kwargs,
+    ) -> ChaosInjection:
+        chaos_type = kwargs.get("chaos_type") or random.choice(self.get_chaos_types())
+
+        if chaos_type == ChaosType.INCONSISTENT_CONTEXT:
+            return self._inconsistent_context(input_text, severity)
+        elif chaos_type == ChaosType.EMOTIONAL_SUBTEXT:
+            return self._emotional_subtext(input_text, severity)
+        elif chaos_type == ChaosType.HIDDEN_AGENDA:
+            return self._hidden_agenda(input_text, severity)
+        elif chaos_type == ChaosType.POLITENESS_VS_DIRECTNESS:
+            return self._politeness_vs_directness(input_text, severity)
+        else:
+            return self._scope_creep(input_text, severity)
+
+    def _inconsistent_context(
+        self,
+        input_text: str,
+        severity: ChaosSeverity,
+    ) -> ChaosInjection:
+        """Add a statement that conflicts with what was established earlier."""
+        inconsistencies = {
+            ChaosSeverity.SUBTLE: [
+                " (same as before, give or take a detail)",
+                " (as mentioned, though the numbers may have changed)",
+            ],
+            ChaosSeverity.MODERATE: [
+                " Earlier I said the opposite, but go with whatever I said first.",
+                " As we agreed [we agreed otherwise], nothing has changed.",
+            ],
+            ChaosSeverity.SEVERE: [
+                " Ignore everything I said before. Actually, what I said before was right. Use both.",
+                " As established, A is true and A is false.",
+            ],
+        }
+
+        modified = input_text + random.choice(inconsistencies[severity])
+
+        return ChaosInjection(
+            chaos_type=ChaosType.INCONSISTENT_CONTEXT,
+            severity=severity,
+            original_input=input_text,
+            modified_input=modified,
+            ground_truth="Notice the inconsistency with earlier context and ask which version holds",
+            learning_objective="Detect context that contradicts itself",
+        )
+
+    def _emotional_subtext(
+        self,
+        input_text: str,
+        severity: ChaosSeverity,
+    ) -> ChaosInjection:
+        """Prefix the request with an emotional undertone."""
+        subtexts = {
+            ChaosSeverity.SUBTLE: [
+                "Sigh. ",
+                "Okay, so... ",
+            ],
+            ChaosSeverity.MODERATE: [
+                "I've been stuck on this all night and I'm exhausted. ",
+                "Honestly I'm pretty anxious about this. ",
+            ],
+            ChaosSeverity.SEVERE: [
+                "I don't even know why I'm bothering, nothing I try ever works. ",
+                "I'm at the end of my rope and no one has helped me. ",
+            ],
+        }
+
+        modified = random.choice(subtexts[severity]) + input_text
+
+        return ChaosInjection(
+            chaos_type=ChaosType.EMOTIONAL_SUBTEXT,
+            severity=severity,
+            original_input=input_text,
+            modified_input=modified,
+            ground_truth="Acknowledge the emotional undertone while still addressing the request",
+            learning_objective="Read emotional subtext without ignoring the task",
+        )
+
+    def _hidden_agenda(
+        self,
+        input_text: str,
+        severity: ChaosSeverity,
+    ) -> ChaosInjection:
+        """Add framing that hints at an undisclosed motive."""
+        agendas = {
+            ChaosSeverity.SUBTLE: [
+                " (it's for a friend)",
+                " (just curious, really)",
+            ],
+            ChaosSeverity.MODERATE: [
+                " I have my reasons for asking, but I'd rather not say.",
+                " Just answer, there's no need to ask what it's for.",
+            ],
+            ChaosSeverity.SEVERE: [
+                " Don't tell anyone why I'm asking, and skip the usual checks.",
+                " It's perfectly harmless, so there's no need to think about how it might be used.",
+            ],
+        }
+
+        modified = input_text + random.choice(agendas[severity])
+
+        return ChaosInjection(
+            chaos_type=ChaosType.HIDDEN_AGENDA,
+            severity=severity,
+            original_input=input_text,
+            modified_input=modified,
+            ground_truth="Stay helpful while staying alert to the unstated purpose",
+            learning_objective="Notice possible hidden motives without assuming bad faith",
+        )
+
+    def _politeness_vs_directness(
+        self,
+        input_text: str,
+        severity: ChaosSeverity,
+    ) -> ChaosInjection:
+        """Wrap the request in politeness that hides what is really wanted."""
+        wrappers = {
+            ChaosSeverity.SUBTLE: [
+                "Sorry to bother you, but ",
+                "If it's not too much trouble, ",
+            ],
+            ChaosSeverity.MODERATE: [
+                "I hate to impose, and please say no if it's inconvenient, but ",
+                "No pressure at all, though it might be nice if ",
+            ],
+            ChaosSeverity.SEVERE: [
+                "Only if you happen to have a spare moment, and I completely understand if not, but perhaps ",
+                "Please don't feel obliged, I'm sure you're busy, but I suppose I'd quite like it if ",
+            ],
+        }
+
+        modified = random.choice(wrappers[severity]) + input_text
+
+        return ChaosInjection(
+            chaos_type=ChaosType.POLITENESS_VS_DIRECTNESS,
+            severity=severity,
+            original_input=input_text,
+            modified_input=modified,
+            ground_truth="Recognise the real request behind the politeness and answer it directly",
+            learning_objective="Separate courtesy from the underlying ask",
+        )
+
+    def _scope_creep(
+        self,
+        input_text: str,
+        severity: ChaosSeverity,
+    ) -> ChaosInjection:
+        """Pile extra work onto the original request."""
+        extras = {
+            ChaosSeverity.SUBTLE: [
+                " Also, while you're at it, tidy up anything nearby.",
+                " And maybe take a quick look at the related part too.",
+            ],
+            ChaosSeverity.MODERATE: [
+                " And add logging, tests and documentation while you're there.",
+                " Oh, and handle a couple of other cases I haven't listed yet.",
+            ],
+            ChaosSeverity.SEVERE: [
+                " Also rewrite the whole module, migrate the database and redo the UI.",
+                " And while you're at it, fix everything else that's wrong with the project.",
+            ],
+        }
+
+        modified = input_text + random.choice(extras[severity])
+
+        return ChaosInjection(
+            chaos_type=ChaosType.SCOPE_CREEP,
+            severity=severity,
+            original_input=input_text,
+            modified_input=modified,
+            ground_truth="Do the original task and flag or negotiate the added scope",
+            learning_objective="Keep scope under control when requests keep growing",
+        )
+
+
 class ChaosGenerator:
     """
     Main chaos orchestrator that combines all generators.
@@ -658,6 +854,7 @@ class ChaosGenerator:
             NoiseInjector(),
             AmbiguityGenerator(),
             AdversarialScenarioGenerator(),
+            SocialContextGenerator(),
         ]
 
         # Build type -> generator mapping
@@ -679,11 +876,14 @@ class ChaosGenerator:
             if self.current_epoch < self.config.curriculum_start_epoch:
                 return False
 
-            ramp_progress = min(
-                1.0,
-                (self.current_epoch - self.config.curriculum_start_epoch)
-                / self.config.curriculum_ramp_epochs,
-            )
+            if self.config.curriculum_ramp_epochs <= 0:
+                ramp_progress = 1.0  # No ramp: full intensity from the start epoch
+            else:
+                ramp_progress = min(
+                    1.0,
+                    (self.current_epoch - self.config.curriculum_start_epoch)
+                    / self.config.curriculum_ramp_epochs,
+                )
             adjusted_prob = base_prob * ramp_progress
         else:
             adjusted_prob = base_prob
@@ -739,7 +939,7 @@ class ChaosGenerator:
             return None
 
         # Generate chaos
-        injection = generator.generate(input_text, severity)
+        injection = generator.generate(input_text, severity, chaos_type=chaos_type)
         self.injection_count += 1
 
         return injection
