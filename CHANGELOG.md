@@ -5,6 +5,29 @@ All notable changes to ASPIRE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `examples/sft-experiment/`: the fine-tune-then-ASPIRE experiment (#11) and its
+  [run report](docs/runs/2026-10-07-sft-then-aspire.md). It holds:
+  - a dataset builder that keeps evaluation prompts out by word overlap and embeddings;
+  - a judge set of one-sentence planted errors;
+  - a cleaning step that records every drop;
+  - QLoRA fine-tuning;
+  - probes with schema 1.1 drift exports;
+  - the held-out and judge measures, with intervals that resample prompts.
+
+  Result: with the composite teacher, the critic trained after the fine-tune was worse at
+  spotting planted errors than the control's (0.65 against 0.87). The fine-tune moved the
+  hidden states about 30 times as far as ASPIRE does, and ASPIRE's own drift ran against it.
+
+### Changed
+
+- `aspire.teachers.local`: the scoring request and its parser are module functions
+  (`evaluation_request`, `parse_evaluation`, `extract_score`, `extract_improved`), so other code
+  scores exactly as the local teacher does. The request text and the parsed scores are unchanged.
+
 ## [1.2.0] - 2026-10-07
 
 The first end-to-end run on real models: a local teacher, a composite of two, a checkpoint that
