@@ -14,9 +14,17 @@ teacher's scores, so it can only be expected to separate pairs the teacher separ
 other pairs both conditions sit near chance, and that floor would hide a difference. The subset
 is where a difference can show. Its size is reported, and a small subset is said to be too small.
 
+A second subset (added by the 2026-10-07 plan, after the first was found to be 31 pairs): with
+--subset pairwise.json, the measure is also reported on the pairs pairwise_teacher.py found
+teacher-separable, the ones where the teacher picks the strong answer in a direct comparison in
+both orders. With --reuse judge.json, the critics' recorded pair scores are re-read from an
+earlier run and no model is loaded.
+
 Usage: python judge_eval.py --judge-set data/judge_set.json --out judge.json
          control-local=outputs/real-local-teacher/checkpoint-3
          sft-local=outputs/sft-local-teacher/checkpoint-3 ...
+       python judge_eval.py --judge-set data/judge_set.json --out judge-separable.json
+         --reuse results/judge.json --subset results/pairwise.json
 """
 
 from __future__ import annotations
@@ -40,6 +48,11 @@ def evaluate(scorer, pairs: list[dict]) -> dict:
     prompts = [p["prompt"] for p in pairs]
     strong = scorer.score_many(prompts, [p["strong"] for p in pairs])
     flawed = scorer.score_many(prompts, [p["flawed"] for p in pairs])
+    return from_scores(strong, flawed, pairs)
+
+
+def from_scores(strong: list[float], flawed: list[float], pairs: list[dict]) -> dict:
+    """The full result for one critic from its pair scores (fresh, or re-read from a judge.json)."""
     return summarize(strong, flawed, pairs) | {
         "teacher_detectable": subset_summary(strong, flawed, pairs),
         "strong": strong,
@@ -72,15 +85,39 @@ def subset_summary(strong: list[float], flawed: list[float], pairs: list[dict]) 
     return summarize([strong[k] for k in keep], [flawed[k] for k in keep], [pairs[k] for k in keep])
 
 
+def add_separable(result: dict, pairs: list[dict], ids: list) -> dict:
+    """Add the teacher-separable subset (pairs whose pair_id is in `ids`) to a judge result."""
+    keep = [k for k, p in enumerate(pairs) if p.get("pair_id", k) in set(ids)]
+    picked = [pairs[k] for k in keep]
+    result["teacher_separable"] = {
+        "pairs": len(keep),
+        "prompts": len(set(prompt_groups(picked))),
+        "note": "second subset (2026-10-07 plan): the teacher picks the strong answer in both orders",
+    }
+    for r in result["critics"].values():
+        r["teacher_separable"] = (
+            summarize([r["strong"][k] for k in keep], [r["flawed"][k] for k in keep], picked)
+            if keep
+            else None
+        )
+    return result
+
+
 def main() -> None:  # pragma: no cover - needs checkpoints and a GPU
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("checkpoints", nargs="+", help="name=checkpoint-dir")
+    parser.add_argument("checkpoints", nargs="*", help="name=checkpoint-dir")
     parser.add_argument("--judge-set", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--device", default=None, help="cuda or cpu [default: cuda if available]")
+    parser.add_argument(
+        "--subset", type=Path, help="pairwise_teacher.py's output: also report its separable pairs"
+    )
+    parser.add_argument(
+        "--reuse", type=Path, help="an earlier judge.json: re-read its critics' scores, load no model"
+    )
     args = parser.parse_args()
-
-    from aspire.judge import Judge
+    if not args.checkpoints and not args.reuse:
+        parser.error("give name=checkpoint entries, or --reuse an earlier judge.json")
 
     pairs = json.loads(args.judge_set.read_text(encoding="utf-8"))
     teacher_strong = [p["teacher_strong"] for p in pairs]
@@ -98,10 +135,19 @@ def main() -> None:  # pragma: no cover - needs checkpoints and a GPU
         },
         "critics": {},
     }
-    for text in args.checkpoints:
-        name, _, path = text.partition("=")
-        result["critics"][name] = evaluate(Judge.from_checkpoint(path, device=args.device), pairs)
-        r = result["critics"][name]
+    if args.reuse:
+        earlier = json.loads(args.reuse.read_text(encoding="utf-8"))["critics"]
+        for name, r in earlier.items():
+            result["critics"][name] = from_scores(r["strong"], r["flawed"], pairs)
+    if args.checkpoints:
+        from aspire.judge import Judge
+
+        for text in args.checkpoints:
+            name, _, path = text.partition("=")
+            result["critics"][name] = evaluate(Judge.from_checkpoint(path, device=args.device), pairs)
+    if args.subset:
+        add_separable(result, pairs, json.loads(args.subset.read_text(encoding="utf-8"))["separable_ids"])
+    for name, r in result["critics"].items():
         print(
             f"{name}: accuracy {r['accuracy']:.3f} [{r['ci95'][0]:.3f}, {r['ci95'][1]:.3f}]"
             f" gap {r['mean_gap']:+.3f}",
@@ -111,6 +157,13 @@ def main() -> None:  # pragma: no cover - needs checkpoints and a GPU
         if d:
             print(
                 f"  teacher-detectable ({d['pairs']} pairs, {d['prompts']} prompts):"
+                f" accuracy {d['accuracy']:.3f} [{d['ci95'][0]:.3f}, {d['ci95'][1]:.3f}]",
+                flush=True,
+            )
+        d = r.get("teacher_separable")
+        if d:
+            print(
+                f"  teacher-separable ({d['pairs']} pairs, {d['prompts']} prompts):"
                 f" accuracy {d['accuracy']:.3f} [{d['ci95'][0]:.3f}, {d['ci95'][1]:.3f}]",
                 flush=True,
             )

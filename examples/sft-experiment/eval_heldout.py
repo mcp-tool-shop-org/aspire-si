@@ -4,7 +4,8 @@ Two phases, so the small student and the 32B scorer never share the GPU:
 
   answer  each entry (name=model or name=model+adapter) answers every held-out prompt in the
           student's chat format, the way ASPIRE's dialogue generator samples (temperature 0.7,
-          256 new tokens, fixed seed). Writes answers-<name>.json.
+          fixed seed), with up to --max-new-tokens (256, as the generator; 1024 lets most answers
+          finish). Writes answers-<name>.json, with each answer's `truncated` flag.
   score   the teacher scores every answers-*.json with ASPIRE's own scoring request (vLLM).
           Writes scores.json: per entry, the mean and its 95% bootstrap interval.
 
@@ -46,18 +47,31 @@ def score_answers(backend: Backend, teacher: str, answer_files: list[Path]) -> d
         parsed = [score_of(r, teacher) for r in replies]
         scores = [s for s, _, _ in parsed]
         mean, lo, hi = mean_ci(scores)
+        flags = [a["truncated"] for a in data["answers"] if "truncated" in a]
         result[data["name"]] = {
             "mean": mean,
             "ci95": [lo, hi],
             "n": len(scores),
             "json_rate": sum(p == "json" for _, p, _ in parsed) / max(len(parsed), 1),
+            "max_new_tokens": data.get("max_new_tokens"),
+            "complete_rate": (1 - sum(flags) / len(flags)) if flags else None,
             "scores": scores,
         }
     return result
 
 
+def ended(new_tokens: list[int], eos_ids: set[int]) -> bool:
+    """Whether a generation stopped on its own (an end-of-sequence token) rather than at the cap."""
+    return any(t in eos_ids for t in new_tokens)
+
+
 def answer(
-    entries: list[str], held_out: Path, out: Path, seed: int = 42, device: str = "cuda"
+    entries: list[str],
+    held_out: Path,
+    out: Path,
+    seed: int = 42,
+    device: str = "cuda",
+    max_new_tokens: int = 256,
 ) -> None:  # pragma: no cover
     import torch
     from probe_models import parse_entry
@@ -97,7 +111,9 @@ def answer(
             )
             for p in prompts
         ]
-        answers = []
+        eos = tokenizer.eos_token_id
+        eos_ids = set(eos if isinstance(eos, list) else [eos]) | {tokenizer.pad_token_id}
+        answers, cut = [], []
         for start in range(0, len(texts), 16):
             batch = tokenizer(
                 texts[start : start + 16], return_tensors="pt", padding=True, add_special_tokens=False
@@ -105,29 +121,32 @@ def answer(
             with torch.no_grad():
                 generated = model.generate(
                     **batch,
-                    max_new_tokens=256,
+                    max_new_tokens=max_new_tokens,
                     temperature=0.7,
                     do_sample=True,
                     pad_token_id=tokenizer.pad_token_id,
                 )
             for row in generated:
-                answers.append(
-                    tokenizer.decode(row[batch["input_ids"].shape[1] :], skip_special_tokens=True).strip()
-                )
+                new = row[batch["input_ids"].shape[1] :].tolist()
+                answers.append(tokenizer.decode(new, skip_special_tokens=True).strip())
+                cut.append(not ended(new, eos_ids))
         (out / f"answers-{name}.json").write_text(
             json.dumps(
                 {
                     "name": name,
                     "model": model_path,
                     "adapter": adapter,
-                    "answers": [{"prompt": p, "answer": a} for p, a in zip(prompts, answers)],
+                    "max_new_tokens": max_new_tokens,
+                    "answers": [
+                        {"prompt": p, "answer": a, "truncated": c} for p, a, c in zip(prompts, answers, cut)
+                    ],
                 },
                 indent=1,
                 ensure_ascii=False,
             ),
             encoding="utf-8",
         )
-        print(f"{name}: {len(answers)} answers", flush=True)
+        print(f"{name}: {len(answers)} answers, {sum(cut)} cut off at {max_new_tokens} tokens", flush=True)
         del model
         if device == "cuda":
             torch.cuda.empty_cache()
@@ -141,12 +160,13 @@ def main() -> None:  # pragma: no cover - runs on the pod
     a.add_argument("--held-out", type=Path, required=True)
     a.add_argument("--out", type=Path, required=True)
     a.add_argument("--device", default="cuda")
+    a.add_argument("--max-new-tokens", type=int, default=256)
     s = sub.add_parser("score")
     s.add_argument("--out", type=Path, required=True)
     s.add_argument("--teacher", default="Qwen/Qwen2.5-32B-Instruct")
     args = parser.parse_args()
     if args.phase == "answer":
-        answer(args.entries, args.held_out, args.out, device=args.device)
+        answer(args.entries, args.held_out, args.out, device=args.device, max_new_tokens=args.max_new_tokens)
     else:
         from lib import VllmBackend
 
@@ -154,7 +174,11 @@ def main() -> None:  # pragma: no cover - runs on the pod
         (args.out / "scores.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
         print(
             json.dumps(
-                {k: {x: v[x] for x in ("mean", "ci95", "json_rate")} for k, v in result.items()}, indent=1
+                {
+                    k: {x: v[x] for x in ("mean", "ci95", "json_rate", "complete_rate")}
+                    for k, v in result.items()
+                },
+                indent=1,
             )
         )
         print("EVAL-OK")

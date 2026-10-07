@@ -7,6 +7,7 @@ epoch (epoch-N/), and the last one is merged into a bf16 copy of the student (me
 Stage 2's ASPIRE configs use as student.model_name_or_path.
 
 Usage: python sft.py --data data/train.jsonl --out sft [--student Qwen/Qwen2.5-1.5B-Instruct]
+       python sft.py --merge-only sft/epoch-2 --out sft   (rebuild sft/merged from a saved adapter)
 """
 
 from __future__ import annotations
@@ -68,7 +69,7 @@ def collate(batch: list[dict[str, list[int]]], pad_id: int) -> dict[str, torch.T
 
 
 def train(args: argparse.Namespace) -> dict:
-    from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, get_scheduler
 
     torch.manual_seed(args.seed)
@@ -138,15 +139,7 @@ def train(args: argparse.Namespace) -> dict:
         model.save_pretrained(out / f"epoch-{epoch}")
         tokenizer.save_pretrained(out / f"epoch-{epoch}")
 
-    # Merge the last adapter into a bf16 (or fp32 on CPU) copy of the student.
-    base = AutoModelForCausalLM.from_pretrained(
-        args.student,
-        dtype=torch.bfloat16 if args.device == "cuda" else torch.float32,
-        device_map={"": args.device},
-    )
-    merged = PeftModel.from_pretrained(base, out / f"epoch-{args.epochs}").merge_and_unload()
-    merged.save_pretrained(out / "merged")
-    tokenizer.save_pretrained(out / "merged")
+    merge(args.student, out / f"epoch-{args.epochs}", out / "merged", args.device)
     summary = {
         "student": args.student,
         "examples": len(examples),
@@ -163,9 +156,25 @@ def train(args: argparse.Namespace) -> dict:
     return summary
 
 
+def merge(student: str, adapter: Path, merged: Path, device: str) -> Path:
+    """Merge a saved adapter into a bf16 (or fp32 on CPU) copy of the student, at `merged`."""
+    from peft import PeftModel
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    base = AutoModelForCausalLM.from_pretrained(
+        student,
+        dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+        device_map={"": device},
+    )
+    model = PeftModel.from_pretrained(base, adapter).merge_and_unload()
+    model.save_pretrained(merged)
+    AutoTokenizer.from_pretrained(adapter).save_pretrained(merged)
+    return merged
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--data", type=Path, help="train.jsonl (required unless --merge-only)")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--student", default="Qwen/Qwen2.5-1.5B-Instruct")
     parser.add_argument("--epochs", type=int, default=2)
@@ -178,8 +187,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--no-4bit", action="store_true", help="train in bf16 instead of 4-bit")
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--merge-only", type=Path, metavar="ADAPTER", help="only merge this adapter into OUT/merged"
+    )
+    args = parser.parse_args(argv)
+    if args.data is None and args.merge_only is None:
+        parser.error("--data is required unless --merge-only is given")
+    return args
 
 
 if __name__ == "__main__":
-    train(parse_args())
+    args = parse_args()
+    if args.merge_only:
+        print("MERGE-OK", merge(args.student, args.merge_only, Path(args.out) / "merged", args.device))
+    else:
+        train(args)
