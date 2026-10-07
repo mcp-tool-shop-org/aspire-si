@@ -75,3 +75,25 @@ your loop is not ASPIRE's trainer.
 
 The recorder keeps one pooled vector of the model's hidden size per step. For long runs set
 `geometry_every` so several batches average into one step.
+
+The trainer writes the export after every epoch as well as at the end, so a run stopped early (a
+deadline, Ctrl+C) keeps the epochs it finished.
+
+## Reading a real run
+
+The first real-model runs (a 1.5B student, 32B teachers, 3 epochs; see the
+[run report](https://github.com/mcp-tool-shop-org/aspire-si/blob/main/docs/runs/2026-10-06-pod-run.md))
+showed two things to keep in mind:
+
+- **The per-step trajectory mostly shows which prompt each step drew.** At batch 1, a step's state
+  is one prompt's pooled hidden state. Two prompts sat about 10,000 times further apart than three
+  epochs of training moved the student.
+- **The scalars repeat each epoch.** Epochs after the first replay the cached teacher scores, so
+  the scalar curves and the dips show differences between prompts, not learning.
+
+To see what training changed, replay a fixed set of exchanges through the base student and each
+epoch checkpoint and subtract each exchange's base state. `examples/pod-run/probe.py` and
+`examples/pod-run/drift.py` do this and write a **drift export**: same format, prompt identity
+removed. In those runs the drift grew every epoch and pointed the same way for every exchange. It
+did not line up with the teacher's scores, because 1.2.0 does not yet train the student toward
+better answers.

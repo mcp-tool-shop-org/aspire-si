@@ -43,6 +43,10 @@ is fixed and covered by a test that failed before the fix.
   changing what the student and critic train on.
 - The geometry export is written after every epoch as well as at the end, so a run stopped
   early (a deadline, Ctrl+C, a crash) keeps the epochs it finished.
+- `examples/pod-run/`: the configs and scripts of the first real-model runs, including
+  `probe.py` and `drift.py`. `probe.py` replays a fixed set of exchanges through the base student
+  and every epoch checkpoint; `drift.py` writes a geometry export of what training changed, with
+  prompt identity removed. Run report: `docs/runs/2026-10-06-pod-run.md`.
 
 ### Changed
 
