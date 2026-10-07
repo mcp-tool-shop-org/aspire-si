@@ -138,7 +138,7 @@ class BaseCritic(nn.Module, ABC):
     @classmethod
     def load(cls, path: str, **kwargs) -> "BaseCritic":
         """Load critic from saved state."""
-        checkpoint = torch.load(path, map_location="cpu")
+        checkpoint = torch.load(path, map_location="cpu", weights_only=True)
         config = checkpoint["config"]
         config.update(kwargs)
 
