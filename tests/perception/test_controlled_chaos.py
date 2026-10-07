@@ -225,9 +225,9 @@ class TestChaosGenerator:
 
     def test_initialization(self, generator):
         """Test generator initializes correctly."""
-        assert len(generator.generators) == 3
-        # Only the types implemented by generators are mapped (4 + 4 + 4)
-        assert len(generator.type_to_generator) == 12
+        assert len(generator.generators) == 4
+        # Every ChaosType is mapped (4 + 4 + 4 + 5)
+        assert len(generator.type_to_generator) == 17
 
     def test_should_inject_chaos_probability(self):
         """Test chaos injection probability."""

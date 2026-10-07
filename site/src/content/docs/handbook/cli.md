@@ -12,7 +12,29 @@ ASPIRE provides a command-line interface for generating dialogues, training mode
 | Flag | Description |
 |------|-------------|
 | `--version`, `-V` | Print the installed ASPIRE version and exit. |
+| `--quiet`, `-q` | Print errors only. |
+| `--verbose`, `-v` | Also print the resolved settings before training or evaluating. |
+| `--debug` | Verbose, and show the full traceback when something fails. |
 | `--help` | Show help for any command. |
+
+Global options go before the command: `aspire --verbose train ...`.
+
+## Errors and exit codes
+
+When something goes wrong, ASPIRE prints a code, a message, and what to do, without a
+traceback:
+
+```
+ASPIRE_CONFIG  The prompts file data/prompts.json is not valid JSON.
+It should be a JSON list of prompt strings.
+```
+
+| Exit code | Meaning |
+|-----------|---------|
+| `0` | Success. |
+| `1` | Something you can fix: a missing API key (`ASPIRE_MISSING_API_KEY`), a missing or unreadable config, prompts or checkpoint file (`ASPIRE_CONFIG`), invalid input (`ASPIRE_INVALID_INPUT`). |
+| `2` | A failure while running. An error ASPIRE did not anticipate prints `ASPIRE_UNEXPECTED`; run again with `--debug` to see the traceback. |
+| `130` | Interrupted with Ctrl+C. |
 
 ## aspire doctor
 
@@ -104,11 +126,12 @@ aspire train \
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--config`, `-c` | none | Path to the training configuration file (from `aspire init`). If omitted, uses built-in defaults. |
-| `--prompts`, `-p` | none | Path to a JSON file containing training prompts. If omitted, uses three built-in demo prompts. |
+| `--config`, `-c` | none | Path to the training configuration file (from `aspire init`). If omitted, uses built-in defaults. A path that does not exist is an error. |
+| `--prompts`, `-p` | none | Path to a JSON list of prompt strings. If omitted, uses three built-in demo prompts. A missing or malformed file is an error. |
 | `--teacher`, `-t` | `claude` | Teacher model to use. Overrides the value in the config file. |
 | `--epochs`, `-e` | `3` | Number of training epochs. Overrides the config. |
 | `--output`, `-o` | `outputs` | Output directory for checkpoints, dialogue cache, and logs. |
+| `--geometry` | off | Also write `geometry.json`, the run's training dynamics for ScalarScope. See [Watching Runs in ScalarScope](/aspire-si/handbook/scalarscope/). |
 
 Training generates adversarial dialogues, trains the critic and student, and saves a checkpoint after each epoch. If no prompts file is provided, three demo prompts are used so you can verify the pipeline runs end to end.
 
@@ -117,7 +140,7 @@ Training generates adversarial dialogues, trains the critic and student, and sav
 Evaluate a trained checkpoint against a set of prompts.
 
 ```bash
-aspire evaluate checkpoints/epoch-3 \
+aspire evaluate outputs/checkpoint-3 \
     --prompts data/eval.json
 ```
 

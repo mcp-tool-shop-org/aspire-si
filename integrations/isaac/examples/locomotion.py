@@ -10,7 +10,7 @@ import torch
 from dataclasses import dataclass
 from multiprocessing import freeze_support
 
-from aspire.integrations.isaac.motion_teacher import (
+from integrations.isaac.motion_teacher import (
     BaseMotionTeacher,
     MotionTeacher,
     MotionDimension,
@@ -176,11 +176,11 @@ class GaitAnalyst(BaseMotionTeacher):
 def main():
     """Train a quadruped with ASPIRE."""
 
-    from aspire.integrations.isaac import (
+    from integrations.isaac import (
         AspireIsaacTrainer,
         IsaacAspireConfig,
     )
-    from aspire.integrations.isaac.isaac_wrapper import DummyIsaacEnv, AspireIsaacEnv
+    from integrations.isaac.isaac_wrapper import DummyIsaacEnv, AspireIsaacEnv
 
     print("=" * 60)
     print("ASPIRE Locomotion Training")

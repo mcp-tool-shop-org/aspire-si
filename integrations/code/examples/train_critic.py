@@ -11,14 +11,14 @@ from multiprocessing import freeze_support
 
 
 def main():
-    from aspire.integrations.code import (
+    from integrations.code import (
         CodeTeacher,
         CodeCritic,
         AspireCodeTrainer,
         CodeAspireConfig,
     )
-    from aspire.integrations.code.config import Language
-    from aspire.integrations.code.data import (
+    from integrations.code.config import Language
+    from integrations.code.data import (
         GitHubRepoCollector,
         generate_training_pairs,
         create_balanced_dataset,

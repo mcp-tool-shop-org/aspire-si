@@ -19,7 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -700,6 +700,7 @@ class CharacterCore:
             raise ValueError("'values' must be a dictionary")
 
         valid_value_names = {v.value for v in ValueType}
+        valid_anchor_fields = {f.name for f in fields(ValueAnchor)} - {"value_type"}
         loaded_values = 0
 
         for value_name, value_data in values_data.items():
@@ -719,8 +720,10 @@ class CharacterCore:
                 safe_data = {
                     k: v
                     for k, v in value_data.items()
-                    if k in {"priority", "strength", "description", "contexts", "conflicts_with"}
+                    if k in valid_anchor_fields
                     and (isinstance(v, (int, float, str, list)) or v is None)
+                    # numeric fields must be numbers: a str would break sorting later
+                    and not (k in {"priority", "strength"} and not isinstance(v, (int, float)))
                 }
                 char.set_value(value_type, **safe_data)
                 loaded_values += 1

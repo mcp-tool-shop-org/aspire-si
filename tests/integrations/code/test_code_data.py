@@ -305,7 +305,7 @@ class TestGitHubRepoCollector:
         """Test clone_repo calls git clone."""
         mock_run.return_value = MagicMock(returncode=0)
 
-        result = collector.clone_repo("user/repo", shallow=True)
+        collector.clone_repo("user/repo", shallow=True)
 
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]

@@ -7,6 +7,7 @@ import os
 
 from openai import AsyncOpenAI
 
+from aspire.errors import AspireError, missing_api_key
 from aspire.teachers.base import (
     BaseTeacher,
     ChallengeType,
@@ -18,10 +19,10 @@ from aspire.teachers.base import (
 )
 
 
-class OpenAITeacherError(Exception):
+class OpenAITeacherError(AspireError):
     """Error specific to OpenAI teacher operations."""
 
-    pass
+    code = "ASPIRE_OPENAI_TEACHER"
 
 
 class OpenAITeacher(BaseTeacher):
@@ -47,12 +48,8 @@ class OpenAITeacher(BaseTeacher):
         resolved_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not resolved_key:
             raise OpenAITeacherError(
-                "OPENAI_API_KEY not found.\n\n"
-                "To fix this, set your API key:\n"
-                "  Windows:   set OPENAI_API_KEY=your-key-here\n"
-                "  Linux/Mac: export OPENAI_API_KEY=your-key-here\n\n"
-                "Or pass it directly: OpenAITeacher(api_key='your-key')\n\n"
-                "Get your API key at: https://platform.openai.com/api-keys"
+                "OPENAI_API_KEY not found.",
+                **missing_api_key("OPENAI_API_KEY", "OpenAITeacher", "https://platform.openai.com/api-keys"),
             )
 
         self.client = AsyncOpenAI(api_key=resolved_key)

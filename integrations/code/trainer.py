@@ -306,9 +306,15 @@ class AspireCodeTrainer:
 
         epochs = epochs or self.config.training.epochs
 
+        if self.tokenizer is None:
+            # Use critic's tokenizer
+            tokenizer = self.critic.get_tokenizer()
+        else:
+            tokenizer = self.tokenizer
+
         train_dataset = CodeReviewDataset(
             train_pairs,
-            self.tokenizer,
+            tokenizer,
             max_length=self.config.training.max_length,
             mode="student",
         )
@@ -461,6 +467,8 @@ class AspireCodeTrainer:
             self.student.save_pretrained(str(path))
             if self.tokenizer:
                 self.tokenizer.save_pretrained(str(path))
+        else:
+            raise ValueError(f"Cannot save checkpoint for component: {component!r}")
 
         print(f"  Saved {component} checkpoint: {path}")
 

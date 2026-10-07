@@ -58,7 +58,7 @@ Repository = "https://github.com/mcp-tool-shop-org/aspire-si"
 Issues = "https://github.com/mcp-tool-shop-org/aspire-si/issues"
 
 [project.scripts]
-aspire = "aspire.cli:app"
+aspire = "aspire.cli:run"
 
 [build-system]
 requires = ["hatchling"]

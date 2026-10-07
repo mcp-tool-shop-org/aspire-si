@@ -145,7 +145,7 @@ class TrajectoryBuffer:
         # Update priorities
         if self.prioritized:
             # Higher score = higher priority for learning
-            priority = (abs(score - 5.0) + 1.0) ** self.priority_alpha if score else 1.0
+            priority = (abs(score - 5.0) + 1.0) ** self.priority_alpha if score is not None else 1.0
             self.priorities = np.append(self.priorities, priority)
 
         # Remove oldest if over capacity
@@ -562,5 +562,10 @@ class DummyIsaacEnv:
             "energy": torch.sum(actions ** 2, dim=-1),
             "success": goal_distance < 0.1,
         }
+        observation = {"obs": self._states, "goal": self._goals}
 
-        return {"obs": self._states, "goal": self._goals}, rewards, dones, infos
+        # Every environment ends together; start the next episode, as Isaac Gym resets on done.
+        if self._step >= self.episode_length:
+            self.reset()
+
+        return observation, rewards, dones, infos

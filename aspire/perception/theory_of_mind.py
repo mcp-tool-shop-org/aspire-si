@@ -311,6 +311,7 @@ class EmotionalState:
                 EmotionType.SATISFACTION,
                 EmotionType.ENTHUSIASM,
                 EmotionType.RELIEF,
+                EmotionType.GRATITUDE,
             }
         )
         negative_count = sum(
@@ -322,6 +323,7 @@ class EmotionalState:
                 EmotionType.CONFUSION,
                 EmotionType.IMPATIENCE,
                 EmotionType.DISAPPOINTMENT,
+                EmotionType.ANXIETY,
             }
         )
 

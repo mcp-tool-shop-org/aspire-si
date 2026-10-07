@@ -1,11 +1,11 @@
 ---
 title: How It Works
-description: The four-stage ASPIRE pipeline — adversarial dialogue, critic training, student training, and inference-time self-refinement.
+description: The four-stage ASPIRE pipeline — adversarial dialogue, critic training, student training, and judging responses without the teacher.
 sidebar:
   order: 2
 ---
 
-ASPIRE trains AI judgment through a four-stage pipeline. Each stage builds on the previous one, culminating in a student model that can self-refine at inference time without any teacher API calls.
+ASPIRE trains AI judgment through a four-stage pipeline. Each stage builds on the previous one, ending with a critic that judges the student's responses without any teacher API calls.
 
 ## Stage 1: Adversarial Dialogue
 
@@ -61,24 +61,24 @@ student_loss = (
 
 **Coherence regularization** — Keeps the student's reasoning internally consistent across turns, preventing contradictions or drift during refinement.
 
-## Stage 4: Inference Magic
+## Stage 4: Judgment without the teacher
 
-After training, the student self-refines using the internalized critic. No teacher API calls needed.
+After training, the critic scores a response from the student's hidden states, with no teacher API call. A loop that revises until the critic is satisfied is yours to write around it. ASPIRE ships the trained critic; it does not ship the loop.
 
 ```python
-def generate_with_judgment(prompt):
+def generate_with_judgment(prompt, threshold=7.0, attempts=3):
     response = student.generate(prompt)
-
-    while critic.score(response) < threshold:
-        response = student.refine(response, critic.feedback)
-
-    return response  # Self-improved through internalized judgment
+    for _ in range(attempts):
+        if critic_score(student, critic, response) >= threshold:  # your wrapper around the critic
+            break
+        response = student.generate(prompt)  # or a revision prompt of your own
+    return response
 ```
 
-The student generates a draft, the critic evaluates it, and the student refines based on the critic's feedback. This loop runs entirely locally. The teacher's wisdom has been distilled into the critic, and the student has learned to use that internalized judgment to improve its own output.
+Everything here runs locally. The teacher's judgment has been distilled into the critic, and the student was trained toward what the critic rewards.
 
 ## Why this matters
 
-Standard fine-tuning teaches models to match outputs. ASPIRE teaches models to develop judgment. The difference shows up at inference time: a fine-tuned model produces its best guess in one shot, while an ASPIRE-trained model iteratively refines its output using internalized quality criteria.
+Standard fine-tuning teaches models to match outputs. ASPIRE teaches models to develop judgment. The difference shows up at inference time: a fine-tuned model produces its best guess in one shot, while an ASPIRE-trained model comes with a critic that can judge its output by the teacher's criteria.
 
 The student doesn't just predict what the teacher would say. It understands what the teacher understands. The map becomes the territory.

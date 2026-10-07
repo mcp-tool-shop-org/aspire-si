@@ -147,13 +147,13 @@
         "path": ".github/SECURITY.md"
       },
       {
-        "commits": 2,
-        "lines": 62,
+        "commits": 3,
+        "lines": 80,
         "path": ".github/dependabot.yml"
       },
       {
-        "commits": 2,
-        "lines": 108,
+        "commits": 3,
+        "lines": 129,
         "path": ".github/workflows/ci.yml"
       },
       {
@@ -177,8 +177,8 @@
         "path": "ASPIRE-SPEC.md"
       },
       {
-        "commits": 3,
-        "lines": 175,
+        "commits": 4,
+        "lines": 197,
         "path": "CHANGELOG.md"
       },
       {
@@ -212,43 +212,43 @@
         "path": "PRESS_RELEASE.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.es.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.fr.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.hi.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.it.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.ja.md"
       },
       {
-        "commits": 3,
-        "lines": 525,
+        "commits": 4,
+        "lines": 553,
         "path": "README.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.pt-BR.md"
       },
       {
-        "commits": 3,
-        "lines": 479,
+        "commits": 4,
+        "lines": 481,
         "path": "README.zh.md"
       },
       {
@@ -277,13 +277,13 @@
         "path": "aspire/__init__.py"
       },
       {
-        "commits": 2,
-        "lines": 466,
+        "commits": 3,
+        "lines": 471,
         "path": "aspire/cli.py"
       },
       {
-        "commits": 3,
-        "lines": 196,
+        "commits": 4,
+        "lines": 201,
         "path": "aspire/config.py"
       },
       {
@@ -332,8 +332,8 @@
         "path": "aspire/dialogue/manager.py"
       },
       {
-        "commits": 1,
-        "lines": 439,
+        "commits": 2,
+        "lines": 878,
         "path": "aspire/geometry.py"
       },
       {
@@ -412,8 +412,8 @@
         "path": "aspire/teachers/claude.py"
       },
       {
-        "commits": 2,
-        "lines": 295,
+        "commits": 3,
+        "lines": 304,
         "path": "aspire/teachers/composite.py"
       },
       {
@@ -437,33 +437,33 @@
         "path": "aspire/teachers/registry.py"
       },
       {
-        "commits": 2,
-        "lines": 576,
+        "commits": 3,
+        "lines": 626,
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 1,
-        "lines": 85,
+        "commits": 3,
+        "lines": 196,
         "path": "atlas/README.md"
       },
       {
-        "commits": 1,
-        "lines": 34,
+        "commits": 2,
+        "lines": 68,
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 1,
-        "lines": 240,
+        "commits": 3,
+        "lines": 632,
         "path": "atlas/page.json"
       },
       {
-        "commits": 1,
-        "lines": 920,
+        "commits": 3,
+        "lines": 2016,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 1,
-        "lines": 2952,
+        "commits": 3,
+        "lines": 6414,
         "path": "atlas/structure.json"
       },
       {
@@ -492,8 +492,8 @@
         "path": "examples/custom_teacher.py"
       },
       {
-        "commits": 1,
-        "lines": 66,
+        "commits": 2,
+        "lines": 132,
         "path": "examples/geometry_demo.py"
       },
       {
@@ -852,8 +852,8 @@
         "path": "tests/test_dialogue_edge_cases.py"
       },
       {
-        "commits": 1,
-        "lines": 328,
+        "commits": 2,
+        "lines": 656,
         "path": "tests/test_geometry.py"
       },
       {
@@ -887,8 +887,8 @@
         "path": "tests/test_teachers_openai.py"
       },
       {
-        "commits": 2,
-        "lines": 1148,
+        "commits": 3,
+        "lines": 1163,
         "path": "tests/test_trainer.py"
       },
       {
@@ -897,13 +897,13 @@
         "path": "tests/test_trainer_edge_cases.py"
       },
       {
-        "commits": 2,
-        "lines": 858,
+        "commits": 3,
+        "lines": 862,
         "path": "tests/test_trainer_unit.py"
       },
       {
-        "commits": 2,
-        "lines": 475,
+        "commits": 3,
+        "lines": 487,
         "path": "tests/test_windows_compatibility.py"
       }
     ]
@@ -912,13 +912,13 @@
     "level": "low",
     "reason": "fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions"
   },
-  "generatedAt": "2026-10-06T22:52:32.502Z",
+  "generatedAt": "2026-10-07T00:10:36.956Z",
   "generatedFrom": {
-    "commit": "65923f99a814626ff507b6e8a686907dd03c7235"
+    "commit": "35b5597849bca5e92bc2e958ef99d4c590837585"
   },
   "pairs": [],
   "parameters": {
-    "appliedChangesetLimit": 38.25,
+    "appliedChangesetLimit": 46.75,
     "changeset": 50,
     "changesetFraction": 0.25,
     "cohesionDrop": 0.2,
@@ -927,16 +927,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "both",
-    "headDate": "2026-10-06T18:52:15-04:00",
-    "inScopeFiles": 153,
+    "headDate": "2026-10-06T16:25:17-07:00",
+    "inScopeFiles": 187,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 2,
+    "qualifyingCommits": 3,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-09T22:52:15.000Z",
+    "since": "2026-04-09T23:25:17.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",

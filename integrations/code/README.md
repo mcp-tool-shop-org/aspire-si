@@ -40,8 +40,8 @@ pip install transformers peft
 ### Basic Code Critique
 
 ```python
-from aspire.integrations.code import CodeTeacher, CodeSample
-from aspire.integrations.code.config import Language
+from integrations.code import CodeTeacher, CodeSample
+from integrations.code.config import Language
 
 # Create expert panel
 teacher = CodeTeacher(
@@ -69,7 +69,7 @@ print(f"Suggestions: {critique.suggestions}")
 ### Training a Code Critic
 
 ```python
-from aspire.integrations.code import AspireCodeTrainer, CodeTeacher
+from integrations.code import AspireCodeTrainer, CodeTeacher
 
 # Create teacher
 teacher = CodeTeacher(personas=["correctness_checker", "style_guide"])
@@ -115,7 +115,7 @@ teacher = CodeTeacher(
 Create domain-specific teachers:
 
 ```python
-from aspire.integrations.code.code_teacher import BaseCodeTeacher
+from integrations.code.code_teacher import BaseCodeTeacher
 
 class APIStyleGuide(BaseCodeTeacher):
     """Enforces REST API conventions."""
@@ -139,7 +139,7 @@ ASPIRE integrates with popular static analysis tools:
 | **Semgrep** | Pattern matching | Optional |
 
 ```python
-from aspire.integrations.code.analysis import CodeAnalyzer
+from integrations.code.analysis import CodeAnalyzer
 
 analyzer = CodeAnalyzer(
     use_ruff=True,
@@ -157,7 +157,7 @@ print(f"Security score: {result.security_score}/10")
 ### From GitHub
 
 ```python
-from aspire.integrations.code.data import GitHubRepoCollector
+from integrations.code.data import GitHubRepoCollector
 
 collector = GitHubRepoCollector()
 
@@ -172,7 +172,7 @@ for repo, filename, code in collector.collect_from_quality_repos(
 ### Generate Pairs
 
 ```python
-from aspire.integrations.code.data import generate_training_pairs
+from integrations.code.data import generate_training_pairs
 
 pairs = generate_training_pairs(
     teacher=teacher,
@@ -185,12 +185,12 @@ pairs = generate_training_pairs(
 
 ### Basic Critique
 ```bash
-python -m aspire.integrations.code.examples.basic_critique
+python -m integrations.code.examples.basic_critique
 ```
 
 ### Train Critic
 ```bash
-python -m aspire.integrations.code.examples.train_critic
+python -m integrations.code.examples.train_critic
 ```
 
 ## The Philosophy

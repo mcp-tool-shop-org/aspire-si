@@ -438,7 +438,7 @@ class TestAspireConfig:
         assert config.seed == 42
         assert config.device == "cuda"
         assert config.experiment_name == "aspire-run"
-        assert config.use_wandb == True
+        assert config.use_wandb is False  # off by default: no data leaves the machine unasked
         assert config.wandb_project == "aspire-si"
 
     def test_aspire_config_custom_seed(self):

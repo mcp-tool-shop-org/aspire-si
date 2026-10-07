@@ -5,11 +5,11 @@ This example shows how to use multiple teacher personas
 to get comprehensive code feedback.
 """
 
-from aspire.integrations.code import (
+from integrations.code import (
     CodeTeacher,
     CodeSample,
 )
-from aspire.integrations.code.config import Language
+from integrations.code.config import Language
 
 
 def main():

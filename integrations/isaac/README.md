@@ -44,7 +44,7 @@ pip install aspire-si
 ### Basic Training
 
 ```python
-from aspire.integrations.isaac import (
+from integrations.isaac import (
     AspireIsaacTrainer,
     MotionTeacher,
     IsaacAspireConfig,
@@ -75,7 +75,7 @@ trainer.train()
 We include a `DummyIsaacEnv` for testing the ASPIRE methodology without installing Isaac Gym:
 
 ```python
-from aspire.integrations.isaac.isaac_wrapper import DummyIsaacEnv, AspireIsaacEnv
+from integrations.isaac.isaac_wrapper import DummyIsaacEnv, AspireIsaacEnv
 
 # Simulates a simple reaching task
 env = DummyIsaacEnv(num_envs=16)
@@ -112,7 +112,7 @@ teacher = MotionTeacher(
 Create domain-specific teachers for your tasks:
 
 ```python
-from aspire.integrations.isaac.motion_teacher import BaseMotionTeacher
+from integrations.isaac.motion_teacher import BaseMotionTeacher
 
 class AssemblyTeacher(BaseMotionTeacher):
     """Evaluates precision assembly motions."""
@@ -134,7 +134,7 @@ See `examples/custom_teacher.py` for a complete example.
 The critic learns to predict what the teacher would think:
 
 ```python
-from aspire.integrations.isaac import TrajectoryCritic, CriticConfig
+from integrations.isaac import TrajectoryCritic, CriticConfig
 
 config = CriticConfig(
     architecture="transformer",  # or "lstm", "tcn", "mlp"
@@ -160,7 +160,7 @@ critic = TrajectoryCritic(config)
 ## Training Configuration
 
 ```python
-from aspire.integrations.isaac import IsaacAspireConfig
+from integrations.isaac import IsaacAspireConfig
 
 config = IsaacAspireConfig()
 
@@ -188,17 +188,17 @@ config.critic.hidden_dim = 256
 
 ### Reaching Task
 ```bash
-python -m aspire.integrations.isaac.examples.basic_training
+python -m integrations.isaac.examples.basic_training
 ```
 
 ### Custom Assembly Teacher
 ```bash
-python -m aspire.integrations.isaac.examples.custom_teacher
+python -m integrations.isaac.examples.custom_teacher
 ```
 
 ### Quadruped Locomotion
 ```bash
-python -m aspire.integrations.isaac.examples.locomotion
+python -m integrations.isaac.examples.locomotion
 ```
 
 ## Supported Environments

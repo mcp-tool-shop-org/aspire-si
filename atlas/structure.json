@@ -17,7 +17,7 @@
           "path": ".github/dependabot.yml"
         },
         {
-          "hash": "6f3c63739d3e9978b12f8557de3d04d31c261ea03334923d6246bcb2f29742e2",
+          "hash": "e516fc83ea47113710a57f5a039464d3705daecef9255f32cb0ef353b1f42aff",
           "path": ".github/workflows/ci.yml"
         },
         {
@@ -61,8 +61,8 @@
           "path": "aspire/__init__.py"
         },
         {
-          "entry": "main",
-          "entryRule": 3,
+          "entry": "run",
+          "entryRule": 0,
           "exports": [
             "diagnose",
             "dialogue",
@@ -70,55 +70,110 @@
             "evaluate",
             "init",
             "main",
+            "report",
+            "run",
+            "set_level",
             "teachers",
             "train",
+            "verbose",
             "version_callback"
           ],
           "failurePaths": [
             {
+              "in": "set_level",
+              "kind": "raise",
+              "line": 40
+            },
+            {
+              "in": "run",
+              "kind": "except",
+              "line": 74
+            },
+            {
+              "in": "run",
+              "kind": "except",
+              "line": 77
+            },
+            {
+              "in": "run",
+              "kind": "raise",
+              "line": 79
+            },
+            {
+              "in": "_read_prompts",
+              "kind": "raise",
+              "line": 85
+            },
+            {
+              "in": "_read_prompts",
+              "kind": "except",
+              "line": 88
+            },
+            {
+              "in": "_read_prompts",
+              "kind": "raise",
+              "line": 89
+            },
+            {
+              "in": "_read_prompts",
+              "kind": "raise",
+              "line": 95
+            },
+            {
               "in": "version_callback",
               "kind": "raise",
-              "line": 30
+              "line": 106
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 147
+            },
+            {
+              "in": "evaluate",
+              "kind": "raise",
+              "line": 200
             },
             {
               "in": "doctor",
               "kind": "except",
-              "line": 273
+              "line": 365
             },
             {
               "in": "doctor",
               "kind": "except",
-              "line": 282
+              "line": 374
             },
             {
               "in": "doctor",
               "kind": "except",
-              "line": 329
+              "line": 421
             },
             {
               "in": "doctor",
               "kind": "raise",
-              "line": 349
+              "line": 441
             },
             {
               "in": "diagnose",
               "kind": "except",
-              "line": 392
+              "line": 484
             },
             {
               "in": "diagnose",
               "kind": "except",
-              "line": 427
+              "line": 519
             },
             {
               "in": "diagnose",
               "kind": "raise",
-              "line": 462
+              "line": 554
             }
           ],
-          "hash": "d3e18f7475068843d162ab6a49a08fde9a48ad8e44838ca653506e4a05e23dd3",
+          "hash": "d1d4e31e59bd94e8af2bd2abb353ca99da73a2677b5eacec9917ad6a7fd888f6",
           "importOrder": [
             "aspire/__init__.py",
+            "aspire/errors.py",
             "aspire/config.py",
             "aspire/trainer.py",
             "aspire/dialogue/__init__.py",
@@ -129,6 +184,7 @@
             "aspire/__init__.py",
             "aspire/config.py",
             "aspire/dialogue/__init__.py",
+            "aspire/errors.py",
             "aspire/teachers/__init__.py",
             "aspire/teachers/registry.py",
             "aspire/trainer.py"
@@ -138,38 +194,153 @@
             {
               "calls": [
                 {
-                  "line": 66,
+                  "line": 56,
+                  "name": "AspireError",
+                  "passed": true,
+                  "target": {
+                    "file": "aspire/errors.py"
+                  }
+                }
+              ],
+              "exported": true,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "report"
+            },
+            {
+              "calls": [
+                {
+                  "line": 56,
+                  "name": "AspireError",
+                  "passed": true,
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "report"
+                }
+              ],
+              "exported": true,
+              "invokedAtTopLevel": true,
+              "isDefaultExport": false,
+              "name": "run"
+            },
+            {
+              "calls": [
+                {
+                  "line": 84,
                   "name": "exists",
                   "target": null
                 },
                 {
-                  "line": 67,
+                  "branch": "not path.exists()",
+                  "line": 85,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  }
+                },
+                {
+                  "line": 87,
+                  "name": "read_text",
+                  "target": null
+                },
+                {
+                  "line": 89,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  }
+                },
+                {
+                  "branch": "not isinstance(prompts, list) or not all(isinstance(prompt,…",
+                  "line": 95,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  }
+                }
+              ],
+              "exported": false,
+              "invokedAtTopLevel": false,
+              "isDefaultExport": false,
+              "name": "_read_prompts"
+            },
+            {
+              "calls": [
+                {
+                  "line": 146,
+                  "name": "exists",
+                  "target": null
+                },
+                {
+                  "branch": "not config.exists()",
+                  "line": 147,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  }
+                },
+                {
+                  "line": 150,
                   "name": "from_yaml",
                   "target": {
                     "file": "aspire/config.py"
                   }
                 },
                 {
-                  "line": 69,
+                  "line": 152,
                   "name": "AspireConfig",
                   "target": {
                     "file": "aspire/config.py"
                   }
                 },
                 {
-                  "line": 79,
+                  "line": 84,
                   "name": "exists",
-                  "target": null
+                  "target": null,
+                  "via": "_read_prompts"
                 },
                 {
-                  "line": 92,
+                  "branch": "not path.exists()",
+                  "line": 85,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "_read_prompts"
+                },
+                {
+                  "line": 87,
+                  "name": "read_text",
+                  "target": null,
+                  "via": "_read_prompts"
+                },
+                {
+                  "line": 89,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "_read_prompts"
+                },
+                {
+                  "branch": "not isinstance(prompts, list) or not all(isinstance(prompt,…",
+                  "line": 95,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "_read_prompts"
+                },
+                {
+                  "line": 176,
                   "name": "AspireTrainer",
                   "target": {
                     "file": "aspire/trainer.py"
                   }
                 },
                 {
-                  "line": 93,
+                  "line": 178,
                   "name": "train",
                   "receiver": "AspireTrainer",
                   "target": {
@@ -185,21 +356,67 @@
             {
               "calls": [
                 {
-                  "line": 113,
+                  "branch": "not config_path.exists()",
+                  "line": 200,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  }
+                },
+                {
+                  "line": 204,
                   "name": "from_yaml",
                   "target": {
                     "file": "aspire/config.py"
                   }
                 },
                 {
-                  "line": 120,
+                  "line": 84,
+                  "name": "exists",
+                  "target": null,
+                  "via": "_read_prompts"
+                },
+                {
+                  "branch": "not path.exists()",
+                  "line": 85,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "_read_prompts"
+                },
+                {
+                  "line": 87,
+                  "name": "read_text",
+                  "target": null,
+                  "via": "_read_prompts"
+                },
+                {
+                  "line": 89,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "_read_prompts"
+                },
+                {
+                  "branch": "not isinstance(prompts, list) or not all(isinstance(prompt,…",
+                  "line": 95,
+                  "name": "ConfigError",
+                  "target": {
+                    "file": "aspire/errors.py"
+                  },
+                  "via": "_read_prompts"
+                },
+                {
+                  "line": 211,
                   "name": "AspireTrainer",
                   "target": {
                     "file": "aspire/trainer.py"
                   }
                 },
                 {
-                  "line": 121,
+                  "line": 213,
                   "name": "load_checkpoint",
                   "receiver": "AspireTrainer",
                   "target": {
@@ -207,7 +424,7 @@
                   }
                 },
                 {
-                  "line": 124,
+                  "line": 216,
                   "name": "_evaluate",
                   "receiver": "AspireTrainer",
                   "target": {
@@ -223,21 +440,21 @@
             {
               "calls": [
                 {
-                  "line": 171,
+                  "line": 263,
                   "name": "get_teacher",
                   "target": {
                     "file": "aspire/teachers/registry.py"
                   }
                 },
                 {
-                  "line": 174,
+                  "line": 266,
                   "name": "DialogueGenerator",
                   "target": {
                     "file": "aspire/dialogue/generator.py"
                   }
                 },
                 {
-                  "line": 181,
+                  "line": 273,
                   "name": "generate_dialogue",
                   "receiver": "DialogueGenerator",
                   "target": {
@@ -253,7 +470,7 @@
             {
               "calls": [
                 {
-                  "line": 221,
+                  "line": 313,
                   "name": "list",
                   "target": {
                     "file": "aspire/teachers/registry.py"
@@ -268,14 +485,14 @@
             {
               "calls": [
                 {
-                  "line": 235,
+                  "line": 327,
                   "name": "AspireConfig",
                   "target": {
                     "file": "aspire/config.py"
                   }
                 },
                 {
-                  "line": 236,
+                  "line": 328,
                   "name": "to_yaml",
                   "receiver": "AspireConfig",
                   "target": {
@@ -291,7 +508,7 @@
           ]
         },
         {
-          "hash": "7a98011c6f4f30cfa35d28412110f46a1dbfa072a7ba450970fb3a7abdf5b560",
+          "hash": "410bcc5d275bf83d307f08ba008523034f7e8592ce2085106bf5abdd8e1bfe22",
           "path": "aspire/config.py"
         },
         {
@@ -372,7 +589,7 @@
               "line": 76
             }
           ],
-          "hash": "81b2a3b6f7e0bb77a6492c70b3ce444cc9a52563299623ea80dde70d04125f86",
+          "hash": "3ac1f99a0512f19c0de1fc9bc0e1e37afe66aa042ab25562feea1b846b7a9928",
           "importsFiles": [
             "aspire/dialogue/generator.py"
           ],
@@ -404,6 +621,13 @@
             "aspire/teachers/base.py"
           ],
           "path": "aspire/dialogue/manager.py"
+        },
+        {
+          "exports": [
+            "missing_api_key"
+          ],
+          "hash": "d53bc32f68c4fba034db95acca129b614c50a67034ef510f73719462a169a087",
+          "path": "aspire/errors.py"
         },
         {
           "entry": "pool_hidden_states",
@@ -623,34 +847,34 @@
             {
               "in": "load",
               "kind": "except",
-              "line": 727
+              "line": 730
             },
             {
               "in": "load",
               "kind": "raise",
-              "line": 734
+              "line": 737
             },
             {
               "in": "load",
               "kind": "except",
-              "line": 761
+              "line": 764
             }
           ],
-          "hash": "a1e5fb1329a239dd7758f50d70eeafc79e6c39ff2e78b573aca8f94b5c5f5ffd",
+          "hash": "3caa01df753a14982835ddb36bf1a85b721457e8f0f53a10443566e466112586",
           "path": "aspire/perception/character.py"
         },
         {
           "exports": [
             "apply_chaos_to_batch"
           ],
-          "hash": "8215316f802ed1624a976bb7f5c0145052d8d421b94ca61eb4d5e2e77a83be54",
+          "hash": "fe9e5dc40c1600fdb4e9dcd92fa57673a8cae881c1ed44233146ebe7e12dbcd1",
           "path": "aspire/perception/controlled_chaos.py"
         },
         {
           "exports": [
             "create_perception_enhanced_evaluation_prompt"
           ],
-          "hash": "522ac229e31b0303ab4fa0b00f2efe68e039f5c36ae529741a490af873dbfd35",
+          "hash": "5120d7557dcb79ac752c77e3be8057df4d4fe96b06de0ba334fc43d4c963bd69",
           "importsFiles": [
             "aspire/teachers/base.py"
           ],
@@ -660,7 +884,7 @@
           "exports": [
             "integrate_perception_with_trainer"
           ],
-          "hash": "8bea94b91b3908244407e32e2ae8181c53761bf2189ec7663dd63c9b7511de20",
+          "hash": "23431bf57b16c7030c2e3e31fe2e83f14addb3476f8d8d027dbb9b2bfa83177c",
           "importsFiles": [
             "aspire/perception/character.py",
             "aspire/perception/controlled_chaos.py",
@@ -675,10 +899,10 @@
             {
               "in": "estimate_from_logits",
               "kind": "raise",
-              "line": 310
+              "line": 311
             }
           ],
-          "hash": "8045cdad4f0b6955d979aee6000db7d4ed66c5e8b7e46715715b540dd8e936aa",
+          "hash": "7f2a1831ef683a2c99be155c0ec3eb8effec33c73ed7cc8e1b5987cb7f24def2",
           "path": "aspire/perception/metacognition.py"
         },
         {
@@ -694,11 +918,11 @@
               "line": 237
             }
           ],
-          "hash": "627d8a1ca54bdd44a63c32be795c6c3122f0548fcd233e489db63e0949ac24d8",
+          "hash": "2c86b4b02edde94d917fa0a2b9e09badcf0372fc970b30467100a6351b8c5c5e",
           "path": "aspire/perception/syntropy.py"
         },
         {
-          "hash": "afe3675ca3eb5858936b38bdf6a91a522d1e633126d30da2fcc1bef442c776f2",
+          "hash": "e70a08883648ae7aeb3cd7f2440d64356aecfb7467495223bb5321530686598a",
           "path": "aspire/perception/theory_of_mind.py"
         },
         {
@@ -719,25 +943,28 @@
             {
               "in": "_validate_input",
               "kind": "raise",
-              "line": 205
+              "line": 208
             },
             {
               "in": "_validate_input",
               "kind": "raise",
-              "line": 207
+              "line": 210
             },
             {
               "in": "_validate_input",
               "kind": "raise",
-              "line": 214
+              "line": 217
             },
             {
               "in": "_validate_input",
               "kind": "raise",
-              "line": 218
+              "line": 221
             }
           ],
-          "hash": "1ad96862d50d27c0115d053a6f86ecb50ac6b51ef62c28abd5b30bc529c416a6",
+          "hash": "1954341ccf65677bdbed06b2877eb7f1b46341a0423c73215510bfa0d7f8930d",
+          "importsFiles": [
+            "aspire/errors.py"
+          ],
           "path": "aspire/teachers/base.py"
         },
         {
@@ -745,26 +972,27 @@
             {
               "in": "__init__",
               "kind": "raise",
-              "line": 49
+              "line": 50
             },
             {
               "in": "challenge",
               "kind": "except",
-              "line": 124
+              "line": 121
             },
             {
               "in": "evaluate",
               "kind": "except",
-              "line": 207
+              "line": 204
             },
             {
               "in": "evaluate",
               "kind": "except",
-              "line": 219
+              "line": 216
             }
           ],
-          "hash": "0d8ad6293b696b4c3146fd3928fb05404f11b453d682bfc9720797c11a744f88",
+          "hash": "b3db4cfc3ec0bc66716eb843fd5bc7e14ee9963dcf1ff59653b2ae23e10388a3",
           "importsFiles": [
+            "aspire/errors.py",
             "aspire/teachers/base.py"
           ],
           "path": "aspire/teachers/claude.py"
@@ -800,26 +1028,27 @@
             {
               "in": "__init__",
               "kind": "raise",
-              "line": 49
+              "line": 50
             },
             {
               "in": "challenge",
               "kind": "except",
-              "line": 114
+              "line": 111
             },
             {
               "in": "evaluate",
               "kind": "except",
-              "line": 185
+              "line": 182
             },
             {
               "in": "evaluate",
               "kind": "except",
-              "line": 197
+              "line": 194
             }
           ],
-          "hash": "5a5f00d578829c4e49d663953ed4fdce91af3e4a6135643bc8e82b19e9f45dfd",
+          "hash": "939a6bdcea97ad365899b41027ef4c658be3b3559490926df6d06792e35627da",
           "importsFiles": [
+            "aspire/errors.py",
             "aspire/teachers/base.py"
           ],
           "path": "aspire/teachers/openai.py"
@@ -1002,12 +1231,17 @@
               "line": 264
             },
             {
+              "in": "_init_optimizers",
+              "kind": "raise",
+              "line": 272
+            },
+            {
               "in": "_write_geometry",
               "kind": "except",
-              "line": 376
+              "line": 378
             }
           ],
-          "hash": "1ca56c57cdf76868de3cfed1e195679ba2f31e1e8a20029ace98c066d50720c1",
+          "hash": "cac64a689a4b1b48b13170800373f71f9eefa70a58500ac0f411c84172a17472",
           "importsFiles": [
             "aspire/config.py",
             "aspire/critic/__init__.py",
@@ -1021,7 +1255,7 @@
             {
               "calls": [
                 {
-                  "line": 552,
+                  "line": 554,
                   "name": "AspireConfig",
                   "target": {
                     "file": "aspire/config.py"
@@ -1044,7 +1278,7 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 14,
+          "reads": 13,
           "where": [
             "caller"
           ],
@@ -1058,13 +1292,13 @@
           "writes": 0
         }
       ],
-      "outsideReads": 15,
+      "outsideReads": 14,
       "outsideWrites": 4,
       "role": "code",
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 24,
+      "testedBy": 39,
       "unresolvedNamed": [
         {
           "path": "aspire/cli.py",
@@ -1242,11 +1476,11 @@
       "externals": 2,
       "files": [
         {
-          "hash": "7811df1e3c78085e29704c93c03acd288278b2991b398a29acbd65efd9b3d6ac",
+          "hash": "b87b393f5358a80d9413abda9260cea5a5e753943f058d0f0603f79ea02d3f9a",
           "path": "integrations/code/README.md"
         },
         {
-          "hash": "8bfe2274e08ca2a83fbe1f67178925614ba8e0c666fc21c4bb43bafad4843d2d",
+          "hash": "9b5bb3999535849bbf8c9ffce01f2e58e4c86c34996a337f70d0094924a76260",
           "importOrder": [
             "integrations/code/code_teacher.py",
             "integrations/code/code_critic.py",
@@ -1329,7 +1563,7 @@
               "line": 480
             }
           ],
-          "hash": "ab55e094e4531e4ed3cd6b7c9535d819a0a806c9d65ff84df62f02062a0cf52b",
+          "hash": "8766c4df2464a809fcaacf5d6a7d63defb3f3d35e6d5597a71677a58c073c267",
           "importsFiles": [
             "integrations/code/config.py"
           ],
@@ -1377,40 +1611,40 @@
             {
               "in": "_get_client",
               "kind": "except",
-              "line": 855
+              "line": 870
             },
             {
               "in": "_get_client",
               "kind": "raise",
-              "line": 856
+              "line": 871
             },
             {
               "in": "_get_client",
               "kind": "except",
-              "line": 861
+              "line": 876
             },
             {
               "in": "_get_client",
               "kind": "raise",
-              "line": 862
+              "line": 877
             },
             {
               "in": "critique",
               "kind": "except",
-              "line": 924
+              "line": 938
             },
             {
               "in": "__init__",
               "kind": "raise",
-              "line": 966
+              "line": 980
             },
             {
               "in": "critique",
               "kind": "raise",
-              "line": 1062
+              "line": 1076
             }
           ],
-          "hash": "0451f9ea461edd9c806d6300b3c0e1165d1324e7e75804c9b257c631f3b89a69",
+          "hash": "33120cc87535bdfe1a7c5ec537a8a8546d527122d5c40a7d48e44b610f4d5bc2",
           "importOrder": [
             "integrations/code/config.py",
             "integrations/code/analysis.py"
@@ -1448,45 +1682,45 @@
             {
               "in": "clone_repo",
               "kind": "except",
-              "line": 162
+              "line": 164
             },
             {
               "in": "clone_repo",
               "kind": "raise",
-              "line": 163
+              "line": 165
             },
             {
               "in": "collect_files",
               "kind": "except",
-              "line": 221
+              "line": 223
             },
             {
               "in": "collect_from_quality_repos",
               "kind": "except",
-              "line": 251
+              "line": 253
             },
             {
               "in": "generate_training_pairs",
               "kind": "except",
-              "line": 285
+              "line": 287
             },
             {
               "in": "__getitem__",
               "kind": "raise",
-              "line": 396
+              "line": 398
             },
             {
               "in": "__iter__",
               "kind": "except",
-              "line": 437
+              "line": 439
             },
             {
               "in": "__iter__",
               "kind": "except",
-              "line": 458
+              "line": 460
             }
           ],
-          "hash": "cc9e6f357eb8affbb3b3aa4f196b9483f181d9aa7471a5933155b5a9b1ac3802",
+          "hash": "111e4e3902892a604c20383d8e0b949150bfb1757be4caa17a958c5cdb1573e0",
           "importOrder": [
             "integrations/code/config.py",
             "integrations/code/code_teacher.py",
@@ -1503,7 +1737,11 @@
           "exports": [
             "main"
           ],
-          "hash": "e5eb679d90cb1e57f4aeb3be0acaaa1c0b9503248160500abbd920511b738f17",
+          "hash": "2e49a8425810d3bab8252f974dc85061f58838f6cfdd09d0933fcb62e41e3d97",
+          "importsFiles": [
+            "integrations/code/__init__.py",
+            "integrations/code/config.py"
+          ],
           "path": "integrations/code/examples/basic_critique.py"
         },
         {
@@ -1517,7 +1755,12 @@
               "line": 67
             }
           ],
-          "hash": "74eac6c62e59552306bd1b38fc4c392acb4597b5e571af9508e26a1f1c6ee056",
+          "hash": "6a820e9c7ef82712d5600dc7b8df02def832f1e841bdb75f2e730302310971c5",
+          "importsFiles": [
+            "integrations/code/__init__.py",
+            "integrations/code/config.py",
+            "integrations/code/data.py"
+          ],
           "path": "integrations/code/examples/train_critic.py"
         },
         {
@@ -1536,9 +1779,14 @@
               "in": "train_student",
               "kind": "raise",
               "line": 305
+            },
+            {
+              "in": "_save_checkpoint",
+              "kind": "raise",
+              "line": 471
             }
           ],
-          "hash": "0fa7da4ce76e343749c6d81bc3b999c631f886ee5848c6c06e15419358a7ff4d",
+          "hash": "977f60cc860d04f98573e0dc8ba90d64187cc3cc426b49ceec295067f1ab980d",
           "importOrder": [
             "integrations/code/config.py",
             "integrations/code/code_teacher.py",
@@ -1565,7 +1813,7 @@
           "path": "integrations/forge/__init__.py"
         },
         {
-          "hash": "c3658e7bc6c27463547aefbefe60b69fe6cc0d24418ecc425464c3db58bc304e",
+          "hash": "a7e3581dd6e833f16d48d7a9c6665f91fdb1d377e2c4d21f4d85b8444a529857",
           "path": "integrations/forge/image_critic.py"
         },
         {
@@ -1608,15 +1856,15 @@
               "line": 335
             }
           ],
-          "hash": "c98993371320c6c2cead0f806317467a8e4369f87daae0aa081305931faf9b6a",
+          "hash": "97ab1d08dccaf3ad5e3be3d8ac38147ad92bd687acaeb27cf6b1cc4cd8bf71a4",
           "path": "integrations/forge/vision_teacher.py"
         },
         {
-          "hash": "cc07969dfa8fb6c4e4b8c0389d832553405ccbd03b981a2eb98ccd787451302e",
+          "hash": "158247f5d7ad2ee9fa63250112bc4b2a7dc13d685e0f9007b2077a662442fb9d",
           "path": "integrations/isaac/README.md"
         },
         {
-          "hash": "eb91e45a737136470559839dfb7ba97645cb0d62fd9f3818c953a672a6976120",
+          "hash": "1bfac635e5bc0a8bc5862360f2a11e33a51fc3504edd1034802ccd1d7483d7c8",
           "importOrder": [
             "integrations/isaac/motion_teacher.py",
             "integrations/isaac/trajectory_critic.py",
@@ -1638,10 +1886,10 @@
             {
               "in": "__post_init__",
               "kind": "raise",
-              "line": 138
+              "line": 145
             }
           ],
-          "hash": "1bb39b1cc28fa7dcad6eaff116eb4ef38eeb70cf76a755d8952e597ba4cc7e18",
+          "hash": "41c2b2beea54585065ea16c69f6a1c78e270ecb1a6d3f52e820ded1f3cd122f0",
           "path": "integrations/isaac/config.py"
         },
         {
@@ -1655,18 +1903,35 @@
               "line": 47
             }
           ],
-          "hash": "73726b4d1696792e42998a071546012981045d9c1cbfe7536c636ede5eca597b",
+          "hash": "16b2ed35fc9613526015880156cb79546381c7945747a035519fca09cf903992",
+          "importsFiles": [
+            "integrations/isaac/__init__.py",
+            "integrations/isaac/isaac_wrapper.py"
+          ],
           "path": "integrations/isaac/examples/basic_training.py"
         },
         {
-          "hash": "c879fc7c2c8c2dcc9ef567dbb8a2291fa59d227ae2e3cf90e6bbabdca74f1048",
+          "hash": "aac352bc3db5e6a2d8ad43ddb9147d8b611fc73de4a6f717e7b320006ed84e9f",
+          "importsFiles": [
+            "integrations/isaac/motion_teacher.py"
+          ],
           "path": "integrations/isaac/examples/custom_teacher.py"
         },
         {
           "exports": [
             "main"
           ],
-          "hash": "37030e08152d2b629c9201a09f6c479bbee4c2c7618bdef2044d8514a17a8daf",
+          "hash": "74a4742dc7f3cae18b3f9e87b6db1c41e9e0c1eab1122b80fd6b8e91e7e1a0e6",
+          "importOrder": [
+            "integrations/isaac/motion_teacher.py",
+            "integrations/isaac/__init__.py",
+            "integrations/isaac/isaac_wrapper.py"
+          ],
+          "importsFiles": [
+            "integrations/isaac/__init__.py",
+            "integrations/isaac/isaac_wrapper.py",
+            "integrations/isaac/motion_teacher.py"
+          ],
           "path": "integrations/isaac/examples/locomotion.py"
         },
         {
@@ -1695,7 +1960,7 @@
               "line": 474
             }
           ],
-          "hash": "c93db64fe0ae19145585b514f5b9c53b6451c3c9e8430f348454e30792dec5fd",
+          "hash": "a3f27f327bad9c66ca0d9f9b4b5dbc0fa6c6ed6067bbebeef5d3b6cd4718720c",
           "importsFiles": [
             "integrations/isaac/motion_teacher.py"
           ],
@@ -1722,10 +1987,10 @@
             {
               "in": "__init__",
               "kind": "except",
-              "line": 262
+              "line": 279
             }
           ],
-          "hash": "4eefd9d555fbd3ffe8f7a54ee6e153c525d67626b92446da18087e5425ba1170",
+          "hash": "52d4f76c4bfde35f8b7ab5539cf6aecbdf8b74b55c20b3bc98f5b58008f072b3",
           "importOrder": [
             "integrations/isaac/config.py",
             "integrations/isaac/motion_teacher.py",
@@ -1748,7 +2013,7 @@
               "line": 357
             }
           ],
-          "hash": "0dd62f91ed362d0e0008b131204f5089521d1361b5db3f420ba0d075dfa19ab8",
+          "hash": "a8e37b731f6a1aacb1f53176af14b2b6940d2291eb19705147640f7fa205edcd",
           "importsFiles": [
             "integrations/isaac/config.py"
           ],
@@ -1776,25 +2041,8 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 6,
-      "unresolvedNamed": [
-        {
-          "path": "integrations/code/examples/basic_critique.py",
-          "specifier": "aspire.integrations.code",
-          "why": "unplaced"
-        },
-        {
-          "path": "integrations/code/examples/basic_critique.py",
-          "specifier": "aspire.integrations.code.config",
-          "why": "unplaced"
-        },
-        {
-          "path": "integrations/code/examples/train_critic.py",
-          "specifier": "aspire.integrations.code",
-          "why": "unplaced"
-        }
-      ],
-      "unresolvedSites": 12
+      "testedBy": 21,
+      "unresolvedSites": 0
     },
     {
       "dynamicReads": 0,
@@ -1813,7 +2061,7 @@
           "path": "ASPIRE-SPEC.md"
         },
         {
-          "hash": "d53165ceaf465948a7464272e239b02fdd00f8947ba1b7db441e7280070ad279",
+          "hash": "112b66671c040a0e51fcff6f6b21fdc913f9b2860308ab486260bcb3c9d98830",
           "path": "CHANGELOG.md"
         },
         {
@@ -1841,35 +2089,35 @@
           "path": "PRESS_RELEASE.md"
         },
         {
-          "hash": "ba7438f020d63594ca4e028a3150135288d2996fdca8756c28ef0c21fef4d4fa",
+          "hash": "789446a4ff1e6dafc47a1bfd815bd243bc8755c30ff427afe881b251477a52cf",
           "path": "README.es.md"
         },
         {
-          "hash": "df1f694f12e1389ca9b0099a4735e1475f701707e07c7c5621b2da01a65eaa98",
+          "hash": "b1e751e6d886ed3de1b2a13617d7e005786b883276ea8424dbf834eec135e3cc",
           "path": "README.fr.md"
         },
         {
-          "hash": "c2aefddd0185c490cfb69ecee61f760fb8434ac2073f2cfbcf30e25bdb671060",
+          "hash": "205cc931895db5ab3b0c8676746b291d71dc86dbad2c3ec04105e27a0061d7e5",
           "path": "README.hi.md"
         },
         {
-          "hash": "e8d696c0e444eaeb78098556054384cb3a96ef35bf99cf330942c375bc6c33e8",
+          "hash": "1435952b1f58e1868bc3e69abf7c15f94f355be1f72806077b473eae3a8bc0be",
           "path": "README.it.md"
         },
         {
-          "hash": "f84a6aa089d06ee6691b1052d5e3d097aecb6eadfdb10140a3a4f3ed95458022",
+          "hash": "c9b3251932916ca43dbf7db39bc6768c0113b5637bd6cc8a0e7884263b9f1c9d",
           "path": "README.ja.md"
         },
         {
-          "hash": "9e41938a9a1d1d898d29ee4beecae990161774fedcfabfee892a3203c1a36135",
+          "hash": "b275c80d424038177f1b9b2f7163af2891a8faa2a793766b8685241cbb1200e6",
           "path": "README.md"
         },
         {
-          "hash": "3ee7f0cf5f7904ebbb6e8c6e8a90a0e07ed632042ab615ce8abc6513c8c2bd89",
+          "hash": "f587ca13f479fd069393d80e57a1d04b389b5f2c628772735365a2c9c4b62bf1",
           "path": "README.pt-BR.md"
         },
         {
-          "hash": "001a68dbe782e04e54adeda2bd67097a06f6a202398a000ec1933dec78166b72",
+          "hash": "f4fc7718ca8cbee0bb48f73d22ffdd3d0f4d6c560b8dae979e3ff966d3ed8016",
           "path": "README.zh.md"
         },
         {
@@ -1881,12 +2129,16 @@
           "path": "SECURITY.md"
         },
         {
-          "hash": "d408dc6cbc7aead1ea6c73d778b1bc3a7290266a4fe8110acaf376471fff858d",
+          "hash": "52502d8e6bf76fc57955dc1fc0097e33e9836c7a183951e4440bf1f9c619ab06",
           "path": "SHIP_GATE.md"
         },
         {
           "hash": "3df45c4e4303fd250290e334cb5fc70368cb0fa8215943c87042b513c2bb65ea",
           "path": "TESTS-TODO.md"
+        },
+        {
+          "hash": "af5a5219a98324dde58fb03573c1915cee6cc88a947475fbb842d1909350ec2c",
+          "path": "codecov.yml"
         },
         {
           "hash": "c6100f2d1fa400ae9f87f19b3f12581c01dbe54f8712388d8a4e741949ff754c",
@@ -1897,7 +2149,7 @@
           "path": "passport.json"
         },
         {
-          "hash": "bfafa2e2d4d0d8ff3485261aabfb47c3eba1a0fbb88559326e99a5552a73928e",
+          "hash": "eb1021c2e4bf36e32409c4497789b1babab97700fcbd051c4a2e850ed5c2964b",
           "path": "pyproject.toml"
         },
         {
@@ -1924,16 +2176,20 @@
       "externals": 0,
       "files": [
         {
-          "hash": "17b131cf0c7e57491e41bc386a6e6ee9960e13c3cdc36dce3ec3645c7edc72a1",
+          "hash": "4d1af33a2e3c480ef5d642447c3293255bd4f240fcb9367cefae0ccc6fb5394a",
           "path": "site/astro.config.mjs"
         },
         {
-          "hash": "64f73acec63eeaab87405cea9045fa48ab44d355edd3816b78e4a8a766f17f49",
+          "hash": "85f78c09f0329d937ba57dc65d24adeeecdba65ea4a0eda01b02129f1d2ea07d",
           "path": "site/package-lock.json"
         },
         {
-          "hash": "e3948f3adea612a50f80b0084dc874569b512d5150b14de8d1323a5fff09cd6d",
+          "hash": "9c39e620ebae2c5718ecd8c6188bd3451409a614ec8f5308dc15d5fd886e5b91",
           "path": "site/package.json"
+        },
+        {
+          "hash": "1f0ff0e5fafc2db9c07054bd6ea91381d35b21b56d3f6cfe20b4b5e354a3c3ab",
+          "path": "site/src/assets/logo.png"
         },
         {
           "constantOnly": true,
@@ -1941,11 +2197,11 @@
           "path": "site/src/content.config.ts"
         },
         {
-          "hash": "49234e8a003178d22db7267608cb5ad209ea6bed5d0c68a781709bfc7b1d35e3",
+          "hash": "a9eea7aac3d4e3ed83ae7380248221252781edcd5e2c51e72f7c256a6d7899b4",
           "path": "site/src/content/docs/handbook/beginners.md"
         },
         {
-          "hash": "49d799cd22ddbaba271e46d7522bb5dc89930b44877f12915db47b79d7c1f3b2",
+          "hash": "6389d1044e58c5f11338928571ce6794c354b00b5266d36d6eaffecd181c406c",
           "path": "site/src/content/docs/handbook/cli.md"
         },
         {
@@ -1953,16 +2209,20 @@
           "path": "site/src/content/docs/handbook/getting-started.md"
         },
         {
-          "hash": "73ebd07f515a347bc6f14e84d314639201a739ebc872246a60afcd475b121ad3",
+          "hash": "2e06b6eefa28ec7d9fc6e973f3df80234148541e02c22d6219e0cd85190be629",
           "path": "site/src/content/docs/handbook/how-it-works.md"
         },
         {
-          "hash": "a6e851dc7c9d876ba51554fbd06e5df71e277a8e0373310d869f4bcbe0b3586c",
+          "hash": "93ea49d70033fd6555ec736da6ff70c86ed7d407b8f6f322518ba2e3f966f9a0",
           "path": "site/src/content/docs/handbook/index.md"
         },
         {
-          "hash": "fc725d26d71e4cb36148bd77220ed13e72953eb48fe3d31369ca71f5fc97522d",
+          "hash": "03e16bc4e4d04a71633f98b3daf56475338146bca3b71295bb932b888f71dfdd",
           "path": "site/src/content/docs/handbook/integrations.md"
+        },
+        {
+          "hash": "9d3080051d54b675e7fa593b513f2fb2d1b0b72c76ea5abb48d6ae3d82f9baf3",
+          "path": "site/src/content/docs/handbook/scalarscope.md"
         },
         {
           "hash": "8715a7cedee1b2b766b013b093a5ec08661557f3c9af27b0a4921a3c0ede18a3",
@@ -1982,7 +2242,7 @@
         },
         {
           "constantOnly": true,
-          "hash": "ba794133a1025f0201cc0ed3fc62d06d00ffed1707e6a779cf57d8f7b51e72cc",
+          "hash": "2f44cac0d58ddffe15b7e5544e5d0bb6f914052d521baaaaa68c5ec09c0fd574",
           "path": "site/src/site-config.ts"
         },
         {
@@ -2081,6 +2341,20 @@
           "path": "tests/integrations/code/__init__.py"
         },
         {
+          "exports": [
+            "fake_tokenizer",
+            "tiny_critic",
+            "tiny_critic_config"
+          ],
+          "hash": "bd2e0432f4aef4db35279144c57f3bff7c9c44204429e60e99b5ae235dc0f581",
+          "importsFiles": [
+            "integrations/code/code_critic.py",
+            "integrations/code/config.py"
+          ],
+          "path": "tests/integrations/code/conftest.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "d8eeff1755defbf812b5409e464e2593fbb3ed8cedddcf772286f4caaa44e9de",
           "importsFiles": [
             "integrations/code/analysis.py",
@@ -2090,7 +2364,38 @@
           "testFramework": "pytest"
         },
         {
-          "hash": "954ff5f6138df544179ee15f0b1c1efa746ad00e834b01066b739837d3351567",
+          "exports": [
+            "completed",
+            "issue",
+            "make_analyzer"
+          ],
+          "hash": "c2733f9c61708de4b81b688cb22239aa3e554c07a18dfda23284cb17b34c0023",
+          "importsFiles": [
+            "integrations/code/analysis.py",
+            "integrations/code/config.py"
+          ],
+          "path": "tests/integrations/code/test_code_analysis_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "eb956256f62b3e3996f433d2a7152661bf6ee8676c0a580e66e54ee72b1a2a86",
+          "importsFiles": [
+            "integrations/code/config.py"
+          ],
+          "path": "tests/integrations/code/test_code_config_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "68172e5996a7c167d80a88b3b1ba406b4f22fb9d830539afb2b005c935f1e692",
+          "importsFiles": [
+            "integrations/code/code_critic.py",
+            "integrations/code/config.py"
+          ],
+          "path": "tests/integrations/code/test_code_critic_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "2923c814b97f34c9e384050f31330ba3ac15db451add834e5616d248aced6b68",
           "importsFiles": [
             "integrations/code/code_teacher.py",
             "integrations/code/config.py",
@@ -2100,12 +2405,188 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "bin_counts",
+            "collector",
+            "make_critique",
+            "make_pair",
+            "pairs_with_scores",
+            "repo_dir",
+            "write_py"
+          ],
+          "hash": "270c4b80f7408369bc8f1eebc911cce0c68463388b579a77f029b42554ead378",
+          "importsFiles": [
+            "integrations/code/code_teacher.py",
+            "integrations/code/config.py",
+            "integrations/code/data.py",
+            "tests/integrations/code/conftest.py"
+          ],
+          "path": "tests/integrations/code/test_code_data_extra.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "f1b072d38ced0dd873b2d5ce616e96d966f48c906425a7feb12aab4bcef7c1a9",
           "importsFiles": [
             "integrations/code/code_teacher.py",
             "integrations/code/config.py"
           ],
           "path": "tests/integrations/code/test_code_teachers_comprehensive.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "analysis_with",
+            "function_of_lines",
+            "issue",
+            "no_external_tools",
+            "py",
+            "stub_critique",
+            "with_analysis"
+          ],
+          "hash": "6ab77b77f3a565eaecfc902571a90cd16967df966660c17cb2f8fa4c48f71d27",
+          "importsFiles": [
+            "integrations/code/analysis.py",
+            "integrations/code/code_teacher.py",
+            "integrations/code/config.py"
+          ],
+          "path": "tests/integrations/code/test_code_teachers_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "changed",
+            "config",
+            "make_pairs",
+            "make_trainer",
+            "snapshot",
+            "student_trainer",
+            "teacher",
+            "test_training_metrics_dataclass_fields",
+            "trainer"
+          ],
+          "hash": "5c3f0d0cbf3ed028f45c1846150da4eac98473dab19521c98047b7eb0905d927",
+          "importsFiles": [
+            "integrations/code/code_critic.py",
+            "integrations/code/code_teacher.py",
+            "integrations/code/config.py",
+            "integrations/code/data.py",
+            "integrations/code/trainer.py",
+            "tests/integrations/code/conftest.py"
+          ],
+          "path": "tests/integrations/code/test_code_trainer_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "noStatements": true,
+          "path": "tests/integrations/forge/__init__.py"
+        },
+        {
+          "hash": "925a94835fe46c45c03246418876b96101bb54fd7cf874a81bd40460193ecc56",
+          "importsFiles": [
+            "integrations/forge/image_critic.py"
+          ],
+          "path": "tests/integrations/forge/test_image_critic.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "test_package_docstring_describes_forge_integration"
+          ],
+          "hash": "3c16ef62865d3f91eefc4822bf911b8354343d9ca0df4ad7ddc1d86fb49f047e",
+          "importsFiles": [
+            "integrations/forge/__init__.py",
+            "integrations/forge/preload.py"
+          ],
+          "path": "tests/integrations/forge/test_preload.py"
+        },
+        {
+          "exports": [
+            "claude_client",
+            "gpt_client"
+          ],
+          "hash": "dd11b20844a7cb1f799eab947c14f6b6b1d9503ae662ced8ac3c2b2a0ff0ad6a",
+          "importsFiles": [
+            "integrations/forge/vision_teacher.py"
+          ],
+          "path": "tests/integrations/forge/test_vision_teacher.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "noStatements": true,
+          "path": "tests/integrations/isaac/__init__.py"
+        },
+        {
+          "hash": "f2112742ac7e7171fa36db38a5aea08aee4b801b231a83414a81141a884d0759",
+          "importsFiles": [
+            "integrations/isaac/__init__.py",
+            "integrations/isaac/config.py",
+            "integrations/isaac/trainer.py"
+          ],
+          "path": "tests/integrations/isaac/test_config.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "fake_module",
+            "make_pair",
+            "make_traj"
+          ],
+          "hash": "a04626eae46f13046f707bcfbe24af0f900bd454a25f217bceee9939c0cb2b1e",
+          "importsFiles": [
+            "integrations/isaac/isaac_wrapper.py",
+            "integrations/isaac/motion_teacher.py"
+          ],
+          "path": "tests/integrations/isaac/test_isaac_wrapper.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "make_data",
+            "ramp",
+            "stub_critique"
+          ],
+          "hash": "654224f60c3deb553f897c2a4aac984523c4d01d3f1e7ccc3be5cc62e95ce2d4",
+          "importsFiles": [
+            "integrations/isaac/motion_teacher.py"
+          ],
+          "path": "tests/integrations/isaac/test_motion_teacher.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "make_config",
+            "make_critique",
+            "make_env",
+            "make_trainer",
+            "make_traj",
+            "params_changed",
+            "params_snapshot"
+          ],
+          "hash": "19a5f437c94df17ac9255e0732cf99a00e87b1691596540a2034f4dd47bf7846",
+          "importsFiles": [
+            "integrations/isaac/config.py",
+            "integrations/isaac/isaac_wrapper.py",
+            "integrations/isaac/motion_teacher.py",
+            "integrations/isaac/trainer.py",
+            "integrations/isaac/trajectory_critic.py"
+          ],
+          "path": "tests/integrations/isaac/test_trainer.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "batch",
+            "make_config",
+            "make_encoder"
+          ],
+          "hash": "c1d8b029c92bb597ad3a8a101408ec9361af9658abe187c6b1d6b3f1c443eb3a",
+          "importsFiles": [
+            "integrations/isaac/config.py",
+            "integrations/isaac/trajectory_critic.py"
+          ],
+          "path": "tests/integrations/isaac/test_trajectory_critic.py",
           "testFramework": "pytest"
         },
         {
@@ -2122,11 +2603,52 @@
           "testFramework": "pytest"
         },
         {
-          "hash": "1c870b0023ab8eaca3d70341f1ee4ad53e893638d58d45c0efdff28538fb8012",
+          "hash": "748565c5e1cac527ff238ce96c7c4c18a819436699c82951724a2e81b9d71e12",
+          "importsFiles": [
+            "aspire/perception/character.py"
+          ],
+          "path": "tests/perception/test_character_more.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "9e8bf9161c7b13560f1293f301ec49d4c12b80dcfde8e6bf6404c47753e229c2",
           "importsFiles": [
             "aspire/perception/controlled_chaos.py"
           ],
           "path": "tests/perception/test_controlled_chaos.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "fake_random",
+            "first_choice"
+          ],
+          "hash": "7068214dc1ea66a32889a8ca8676ff6091507cc81e9b13d27ddb1968d3efab2b",
+          "importsFiles": [
+            "aspire/perception/controlled_chaos.py"
+          ],
+          "path": "tests/perception/test_controlled_chaos_more.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "3c3cf59e7b3297b8b745b6053c6bae3157daa048eeacb9b69a576150d691de4e",
+          "importsFiles": [
+            "aspire/perception/controlled_chaos.py",
+            "aspire/perception/empathy_evaluation.py",
+            "aspire/teachers/base.py"
+          ],
+          "path": "tests/perception/test_empathy_evaluation.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "b364b60682663ccc41c354d3952f4f80615cdeef7895363d5118975633ba25be",
+          "importsFiles": [
+            "aspire/perception/controlled_chaos.py",
+            "aspire/perception/empathy_evaluation.py",
+            "aspire/perception/integration.py",
+            "aspire/perception/theory_of_mind.py"
+          ],
+          "path": "tests/perception/test_integration.py",
           "testFramework": "pytest"
         },
         {
@@ -2138,6 +2660,18 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "estimator",
+            "meta"
+          ],
+          "hash": "222bb05c864d6a43ceeea8e95e5efc468793c3c63ad0ac7e60ea49d0f91d9f3e",
+          "importsFiles": [
+            "aspire/perception/metacognition.py"
+          ],
+          "path": "tests/perception/test_metacognition_more.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "57572d031316ca24f5833bc0ba0f490a6876a148fc23a57ce9f5c9299c8f85e2",
           "importsFiles": [
             "aspire/perception/syntropy.py"
@@ -2146,11 +2680,33 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "engine"
+          ],
+          "hash": "a23d53df12bc0ed1a44b1f3cd1034ee6ce63a7f0aa325cb7dd312bbf1d3a4d98",
+          "importsFiles": [
+            "aspire/perception/syntropy.py"
+          ],
+          "path": "tests/perception/test_syntropy_more.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "2557b42bcfb324b004386ddaae6696d8fcc0c7e9b92d52fd0abee1a10ea9a495",
           "importsFiles": [
             "aspire/perception/theory_of_mind.py"
           ],
           "path": "tests/perception/test_theory_of_mind.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "tracker"
+          ],
+          "hash": "c8f1bf1a9f226deb12c78fa08e5c16cc6200ff68ccc8003a723bd0eefc7f87fd",
+          "importsFiles": [
+            "aspire/perception/theory_of_mind.py"
+          ],
+          "path": "tests/perception/test_theory_of_mind_more.py",
           "testFramework": "pytest"
         },
         {
@@ -2198,6 +2754,17 @@
           "path": "tests/test_cli.py"
         },
         {
+          "hash": "a2866fdbdeb086ff7962172ba880e8b45ece53cb7932f56c83aae5e48c40f4e3",
+          "importsFiles": [
+            "aspire/__init__.py",
+            "aspire/cli.py",
+            "aspire/errors.py",
+            "aspire/teachers/base.py"
+          ],
+          "path": "tests/test_cli_errors.py",
+          "testFramework": "pytest"
+        },
+        {
           "exports": [
             "batch_size",
             "hidden_dim",
@@ -2218,11 +2785,76 @@
           "testFramework": "pytest"
         },
         {
-          "hash": "03ee0bca6c91e260151820bdc124beabf764332e1ab7d0ea64a1adaa4aa93dda",
+          "hash": "26f8dcd56195db1cac5b89583d3a4b32ef773de0fa1b77d8cd6a923226eec756",
           "importsFiles": [
             "aspire/config.py"
           ],
           "path": "tests/test_config.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "patched_hf"
+          ],
+          "hash": "2d33e3234cb4e9c4583ca106df3ebdf870f37580c92eac3d9689e81f0d06ac34",
+          "importsFiles": [
+            "aspire/critic/base.py",
+            "aspire/critic/separate.py",
+            "aspire/critic/shared.py"
+          ],
+          "path": "tests/test_coverage_critic.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "generator",
+            "make_dialogue"
+          ],
+          "hash": "8eb648aa2449e11701ff70e1eeea218cb2b96ea9f0f9043d2aa3feabddc9da76",
+          "importsFiles": [
+            "aspire/dialogue/formatter.py",
+            "aspire/dialogue/generator.py",
+            "aspire/dialogue/manager.py",
+            "aspire/teachers/base.py"
+          ],
+          "path": "tests/test_coverage_dialogue.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "e26729c1f4b0bc5d5006c9a976245e328847ada73b315766d934898917f09b16",
+          "importsFiles": [
+            "aspire/losses/student.py"
+          ],
+          "path": "tests/test_coverage_losses.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "claude_teacher",
+            "local_teacher_factory",
+            "openai_teacher"
+          ],
+          "hash": "6c51eab028f0600ceae71ab7fbce5301e9adfc03d48d171cd501016e1a502b51",
+          "importsFiles": [
+            "aspire/teachers/base.py",
+            "aspire/teachers/claude.py",
+            "aspire/teachers/composite.py",
+            "aspire/teachers/local.py",
+            "aspire/teachers/openai.py"
+          ],
+          "path": "tests/test_coverage_teachers.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "make_trainer"
+          ],
+          "hash": "565891778f7f4a067876afb2ace6ce0b6d8d4cd5dbe8dfd661ea552cb86e7147",
+          "importsFiles": [
+            "aspire/config.py",
+            "aspire/trainer.py"
+          ],
+          "path": "tests/test_coverage_trainer.py",
           "testFramework": "pytest"
         },
         {
@@ -2417,7 +3049,14 @@
         "pytest"
       ],
       "testedBy": 0,
-      "unresolvedSites": 0
+      "unresolvedNamed": [
+        {
+          "path": "tests/test_cli_errors.py",
+          "specifier": null,
+          "why": "dynamic"
+        }
+      ],
+      "unresolvedSites": 1
     }
   ],
   "doors": [
@@ -2588,13 +3227,16 @@
       "landings": [],
       "mentions": [],
       "name": "CI",
-      "permissions": [],
+      "permissions": [
+        "contents:read",
+        "id-token:write"
+      ],
       "pushes": false,
       "reach": [
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 34
+          "files": 35
         },
         {
           "boundary": "examples",
@@ -2609,7 +3251,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 34
+          "files": 64
         }
       ],
       "readers": [],
@@ -2656,7 +3298,7 @@
         {
           "config": "pyproject.toml",
           "coverage": true,
-          "files": 34,
+          "files": 64,
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
@@ -2939,7 +3581,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 34
+          "files": 35
         },
         {
           "boundary": "integrations",
@@ -3011,7 +3653,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 26
+          "files": 27
         }
       ],
       "readers": [],
@@ -3060,10 +3702,22 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "65923f99a814626ff507b6e8a686907dd03c7235",
-    "tracked": 148
+    "commit": "35b5597849bca5e92bc2e958ef99d4c590837585",
+    "tracked": 182
   },
   "landings": [
+    {
+      "readers": [
+        {
+          "by": "tests/integrations/code/test_code_analysis_unit.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "Makefile",
+      "writers": []
+    },
     {
       "readers": [
         {
@@ -3184,6 +3838,6 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 34,
+  "testFiles": 64,
   "unassigned": []
 }

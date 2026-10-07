@@ -253,7 +253,8 @@ class UncertaintyEstimator(nn.Module):
 
             # Running mean and variance update
             batch_mean = pooled.mean(dim=0)
-            batch_var = pooled.var(dim=0)
+            # One sample has no spread: 0, not the NaN an unbiased variance gives.
+            batch_var = pooled.var(dim=0) if pooled.size(0) > 1 else torch.zeros_like(batch_mean)
             batch_size = pooled.size(0)
 
             n = self.num_samples
@@ -581,11 +582,14 @@ class ReflectiveLoop:
         if len(response) > 1000:
             selected.append(self.reflection_prompts[10])  # Verbosity check
 
+        # Max 5 prompts: leave room for the two that are always included
+        selected = selected[:3]
+
         # Always include perspective taking and completeness
         selected.append(self.reflection_prompts[4])  # Perspective
         selected.append(self.reflection_prompts[6])  # Completeness
 
-        return selected[:5]  # Max 5 prompts
+        return selected
 
     def _generate_insight(
         self,
@@ -749,7 +753,11 @@ class MetaCognitionModule(nn.Module):
                 output_logits, method="entropy"
             )
             if entropy_uncertainty.dim() == 2:
+                # [batch, seq] -> [batch, 1]
                 entropy_uncertainty = entropy_uncertainty.mean(dim=1, keepdim=True)
+            else:
+                # [batch] (from [batch, vocab] logits) -> [batch, 1]
+                entropy_uncertainty = entropy_uncertainty.unsqueeze(-1)
             features.append(entropy_uncertainty)
         else:
             features.append(torch.zeros_like(uncertainty_out["overall_uncertainty"]))

@@ -7,6 +7,13 @@ from enum import Enum
 from typing import Literal
 
 
+def _cuda_available() -> bool:
+    """Whether torch can use a CUDA device; the default device follows it."""
+    import torch
+
+    return torch.cuda.is_available()
+
+
 class TaskType(str, Enum):
     """Supported robotics task types."""
     REACHING = "reaching"
@@ -129,7 +136,7 @@ class IsaacAspireConfig:
     training: TrainingConfig = field(default_factory=TrainingConfig)
 
     # Hardware
-    device: str = "cuda"
+    device: str = field(default_factory=lambda: "cuda" if _cuda_available() else "cpu")
     seed: int = 42
 
     def __post_init__(self):

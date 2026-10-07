@@ -124,12 +124,12 @@ def detect_language(code: str, filename: str | None = None) -> Language:
     # Heuristic detection
     if "def " in code and "import " in code:
         return Language.PYTHON
+    if "fn " in code and "let mut" in code:
+        return Language.RUST
     if "function " in code or "const " in code or "let " in code:
         if ": " in code and "interface " in code:
             return Language.TYPESCRIPT
         return Language.JAVASCRIPT
-    if "fn " in code and "let mut" in code:
-        return Language.RUST
     if "func " in code and "package " in code:
         return Language.GO
     if "public class " in code or "private void " in code:
@@ -160,7 +160,7 @@ def parse_code(code: str, language: Language) -> dict[str, Any]:
             # Extract structure
             result["functions"] = [
                 node.name for node in ast.walk(tree)
-                if isinstance(node, ast.FunctionDef)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             ]
             result["classes"] = [
                 node.name for node in ast.walk(tree)
@@ -205,7 +205,7 @@ def extract_code_features(code: str, language: Language) -> CodeFeatures:
                     features.ast_node_types.get(node_type, 0) + 1
                 )
 
-                if isinstance(node, ast.FunctionDef):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     features.num_functions += 1
                 elif isinstance(node, ast.ClassDef):
                     features.num_classes += 1
@@ -223,7 +223,7 @@ def extract_code_features(code: str, language: Language) -> CodeFeatures:
 
             # Check for type hints
             features.has_type_hints = any(
-                isinstance(node, ast.FunctionDef) and node.returns is not None
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns is not None
                 for node in ast.walk(tree)
             )
 

@@ -230,7 +230,7 @@ Evaluate the image and respond with JSON:
                 suggestions=data.get("suggestions", []),
                 improved_description=data.get("improved_description"),
             )
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, TypeError):
             # Fallback
             return ImageCritique(
                 overall_score=5.0,
@@ -311,7 +311,7 @@ Evaluate and respond with JSON containing:
                 suggestions=data.get("suggestions", []),
                 improved_description=data.get("improved_description"),
             )
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, TypeError):
             return ImageCritique(
                 overall_score=5.0,
                 reasoning=response.choices[0].message.content,

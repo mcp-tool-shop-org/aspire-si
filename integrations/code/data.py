@@ -57,6 +57,7 @@ class CodeReviewPair:
             "suggestions": self.critique.suggestions,
             "filename": self.filename,
             "repo": self.repo,
+            "commit": self.commit,
             "improved_code": self.improved_code,
         }
 
@@ -78,6 +79,7 @@ class CodeReviewPair:
             critique=critique,
             filename=data.get("filename"),
             repo=data.get("repo"),
+            commit=data.get("commit"),
             improved_code=data.get("improved_code"),
         )
 
@@ -211,7 +213,7 @@ class GitHubRepoCollector:
                     return
 
                 # Skip tests, examples, vendored code
-                path_str = str(path).lower()
+                path_str = str(path.relative_to(repo_path)).lower()
                 skip_patterns = ["test", "example", "vendor", "node_modules", "__pycache__"]
                 if any(p in path_str for p in skip_patterns):
                     continue
@@ -248,7 +250,7 @@ class GitHubRepoCollector:
                     repo, language, max_files=files_per_repo
                 ):
                     yield repo, filename, code
-            except (OSError, subprocess.CalledProcessError) as e:
+            except (OSError, subprocess.CalledProcessError, RuntimeError) as e:
                 logger.warning(f"Failed to collect from {repo}: {e}")
                 continue
 
@@ -470,6 +472,9 @@ def create_balanced_dataset(
 
     Helps prevent the critic from just predicting the mean score.
     """
+    if not pairs:
+        return []
+
     # Bin pairs by score
     bins = {i: [] for i in range(score_bins)}
     bin_size = 10.0 / score_bins

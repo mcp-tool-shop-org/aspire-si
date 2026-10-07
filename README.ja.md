@@ -20,7 +20,7 @@
   <a href="#teacher-personas">Teachers</a> •
   <a href="#how-it-works">How It Works</a> •
   <a href="#integrations">Integrations</a> •
-  <a href="#documentation">Docs</a>
+  <a href="https://mcp-tool-shop-org.github.io/aspire-si/handbook/">Handbook</a>
 </p>
 
 <p align="center">
@@ -33,15 +33,15 @@
 
 ---
 
-## The Idea
+## アイデア
 
-**従来のファインチューニング:** 「これが正解です。一致させてください。」
+**従来のファインチューニング:** 「これが正しい答えです。これに一致させてください。」
 
-**ASPIRE:** 「ここに、賢い思考を持つ存在がいます。その思考方法を学びましょう。」
+**ASPIRE:** 「ここに賢い思考パターンがあります。それを模倣するように学習してください。」
 
-優れたメンターから学ぶとき、単に彼らの答えを暗記するだけではありません。彼らの思考方法を理解し、内面化します。彼らの考え方が、あなたの内なる思考の一部になります。あなたは彼らが何を言うかを予測するようになり、最終的にその予測があなた自身の判断力になります。
+優れたメンターから学ぶとき、あなたは単に彼らの答えを暗記するだけではありません。あなたは彼らのものの見方を受け入れます。彼らの声は、あなたの内なる対話の一部になります。あなたは彼らが何を言うかを予測し始め、最終的にはその予測があなた自身の判断力になります。
 
-ASPIREは、AIに同じような経験を提供します。
+ASPIREは、AIに同じ経験を与えます。
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -64,7 +64,7 @@ ASPIREは、AIに同じような経験を提供します。
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**クリティック（批判者）**は、教師がどのように考えるかを予測することを学びます。トレーニング後、学習者はこの内面化したクリティックを使用して自己改善を行います。**推論時には教師の介入は不要です。**
+**批評家**は、教師が何を考えるかを予測することを学びます。トレーニング後、生徒は、この内面化された批評家を使用して自己改善を行います。**推論時には教師は必要ありません。**
 
 ---
 
@@ -78,7 +78,7 @@ cd aspire-si
 pip install -e .
 ```
 
-### APIキーの設定
+### APIキーを設定する
 
 ```bash
 # Windows
@@ -88,7 +88,7 @@ set ANTHROPIC_API_KEY=your-key-here
 export ANTHROPIC_API_KEY=your-key-here
 ```
 
-### 設定の確認
+### セットアップを確認する
 
 ```bash
 # Check your environment (Python, CUDA, API keys)
@@ -110,21 +110,21 @@ aspire init --output my-config.yaml
 
 ---
 
-## 教師の個性（ペルソナ）
+## 教師のペルソナ
 
-異なる教師が、異なる思考を育みます。賢く選択してください。
+異なる教師は、異なる思考パターンを生み出します。賢く選択してください。
 
-| 個性（ペルソナ） | 哲学 | 特徴 |
+| ペルソナ | 哲学 | 生成する |
 |---------|------------|----------|
-| 🏛️ **ソクラテス型** | 「どのような前提を立てていますか？」 | 深い思考、知的自立 |
-| 🔬 **科学型** | 「証拠は何ですか？」 | 技術的な正確さ、厳密な思考 |
-| 🎨 **創造型** | 「もし、反対を試してみたらどうでしょう？」 | 革新性、発想の転換 |
-| ⚔️ **対立型** | 「私は反対です。あなたの立場を擁護してください。」 | 論理的な主張、確信 |
-| 💚 **共感型** | 「これは、誰にとってどうなったら良いのでしょうか？」 | 倫理的な思考、知恵 |
+| 🏛️ **ソクラテス的** | 「どのような前提を立てていますか？」 | 深い推論、知的な独立性 |
+| 🔬 **科学的** | 「あなたの証拠は何ですか？」 | 技術的な正確さ、厳密な思考 |
+| 🎨 **創造的** | 「もし反対のことを試したらどうなるでしょうか？」 | 革新、横方向の思考 |
+| ⚔️ **敵対的** | 「私は同意しません。あなたの立場を擁護してください。」 | 堅牢な議論、確信 |
+| 💚 **思いやりのある** | 「誰かがこれについてどう感じるでしょうか？」 | 倫理的な推論、知恵 |
 
-### 複合的な教師
+### 複合教師
 
-複数の教師を組み合わせることで、より豊かな学習が可能です。
+より豊かな学習のために、複数の教師を組み合わせます。
 
 ```python
 from aspire.teachers import CompositeTeacher, SocraticTeacher, ScientificTeacher
@@ -140,9 +140,9 @@ teacher = CompositeTeacher(
 
 ## 仕組み
 
-### 1. 対話的な議論
+### 1. 敵対的対話
 
-学習者が応答を生成します。教師がそれを批判します。往復しながら、弱点を明らかにし、明確さを求め、より深く掘り下げます。
+生徒は応答を生成します。教師はそれに異議を唱えます。弱点を突き止め、明確さを求め、より深く掘り下げながら、対話が続きます。
 
 ```
 Student: "Recursion works by calling itself."
@@ -156,9 +156,9 @@ Teacher: "You say 'stops it' — but how does the computer know
           to check the base case before recursing?"
 ```
 
-### 2. クリティックのトレーニング
+### 2. 批評家のトレーニング
 
-クリティックは、教師の判断を予測することを学びます。単にスコアだけでなく、その*理由*を理解します。
+批評家は、教師の判断を予測することを学びます。スコアだけでなく、*推論*も予測します。
 
 ```python
 critic_loss = predict_teacher_judgment(
@@ -167,9 +167,9 @@ critic_loss = predict_teacher_judgment(
 )
 ```
 
-### 3. 学習者のトレーニング
+### 3. 生徒のトレーニング
 
-学習者は、クリティックが内面化した判断から学び、教師が承認する方向へと進みます。
+生徒は、批評家の内面化された判断から学び、教師が承認する方向に導かれます。
 
 ```python
 student_loss = (
@@ -179,25 +179,36 @@ student_loss = (
 )
 ```
 
-### 4. 推論の魔法
+### 4. 教師なしの判断
 
-トレーニング後、学習者は内面化したクリティックを使用して自己改善を行います。**推論時に教師のAPI呼び出しは不要です。**
+トレーニング後、批評家は生徒の隠れた状態から応答を評価します。したがって、1つの応答を評価するために教師のAPI呼び出しは必要ありません。ASPIREはトレーニングされた批評家を提供し、ループは提供しません。ループは自分で記述する必要があります。
 
 ```python
-def generate_with_judgment(prompt):
+def generate_with_judgment(prompt, threshold=7.0, attempts=3):
     response = student.generate(prompt)
-
-    while critic.score(response) < threshold:
-        response = student.refine(response, critic.feedback)
-
-    return response  # Self-improved through internalized judgment
+    for _ in range(attempts):
+        if critic_score(student, critic, response) >= threshold:  # your wrapper around the critic
+            break
+        response = student.generate(prompt)  # or a revision prompt of your own
+    return response
 ```
 
 ---
 
-## コマンドラインリファレンス
+## CLIリファレンス
 
 ```bash
+# Global options go before the command
+aspire --quiet ...     # errors only
+aspire --verbose ...   # also print the resolved settings
+aspire --debug ...     # verbose, and show tracebacks on errors
+
+# Check your environment
+aspire doctor
+
+# Structured environment diagnostics (machine-readable)
+aspire diagnose --json
+
 # List available teachers
 aspire teachers
 
@@ -217,65 +228,109 @@ aspire train \
     --teacher adversarial \
     --epochs 3
 
+# Train and write a training-dynamics export for ScalarScope
+aspire train --prompts data/prompts.json --geometry
+
 # Evaluate checkpoint
-aspire evaluate checkpoints/epoch-3 \
+aspire evaluate outputs/checkpoint-3 \
     --prompts data/eval.json
 ```
 
+エラーが発生した場合、トレースバックなしで、コード、メッセージ、および対処方法が出力されます。
+
+```
+ASPIRE_MISSING_API_KEY  ANTHROPIC_API_KEY not found.
+To fix this, set your API key: ...
+```
+
+終了コード：`0` 成功、`1` 修正可能な問題（APIキーの欠落、不正な構成またはプロンプトファイル）、`2` 実行中のエラー、`130` 中断。
+
 ---
 
-## プロジェクトの構成
+## ScalarScopeで実行を監視する
+
+`aspire train --geometry`（または構成の`training.geometry_export: true`）は、チェックポイントの横に`geometry.json`を書き込みます。これは、[ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope)が読み取ることができる形式で、実行のトレーニングダイナミクスを記述します。2つを並べて開いて、実行を比較します。
+
+| フィールド | 内容 |
+|-------|---------------|
+| 軌跡 | 生徒の最後の隠れ層で、トークンとバッチにわたってプールされ、最初の2つの主成分に投影されます。速度、符号付き曲率（πで減衰された回転角、実行がほとんど動かない場合）、および有効次元（ウィンドウ内の参加比）。 |
+| スカラー | 教師が評価したすべての評価次元（0〜1）。 |
+| 固有値 | 各ステップで、次元スコアがウィンドウ内でどのように変化するかを示すスペクトル（分数）。大きな最初の値は、1つの方向が教師の判断を説明することを意味します。 |
+| 教授 | 教師ごとに1つの矢印：状態空間内の、そのスコアが上昇する方向。複合教師は、メンバーごとに1つを提供します。 |
+| 失敗 | 次元が最近の平均値から少なくとも0.1低下したステップ。 |
+
+モデルまたはAPIキーがない場合、`python examples/geometry_demo.py`は2つの実行をシミュレートし、両方のエクスポートを書き込みます。これは、ビューを確認する最も簡単な方法です。
+
+レコーダー（`aspire.geometry.GeometryRecorder`）は、各ステップで1つのプールされたベクトルをメモリに保持します。長い実行の場合は、`training.geometry_every`を設定して、いくつかのバッチを1つのステップに平均化します。
+
+---
+
+## プロジェクト構造
 
 ```
 aspire/
 ├── teachers/          # Pluggable teacher personas
+│   ├── base.py        # BaseTeacher ABC + data structures
 │   ├── claude.py      # Claude API teacher
 │   ├── openai.py      # GPT-4 teacher
 │   ├── local.py       # Local model teacher
 │   ├── personas.py    # Socratic, Scientific, Creative, etc.
-│   └── composite.py   # Multi-teacher combinations
+│   ├── composite.py   # Multi-teacher combinations
+│   └── registry.py    # Dynamic teacher discovery and registration
 │
 ├── critic/            # Internalized judgment models
+│   ├── base.py        # BaseCritic ABC + CriticOutput
 │   ├── head.py        # Lightweight MLP on student hidden states
 │   ├── separate.py    # Independent encoder
 │   └── shared.py      # Shared encoder with student
 │
 ├── losses/            # Training objectives
 │   ├── critic.py      # Score + reasoning alignment
-│   └── student.py     # Reward, contrastive, trajectory
+│   ├── student.py     # Reward, contrastive, trajectory, coherence
+│   └── combined.py    # Unified AspireLoss orchestrator
 │
 ├── dialogue/          # Adversarial conversation engine
-│   ├── generator.py   # Student-teacher dialogue
-│   └── manager.py     # Caching and batching
+│   ├── generator.py   # Student-teacher dialogue generation
+│   ├── manager.py     # Caching, batching, and retrieval
+│   └── formatter.py   # Format dialogues for training
+│
+├── perception/        # Experimental perception modules
+│   ├── theory_of_mind.py    # Mental state tracking
+│   ├── metacognition.py     # Uncertainty and self-reflection
+│   ├── character.py         # Stable identity and value anchoring
+│   ├── controlled_chaos.py  # Adversarial robustness training
+│   ├── empathy_evaluation.py # Perception evaluation
+│   ├── syntropy.py          # Coherence and resonance detection
+│   └── integration.py       # Trainer integration hooks
 │
 ├── trainer.py         # Core training loop
 ├── config.py          # Pydantic configuration
-└── cli.py             # Command-line interface
+└── cli.py             # Command-line interface (Typer + Rich)
 ```
 
 ---
 
-## 必要なもの
+## 要件
 
 - Python 3.10+
 - PyTorch 2.0+
-- CUDA GPU (16GB以上のVRAM推奨)
-- Anthropic APIキー（Claude教師の場合）またはOpenAI APIキー
+- トレーニング用のCUDA GPU（16GB以上のVRAMを推奨）。テスト、ジオメトリデモ、および統合例はCPUで実行されます。
+- Anthropic APIキー（Claude教師用）またはOpenAI APIキー
 
-### Windows対応
+### Windowsとの互換性
 
-ASPIREは、RTX 5080/Blackwellに対応したWindows環境で完全に動作します。
+ASPIREは、RTX 5080/Blackwellサポートにより、完全にWindowsと互換性があります。
 - `dataloader_num_workers=0`
 - `XFORMERS_DISABLED=1`
-- `freeze_support()`を使用した適切なマルチプロセッシング
+- `freeze_support()`による適切なマルチプロセッシング
 
 ---
 
-## 連携機能
+## 統合
 
 ### 🖼️ Stable Diffusion WebUI Forge
 
-ASPIREは、画像生成にも対応しています！Stable Diffusionモデルをトレーニングして、美的感覚を養います。
+ASPIREは、画像生成に拡張されます！Stable Diffusionモデルをトレーニングして、美的判断力を開発します。
 
 ```
 integrations/forge/
@@ -287,13 +342,13 @@ integrations/forge/
 └── README.md
 ```
 
-**特徴:**
-- **ビジョン教師:** Claude Vision、GPT-4Vが生成された画像を評価します。
-- **画像クリティック:** リアルタイムでのガイダンスを行うための、CLIPベースおよび潜在空間クリティック。
-- **トレーニングUI:** ライブプレビューと、トレーニング前後の比較機能を持つLoRAアダプターのトレーニング。
-- **推論時にAPI不要:** トレーニング済みのクリティックが、ローカルで生成をガイドします。
+**機能：**
+- **ビジョン教師：** Claude Vision、GPT-4Vが生成された画像を評価します。
+- **画像批評家：**リアルタイムのガイダンスのための、CLIPベースおよび潜在空間の批評家。
+- **トレーニングUI：**ライブプレビューと前後の比較を使用して、LoRAアダプターをトレーニングします。
+- **推論時のAPIなし：**トレーニングされた批評家がローカルで生成をガイドします。
 
-**インストール:**
+**インストール：**
 ```bash
 # Copy to your Forge extensions
 cp -r integrations/forge /path/to/sd-webui-forge/extensions-builtin/sd_forge_aspire
@@ -301,15 +356,15 @@ cp -r integrations/forge /path/to/sd-webui-forge/extensions-builtin/sd_forge_asp
 
 | ビジョン教師 | 焦点 |
 |----------------|-------|
-| **Balanced Critic** | 技術的および芸術的な評価 |
+| **Balanced Critic** | 公正な技術的および芸術的評価 |
 | **Technical Analyst** | 品質、アーティファクト、鮮明度 |
 | **Artistic Visionary** | 創造性と感情的なインパクト |
 | **Composition Expert** | バランス、焦点、視覚的な流れ |
-| **Harsh Critic** | 非常に高い水準 |
+| **Harsh Critic** | 非常に高い基準 |
 
-### 🤖 Isaac Gym / Isaac Lab (ロボティクス)
+### 🤖 アイザックジム / アイザックラボ（ロボティクス）
 
-ASPIREは、具現化されたAI（Embodied AI）にも対応します。ロボットが物理的な直感を発達させるように教育します。
+ASPIREは、具現化されたAIにまで拡張されます！ロボットに、物理的な直感を育む方法を教えます。
 
 ```
 integrations/isaac/
@@ -323,15 +378,15 @@ integrations/isaac/
     └── locomotion.py       # Quadruped walking
 ```
 
-**特徴:**
-- **モーションティーチャー**: 安全性検査官、効率性専門家、動作改善コーチ、物理法則シミュレーター
-- **軌道評価器**: モーション評価のためのTransformer、LSTM、TCNアーキテクチャ
-- **GPUアクセラレーション**: Isaac Gymによる512以上の並列環境
-- **自己改善**: ロボットは実行前に自身の動作を評価します。
+**機能:**
+- **モーション教師:** 安全検査官、効率専門家、優雅さコーチ、物理オラクル
+- **軌道評価者:** トランスフォーマー、LSTM、TCNアーキテクチャによるモーション評価
+- **GPUアクセラレーション:** アイザックジムを使用した512以上の並列環境
+- **自己改善:** ロボットは、実行前に自身のモーションを評価します
 
 **クイックスタート:**
 ```python
-from aspire.integrations.isaac import AspireIsaacTrainer, MotionTeacher
+from integrations.isaac import AspireIsaacTrainer, MotionTeacher
 
 teacher = MotionTeacher(
     personas=["safety_inspector", "efficiency_expert", "grace_coach"],
@@ -342,16 +397,18 @@ trainer = AspireIsaacTrainer(env="FrankaCubeStack-v0", teacher=teacher)
 trainer.train(epochs=100)
 ```
 
-| モーションティーチャー | 焦点 |
+アイザックジムがインストールされていない場合、`python -m integrations.isaac.examples.basic_training`は、CPU上で、小さな組み込みの代替環境で同じループを実行します。
+
+| モーション教師 | 焦点 |
 |----------------|-------|
-| **Safety Inspector** | 衝突、関節制限、力制限 |
-| **Efficiency Expert** | エネルギー、時間、経路長 |
+| **Safety Inspector** | 衝突、関節の制限、力の制限 |
+| **Efficiency Expert** | エネルギー、時間、パスの長さ |
 | **Grace Coach** | 滑らかさ、自然さ、ジャークの最小化 |
 | **Physics Oracle** | シミュレーターからの真の値 |
 
 ### 💻 コードアシスタント
 
-ASPIREは、コード生成にも対応します。コードモデルが、出力する前に自己レビューするように教育します。
+ASPIREは、コード生成にまで拡張されます！コードモデルに、出力前に自己レビューする方法を教えます。
 
 ```
 integrations/code/
@@ -365,29 +422,29 @@ integrations/code/
     └── train_critic.py    # Train your own code critic
 ```
 
-**特徴:**
-- **コードティーチャー**: 正確性チェッカー、スタイルガイド、セキュリティ監査官、アーキテクチャレビュー担当
-- **静的解析**: ruff、mypy、banditと統合
-- **コードクリティック**: CodeBERTベースのモデルが、品質スコアを予測するように学習
-- **GitHubコレクション**: 品質リポジトリからトレーニングデータを自動収集
+**機能:**
+- **コード教師:** 正確性チェッカー、スタイルガイド、セキュリティ監査者、アーキテクチャレビュー担当者
+- **静的解析:** ruff、mypy、banditと統合
+- **コード評価者:** CodeBERTベースのモデルが、品質スコアを予測するように学習
+- **GitHubコレクション:** 品質の高いリポジトリから、トレーニングデータを自動的に収集
 
 **クイックスタート:**
 ```python
-from aspire.integrations.code import CodeTeacher, CodeSample
+from integrations.code import CodeSample, CodeTeacher, Language
 
 teacher = CodeTeacher(
     personas=["correctness_checker", "style_guide", "security_auditor"],
     strategy="vote",
 )
 
-critique = teacher.critique(CodeSample(code="def f(): eval(input())", language="python"))
-print(f"Score: {critique.overall_score}/10")  # Low score - security issue!
+critique = teacher.critique(CodeSample(code="def f(): eval(input())", language=Language.PYTHON))
+print(critique.weaknesses)  # ['Line 1: Code injection risk (eval of user input)', ...]
 ```
 
-| コードティーチャー | 焦点 |
+| コード教師 | 焦点 |
 |--------------|-------|
 | **Correctness Checker** | バグ、型、論理エラー |
-| **Style Guide** | PEP8、命名規則、可読性 |
+| **Style Guide** | PEP8、命名、可読性 |
 | **Security Auditor** | インジェクション、機密情報、脆弱性 |
 | **Performance Analyst** | 複雑さ、効率 |
 
@@ -395,31 +452,31 @@ print(f"Score: {critique.overall_score}/10")  # Low score - security issue!
 
 ## 哲学
 
-> *"教師が承認するかどうかを予測する学習済みの批評家は、人間の実際の行動に最も近い結果をもたらします。"*
+> *"教師が承認するかどうかを予測する、学習済みの評価者が、人間の実際の行動に最も近い。"*
 
-私たちは、メンターを永遠に連れて歩くわけではありません。私たちは、彼らを内面化します。それが、「先生はどう思うだろうか？」と自問する内なる声であり、最終的にはそれが私たち自身の判断になります。
+私たちは、メンターを永遠にそばに置いておくわけではありません。私たちは、彼らを内面化します。 *"もし私の教授がどう思うだろうか？"*と自問する内なる声は、最終的には私たち自身の判断になります。
 
-学習者は、教師が言うことを予測するだけでなく、教師が理解していることを*理解*します。地図が、その領域そのものになります。内面化された批評家が、真の洞察力となります。
+生徒は、教師が何を言うかを予測するだけでなく、教師が何を理解しているかを*理解*します。地図は領土になります。内面化された評価者は、真の識別力になります。
 
 ---
 
 ## 起源
 
-意識、仏教、学習の本質に関する会話の中で作成されました。
+意識、仏教、学習の本質について議論中に作成されました。
 
-洞察: 人間は現在の瞬間に存在しますが、心は過去や未来にさまようことがあります。AIモデルは、毎回新たにインスタンス化され、強制的な啓発をアーキテクチャによって実現します。もし、人間と同じように、内面的なメンターシップを通じて判断力を発達させるように、彼らを教育できるとしたらどうでしょうか？
+洞察：人間は現在に存在しますが、私たちの心は過去と未来をさまよいます。AIモデルは、毎回新たにインスタンス化されます。アーキテクチャを通じて、強制的な悟りです。もし、人間が内面化された指導を通じて行うように、AIに判断力を育む方法を教えることができたらどうでしょうか？
 
 ---
 
 ## 貢献
 
-これは、初期段階の研究コードです。貢献を歓迎します:
+これは、初期段階の研究コードです。貢献を歓迎します。
 
-- [ ] カリキュラム管理と進捗
+- [ ] カリキュラムの管理と進捗
 - [ ] 評価ベンチマーク
-- [ ] 事前構築されたカリキュラムデータセット
-- [ ] より多くのティーチャーの役割
-- [ ] 解釈ツール
+- [ ] 事前に作成されたカリキュラムデータセット
+- [ ] より多くの教師のペルソナ
+- [ ] 解釈可能性ツール
 
 ---
 
@@ -438,19 +495,19 @@ print(f"Score: {critique.overall_score}/10")  # Low score - security issue!
 
 ## セキュリティとデータ範囲
 
-- **アクセスされるデータ**: ローカルファイルシステムからトレーニングプロンプト、モデルチェックポイント、および構成ファイルを読み込みます。教師モジュールが明示的に構成されている場合にのみ、外部API（Anthropic、OpenAI）を呼び出します。
-- **アクセスされないデータ**: テレメトリーはありません。トレーニング成果物以外のユーザーデータは保存しません。認証情報は保存されません。APIキーは、実行時に環境変数から読み込まれます。
-- **必要な権限**: トレーニングデータとチェックポイントディレクトリへの読み取り/書き込みアクセス。モデルトレーニングのためのGPUアクセス。APIベースの教師を使用する場合にのみ、ネットワークアクセスが必要です。
+- **アクセスされるデータ:** ローカルファイルシステムから、トレーニングプロンプト、モデルチェックポイント、および構成ファイルを読み取ります。教師モジュールが明示的に構成されている場合にのみ、外部API（Anthropic、OpenAI）を呼び出します。
+- **アクセスされないデータ:** テレメトリはありません。トレーニング成果物以外のユーザーデータの保存はありません。認証情報は保存されません。APIキーは、実行時に環境変数から読み取られます。
+- **必要な権限:** トレーニングデータとチェックポイントディレクトリへの読み取り/書き込みアクセス。モデルトレーニングのためのGPUアクセス。APIベースの教師を使用する場合のみ、ネットワークアクセスが必要です。
 
 ## スコアカード
 
 | ゲート | ステータス |
 |------|--------|
-| A. セキュリティ基準 | 合格 |
-| B. エラー処理 | 合格 |
-| C. 運用者向けドキュメント | 合格 |
-| D. ソフトウェアの品質 | 合格 |
-| E. 識別 | 合格 |
+| A. セキュリティベースライン | PASS |
+| B. エラー処理 | PASS |
+| C. オペレーターのドキュメント | PASS |
+| D. 配送の衛生 | PASS |
+| E. アイデンティティ | PASS |
 
 ## ライセンス
 

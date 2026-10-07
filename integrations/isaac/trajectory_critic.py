@@ -213,7 +213,7 @@ class TrajectoryEncoder(nn.Module):
                     x, lengths, batch_first=True, enforce_sorted=False
                 )
                 x, _ = self.encoder(x)
-                x, _ = nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
+                x, _ = nn.utils.rnn.pad_packed_sequence(x, batch_first=True, total_length=mask.shape[1])
             else:
                 x, _ = self.encoder(x)
 

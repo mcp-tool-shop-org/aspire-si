@@ -1,17 +1,17 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-06 from commit 65923f9 by Atlas 1.24.0.
+Mapped at 2026-10-07 from commit 35b5597 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (96 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (127 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-06 (478093f)
+## What changed since 2026-10-06 (65923f9)
 
-- CI now also runs examples/geometry_demo.py.
-- 3 files added, across 3 parts.
+- Makefile is now read by tests/integrations/code/test_code_analysis_unit.py.
+- 34 files added and 57 changed content, across 6 parts.
 
 ## What comes in
 
@@ -78,9 +78,9 @@ Read those in order to follow one pull request end to end.
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 13 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code`, which is no module on its import path and no declared dependency; `integrations/code/examples/basic_critique.py` imports `aspire.integrations.code.config`, which is no module on its import path and no declared dependency; and 10 more.
+- 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
 - 3 writes and 8 reads use paths built at run time and are not named here.
-- 5 writes and 18 reads go to a path their caller passes, not to this repository.
+- 5 writes and 17 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
 
