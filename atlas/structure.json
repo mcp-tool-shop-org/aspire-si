@@ -1385,7 +1385,11 @@
         {
           "exports": [
             "default_device",
-            "extract_json_object"
+            "evaluation_request",
+            "extract_improved",
+            "extract_json_object",
+            "extract_score",
+            "parse_evaluation"
           ],
           "failurePaths": [
             {
@@ -1399,12 +1403,12 @@
               "line": 65
             },
             {
-              "in": "_parse_evaluation",
+              "in": "parse_evaluation",
               "kind": "except",
-              "line": 270
+              "line": 117
             }
           ],
-          "hash": "86d2bb2a9c3d8cff5991d5a064987d8183a1b7fc2d1a43aedd45f590f4802024",
+          "hash": "c981c4c921ac4b1f6ac2e93858423aa5e205b312cdf8ba7387d721d955185075",
           "importsFiles": [
             "aspire/teachers/base.py"
           ],
@@ -1797,7 +1801,7 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 42,
+      "testedBy": 43,
       "unresolvedNamed": [
         {
           "path": "aspire/cli.py",
@@ -1839,7 +1843,7 @@
       "unresolvedSites": 0
     },
     {
-      "dynamicReads": 3,
+      "dynamicReads": 5,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 0,
@@ -2010,6 +2014,124 @@
             "aspire/geometry.py"
           ],
           "path": "examples/pod-run/upgrade_export.py"
+        },
+        {
+          "exports": [
+            "build",
+            "main"
+          ],
+          "hash": "7102a1418a5a0210f60801ef5e1c46e1df533f2d3ee9d22d653f366446a1d335",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/build_dataset.py"
+        },
+        {
+          "exports": [
+            "answer",
+            "main",
+            "score_answers"
+          ],
+          "hash": "7894f8200ebb818218d28862b8f75a8cb1822f1d0e51740a6187b07d7ace3e0d",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/probe_models.py"
+          ],
+          "path": "examples/sft-experiment/eval_heldout.py"
+        },
+        {
+          "exports": [
+            "evaluate",
+            "main"
+          ],
+          "hash": "0ce05015105f738c08e9e6f9e5a5cc3a8457cb95673a48df1e8c2ecacde765bf",
+          "importOrder": [
+            "examples/sft-experiment/lib.py",
+            "aspire/judge.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/judge_eval.py"
+        },
+        {
+          "exports": [
+            "bootstrap_ci",
+            "challenge_request",
+            "challenge_types",
+            "content_words",
+            "dedupe",
+            "mean_ci",
+            "pairwise_accuracy",
+            "parse_question_list",
+            "question_request",
+            "read_jsonl",
+            "score_of",
+            "scoring_request",
+            "similarity",
+            "split_held_out",
+            "teacher_name",
+            "teacher_system_prompt",
+            "write_jsonl"
+          ],
+          "failurePaths": [
+            {
+              "in": "parse_question_list",
+              "kind": "except",
+              "line": 196
+            },
+            {
+              "in": "generate",
+              "kind": "raise",
+              "line": 272
+            }
+          ],
+          "hash": "5d6e23699ea5d982a846c0a3fb02dcb7d3747dd2da572cfce64e6316362a8a22",
+          "importsFiles": [
+            "aspire/teachers/base.py",
+            "aspire/teachers/local.py"
+          ],
+          "path": "examples/sft-experiment/lib.py"
+        },
+        {
+          "hash": "5408dcc64188568afec924b6b077baead125f4df8a6c3f2b2d3d4fecd18aa378",
+          "path": "examples/sft-experiment/pod/plan_a.sh"
+        },
+        {
+          "exports": [
+            "alignment",
+            "drift_summary",
+            "load_pairs",
+            "main",
+            "parse_entry"
+          ],
+          "failurePaths": [
+            {
+              "in": "parse_entry",
+              "kind": "raise",
+              "line": 52
+            }
+          ],
+          "hash": "89e628be06dccb86cb38c633741ba2eee5a49e255813cc89c715879f3b035bd6",
+          "importsFiles": [
+            "aspire/geometry.py",
+            "aspire/judge.py"
+          ],
+          "path": "examples/sft-experiment/probe_models.py"
+        },
+        {
+          "exports": [
+            "collate",
+            "parse_args",
+            "tokenize_example",
+            "train"
+          ],
+          "hash": "2b6176fa5077224b49978182623a2342cd8d5322142d85bf4ba6ec49244cf360",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/sft.py"
         }
       ],
       "globs": [
@@ -2020,17 +2142,20 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 5,
+          "reads": 11,
           "where": [
             "caller"
           ],
-          "writes": 2
+          "writes": 12
         }
       ],
-      "outsideReads": 5,
-      "outsideWrites": 2,
+      "outsideReads": 11,
+      "outsideWrites": 12,
       "role": "code",
-      "testedBy": 0,
+      "testRunners": [
+        "pytest"
+      ],
+      "testedBy": 1,
       "unresolvedSites": 0
     },
     {
@@ -3608,6 +3733,22 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "fake_teacher"
+          ],
+          "hash": "4dd7e5fe0ba8d8e3e04101490f944b973366d1518428acda8778792f8e08120f",
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/eval_heldout.py",
+            "examples/sft-experiment/judge_eval.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/probe_models.py",
+            "examples/sft-experiment/sft.py"
+          ],
+          "path": "tests/test_sft_experiment.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "e086d100a3c518e045bc0f66fd1d1160c622db19ecda8cfc03c3ce4594a8f979",
           "importsFiles": [
             "aspire/teachers/base.py",
@@ -3886,7 +4027,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 1
+          "files": 7
         },
         {
           "boundary": "integrations",
@@ -3896,7 +4037,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 67
+          "files": 68
         }
       ],
       "readers": [],
@@ -3943,7 +4084,7 @@
         {
           "config": "pyproject.toml",
           "coverage": true,
-          "files": 67,
+          "files": 68,
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
@@ -4357,13 +4498,19 @@
       "from": "tests",
       "fromTests": true,
       "kind": "file",
+      "to": "examples"
+    },
+    {
+      "from": "tests",
+      "fromTests": true,
+      "kind": "file",
       "to": "integrations"
     }
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "1cd5353b8962e89b83c209ea32379367c5f7418e",
-    "tracked": 197
+    "commit": "ddf58cee4062994aa7fdf2205f9d4fbfa16a7471",
+    "tracked": 205
   },
   "landings": [
     {
@@ -4480,6 +4627,18 @@
     {
       "readers": [
         {
+          "by": "tests/test_sft_experiment.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "examples/sft-experiment",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
           "by": "TESTS-TODO.md",
           "call": "--cov",
           "confidence": "text"
@@ -4575,6 +4734,6 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 67,
+  "testFiles": 68,
   "unassigned": []
 }

@@ -1,18 +1,18 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-07 from commit 1cd5353 by Atlas 1.24.0.
+Mapped at 2026-10-07 from commit ddf58ce by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (134 files), CSS (2), TypeScript (2), shell (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (141 files), shell (3), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-07 (9b12d53)
+## What changed since 2026-10-07 (1cd5353)
 
-- examples/local-run/local-teacher.yaml is now also read by README.es.md, README.fr.md, README.hi.md, README.it.md, README.ja.md, README.pt-BR.md and README.zh.md.
-- examples/local-run/prompts.json is now also read by examples/pod-run/train.sh.
-- 6 files added and 20 changed content, across 6 parts.
+- tests now imports examples.
+- examples/sft-experiment/ is now read by tests/test_sft_experiment.py.
+- 8 files added and 1 changed content, across 3 parts.
 
 ## What comes in
 
@@ -43,6 +43,7 @@ CI writes nothing this map can see.
 
 - **aspire** is imported by 1 part (examples), and by 1 more only from tests; it sits on the path of 3 doors.
 - **integrations** is imported only from tests, by 1 part (tests), and sits on the path of 2 doors.
+- **examples** is imported only from tests, by 1 part (tests), and sits on the path of 1 door.
 
 ## What tends to change together
 
@@ -52,7 +53,7 @@ Window: 180 days; a pair counts from 3 shared commits, since the window holds fe
 
 ## What no test touches
 
-- **examples** is imported by no test.
+Every code part is imported by at least one test.
 
 ## Written but never read
 
@@ -80,8 +81,8 @@ Read those in order to follow one pull request end to end.
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
-- 3 writes and 11 reads use paths built at run time and are not named here.
-- 7 writes and 23 reads go to a path their caller passes, not to this repository.
+- 3 writes and 13 reads use paths built at run time and are not named here.
+- 17 writes and 29 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
 
