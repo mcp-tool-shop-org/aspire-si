@@ -3,7 +3,7 @@
 This plan follows the fine-tune-then-ASPIRE experiment ([report](2026-10-07-sft-then-aspire.md)).
 It ranks the next runs by how much each could change that experiment's conclusion. Each run has
 its decision rule fixed here, before it starts. The control runs (2026-10-06) and the seed-42
-fine-tune runs stay the comparison points. Nothing in this plan runs until Mike approves it.
+fine-tune runs stay the comparison points. Nothing in this plan runs until the maintainer approves it.
 
 **Where we stand.** $10.89 of the $20 cap is spent and $9.11 is left.
 - The headline result rests on one training run per condition. With the composite teacher, the
