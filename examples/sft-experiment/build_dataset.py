@@ -13,13 +13,18 @@ control prompts or their cached answers: new prompts near any of them are droppe
      are kept. That is up to two examples per prompt: [prompt -> answer] and
      [prompt -> answer -> challenge -> revision].
   4. Judge set: per held-out prompt, a strong answer and `--flaws-per-prompt` minimal edits of
-     it, each changing one fact, number or reasoning step. The planted error is the label; the
+     it, each changing one fact, number or reasoning step. The teacher names one sentence and its
+     edited form as JSON and the code applies it, so every pair differs only there. An edit that
+     is not found, unchanged, self-flagging or fails clean_dataset.py's filters is asked for again
+     (up to --edit-attempts times, at rising temperature). The planted error is the label; the
      teacher scores both sides only as a reference.
   5. Noise floor: the held-out strong answers are scored a second time.
 
 Every generated answer records whether it stopped at the token cap (`truncated`), so
 clean_dataset.py can drop it. `--questions` reuses an earlier run's questions.json, which with
-the same seed gives the same training and held-out prompts.
+the same seed gives the same training and held-out prompts. `--judge-only --from <dir>` keeps an
+earlier run's training data, strong answers and passing pairs, and plants errors only where a pair
+is missing.
 
 Writes to --out: questions.json, train.jsonl, held_out.json, judge_set.json, noise.json and
 report.json (counts, drop reasons, parse rates, score spreads).
@@ -32,19 +37,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import statistics
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from clean_dataset import pair_problems  # noqa: E402
 from lib import (  # noqa: E402
+    EDIT_REQUEST,
     FLAW_KINDS,
-    MINIMAL_EDIT_REQUEST,
     STUDENT_SYSTEM,
     TOPICS,
     Backend,
     Chat,
+    apply_edit,
     challenge_request,
     challenge_types,
     dedupe,
@@ -57,6 +65,77 @@ from lib import (  # noqa: E402
     teacher_system_prompt,
     write_jsonl,
 )
+
+EDIT_TEMPERATURES = (0.7, 0.8, 0.9, 1.0, 1.0)
+
+
+def plant_errors(
+    backend: Backend,
+    system: str,
+    held: list[tuple[str, str]],
+    strong: list[str],
+    slots: list[tuple[int, str]],
+    attempts: int = 5,
+) -> tuple[dict[tuple[int, str], str], dict[tuple[int, str], list[str]]]:
+    """Flawed answers for (prompt index, flaw kind) slots, and every attempt's outcome per slot."""
+    flawed: dict[tuple[int, str], str] = {}
+    log: dict[tuple[int, str], list[str]] = {slot: [] for slot in slots}
+    pending = list(slots)
+    for attempt in range(attempts):
+        if not pending:
+            break
+        replies = backend.generate(
+            [
+                Chat(system, [("user", EDIT_REQUEST.format(prompt=held[i][1], answer=strong[i], kind=kind))])
+                for i, kind in pending
+            ],
+            600,
+            EDIT_TEMPERATURES[min(attempt, len(EDIT_TEMPERATURES) - 1)],
+        )
+        retry = []
+        for (i, kind), reply in zip(pending, replies):
+            edited, why = apply_edit(reply, strong[i])
+            if edited is not None:
+                problems, _ = pair_problems(
+                    {
+                        "strong": strong[i],
+                        "flawed": edited,
+                        "strong_truncated": False,
+                        "flawed_truncated": False,
+                    }
+                )
+                why = "; ".join(problems) if problems else "ok"
+            log[(i, kind)].append(why)
+            if why == "ok":
+                flawed[(i, kind)] = edited
+            else:
+                retry.append((i, kind))
+        pending = retry
+    return flawed, log
+
+
+def judge_report(judge: list[dict], log: dict, prompts: int) -> dict:
+    pair_strong = [j["teacher_strong"] for j in judge]
+    pair_flawed = [j["teacher_flawed"] for j in judge]
+    outcomes: dict[str, int] = {}
+    for tries in log.values():
+        for why in tries:
+            first = why.split("; ")[0]
+            key = first.split(" ")[0] if first.startswith(("similarity", "length")) else first.split(":")[0]
+            outcomes[key] = outcomes.get(key, 0) + 1
+    return {
+        "prompts": prompts,
+        "pairs": len(judge),
+        "label": "the planted error: the strong answer is always the better one",
+        "teacher_reference_accuracy": pairwise_accuracy(pair_strong, pair_flawed) if judge else None,
+        "teacher_prefers_strong": sum(a > b for a, b in zip(pair_strong, pair_flawed)) / max(len(judge), 1),
+        "teacher_strong_mean": statistics.fmean(pair_strong) if judge else None,
+        "teacher_flawed_mean": statistics.fmean(pair_flawed) if judge else None,
+        "teacher_detectable_pairs": sum(bool(j["teacher_detects"]) for j in judge),
+        "teacher_detectable_prompts": len({j["prompt_id"] for j in judge if j["teacher_detects"]}),
+        "slots_without_an_edit": sum(1 for tries in log.values() if tries and tries[-1] != "ok"),
+        "edit_attempt_outcomes": outcomes,
+    }
 
 
 def build(
@@ -73,6 +152,7 @@ def build(
     questions: dict | None = None,
     answer_tokens: int = 1200,
     flaws_per_prompt: int = 2,
+    edit_attempts: int = 5,
 ) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     system = teacher_system_prompt(teacher)
@@ -200,29 +280,21 @@ def build(
         "kept_rate": len(rows) / max(2 * len(train), 1),
     }
 
-    # 4. Judge set on the held-out prompts: minimal edits of one strong answer per prompt.
+    # 4. Judge set on the held-out prompts: one strong answer per prompt, errors planted in it.
     strong = backend.generate([student([("user", p)]) for _, p in held], answer_tokens, 0.7)
     strong = [x.strip() for x in strong]
     strong_cut = backend.last_truncated
-    edits = [(i, kind) for i in range(len(held)) for kind in FLAW_KINDS[:flaws_per_prompt]]
-    flawed = backend.generate(
-        [
-            Chat(
-                system,
-                [("user", MINIMAL_EDIT_REQUEST.format(prompt=held[i][1], answer=strong[i], kind=kind))],
-            )
-            for i, kind in edits
-        ],
-        answer_tokens + 300,
-        0.7,
-    )
-    flawed_cut = backend.last_truncated
     n = len(held)
+    slots = [(i, kind) for i in range(n) if not strong_cut[i] for kind in FLAW_KINDS[:flaws_per_prompt]]
+    flawed, log = plant_errors(backend, system, held, strong, slots, edit_attempts)
+    made = [slot for slot in slots if slot in flawed]
     score_requests = [Chat(system, [("user", scoring_request(p, x))]) for (_, p), x in zip(held, strong)]
-    score_requests += [
-        Chat(system, [("user", scoring_request(held[i][1], f))]) for (i, _), f in zip(edits, flawed)
-    ]
-    scored = backend.generate(score_requests, 1536, 0.3)
+    scored = backend.generate(
+        score_requests
+        + [Chat(system, [("user", scoring_request(held[i][1], flawed[(i, k)]))]) for i, k in made],
+        1536,
+        0.3,
+    )
     strong_scores = [score_of(x, teacher)[0] for x in scored[:n]]
     flawed_scores = [score_of(x, teacher)[0] for x in scored[n:]]
     judge = [
@@ -232,33 +304,24 @@ def build(
             "topic": held[i][0],
             "prompt": held[i][1],
             "flaw_kind": kind,
+            "method": "sentence-edit",
+            "attempts": len(log[(i, kind)]),
             "strong": strong[i],
-            "flawed": f.strip(),
-            "strong_truncated": strong_cut[i],
-            "flawed_truncated": cut,
+            "flawed": flawed[(i, kind)],
+            "strong_truncated": False,
+            "flawed_truncated": False,
             "teacher_strong": strong_scores[i],
             "teacher_flawed": fs,
+            "teacher_detects": strong_scores[i] > fs,
         }
-        for k, ((i, kind), f, cut, fs) in enumerate(zip(edits, flawed, flawed_cut, flawed_scores))
+        for k, ((i, kind), fs) in enumerate(zip(made, flawed_scores))
     ]
     (out / "held_out.json").write_text(
         json.dumps([{"topic": t, "prompt": p} for t, p in held], indent=1, ensure_ascii=False),
         encoding="utf-8",
     )
     (out / "judge_set.json").write_text(json.dumps(judge, indent=1, ensure_ascii=False), encoding="utf-8")
-    pair_strong = [j["teacher_strong"] for j in judge]
-    pair_flawed = [j["teacher_flawed"] for j in judge]
-    report["judge_set"] = {
-        "prompts": n,
-        "pairs": len(judge),
-        "label": "the planted error: the strong answer is always the better one",
-        "teacher_reference_accuracy": pairwise_accuracy(pair_strong, pair_flawed) if judge else None,
-        "teacher_prefers_strong": sum(a > b for a, b in zip(pair_strong, pair_flawed)) / max(len(judge), 1),
-        "teacher_strong_mean": statistics.fmean(strong_scores) if n else None,
-        "teacher_flawed_mean": statistics.fmean(flawed_scores) if judge else None,
-        "strong_truncated": sum(strong_cut),
-        "flawed_truncated": sum(flawed_cut),
-    }
+    report["judge_set"] = judge_report(judge, log, n) | {"strong_truncated": sum(strong_cut)}
 
     # 5. Noise floor: the strong answers scored again.
     again = backend.generate(score_requests[:n], 1536, 0.3)
@@ -276,10 +339,92 @@ def build(
     return report
 
 
+def judge_only(
+    backend: Backend,
+    teacher: str,
+    source: Path,
+    out: Path,
+    flaws_per_prompt: int = 2,
+    edit_attempts: int = 5,
+) -> dict:
+    """Rebuild only the judge set of an earlier run: keep its strong answers and passing pairs,
+    plant errors where a (prompt, flaw kind) pair is missing, and copy everything else."""
+    out.mkdir(parents=True, exist_ok=True)
+    system = teacher_system_prompt(teacher)
+    held = [
+        (h["topic"], h["prompt"]) for h in json.loads((source / "held_out.json").read_text(encoding="utf-8"))
+    ]
+    old = json.loads((source / "judge_set.json").read_text(encoding="utf-8"))
+    index = {p: i for i, (_, p) in enumerate(held)}
+    strong: dict[int, str] = {}
+    strong_score: dict[int, float] = {}
+    strong_cut: dict[int, bool] = {}
+    kept: dict[tuple[int, str], dict] = {}
+    for pair in old:
+        i = index[pair["prompt"]]
+        strong[i], strong_score[i] = pair["strong"], pair["teacher_strong"]
+        strong_cut[i] = bool(pair.get("strong_truncated", False))
+        problems, _ = pair_problems(pair)
+        if not problems and pair.get("flaw_kind") in FLAW_KINDS[:flaws_per_prompt]:
+            kept[(i, pair["flaw_kind"])] = pair | {"method": pair.get("method", "rewrite")}
+    missing_strong = [i for i in range(len(held)) if i not in strong]
+    if missing_strong:
+        raise SystemExit(f"{source}/judge_set.json has no strong answer for prompts {missing_strong}")
+    texts = [strong[i] for i in range(len(held))]
+    slots = [
+        (i, kind)
+        for i in range(len(held))
+        if not strong_cut[i]
+        for kind in FLAW_KINDS[:flaws_per_prompt]
+        if (i, kind) not in kept
+    ]
+    flawed, log = plant_errors(backend, system, held, texts, slots, edit_attempts)
+    made = [slot for slot in slots if slot in flawed]
+    scored = backend.generate(
+        [Chat(system, [("user", scoring_request(held[i][1], flawed[(i, k)]))]) for i, k in made], 1536, 0.3
+    )
+    new = {
+        (i, kind): {
+            "prompt_id": i,
+            "topic": held[i][0],
+            "prompt": held[i][1],
+            "flaw_kind": kind,
+            "method": "sentence-edit",
+            "attempts": len(log[(i, kind)]),
+            "strong": strong[i],
+            "flawed": flawed[(i, kind)],
+            "strong_truncated": False,
+            "flawed_truncated": False,
+            "teacher_strong": strong_score[i],
+            "teacher_flawed": score_of(reply, teacher)[0],
+        }
+        for (i, kind), reply in zip(made, scored)
+    }
+    order = {kind: k for k, kind in enumerate(FLAW_KINDS)}
+    pairs = sorted({**kept, **new}.items(), key=lambda item: (item[0][0], order[item[0][1]]))
+    judge = [
+        pair
+        | {"pair_id": k, "prompt_id": i, "teacher_detects": pair["teacher_strong"] > pair["teacher_flawed"]}
+        for k, ((i, _), pair) in enumerate(pairs)
+    ]
+    (out / "judge_set.json").write_text(json.dumps(judge, indent=1, ensure_ascii=False), encoding="utf-8")
+    for name in ("train.jsonl", "held_out.json", "noise.json", "questions.json"):
+        if (source / name).exists() and source.resolve() != out.resolve():
+            shutil.copyfile(source / name, out / name)
+    report = json.loads((source / "report.json").read_text(encoding="utf-8"))
+    report["judge_set"] = judge_report(judge, log, len(held)) | {
+        "kept_from_source": len(kept),
+        "planted": len(new),
+        "source": str(source),
+    }
+    (out / "report.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
+    return report
+
+
 def main() -> None:  # pragma: no cover - runs on the pod
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--teacher", default="Qwen/Qwen2.5-32B-Instruct")
-    parser.add_argument("--eval-prompts", type=Path, required=True)
+    parser.add_argument("--eval-prompts", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--questions-per-topic", type=int, default=45)
     parser.add_argument("--held-out", type=int, default=64)
@@ -289,9 +434,29 @@ def main() -> None:  # pragma: no cover - runs on the pod
     parser.add_argument("--questions", type=Path, help="reuse this questions.json (same seed, same split)")
     parser.add_argument("--answer-tokens", type=int, default=1200)
     parser.add_argument("--flaws-per-prompt", type=int, default=2, choices=[1, 2])
+    parser.add_argument("--edit-attempts", type=int, default=5)
+    parser.add_argument("--judge-only", action="store_true", help="rebuild only the judge set of --from")
+    parser.add_argument("--from", dest="source", type=Path, help="the earlier run's directory (--judge-only)")
     args = parser.parse_args()
 
     from lib import Embedder, VllmBackend
+
+    if args.judge_only:
+        if not args.source:
+            parser.error("--judge-only needs --from")
+        report = judge_only(
+            VllmBackend(args.teacher, seed=args.seed),
+            args.teacher,
+            args.source,
+            args.out,
+            args.flaws_per_prompt,
+            args.edit_attempts,
+        )
+        print(json.dumps(report["judge_set"], indent=1))
+        print("DATASET-OK")
+        return
+    if not args.eval_prompts:
+        parser.error("--eval-prompts is required to build a dataset")
 
     questions = json.loads(args.questions.read_text(encoding="utf-8")) if args.questions else None
     embed = None if questions else Embedder()  # on the CPU: the GPU is the teacher's
@@ -311,6 +476,7 @@ def main() -> None:  # pragma: no cover - runs on the pod
         questions,
         args.answer_tokens,
         args.flaws_per_prompt,
+        args.edit_attempts,
     )
     print(json.dumps(report, indent=1))
     print("DATASET-OK")

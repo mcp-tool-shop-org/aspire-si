@@ -90,6 +90,12 @@ class TestQuestionParsing:
         assert lib.parse_question_list("no list here") == []
 
 
+STRONG_ANSWER = (
+    "A strong answer: at sea level water boils at 100 degrees Celsius, so the kettle switches off."
+)
+EDIT_HEAD = "Here is a question and a strong answer"
+
+
 def fake_teacher(chat: lib.Chat) -> str:
     """Plays the teacher and the student for build(): every request type gets a canned answer."""
     user = chat.turns[-1][1]
@@ -118,15 +124,15 @@ def fake_teacher(chat: lib.Chat) -> str:
         return json.dumps(questions)
     if user.startswith("Generate a"):
         return "  But what about the edge case?  "
-    if "Copy the answer word for word" in user:
-        return "A wrong answer."
+    if user.startswith("Here is a question and a strong answer"):
+        return json.dumps({"original": "boils at 100 degrees", "edited": "boils at 90 degrees"})
     if user.startswith("Evaluate this student response"):
-        score = 3 if "wrong answer" in user else 9
+        score = 3 if "90 degrees" in user else 9
         return json.dumps(
             {"overall_score": score, "dimension_scores": [{"dimension": "clarity", "score": score}]}
         )
     if chat.system == lib.STUDENT_SYSTEM:
-        return "A strong revision." if len(chat.turns) > 1 else "A strong answer."
+        return "A strong revision." if len(chat.turns) > 1 else STRONG_ANSWER
     raise AssertionError(f"unexpected request: {user[:60]}")
 
 
@@ -183,9 +189,13 @@ class TestBuildDataset:
         assert {j["flaw_kind"] for j in judge} == set(lib.FLAW_KINDS)
         assert judge[0]["strong_truncated"] is False and judge[0]["flawed_truncated"] is False
         assert report["judge_set"]["teacher_prefers_strong"] == 1.0
+        assert all(j["teacher_detects"] for j in judge)
+        assert report["judge_set"]["teacher_detectable_pairs"] == 24
         assert report["judge_set"]["prompts"] == 12 and report["judge_set"]["pairs"] == 24
-        edits = [c for c in backend.calls if "Copy the answer word for word" in c.turns[-1][1]]
-        assert len(edits) == 24 and "Strong answer: A strong answer." in edits[0].turns[-1][1]
+        assert judge[0]["flawed"] == STRONG_ANSWER.replace("100", "90")
+        assert judge[0]["method"] == "sentence-edit" and judge[0]["attempts"] == 1
+        edits = [c for c in backend.calls if c.turns[-1][1].startswith(EDIT_HEAD)]
+        assert len(edits) == 24 and f"Strong answer: {STRONG_ANSWER}" in edits[0].turns[-1][1]
         assert report["noise_floor"]["mean_abs_diff"] == 0.0
         # scoring uses aspire-si's own request and the control teacher's system prompt
         scoring = [c for c in backend.calls if c.turns[-1][1].startswith("Evaluate this student response")]
@@ -253,8 +263,123 @@ class TestBuildDataset:
         )
         rows = lib.read_jsonl(tmp_path / "train.jsonl")
         assert rows and all(r["truncated"] for r in rows)  # a revision whose first answer was cut, too
+        # no errors are planted in a truncated strong answer: the pair could never be used
+        assert json.loads((tmp_path / "judge_set.json").read_text(encoding="utf-8")) == []
+        report = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+        assert report["judge_set"]["strong_truncated"] == 12
+
+    def test_an_unusable_edit_is_asked_for_again(self, tmp_path):
+        seen = set()
+
+        def stubborn(chat):
+            user = chat.turns[-1][1]
+            if user.startswith(EDIT_HEAD) and user not in seen:
+                seen.add(user)  # the first attempt per slot copies the sentence unchanged
+                return json.dumps({"original": "boils at 100 degrees", "edited": "boils at 100 degrees"})
+            return fake_teacher(chat)
+
+        report = build_dataset.build(
+            lib.FakeBackend(stubborn),
+            "Qwen/Qwen2.5-32B-Instruct",
+            EVAL_PROMPTS,
+            tmp_path,
+            questions_per_topic=15,
+            held_out=4,
+            train_cap=8,
+        )
         judge = json.loads((tmp_path / "judge_set.json").read_text(encoding="utf-8"))
-        assert all(j["strong_truncated"] and not j["flawed_truncated"] for j in judge)
+        assert len(judge) == 8 and all(j["attempts"] == 2 for j in judge)
+        assert report["judge_set"]["edit_attempt_outcomes"] == {"edit unchanged": 8, "ok": 8}
+        assert report["judge_set"]["slots_without_an_edit"] == 0
+
+    def test_judge_only_keeps_passing_pairs_and_fills_the_rest(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        held = [{"topic": "t", "prompt": "q0"}, {"topic": "t", "prompt": "q1"}]
+        fact, step = lib.FLAW_KINDS
+        good = STRONG_ANSWER.replace("Celsius", "Kelvin")
+        old = [
+            {
+                "prompt": "q0",
+                "flaw_kind": fact,
+                "strong": STRONG_ANSWER,
+                "flawed": good,
+                "teacher_strong": 9.0,
+                "teacher_flawed": 9.0,
+                "strong_truncated": False,
+                "flawed_truncated": False,
+            },
+            {
+                "prompt": "q0",
+                "flaw_kind": step,
+                "strong": STRONG_ANSWER,
+                "flawed": STRONG_ANSWER,
+                "teacher_strong": 9.0,
+                "teacher_flawed": 9.0,
+                "strong_truncated": False,
+                "flawed_truncated": False,
+            },
+            {
+                "prompt": "q1",
+                "flaw_kind": fact,
+                "strong": STRONG_ANSWER,
+                "flawed": STRONG_ANSWER,
+                "teacher_strong": 8.0,
+                "teacher_flawed": 8.0,
+                "strong_truncated": False,
+                "flawed_truncated": False,
+            },
+        ]  # q1's second kind is missing entirely
+        (src / "judge_set.json").write_text(json.dumps(old), encoding="utf-8")
+        (src / "held_out.json").write_text(json.dumps(held), encoding="utf-8")
+        (src / "report.json").write_text(json.dumps({"train_examples": {"kept": 1}}), encoding="utf-8")
+        lib.write_jsonl(src / "train.jsonl", [{"kind": "answer"}])
+        backend = lib.FakeBackend(fake_teacher)
+        report = build_dataset.judge_only(backend, "Qwen/Qwen2.5-32B-Instruct", src, tmp_path / "out")
+        judge = json.loads((tmp_path / "out" / "judge_set.json").read_text(encoding="utf-8"))
+        assert [(j["pair_id"], j["prompt_id"], j["flaw_kind"], j["method"]) for j in judge] == [
+            (0, 0, fact, "rewrite"),
+            (1, 0, step, "sentence-edit"),
+            (2, 1, fact, "sentence-edit"),
+            (3, 1, step, "sentence-edit"),
+        ]
+        assert (
+            judge[0]["flawed"] == good
+            and judge[3]["teacher_strong"] == 8.0
+            and judge[3]["teacher_flawed"] == 3
+        )
+        assert [j["teacher_detects"] for j in judge] == [False, True, True, True]
+        assert report["judge_set"]["kept_from_source"] == 1 and report["judge_set"]["planted"] == 3
+        assert report["train_examples"] == {"kept": 1}
+        assert lib.read_jsonl(tmp_path / "out" / "train.jsonl") == [{"kind": "answer"}]
+        # only the missing slots were asked for, and only the new pairs were scored
+        assert sum(c.turns[-1][1].startswith(EDIT_HEAD) for c in backend.calls) == 3
+        assert sum(c.turns[-1][1].startswith("Evaluate") for c in backend.calls) == 3
+
+
+class TestApplyEdit:
+    ANSWER = "First, $\\frac{1}{2}$ of the doors. Then the host opens one. So switching wins 2/3."
+
+    def edit(self, original, edited):
+        return lib.apply_edit(json.dumps({"original": original, "edited": edited}), self.ANSWER)
+
+    def test_applies_one_sentence(self):
+        text, why = self.edit("So switching wins 2/3.", "So switching wins 1/2.")
+        assert why == "ok" and text == self.ANSWER.replace("2/3.", "1/2.")
+
+    def test_rejections(self):
+        assert self.edit("A sentence that is not there.", "x")[1] == "original not in the answer"
+        assert self.edit("Then the host opens one.", "Then the host opens one.")[1] == "edit unchanged"
+        assert self.edit("Then the host opens one.", "Then the host opens one (this is the error).")[1] == (
+            "self-flagging: error, (this is"
+        )
+        assert lib.apply_edit("I changed nothing.", self.ANSWER) == (None, "no JSON edit")
+
+    def test_latex_backslashes_survive_json(self):
+        # the model writes \frac unescaped; JSON reads \f as a form feed
+        reply = '{"original": "First, $\\frac{1}{2}$ of the doors.", "edited": "First, $\\frac{1}{3}$ of the doors."}'
+        text, why = lib.apply_edit(reply, self.ANSWER)
+        assert why == "ok" and "{1}{3}" in text
 
 
 STRONG = (
@@ -425,6 +550,31 @@ class TestEvalAndJudge:
         result = judge_eval.evaluate(scorer, pairs)
         assert result["accuracy"] == 1.0 and result["mean_gap"] == 7.0
         assert judge_eval.prompt_groups([{"prompt": "p", "prompt_id": 3}, {"prompt": "q"}]) == [3, "q"]
+
+    def test_judge_reports_the_teacher_detectable_subset(self):
+        def score(prompts, responses):
+            return [9.0 if "good" in r else 5.0 if "subtle" in r else 2.0 for r in responses]
+
+        scorer = SimpleNamespace(score_many=score)
+        seen = [
+            {"prompt": f"p{k}", "prompt_id": k, "strong": "good", "flawed": "bad", "teacher_detects": True}
+            for k in range(4)
+        ]
+        missed = [
+            {
+                "prompt": f"q{k}",
+                "prompt_id": 10 + k,
+                "strong": "subtle",
+                "flawed": "subtle!",
+                "teacher_detects": False,
+            }
+            for k in range(4)
+        ]
+        result = judge_eval.evaluate(scorer, seen + missed)
+        assert result["accuracy"] == 0.75 and result["pairs"] == 8
+        subset = result["teacher_detectable"]
+        assert subset["accuracy"] == 1.0 and (subset["pairs"], subset["prompts"]) == (4, 4)
+        assert judge_eval.evaluate(scorer, missed)["teacher_detectable"] is None
 
 
 class TestProbe:

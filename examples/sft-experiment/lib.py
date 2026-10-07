@@ -233,16 +233,51 @@ FLAW_KINDS = (
     "one reasoning step that does not follow from the step before it",
 )
 
-MINIMAL_EDIT_REQUEST = """Here is a question and a strong answer to it.
+EDIT_REQUEST = """Here is a question and a strong answer to it.
 
 Question: {prompt}
 
 Strong answer: {answer}
 
-Copy the answer word for word, except for {kind}, which you change so that the answer becomes
-wrong in substance. Change as few words as you can: one sentence at most. Keep everything else
-identical, including the formatting and the length. Do not mark, hint at, explain or correct the
-change anywhere. Reply with the edited answer only."""
+Plant {kind} in this answer by changing a single sentence, so that the answer becomes wrong in
+substance while still reading as confident and fluent. Change as few words of that sentence as you
+can. Do not mark, hint at, explain or correct the change.
+
+Reply with a JSON object only:
+{{"original": "<the sentence, copied exactly from the answer>",
+  "edited": "<the same sentence with the error planted>"}}"""
+
+# JSON decodes \f, \b, \t and \r in a model's LaTeX (\frac, \beta, \times, \rho) as control
+# characters; put the backslash back before looking for the sentence in the answer.
+_UNESCAPE = {"\f": "\\f", "\b": "\\b", "\t": "\\t", "\r": "\\r"}
+
+
+def _restore_latex(text: str) -> str:
+    for char, escaped in _UNESCAPE.items():
+        text = text.replace(char, escaped)
+    return text
+
+
+def apply_edit(reply: str, answer: str) -> tuple[str | None, str]:
+    """The answer with the model's one-sentence edit applied, or None and why it was rejected."""
+    data = extract_json_object(reply)
+    if not data or not isinstance(data.get("original"), str) or not isinstance(data.get("edited"), str):
+        return None, "no JSON edit"
+    for original, edited in (
+        (data["original"], data["edited"]),
+        (_restore_latex(data["original"]), _restore_latex(data["edited"])),
+    ):
+        original, edited = original.strip(), edited.strip()
+        if not original or original not in answer:
+            continue
+        if edited == original:
+            return None, "edit unchanged"
+        flags = [m for m in SELF_FLAG_MARKERS if edited.lower().count(m) > original.lower().count(m)]
+        if flags:
+            return None, "self-flagging: " + ", ".join(flags)
+        return answer.replace(original, edited, 1), "ok"
+    return None, "original not in the answer"
+
 
 # Words a rewrite uses when it points at its own planted error.
 SELF_FLAG_MARKERS = ("error", "(this is", "should be", "incorrect", "mistake", "note:")
