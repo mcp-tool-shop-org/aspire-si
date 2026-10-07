@@ -47,6 +47,12 @@ is fixed and covered by a test that failed before the fix.
   `probe.py` and `drift.py`. `probe.py` replays a fixed set of exchanges through the base student
   and every epoch checkpoint; `drift.py` writes a geometry export of what training changed, with
   prompt identity removed. Run report: `docs/runs/2026-10-06-pod-run.md`.
+- Geometry exports are schema 1.1. `run_metadata.step_axis` (`training_step` or
+  `checkpoint_by_item`, with `checkpoints`) and `run_metadata.scalar_source` (`live`, `replayed`
+  or `fixed_per_item`) say how to read the steps, so ScalarScope can withhold time-based
+  comparisons on probe and drift exports and failure dips on replayed scores. The trainer marks a
+  run of more than one epoch as `replayed`. `examples/pod-run/upgrade_export.py` adds the two
+  facts to a 1.0 export written by the trainer, without touching its data.
 
 ### Changed
 

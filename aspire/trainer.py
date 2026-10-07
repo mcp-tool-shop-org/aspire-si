@@ -205,6 +205,8 @@ class AspireTrainer:
                 seed=config.seed,
                 window=config.training.geometry_window,
                 every=config.training.geometry_every,
+                # Dialogues are cached, so epochs after the first replay the first epoch's scores.
+                scalar_source="replayed" if config.training.num_epochs > 1 else "live",
             )
 
         console.print("[green]ASPIRE Trainer initialized[/green]")

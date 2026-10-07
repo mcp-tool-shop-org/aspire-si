@@ -97,3 +97,15 @@ epoch checkpoint and subtract each exchange's base state. `examples/pod-run/prob
 removed. In those runs the drift grew every epoch and pointed the same way for every exchange. It
 did not line up with the teacher's scores, because 1.2.0 does not yet train the student toward
 better answers.
+
+Exports are schema 1.1, and `run_metadata` states both of these facts:
+
+| Field | Values |
+|-------|--------|
+| `step_axis` | `training_step`: steps in training order. `checkpoint_by_item`: one block of the same items per checkpoint, in a fixed order, so the order within a block is not time. |
+| `checkpoints` | The number of blocks, present with `checkpoint_by_item`. |
+| `scalar_source` | `live`: every step scored afresh. `replayed`: epochs after the first reuse cached scores (the trainer with more than one epoch). `fixed_per_item`: each item's scores repeat in every block. |
+
+ScalarScope uses them to withhold the comparisons that would read such steps as time, or replayed
+scores as new failures. `GeometryRecorder(step_axis=..., checkpoints=..., scalar_source=...)` sets
+them when you write your own export.

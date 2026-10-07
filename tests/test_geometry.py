@@ -49,13 +49,16 @@ class TestShape:
     def test_the_export_has_scalarscopes_fields_and_reads_back(self, tmp_path):
         path = line_run().write(tmp_path / "out" / "geometry.json", training_items=40, cycles=3)
         document = json.loads(path.read_text(encoding="utf-8"))
-        assert document["schema_version"] == "1.0"
+        assert document["schema_version"] == "1.1"
         assert set(document) == {
             "schema_version", "run_metadata", "reduction", "trajectory",
             "scalars", "geometry", "evaluators", "failures",
         }
         meta = document["run_metadata"]
         assert (meta["run_id"], meta["training_items"], meta["cycles"]) == ("run", 40, 3)
+        # A 1.1 export states its step axis and scalar source; checkpoints only for blocks.
+        assert (meta["step_axis"], meta["scalar_source"]) == ("training_step", "live")
+        assert "checkpoints" not in meta
         steps = document["trajectory"]["timesteps"]
         assert len(steps) == 12
         assert steps[0]["t"] == 0.0 and steps[-1]["t"] == 1.0
@@ -65,6 +68,29 @@ class TestShape:
         assert document["reduction"]["input_dim"] == 6
         assert len(document["reduction"]["components"]) == 2
         assert len(document["reduction"]["components"][0]) == 6
+
+    def test_a_checkpoint_by_item_export_states_its_blocks(self):
+        rec = GeometryRecorder(
+            run_id="drift", step_axis="checkpoint_by_item", checkpoints=3, scalar_source="fixed_per_item"
+        )
+        for i in range(6):
+            rec.record_step([float(i), 1.0], {"clarity": 5.0})
+        meta = rec.build()["run_metadata"]
+        assert (meta["step_axis"], meta["checkpoints"], meta["scalar_source"]) == (
+            "checkpoint_by_item", 3, "fixed_per_item")
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"step_axis": "time"},
+            {"scalar_source": "cached"},
+            {"step_axis": "checkpoint_by_item"},
+            {"step_axis": "checkpoint_by_item", "checkpoints": 0},
+        ],
+    )
+    def test_unknown_axes_and_sources_are_refused(self, kwargs):
+        with pytest.raises(ValueError):
+            GeometryRecorder(run_id="x", **kwargs)
 
     def test_scores_are_scaled_to_zero_one(self):
         values = line_run().build()["scalars"]["values"]

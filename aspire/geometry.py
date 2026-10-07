@@ -41,7 +41,14 @@ from typing import Any
 
 import numpy as np
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+# What a step is. "training_step": steps in training order (the trainer's export).
+# "checkpoint_by_item": blocks of the same items in a fixed order, one block per checkpoint
+# (probe and drift exports), so the order within a block is not time.
+STEP_AXES = ("training_step", "checkpoint_by_item")
+# Where the scalars come from. "live": every step scored afresh. "replayed": epochs after the
+# first reuse cached scores. "fixed_per_item": each item's scores repeat in every block.
+SCALAR_SOURCES = ("live", "replayed", "fixed_per_item")
 # Teacher scores are 0-10; the export holds 0-1 as ScalarScope's samples do.
 SCORE_SCALE = 10.0
 # A ratio with a zero second eigenvalue is written as this instead of infinity.
@@ -72,16 +79,35 @@ class GeometryRecorder:
     dip_threshold: float = 0.1
     # Steps before a step that the dip median is taken over.
     dip_window: int = 5
+    # How a reader should treat the step axis and the scalars (see STEP_AXES, SCALAR_SOURCES).
+    step_axis: str = "training_step"
+    checkpoints: int | None = None
+    scalar_source: str = "live"
     _steps: list[_Step] = field(default_factory=list, init=False, repr=False)
     _pending: list[_Step] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if not self.run_id.strip() and not self.condition.strip():
             raise ValueError("A geometry export needs a run_id or a condition.")
+        if self.step_axis not in STEP_AXES:
+            raise ValueError(f"step_axis must be one of {', '.join(STEP_AXES)}, not {self.step_axis!r}.")
+        if self.scalar_source not in SCALAR_SOURCES:
+            raise ValueError(
+                f"scalar_source must be one of {', '.join(SCALAR_SOURCES)}, not {self.scalar_source!r}."
+            )
+        if self.step_axis == "checkpoint_by_item" and (self.checkpoints is None or self.checkpoints < 1):
+            raise ValueError("A checkpoint_by_item export needs checkpoints (1 or more).")
         if self.every < 1:
             raise ValueError("every must be 1 or more.")
         if self.window < 1:
             raise ValueError("window must be 1 or more.")
+
+    def _axis_metadata(self) -> dict[str, Any]:
+        """The 1.1 fields: what a step is, and where the scalars come from."""
+        fields: dict[str, Any] = {"step_axis": self.step_axis, "scalar_source": self.scalar_source}
+        if self.step_axis == "checkpoint_by_item":
+            fields["checkpoints"] = int(self.checkpoints or 0)
+        return fields
 
     def __len__(self) -> int:
         return len(self._steps)
@@ -198,6 +224,7 @@ class GeometryRecorder:
                 "cycles": int(cycles),
                 "holdout_professor": self.holdout_professor,
                 "conscience_tier": self.conscience_tier,
+                **self._axis_metadata(),
             },
             "reduction": {
                 "method": "PCA",

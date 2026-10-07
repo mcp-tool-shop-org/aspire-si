@@ -35,6 +35,9 @@ recorder = GeometryRecorder(
     run_id=f"{run.name}-drift",
     condition=f"drift from base: {len(prompts)} fixed exchanges x {', '.join(names[1:])}",
     window=4,
+    step_axis="checkpoint_by_item",
+    checkpoints=states.shape[0] - 1,
+    scalar_source="fixed_per_item",
 )
 for k in range(1, states.shape[0]):
     for i, prompt in enumerate(prompts):

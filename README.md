@@ -307,6 +307,12 @@ the same fixed exchanges through the base student and every epoch checkpoint and
 export with prompt identity removed. ScalarScope's real fixtures are both kinds, and all of them
 cover all three epochs.
 
+Exports are schema 1.1. `run_metadata` says how to read the steps: `step_axis` is
+`training_step` (the trainer's export, in training order) or `checkpoint_by_item` (probe and drift
+exports, one block of the same items per checkpoint, with `checkpoints` giving the count), and
+`scalar_source` is `live`, `replayed` (epochs after the first reuse cached scores) or
+`fixed_per_item`. ScalarScope withholds the comparisons that would read such steps as time.
+
 ---
 
 ## Project Structure
