@@ -17,7 +17,7 @@ teacher:
   local_load_in_4bit: true
   max_dialogue_turns: 3
 training:
-  num_epochs: 2
-  batch_size: 2
+  num_epochs: 3
+  batch_size: 1
   gradient_accumulation_steps: 1
   output_dir: outputs/real-composite-teacher
