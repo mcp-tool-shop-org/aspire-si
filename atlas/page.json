@@ -31,30 +31,46 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 34,
-      "changed": 57,
+      "added": 1,
+      "changed": 16,
       "moved": 0,
-      "parts": 6,
-      "removed": 0
+      "parts": 5,
+      "removed": 1
     },
     "items": [
       {
-        "kind": "landing",
-        "sentence": "Makefile is now read by tests/integrations/code/test_code_analysis_unit.py.",
+        "kind": "door",
+        "sentence": "Publish to PyPI (.github/workflows/publish.yml) is no longer a door.",
         "subjects": [
-          "Makefile",
-          "tests/integrations/code/test_code_analysis_unit.py"
+          ".github/workflows/publish.yml"
+        ]
+      },
+      {
+        "kind": "door",
+        "sentence": "Release to PyPI (.github/workflows/release.yml) is a new door. It starts when a release is published. It checks aspire/ and integrations/.",
+        "subjects": [
+          ".github/workflows/release.yml",
+          "aspire/",
+          "integrations/"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "pyproject.toml is now read by .github/workflows/release.yml.",
+        "subjects": [
+          "pyproject.toml",
+          ".github/workflows/release.yml"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "34 files added and 57 changed content, across 6 parts.",
+        "sentence": "1 file added, 1 removed and 16 changed content, across 5 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "65923f99a814626ff507b6e8a686907dd03c7235",
-      "generatedAt": "2026-10-06T22:52:32.502Z"
+      "commit": "35b5597849bca5e92bc2e958ef99d4c590837585",
+      "generatedAt": "2026-10-07T00:10:36.956Z"
     },
     "unchanged": false
   },
@@ -63,7 +79,7 @@
     "Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits."
   ],
   "changesTogetherWithTests": 0,
-  "commit": "35b5597849bca5e92bc2e958ef99d4c590837585",
+  "commit": "9ae184bea060fd9347e1c2eb713d228615399a04",
   "defaultBranch": "main",
   "derived": "8 parts, mostly Python (127 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
@@ -124,10 +140,10 @@
       ],
       "checksCount": 2,
       "checksMore": 0,
-      "file": ".github/workflows/publish.yml",
-      "id": ".github/workflows/publish.yml",
+      "file": ".github/workflows/release.yml",
+      "id": ".github/workflows/release.yml",
       "landings": [],
-      "name": "Publish to PyPI",
+      "name": "Release to PyPI",
       "pushes": false,
       "reach": [
         {
@@ -216,7 +232,7 @@
   "edges": [],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-07T00:10:36.956Z",
+  "generatedAt": "2026-10-07T00:34:20.970Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",

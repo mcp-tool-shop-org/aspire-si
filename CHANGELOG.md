@@ -5,7 +5,9 @@ All notable changes to ASPIRE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-10-06
+
+The first release as aspire-si, and the first on PyPI.
 
 ### Changed
 
@@ -16,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI fails when a test fails (the test step used to be allowed to fail), installs the CPU build
   of torch, runs the geometry demo, and checks the Atlas map.
 - Dependabot runs monthly, three pull requests at most, with grouped updates.
+- New logo: the rocket A reading ASPIRE-SI (brand slug `aspire-si`), in the README and the
+  handbook header.
+- The PyPI workflow is `release.yml`, publishing with Trusted Publishing through the `pypi`
+  environment. It refuses a release whose tag does not match the version in `pyproject.toml`,
+  and pins the publish action to a commit.
 - Coverage is held at 90%: CI runs `pytest --cov-fail-under=90` over `aspire/` and
   `integrations/`, and `codecov.yml` sets the same target for the project and for each pull
   request. Codecov uploads over OIDC, without a stored token. Coverage is now 99%, up from 62%.

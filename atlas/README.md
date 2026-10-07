@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-07 from commit 35b5597 by Atlas 1.24.0.
+Mapped at 2026-10-07 from commit 9ae184b by Atlas 1.24.0.
 
 ## What this is
 
@@ -8,15 +8,17 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (127 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-06 (65923f9)
+## What changed since 2026-10-07 (35b5597)
 
-- Makefile is now read by tests/integrations/code/test_code_analysis_unit.py.
-- 34 files added and 57 changed content, across 6 parts.
+- Publish to PyPI (.github/workflows/publish.yml) is no longer a door.
+- Release to PyPI (.github/workflows/release.yml) is a new door. It starts when a release is published. It checks aspire/ and integrations/.
+- pyproject.toml is now read by .github/workflows/release.yml.
+- 1 file added, 1 removed and 16 changed content, across 5 parts.
 
 ## What comes in
 
 1. **CI.** On a pull request to main touching 7 paths; on a push to main touching 7 paths; or by hand. Runs examples/geometry_demo.py and tests/; checks aspire/ and integrations/.
-2. **Publish to PyPI.** When a release is published. Checks aspire/ and integrations/.
+2. **Release to PyPI.** When a release is published. Checks aspire/ and integrations/.
 3. **Deploy site to GitHub Pages.** On a push to main touching 2 paths; or by hand. Runs site/astro.config.mjs and site/src/.
 4. **aspire** (a command people run). Runs aspire/cli.py.
 
@@ -32,7 +34,7 @@ CI writes nothing this map can see.
 
 ## The other doors
 
-**Publish to PyPI** checks aspire/ and integrations/, and publishes to PyPI.
+**Release to PyPI** checks aspire/ and integrations/, and publishes to PyPI.
 
 **Deploy site to GitHub Pages** runs site/astro.config.mjs and site/src/, and deploys the site.
 

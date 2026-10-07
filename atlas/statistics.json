@@ -152,18 +152,18 @@
         "path": ".github/dependabot.yml"
       },
       {
-        "commits": 3,
-        "lines": 129,
+        "commits": 7,
+        "lines": 189,
         "path": ".github/workflows/ci.yml"
       },
       {
-        "commits": 1,
-        "lines": 50,
+        "commits": 3,
+        "lines": 62,
         "path": ".github/workflows/pages.yml"
       },
       {
-        "commits": 1,
-        "lines": 52,
+        "commits": 3,
+        "lines": 64,
         "path": ".github/workflows/publish.yml"
       },
       {
@@ -177,8 +177,8 @@
         "path": "ASPIRE-SPEC.md"
       },
       {
-        "commits": 4,
-        "lines": 197,
+        "commits": 6,
+        "lines": 309,
         "path": "CHANGELOG.md"
       },
       {
@@ -212,43 +212,43 @@
         "path": "PRESS_RELEASE.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 969,
         "path": "README.es.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 955,
         "path": "README.fr.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 933,
         "path": "README.hi.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 903,
         "path": "README.it.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 983,
         "path": "README.ja.md"
       },
       {
-        "commits": 4,
-        "lines": 553,
+        "commits": 6,
+        "lines": 659,
         "path": "README.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 937,
         "path": "README.pt-BR.md"
       },
       {
-        "commits": 4,
-        "lines": 481,
+        "commits": 6,
+        "lines": 1027,
         "path": "README.zh.md"
       },
       {
@@ -262,8 +262,8 @@
         "path": "SECURITY.md"
       },
       {
-        "commits": 1,
-        "lines": 82,
+        "commits": 3,
+        "lines": 114,
         "path": "SHIP_GATE.md"
       },
       {
@@ -277,13 +277,13 @@
         "path": "aspire/__init__.py"
       },
       {
-        "commits": 3,
-        "lines": 471,
+        "commits": 5,
+        "lines": 691,
         "path": "aspire/cli.py"
       },
       {
-        "commits": 4,
-        "lines": 201,
+        "commits": 6,
+        "lines": 207,
         "path": "aspire/config.py"
       },
       {
@@ -317,8 +317,8 @@
         "path": "aspire/dialogue/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 237,
+        "commits": 3,
+        "lines": 243,
         "path": "aspire/dialogue/formatter.py"
       },
       {
@@ -330,6 +330,11 @@
         "commits": 1,
         "lines": 236,
         "path": "aspire/dialogue/manager.py"
+      },
+      {
+        "commits": 2,
+        "lines": 150,
+        "path": "aspire/errors.py"
       },
       {
         "commits": 2,
@@ -362,38 +367,38 @@
         "path": "aspire/perception/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 865,
+        "commits": 3,
+        "lines": 879,
         "path": "aspire/perception/character.py"
       },
       {
-        "commits": 1,
-        "lines": 782,
+        "commits": 3,
+        "lines": 1222,
         "path": "aspire/perception/controlled_chaos.py"
       },
       {
-        "commits": 1,
-        "lines": 704,
+        "commits": 3,
+        "lines": 740,
         "path": "aspire/perception/empathy_evaluation.py"
       },
       {
-        "commits": 1,
-        "lines": 572,
+        "commits": 3,
+        "lines": 574,
         "path": "aspire/perception/integration.py"
       },
       {
-        "commits": 1,
-        "lines": 832,
+        "commits": 3,
+        "lines": 856,
         "path": "aspire/perception/metacognition.py"
       },
       {
-        "commits": 1,
-        "lines": 922,
+        "commits": 3,
+        "lines": 926,
         "path": "aspire/perception/syntropy.py"
       },
       {
-        "commits": 1,
-        "lines": 603,
+        "commits": 3,
+        "lines": 607,
         "path": "aspire/perception/theory_of_mind.py"
       },
       {
@@ -402,13 +407,13 @@
         "path": "aspire/teachers/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 373,
+        "commits": 3,
+        "lines": 387,
         "path": "aspire/teachers/base.py"
       },
       {
-        "commits": 1,
-        "lines": 243,
+        "commits": 3,
+        "lines": 269,
         "path": "aspire/teachers/claude.py"
       },
       {
@@ -422,8 +427,8 @@
         "path": "aspire/teachers/local.py"
       },
       {
-        "commits": 1,
-        "lines": 202,
+        "commits": 3,
+        "lines": 228,
         "path": "aspire/teachers/openai.py"
       },
       {
@@ -437,13 +442,13 @@
         "path": "aspire/teachers/registry.py"
       },
       {
-        "commits": 3,
-        "lines": 626,
+        "commits": 5,
+        "lines": 630,
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 3,
-        "lines": 196,
+        "commits": 5,
+        "lines": 224,
         "path": "atlas/README.md"
       },
       {
@@ -452,19 +457,24 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 3,
-        "lines": 632,
+        "commits": 5,
+        "lines": 724,
         "path": "atlas/page.json"
       },
       {
-        "commits": 3,
-        "lines": 2016,
+        "commits": 5,
+        "lines": 2252,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 3,
-        "lines": 6414,
+        "commits": 5,
+        "lines": 8326,
         "path": "atlas/structure.json"
+      },
+      {
+        "commits": 2,
+        "lines": 40,
+        "path": "codecov.yml"
       },
       {
         "commits": 1,
@@ -497,18 +507,18 @@
         "path": "examples/geometry_demo.py"
       },
       {
-        "commits": 2,
-        "lines": 233,
+        "commits": 4,
+        "lines": 269,
         "path": "integrations/code/README.md"
       },
       {
-        "commits": 1,
-        "lines": 84,
+        "commits": 3,
+        "lines": 102,
         "path": "integrations/code/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 529,
+        "commits": 3,
+        "lines": 549,
         "path": "integrations/code/analysis.py"
       },
       {
@@ -517,8 +527,8 @@
         "path": "integrations/code/code_critic.py"
       },
       {
-        "commits": 1,
-        "lines": 1066,
+        "commits": 3,
+        "lines": 1222,
         "path": "integrations/code/code_teacher.py"
       },
       {
@@ -527,23 +537,23 @@
         "path": "integrations/code/config.py"
       },
       {
-        "commits": 1,
-        "lines": 492,
+        "commits": 3,
+        "lines": 510,
         "path": "integrations/code/data.py"
       },
       {
-        "commits": 1,
-        "lines": 94,
+        "commits": 3,
+        "lines": 102,
         "path": "integrations/code/examples/basic_critique.py"
       },
       {
-        "commits": 1,
-        "lines": 174,
+        "commits": 3,
+        "lines": 186,
         "path": "integrations/code/examples/train_critic.py"
       },
       {
-        "commits": 1,
-        "lines": 570,
+        "commits": 3,
+        "lines": 590,
         "path": "integrations/code/trainer.py"
       },
       {
@@ -557,8 +567,8 @@
         "path": "integrations/forge/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 339,
+        "commits": 3,
+        "lines": 345,
         "path": "integrations/forge/image_critic.py"
       },
       {
@@ -582,43 +592,43 @@
         "path": "integrations/forge/scripts/aspire_train.py"
       },
       {
-        "commits": 1,
-        "lines": 337,
+        "commits": 3,
+        "lines": 345,
         "path": "integrations/forge/vision_teacher.py"
       },
       {
-        "commits": 2,
-        "lines": 243,
+        "commits": 4,
+        "lines": 275,
         "path": "integrations/isaac/README.md"
       },
       {
-        "commits": 1,
-        "lines": 69,
+        "commits": 3,
+        "lines": 73,
         "path": "integrations/isaac/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 144,
+        "commits": 3,
+        "lines": 162,
         "path": "integrations/isaac/config.py"
       },
       {
-        "commits": 1,
-        "lines": 122,
+        "commits": 3,
+        "lines": 134,
         "path": "integrations/isaac/examples/basic_training.py"
       },
       {
-        "commits": 1,
-        "lines": 232,
+        "commits": 3,
+        "lines": 236,
         "path": "integrations/isaac/examples/custom_teacher.py"
       },
       {
-        "commits": 1,
-        "lines": 253,
+        "commits": 3,
+        "lines": 265,
         "path": "integrations/isaac/examples/locomotion.py"
       },
       {
-        "commits": 1,
-        "lines": 566,
+        "commits": 3,
+        "lines": 584,
         "path": "integrations/isaac/isaac_wrapper.py"
       },
       {
@@ -627,13 +637,13 @@
         "path": "integrations/isaac/motion_teacher.py"
       },
       {
-        "commits": 1,
-        "lines": 637,
+        "commits": 3,
+        "lines": 713,
         "path": "integrations/isaac/trainer.py"
       },
       {
-        "commits": 1,
-        "lines": 608,
+        "commits": 3,
+        "lines": 612,
         "path": "integrations/isaac/trajectory_critic.py"
       },
       {
@@ -647,8 +657,8 @@
         "path": "passport.json"
       },
       {
-        "commits": 2,
-        "lines": 142,
+        "commits": 4,
+        "lines": 146,
         "path": "pyproject.toml"
       },
       {
@@ -657,19 +667,24 @@
         "path": "requirements-dev.txt"
       },
       {
-        "commits": 2,
-        "lines": 32,
+        "commits": 4,
+        "lines": 48,
         "path": "site/astro.config.mjs"
       },
       {
-        "commits": 1,
-        "lines": 7539,
+        "commits": 3,
+        "lines": 19851,
         "path": "site/package-lock.json"
       },
       {
-        "commits": 1,
-        "lines": 18,
+        "commits": 3,
+        "lines": 34,
         "path": "site/package.json"
+      },
+      {
+        "commits": 2,
+        "lines": 0,
+        "path": "site/src/assets/logo.png"
       },
       {
         "commits": 1,
@@ -677,13 +692,13 @@
         "path": "site/src/content.config.ts"
       },
       {
-        "commits": 2,
-        "lines": 123,
+        "commits": 4,
+        "lines": 141,
         "path": "site/src/content/docs/handbook/beginners.md"
       },
       {
-        "commits": 2,
-        "lines": 176,
+        "commits": 4,
+        "lines": 234,
         "path": "site/src/content/docs/handbook/cli.md"
       },
       {
@@ -692,19 +707,24 @@
         "path": "site/src/content/docs/handbook/getting-started.md"
       },
       {
-        "commits": 1,
-        "lines": 84,
+        "commits": 3,
+        "lines": 132,
         "path": "site/src/content/docs/handbook/how-it-works.md"
       },
       {
-        "commits": 2,
-        "lines": 45,
+        "commits": 4,
+        "lines": 55,
         "path": "site/src/content/docs/handbook/index.md"
       },
       {
-        "commits": 1,
-        "lines": 128,
+        "commits": 3,
+        "lines": 150,
         "path": "site/src/content/docs/handbook/integrations.md"
+      },
+      {
+        "commits": 2,
+        "lines": 154,
+        "path": "site/src/content/docs/handbook/scalarscope.md"
       },
       {
         "commits": 1,
@@ -717,8 +737,8 @@
         "path": "site/src/pages/index.astro"
       },
       {
-        "commits": 2,
-        "lines": 86,
+        "commits": 4,
+        "lines": 100,
         "path": "site/src/site-config.ts"
       },
       {
@@ -767,19 +787,104 @@
         "path": "tests/integrations/code/__init__.py"
       },
       {
+        "commits": 2,
+        "lines": 160,
+        "path": "tests/integrations/code/conftest.py"
+      },
+      {
         "commits": 1,
         "lines": 410,
         "path": "tests/integrations/code/test_code_analysis_comprehensive.py"
       },
       {
-        "commits": 1,
-        "lines": 846,
+        "commits": 2,
+        "lines": 1150,
+        "path": "tests/integrations/code/test_code_analysis_unit.py"
+      },
+      {
+        "commits": 2,
+        "lines": 182,
+        "path": "tests/integrations/code/test_code_config_unit.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1130,
+        "path": "tests/integrations/code/test_code_critic_unit.py"
+      },
+      {
+        "commits": 3,
+        "lines": 850,
         "path": "tests/integrations/code/test_code_data.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1032,
+        "path": "tests/integrations/code/test_code_data_extra.py"
       },
       {
         "commits": 1,
         "lines": 442,
         "path": "tests/integrations/code/test_code_teachers_comprehensive.py"
+      },
+      {
+        "commits": 2,
+        "lines": 2288,
+        "path": "tests/integrations/code/test_code_teachers_unit.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1508,
+        "path": "tests/integrations/code/test_code_trainer_unit.py"
+      },
+      {
+        "commits": 2,
+        "lines": 0,
+        "path": "tests/integrations/forge/__init__.py"
+      },
+      {
+        "commits": 2,
+        "lines": 806,
+        "path": "tests/integrations/forge/test_image_critic.py"
+      },
+      {
+        "commits": 2,
+        "lines": 168,
+        "path": "tests/integrations/forge/test_preload.py"
+      },
+      {
+        "commits": 2,
+        "lines": 892,
+        "path": "tests/integrations/forge/test_vision_teacher.py"
+      },
+      {
+        "commits": 2,
+        "lines": 0,
+        "path": "tests/integrations/isaac/__init__.py"
+      },
+      {
+        "commits": 2,
+        "lines": 268,
+        "path": "tests/integrations/isaac/test_config.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1100,
+        "path": "tests/integrations/isaac/test_isaac_wrapper.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1094,
+        "path": "tests/integrations/isaac/test_motion_teacher.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1252,
+        "path": "tests/integrations/isaac/test_trainer.py"
+      },
+      {
+        "commits": 2,
+        "lines": 810,
+        "path": "tests/integrations/isaac/test_trajectory_critic.py"
       },
       {
         "commits": 1,
@@ -792,9 +897,29 @@
         "path": "tests/perception/test_character.py"
       },
       {
-        "commits": 1,
-        "lines": 407,
+        "commits": 2,
+        "lines": 1080,
+        "path": "tests/perception/test_character_more.py"
+      },
+      {
+        "commits": 3,
+        "lines": 419,
         "path": "tests/perception/test_controlled_chaos.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1174,
+        "path": "tests/perception/test_controlled_chaos_more.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1374,
+        "path": "tests/perception/test_empathy_evaluation.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1854,
+        "path": "tests/perception/test_integration.py"
       },
       {
         "commits": 1,
@@ -802,14 +927,29 @@
         "path": "tests/perception/test_metacognition.py"
       },
       {
+        "commits": 2,
+        "lines": 972,
+        "path": "tests/perception/test_metacognition_more.py"
+      },
+      {
         "commits": 1,
         "lines": 634,
         "path": "tests/perception/test_syntropy.py"
       },
       {
+        "commits": 2,
+        "lines": 1110,
+        "path": "tests/perception/test_syntropy_more.py"
+      },
+      {
         "commits": 1,
         "lines": 353,
         "path": "tests/perception/test_theory_of_mind.py"
+      },
+      {
+        "commits": 2,
+        "lines": 856,
+        "path": "tests/perception/test_theory_of_mind_more.py"
       },
       {
         "commits": 1,
@@ -822,14 +962,44 @@
         "path": "tests/test_cli.py"
       },
       {
+        "commits": 2,
+        "lines": 374,
+        "path": "tests/test_cli_errors.py"
+      },
+      {
         "commits": 1,
         "lines": 1026,
         "path": "tests/test_code_critic.py"
       },
       {
-        "commits": 2,
-        "lines": 764,
+        "commits": 4,
+        "lines": 768,
         "path": "tests/test_config.py"
+      },
+      {
+        "commits": 2,
+        "lines": 498,
+        "path": "tests/test_coverage_critic.py"
+      },
+      {
+        "commits": 2,
+        "lines": 616,
+        "path": "tests/test_coverage_dialogue.py"
+      },
+      {
+        "commits": 2,
+        "lines": 324,
+        "path": "tests/test_coverage_losses.py"
+      },
+      {
+        "commits": 2,
+        "lines": 1358,
+        "path": "tests/test_coverage_teachers.py"
+      },
+      {
+        "commits": 2,
+        "lines": 548,
+        "path": "tests/test_coverage_trainer.py"
       },
       {
         "commits": 1,
@@ -912,9 +1082,9 @@
     "level": "low",
     "reason": "fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions"
   },
-  "generatedAt": "2026-10-07T00:10:36.956Z",
+  "generatedAt": "2026-10-07T00:34:20.970Z",
   "generatedFrom": {
-    "commit": "35b5597849bca5e92bc2e958ef99d4c590837585"
+    "commit": "9ae184bea060fd9347e1c2eb713d228615399a04"
   },
   "pairs": [],
   "parameters": {
@@ -927,16 +1097,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "both",
-    "headDate": "2026-10-06T16:25:17-07:00",
+    "headDate": "2026-10-06T17:25:29-07:00",
     "inScopeFiles": 187,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 3,
+    "qualifyingCommits": 4,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-09T23:25:17.000Z",
+    "since": "2026-04-10T00:25:29.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
