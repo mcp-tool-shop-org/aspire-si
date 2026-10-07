@@ -15,7 +15,7 @@ teacher:
     - local:google/gemma-4-31B-it
   composite_strategy: vote
   local_load_in_4bit: true
-  max_dialogue_turns: 1
+  max_dialogue_turns: 3
 training:
   num_epochs: 2
   batch_size: 2
