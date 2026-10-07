@@ -4,6 +4,7 @@ Claude-based teacher implementation.
 
 import json
 import os
+import re
 
 import anthropic
 
@@ -25,6 +26,39 @@ class ClaudeTeacherError(AspireError):
     code = "ASPIRE_CLAUDE_TEACHER"
 
 
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5"
+
+# Models that reject a non-default temperature (a 400): Claude Fable, Mythos, Opus 4.7 and later,
+# and Sonnet 5 and later. Older models still take one.
+_FIXED_SAMPLING = re.compile(r"^claude-(fable|mythos|opus-4-[78]|opus-[5-9]|sonnet-[5-9])")
+
+
+def accepts_temperature(model: str) -> bool:
+    """Whether a Claude model takes a `temperature` other than its default."""
+    return not _FIXED_SAMPLING.match(model)
+
+
+def reply_text(response) -> str:
+    """The text of a reply: its text blocks, skipping thinking blocks a current model returns first.
+
+    A declined request (stop reason `refusal`) has no answer to read and raises instead.
+    """
+    if getattr(response, "stop_reason", None) == "refusal":
+        details = getattr(response, "stop_details", None)
+        category = getattr(details, "category", None)
+        raise ClaudeTeacherError(
+            "Claude declined to answer this request" + (f" ({category})." if category else "."),
+            hint="Check the prompt that was being judged, or use another teacher for it.",
+        )
+    texts = []
+    for block in response.content:
+        kind = getattr(block, "type", None)
+        if isinstance(kind, str) and kind != "text":
+            continue
+        texts.append(block.text)
+    return "".join(texts)
+
+
 class ClaudeTeacher(BaseTeacher):
     """
     Teacher powered by Claude API.
@@ -35,7 +69,7 @@ class ClaudeTeacher(BaseTeacher):
 
     def __init__(
         self,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = DEFAULT_CLAUDE_MODEL,
         api_key: str | None = None,
         name: str = "Claude Teacher",
         description: str = "A thoughtful, nuanced teacher powered by Claude",
@@ -53,6 +87,10 @@ class ClaudeTeacher(BaseTeacher):
             )
 
         self.client = anthropic.AsyncAnthropic(api_key=resolved_key)
+
+    def _sampling(self, temperature: float) -> dict:
+        """`temperature`, for the models that accept one."""
+        return {"temperature": temperature} if accepts_temperature(self.model) else {}
 
     async def challenge(
         self,
@@ -96,14 +134,14 @@ Respond with JSON:
         response = await self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            temperature=self.temperature,
+            **self._sampling(self.temperature),
             system=self.get_system_prompt(),
             messages=[{"role": "user", "content": challenge_prompt}],
         )
 
         # Parse response
         try:
-            content = response.content[0].text
+            content = reply_text(response)
             # Extract JSON from response (handle markdown code blocks)
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0]
@@ -122,7 +160,7 @@ Respond with JSON:
             # Fallback: use raw response as challenge
             return TeacherChallenge(
                 challenge_type=challenge_type,
-                content=response.content[0].text,
+                content=reply_text(response),
                 difficulty=0.5,
             )
 
@@ -175,14 +213,14 @@ Respond with JSON:
         response = await self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens * 2,  # More tokens for detailed eval
-            temperature=0.3,  # Lower temperature for consistent evaluation
+            **self._sampling(0.3),  # Lower temperature for consistent evaluation, where allowed
             system=self.get_system_prompt(),
             messages=[{"role": "user", "content": eval_prompt}],
         )
 
         # Parse response
         try:
-            content = response.content[0].text
+            content = reply_text(response)
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0]
             elif "```" in content:
@@ -218,7 +256,7 @@ Respond with JSON:
             return TeacherEvaluation(
                 overall_score=5.0,
                 dimension_scores=[],
-                reasoning=response.content[0].text,
+                reasoning=reply_text(response),
             )
 
     def _get_challenge_description(self, challenge_type: ChallengeType) -> str:

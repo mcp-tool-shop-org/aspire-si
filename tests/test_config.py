@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import torch
 import yaml
 
 # ============================================================================
@@ -166,7 +167,7 @@ class TestTeacherConfig:
         assert config.temperature == 0.7
 
         # Model defaults
-        assert config.claude_model == "claude-sonnet-4-20250514"
+        assert config.claude_model == "claude-sonnet-5-5"
         assert config.openai_model == "gpt-4o"
 
         # Challenge types
@@ -436,7 +437,7 @@ class TestAspireConfig:
 
         # Check top-level defaults
         assert config.seed == 42
-        assert config.device == "cuda"
+        assert config.device == ("cuda" if torch.cuda.is_available() else "cpu")
         assert config.experiment_name == "aspire-run"
         assert config.use_wandb is False  # off by default: no data leaves the machine unasked
         assert config.wandb_project == "aspire-si"
@@ -523,7 +524,7 @@ student:
             assert config.student.lora_r == 64
 
             # Check defaults are used for missing
-            assert config.device == "cuda"  # default
+            assert config.device == ("cuda" if torch.cuda.is_available() else "cpu")  # default
             assert config.student.model_name_or_path == "microsoft/Phi-3-mini-4k-instruct"  # default
             assert config.training.batch_size == 4  # default
         finally:

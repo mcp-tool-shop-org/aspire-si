@@ -690,7 +690,7 @@ class TestAspireTrainerCheckpoint:
         checkpoint_dir.mkdir(parents=True)
 
         # Mock PeftModel where the trainer imports it
-        with patch("aspire.trainer.PeftModel") as mock_peft_model:
+        with patch("aspire.trainer.PeftModel", type("FakePeft", (), {"from_pretrained": MagicMock()})) as mock_peft_model:
             mock_loaded = MagicMock()
             mock_loaded.to = MagicMock(return_value=mock_loaded)
             mock_peft_model.from_pretrained.return_value = mock_loaded

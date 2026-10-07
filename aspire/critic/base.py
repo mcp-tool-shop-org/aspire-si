@@ -122,25 +122,23 @@ class BaseCritic(nn.Module, ABC):
             )
             return output.score.item()
 
+    def init_config(self) -> dict[str, Any]:
+        """The constructor arguments `load` rebuilds this critic with."""
+        return {
+            "hidden_dim": self.hidden_dim,
+            "score_dim": self.score_dim,
+            "reasoning_dim": self.reasoning_dim,
+            "num_dimensions": self.num_dimensions,
+        }
+
     def save(self, path: str) -> None:
         """Save critic state."""
-        torch.save(
-            {
-                "state_dict": self.state_dict(),
-                "config": {
-                    "hidden_dim": self.hidden_dim,
-                    "score_dim": self.score_dim,
-                    "reasoning_dim": self.reasoning_dim,
-                    "num_dimensions": self.num_dimensions,
-                },
-            },
-            path,
-        )
+        torch.save({"state_dict": self.state_dict(), "config": self.init_config()}, path)
 
     @classmethod
     def load(cls, path: str, **kwargs) -> "BaseCritic":
         """Load critic from saved state."""
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location="cpu")
         config = checkpoint["config"]
         config.update(kwargs)
 

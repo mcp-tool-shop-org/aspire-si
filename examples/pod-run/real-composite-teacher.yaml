@@ -1,0 +1,23 @@
+# The run behind ScalarScope's real-composite-teacher fixture: the same student and the
+# same 32B teacher, joined by Gemma 4 31B; the two vote on every score, and each one's
+# score is kept, so ScalarScope draws two professors. Run from the repository root:
+#   aspire train --config examples/pod-run/real-composite-teacher.yaml \
+#     --prompts examples/local-run/prompts.json --geometry
+experiment_name: real-composite-teacher
+seed: 42
+student:
+  model_name_or_path: Qwen/Qwen2.5-1.5B-Instruct
+  max_length: 1536
+teacher:
+  default_teacher: composite
+  composite_members:
+    - local:Qwen/Qwen2.5-32B-Instruct
+    - local:google/gemma-4-31B-it
+  composite_strategy: vote
+  local_load_in_4bit: true
+  max_dialogue_turns: 2
+training:
+  num_epochs: 2
+  batch_size: 2
+  gradient_accumulation_steps: 1
+  output_dir: outputs/real-composite-teacher

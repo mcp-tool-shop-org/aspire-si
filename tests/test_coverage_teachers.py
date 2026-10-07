@@ -418,9 +418,63 @@ class TestClaudeTeacher:
         ev = await teacher.evaluate("p", "r", history, generate_improved=False)
         assert ev.overall_score == 6 and ev.passed
         kwargs = client.messages.create.call_args.kwargs
-        assert kwargs["temperature"] == 0.3
+        # The default model (Sonnet 5.5) rejects a non-default temperature, so none is sent.
+        assert "temperature" not in kwargs
         assert kwargs["max_tokens"] == teacher.max_tokens * 2
         assert "hq" in kwargs["messages"][0]["content"]
+
+    async def test_older_models_still_get_the_evaluation_temperature(self, claude_teacher):
+        teacher, client = claude_teacher
+        teacher.model = "claude-sonnet-4-6"
+        client.messages.create.return_value = _claude_response('{"overall_score": 6}')
+        await teacher.evaluate("p", "r", generate_improved=False)
+        assert client.messages.create.call_args.kwargs["temperature"] == 0.3
+        await teacher.challenge("p", "r")
+        assert client.messages.create.call_args.kwargs["temperature"] == teacher.temperature
+
+    @pytest.mark.parametrize(
+        ("model", "accepts"),
+        [
+            ("claude-sonnet-5-5", False),
+            ("claude-sonnet-5", False),
+            ("claude-opus-5-5", False),
+            ("claude-opus-4-8", False),
+            ("claude-opus-4-7", False),
+            ("claude-fable-5-1", False),
+            ("claude-opus-4-6", True),
+            ("claude-sonnet-4-6", True),
+            ("claude-haiku-4-5", True),
+            ("claude-sonnet-4-20250514", True),
+        ],
+    )
+    def test_which_models_take_a_temperature(self, model, accepts):
+        from aspire.teachers.claude import accepts_temperature
+
+        assert accepts_temperature(model) is accepts
+
+    async def test_thinking_blocks_before_the_answer_are_skipped(self, claude_teacher):
+        teacher, client = claude_teacher
+        client.messages.create.return_value = SimpleNamespace(
+            stop_reason="end_turn",
+            content=[
+                SimpleNamespace(type="thinking", thinking=""),
+                SimpleNamespace(type="text", text='{"overall_score": 8}'),
+            ],
+        )
+        ev = await teacher.evaluate("p", "r", generate_improved=False)
+        assert ev.overall_score == 8
+
+    async def test_a_refusal_raises_a_teacher_error(self, claude_teacher):
+        from aspire.teachers.claude import ClaudeTeacherError
+
+        teacher, client = claude_teacher
+        client.messages.create.return_value = SimpleNamespace(
+            stop_reason="refusal",
+            stop_details=SimpleNamespace(category="cyber"),
+            content=[],
+        )
+        with pytest.raises(ClaudeTeacherError, match=r"declined.*\(cyber\)"):
+            await teacher.evaluate("p", "r")
 
     async def test_evaluate_falls_back_to_neutral_score_on_garbage(self, claude_teacher):
         teacher, client = claude_teacher
@@ -669,7 +723,7 @@ class TestLocalTeacher:
         assert t._extract_score("I give it 6.5/10 overall") == 6.5
         assert t._extract_score("9 out of ten") == 9.0
         assert t._extract_score("Score: 42") == 10.0
-        assert t._extract_score("no numbers here") == 5.0
+        assert t._extract_score("no numbers here") is None
 
     def test_extract_improved_markers(self, local_teacher_factory):
         make, _ = local_teacher_factory

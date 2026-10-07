@@ -5,7 +5,7 @@ Tests for the ScalarScope training-dynamics export (aspire.geometry).
 import json
 import math
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -296,6 +296,7 @@ class TestTrainer:
         trainer.config = config
         trainer.device = "cpu"
         trainer.teacher = SimpleNamespace(name="socratic")
+        trainer.tokenizer = None
         trainer.geometry = GeometryRecorder(run_id="unit")
         trainer.critic = MagicMock(return_value=SimpleNamespace(score=torch.tensor([7.0]),
                                                                reasoning_embedding=torch.zeros(1, 4)))
@@ -305,9 +306,15 @@ class TestTrainer:
             trainer.student_model = MagicMock(
                 return_value=SimpleNamespace(hidden_states=(torch.full((1, 3, 4), float(step)),))
             )
-            dialogue = SimpleNamespace(final_evaluation=evaluation(6.0 + step, {"correctness": 6.0 + step}))
+            dialogue = SimpleNamespace(
+                prompt="p",
+                scored_response="r",
+                final_evaluation=evaluation(6.0 + step, {"correctness": 6.0 + step}),
+            )
             batch = {"input_ids": torch.zeros(1, 3, dtype=torch.long), "attention_mask": torch.ones(1, 3)}
-            trainer._compute_batch_loss(batch, [dialogue])
+            encoded = (torch.zeros(1, 3, dtype=torch.long), torch.ones(1, 3))
+            with patch("aspire.trainer.encode_exchanges", return_value=encoded):
+                trainer._compute_batch_loss(batch, [dialogue])
 
         written = trainer._write_geometry(training_items=3)
         document = json.loads((tmp_path / "geometry.json").read_text(encoding="utf-8"))

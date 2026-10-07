@@ -4,7 +4,7 @@ ASPIRE: Adversarial Student-Professor Internalized Reasoning Engine
 A fine-tuning paradigm that mirrors human learning through internalized critics.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 from aspire.config import AspireConfig
 from aspire.trainer import AspireTrainer

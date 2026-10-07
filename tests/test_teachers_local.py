@@ -422,9 +422,9 @@ class TestLocalTeacherScoreExtraction:
         assert score == 7.25
 
     def test_extract_score_no_match(self, teacher):
-        """Test _extract_score returns default when no score found."""
+        """Test _extract_score returns None when no score found (evaluate then uses 5.0)."""
         score = teacher._extract_score("No numeric value here.")
-        assert score == 5.0
+        assert score is None
 
     def test_extract_score_caps_at_10(self, teacher):
         """Test _extract_score caps score at 10."""
@@ -434,8 +434,8 @@ class TestLocalTeacherScoreExtraction:
     def test_extract_score_floors_at_0(self, teacher):
         """Test _extract_score floors score at 0."""
         score = teacher._extract_score("Score: -5")
-        # Since -5 doesn't match the patterns (they expect positive numbers), should default
-        assert score == 5.0
+        # -5 doesn't match the patterns (they expect positive numbers), so there is no score
+        assert score is None
 
 
 # ============================================================================
