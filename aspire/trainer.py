@@ -432,24 +432,37 @@ class AspireTrainer:
             if (epoch + 1) % 1 == 0:  # Save every epoch
                 self._save_checkpoint(epoch + 1)
 
+            # Write the export so far after each epoch, so a run stopped before the end
+            # (a deadline, Ctrl+C, a crash) keeps what it recorded. The last write is below.
+            if self.geometry is not None and epoch + 1 < cfg.num_epochs:
+                self._write_geometry(len(train_prompts), cycles=epoch + 1, quiet=True)
+
         if self.geometry is not None:
             metrics["geometry_export"] = self._write_geometry(len(train_prompts))
 
         return metrics
 
-    def _write_geometry(self, training_items: int) -> str | None:
-        """Write the ScalarScope export, or say why there is none."""
+    def _write_geometry(
+        self, training_items: int, cycles: int | None = None, quiet: bool = False
+    ) -> str | None:
+        """Write the ScalarScope export, or say why there is none.
+
+        ``cycles`` is the number of epochs it covers (all of them by default); ``quiet`` skips
+        the messages, for the write after each epoch.
+        """
         assert self.geometry is not None
         try:
             path = self.geometry.write(
                 Path(self.config.training.output_dir) / "geometry.json",
                 training_items=training_items,
-                cycles=self.config.training.num_epochs,
+                cycles=self.config.training.num_epochs if cycles is None else cycles,
             )
         except ValueError as error:
-            console.print(f"[yellow]No geometry export: {error}[/yellow]")
+            if not quiet:
+                console.print(f"[yellow]No geometry export: {error}[/yellow]")
             return None
-        console.print(f"  Geometry export: {path}")
+        if not quiet:
+            console.print(f"  Geometry export: {path}")
         return str(path)
 
     def _train_epoch(self, dataloader: DataLoader) -> dict[str, float]:
