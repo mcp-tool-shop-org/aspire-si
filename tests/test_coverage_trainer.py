@@ -113,6 +113,8 @@ class TestGeometryWiring:
             seed=123,
             window=7,
             every=3,
+            # three epochs (the default) replay the cached first-epoch scores
+            scalar_source="replayed",
         )
         assert trainer.geometry is make_trainer["GeometryRecorder"].return_value
 
@@ -145,6 +147,10 @@ class TestGeometryWiring:
         assert [c.args[0] for c in save.call_args_list] == [1, 2]
         _, kwargs = trainer.geometry.write.call_args
         assert kwargs == {"training_items": 4, "cycles": 2}
+
+    def test_a_one_epoch_run_has_live_scalars(self, make_trainer):
+        make_trainer["build"](training__geometry_export=True, training__num_epochs=1)
+        assert make_trainer["GeometryRecorder"].call_args.kwargs["scalar_source"] == "live"
 
     def test_train_writes_the_export_after_every_epoch(self, make_trainer):
         """A run stopped early (a deadline, Ctrl+C) keeps the steps it recorded."""

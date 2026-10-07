@@ -111,7 +111,9 @@ print(json.dumps(summary, indent=1))
 
 recorder = GeometryRecorder(run_id=f"{cfg.experiment_name}-probe",
                             condition=f"probe: {len(pairs)} fixed exchanges x {', '.join(names)}",
-                            seed=cfg.seed, window=cfg.training.geometry_window)
+                            seed=cfg.seed, window=cfg.training.geometry_window,
+                            step_axis="checkpoint_by_item", checkpoints=states.shape[0],
+                            scalar_source="fixed_per_item")
 for k in range(states.shape[0]):
     for i in range(states.shape[1]):
         recorder.record_step(states[k, i], scores[i], teacher_scores[i])
