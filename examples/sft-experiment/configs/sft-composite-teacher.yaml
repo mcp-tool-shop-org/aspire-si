@@ -1,0 +1,20 @@
+seed: 42
+student:
+  # The SFT student (sft.py's merged copy); everything else is the control's config.
+  model_name_or_path: /workspace/job/sft/merged
+  max_length: 1536
+teacher:
+  default_teacher: composite
+  composite_members:
+    - local:Qwen/Qwen2.5-32B-Instruct
+    - local:google/gemma-4-31B-it
+  composite_strategy: vote
+  local_load_in_4bit: true
+  max_dialogue_turns: 3
+  # Training reads only the final evaluation; skipping the per-turn ones halves teacher time.
+  evaluate_each_turn: false
+training:
+  num_epochs: 3
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  output_dir: outputs/sft-composite-teacher
