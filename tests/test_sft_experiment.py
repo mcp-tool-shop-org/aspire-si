@@ -15,6 +15,7 @@ sys.path.insert(0, str(EXPERIMENT))
 import build_dataset  # noqa: E402
 import clean_dataset  # noqa: E402
 import eval_heldout  # noqa: E402
+import host_check  # noqa: E402
 import judge_eval  # noqa: E402
 import lib  # noqa: E402
 import pairwise_teacher  # noqa: E402
@@ -654,6 +655,35 @@ class TestNextRuns:
         assert args.merge_only == Path("sft/epoch-2") and args.data is None
         with pytest.raises(SystemExit):
             sft.parse_args(["--out", "sft"])
+
+
+class TestHostCheck:
+    # nvidia-smi header lines from the two kinds of host the job profile has given us
+    OLD = "| NVIDIA-SMI 570.195.03   Driver Version: 570.195.03   CUDA Version: 12.8     |"
+    NEW = "| NVIDIA-SMI 580.82.07    Driver Version: 580.82.07    CUDA Version: 13.0     |"
+
+    def test_the_a100_with_a_cuda_12_8_driver_is_refused(self):
+        found = host_check.problems(self.OLD, "NVIDIA A100-SXM4-80GB, 81920 MiB", (13, 0), 90)
+        assert found == [
+            "the driver supports CUDA 12.8; this experiment needs 13.0",
+            "the largest GPU (NVIDIA A100-SXM4-80GB) has 80 GB; this needs 90 GB",
+        ]
+
+    def test_the_rtx_pro_6000_passes(self):
+        query = "NVIDIA RTX PRO 6000 Blackwell Server Edition, 97887 MiB"
+        assert host_check.problems(self.NEW, query, (13, 0), 90) == []
+        assert host_check.gpus(query) == [("NVIDIA RTX PRO 6000 Blackwell Server Edition", 97887 / 1024)]
+
+    def test_no_gpu_or_no_version_is_refused(self):
+        assert host_check.problems("", "", (13, 0), 0) == [
+            "nvidia-smi reported no CUDA version",
+            "nvidia-smi reported no GPU",
+        ]
+        assert host_check.driver_cuda(self.NEW) == (13, 0)
+
+    def test_newer_drivers_print_the_umd_version(self):
+        header = "| NVIDIA-SMI 617.14     KMD Version: 617.14     CUDA UMD Version: 13.4     |"
+        assert host_check.driver_cuda(header) == (13, 4)
 
 
 class TestProbe:
