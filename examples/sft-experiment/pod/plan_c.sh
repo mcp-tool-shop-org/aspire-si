@@ -38,6 +38,8 @@ setup() {
   python -m pip install -q vllm
   python -m pip install -q -e ./aspire-si
   python -c "import torch, transformers, peft; print('torch', torch.__version__, 'transformers', transformers.__version__, 'peft', peft.__version__)"
+  # Refuse a host too slow to fetch the ~130 GB of teachers in time (cache writes, one stream).
+  python aspire-si/examples/sft-experiment/host_check.py --speed
   for m in $BASE Qwen/Qwen2.5-32B-Instruct google/gemma-4-31B-it; do
     hf download "$m" --quiet > /dev/null
     echo "downloaded $m"

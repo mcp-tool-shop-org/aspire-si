@@ -681,6 +681,18 @@ class TestHostCheck:
         ]
         assert host_check.driver_cuda(self.NEW) == (13, 0)
 
+    def test_slow_transfers_are_refused_with_the_rate(self):
+        # seed 43's first pod: 26 GB in 31 minutes, about 14 MB/s
+        assert host_check.rate_problem("downloads", 26_000_000_000, 1860, 100) == (
+            "downloads ran at 14 MB/s (26.00 GB in 1860 s); this needs 100 MB/s"
+        )
+        assert host_check.rate_problem("downloads", 3_900_000_000, 20, 100) is None
+
+    def test_write_rate_writes_flushes_and_cleans_up(self, tmp_path):
+        nbytes, seconds = host_check.write_rate(tmp_path / "hf", megabytes=4)
+        assert nbytes == 4 << 20 and seconds >= 0  # a 4 MiB write can be under the clock tick
+        assert list((tmp_path / "hf").iterdir()) == []
+
     def test_newer_drivers_print_the_umd_version(self):
         header = "| NVIDIA-SMI 617.14     KMD Version: 617.14     CUDA UMD Version: 13.4     |"
         assert host_check.driver_cuda(header) == (13, 4)
