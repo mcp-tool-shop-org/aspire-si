@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - the held-out and judge measures, with intervals that resample prompts.
 
   Result: with the composite teacher, the critic trained after the fine-tune was worse at
-  spotting planted errors than the control's (0.65 against 0.87). The fine-tune moved the
+  spotting planted errors than the control's (0.65 against 0.87; one training run per condition,
+  so the report gives the intervals and what they do not cover). The fine-tune moved the
   hidden states about 30 times as far as ASPIRE does, and ASPIRE's own drift ran against it.
 
 ### Changed
