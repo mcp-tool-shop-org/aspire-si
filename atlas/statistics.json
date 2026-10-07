@@ -36,7 +36,7 @@
       "confidence": "low",
       "highWater": null,
       "name": "aspire",
-      "qualifyingSourceCommits": 2,
+      "qualifyingSourceCommits": 4,
       "rebaseline": null
     },
     {
@@ -118,7 +118,7 @@
       "confidence": "low",
       "highWater": null,
       "name": "site",
-      "qualifyingSourceCommits": 1,
+      "qualifyingSourceCommits": 2,
       "rebaseline": null
     },
     {
@@ -134,7 +134,7 @@
       "confidence": "low",
       "highWater": null,
       "name": "tests",
-      "qualifyingSourceCommits": 2,
+      "qualifyingSourceCommits": 4,
       "rebaseline": null
     }
   ],
@@ -167,8 +167,8 @@
         "path": ".github/workflows/publish.yml"
       },
       {
-        "commits": 2,
-        "lines": 68,
+        "commits": 4,
+        "lines": 74,
         "path": ".gitignore"
       },
       {
@@ -177,8 +177,8 @@
         "path": "ASPIRE-SPEC.md"
       },
       {
-        "commits": 6,
-        "lines": 309,
+        "commits": 10,
+        "lines": 469,
         "path": "CHANGELOG.md"
       },
       {
@@ -212,43 +212,43 @@
         "path": "PRESS_RELEASE.md"
       },
       {
-        "commits": 6,
-        "lines": 969,
+        "commits": 10,
+        "lines": 1039,
         "path": "README.es.md"
       },
       {
-        "commits": 6,
-        "lines": 955,
+        "commits": 10,
+        "lines": 1025,
         "path": "README.fr.md"
       },
       {
-        "commits": 6,
-        "lines": 933,
+        "commits": 10,
+        "lines": 1003,
         "path": "README.hi.md"
       },
       {
-        "commits": 6,
-        "lines": 903,
+        "commits": 10,
+        "lines": 973,
         "path": "README.it.md"
       },
       {
-        "commits": 6,
-        "lines": 983,
+        "commits": 10,
+        "lines": 1053,
         "path": "README.ja.md"
       },
       {
-        "commits": 6,
-        "lines": 659,
+        "commits": 10,
+        "lines": 815,
         "path": "README.md"
       },
       {
-        "commits": 6,
-        "lines": 937,
+        "commits": 10,
+        "lines": 1007,
         "path": "README.pt-BR.md"
       },
       {
-        "commits": 6,
-        "lines": 1027,
+        "commits": 10,
+        "lines": 1097,
         "path": "README.zh.md"
       },
       {
@@ -262,8 +262,8 @@
         "path": "SECURITY.md"
       },
       {
-        "commits": 3,
-        "lines": 114,
+        "commits": 5,
+        "lines": 122,
         "path": "SHIP_GATE.md"
       },
       {
@@ -272,18 +272,18 @@
         "path": "TESTS-TODO.md"
       },
       {
-        "commits": 1,
-        "lines": 12,
+        "commits": 5,
+        "lines": 20,
         "path": "aspire/__init__.py"
       },
       {
-        "commits": 5,
-        "lines": 691,
+        "commits": 7,
+        "lines": 937,
         "path": "aspire/cli.py"
       },
       {
-        "commits": 6,
-        "lines": 207,
+        "commits": 8,
+        "lines": 263,
         "path": "aspire/config.py"
       },
       {
@@ -292,13 +292,13 @@
         "path": "aspire/critic/__init__.py"
       },
       {
-        "commits": 1,
-        "lines": 149,
+        "commits": 3,
+        "lines": 197,
         "path": "aspire/critic/base.py"
       },
       {
-        "commits": 1,
-        "lines": 249,
+        "commits": 3,
+        "lines": 287,
         "path": "aspire/critic/head.py"
       },
       {
@@ -322,13 +322,13 @@
         "path": "aspire/dialogue/formatter.py"
       },
       {
-        "commits": 1,
-        "lines": 270,
+        "commits": 3,
+        "lines": 370,
         "path": "aspire/dialogue/generator.py"
       },
       {
-        "commits": 1,
-        "lines": 236,
+        "commits": 3,
+        "lines": 430,
         "path": "aspire/dialogue/manager.py"
       },
       {
@@ -340,6 +340,11 @@
         "commits": 2,
         "lines": 878,
         "path": "aspire/geometry.py"
+      },
+      {
+        "commits": 2,
+        "lines": 344,
+        "path": "aspire/judge.py"
       },
       {
         "commits": 1,
@@ -412,8 +417,8 @@
         "path": "aspire/teachers/base.py"
       },
       {
-        "commits": 3,
-        "lines": 269,
+        "commits": 5,
+        "lines": 373,
         "path": "aspire/teachers/claude.py"
       },
       {
@@ -422,8 +427,8 @@
         "path": "aspire/teachers/composite.py"
       },
       {
-        "commits": 1,
-        "lines": 225,
+        "commits": 3,
+        "lines": 659,
         "path": "aspire/teachers/local.py"
       },
       {
@@ -437,18 +442,18 @@
         "path": "aspire/teachers/personas.py"
       },
       {
-        "commits": 1,
-        "lines": 93,
+        "commits": 3,
+        "lines": 115,
         "path": "aspire/teachers/registry.py"
       },
       {
-        "commits": 5,
-        "lines": 630,
+        "commits": 7,
+        "lines": 870,
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 5,
-        "lines": 224,
+        "commits": 7,
+        "lines": 252,
         "path": "atlas/README.md"
       },
       {
@@ -457,18 +462,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 5,
-        "lines": 724,
+        "commits": 7,
+        "lines": 816,
         "path": "atlas/page.json"
       },
       {
-        "commits": 5,
-        "lines": 2252,
+        "commits": 7,
+        "lines": 3116,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 5,
-        "lines": 8326,
+        "commits": 7,
+        "lines": 8464,
         "path": "atlas/structure.json"
       },
       {
@@ -505,6 +510,31 @@
         "commits": 2,
         "lines": 132,
         "path": "examples/geometry_demo.py"
+      },
+      {
+        "commits": 2,
+        "lines": 40,
+        "path": "examples/local-run/composite-teacher.yaml"
+      },
+      {
+        "commits": 2,
+        "lines": 38,
+        "path": "examples/local-run/local-teacher.yaml"
+      },
+      {
+        "commits": 2,
+        "lines": 68,
+        "path": "examples/local-run/prompts.json"
+      },
+      {
+        "commits": 3,
+        "lines": 48,
+        "path": "examples/pod-run/real-composite-teacher.yaml"
+      },
+      {
+        "commits": 3,
+        "lines": 42,
+        "path": "examples/pod-run/real-local-teacher.yaml"
       },
       {
         "commits": 4,
@@ -657,9 +687,14 @@
         "path": "passport.json"
       },
       {
-        "commits": 4,
-        "lines": 146,
+        "commits": 8,
+        "lines": 154,
         "path": "pyproject.toml"
+      },
+      {
+        "commits": 2,
+        "lines": 50,
+        "path": "release.yml}"
       },
       {
         "commits": 1,
@@ -682,7 +717,7 @@
         "path": "site/package.json"
       },
       {
-        "commits": 2,
+        "commits": 4,
         "lines": 0,
         "path": "site/src/assets/logo.png"
       },
@@ -697,8 +732,8 @@
         "path": "site/src/content/docs/handbook/beginners.md"
       },
       {
-        "commits": 4,
-        "lines": 234,
+        "commits": 6,
+        "lines": 342,
         "path": "site/src/content/docs/handbook/cli.md"
       },
       {
@@ -707,8 +742,8 @@
         "path": "site/src/content/docs/handbook/getting-started.md"
       },
       {
-        "commits": 3,
-        "lines": 132,
+        "commits": 5,
+        "lines": 246,
         "path": "site/src/content/docs/handbook/how-it-works.md"
       },
       {
@@ -737,8 +772,8 @@
         "path": "site/src/pages/index.astro"
       },
       {
-        "commits": 4,
-        "lines": 100,
+        "commits": 6,
+        "lines": 120,
         "path": "site/src/site-config.ts"
       },
       {
@@ -957,8 +992,8 @@
         "path": "tests/performance/test_dialogue_cache_performance.py"
       },
       {
-        "commits": 1,
-        "lines": 283,
+        "commits": 3,
+        "lines": 287,
         "path": "tests/test_cli.py"
       },
       {
@@ -972,8 +1007,8 @@
         "path": "tests/test_code_critic.py"
       },
       {
-        "commits": 4,
-        "lines": 768,
+        "commits": 6,
+        "lines": 782,
         "path": "tests/test_config.py"
       },
       {
@@ -992,13 +1027,13 @@
         "path": "tests/test_coverage_losses.py"
       },
       {
-        "commits": 2,
-        "lines": 1358,
+        "commits": 4,
+        "lines": 1474,
         "path": "tests/test_coverage_teachers.py"
       },
       {
-        "commits": 2,
-        "lines": 548,
+        "commits": 4,
+        "lines": 622,
         "path": "tests/test_coverage_trainer.py"
       },
       {
@@ -1022,9 +1057,14 @@
         "path": "tests/test_dialogue_edge_cases.py"
       },
       {
-        "commits": 2,
-        "lines": 656,
+        "commits": 4,
+        "lines": 682,
         "path": "tests/test_geometry.py"
+      },
+      {
+        "commits": 2,
+        "lines": 686,
+        "path": "tests/test_judge.py"
       },
       {
         "commits": 1,
@@ -1037,18 +1077,23 @@
         "path": "tests/test_losses_edge_cases.py"
       },
       {
+        "commits": 2,
+        "lines": 1628,
+        "path": "tests/test_real_run_fixes.py"
+      },
+      {
         "commits": 1,
         "lines": 1314,
         "path": "tests/test_teachers.py"
       },
       {
-        "commits": 1,
-        "lines": 492,
+        "commits": 3,
+        "lines": 496,
         "path": "tests/test_teachers_claude.py"
       },
       {
-        "commits": 1,
-        "lines": 550,
+        "commits": 3,
+        "lines": 566,
         "path": "tests/test_teachers_local.py"
       },
       {
@@ -1057,8 +1102,8 @@
         "path": "tests/test_teachers_openai.py"
       },
       {
-        "commits": 3,
-        "lines": 1163,
+        "commits": 5,
+        "lines": 1167,
         "path": "tests/test_trainer.py"
       },
       {
@@ -1067,8 +1112,8 @@
         "path": "tests/test_trainer_edge_cases.py"
       },
       {
-        "commits": 3,
-        "lines": 862,
+        "commits": 5,
+        "lines": 866,
         "path": "tests/test_trainer_unit.py"
       },
       {
@@ -1082,13 +1127,13 @@
     "level": "low",
     "reason": "fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions"
   },
-  "generatedAt": "2026-10-07T00:34:20.970Z",
+  "generatedAt": "2026-10-07T01:50:39.994Z",
   "generatedFrom": {
-    "commit": "9ae184bea060fd9347e1c2eb713d228615399a04"
+    "commit": "9b12d5398140900b0262027109fa484368dc9986"
   },
   "pairs": [],
   "parameters": {
-    "appliedChangesetLimit": 46.75,
+    "appliedChangesetLimit": 49,
     "changeset": 50,
     "changesetFraction": 0.25,
     "cohesionDrop": 0.2,
@@ -1097,16 +1142,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "both",
-    "headDate": "2026-10-06T17:25:29-07:00",
-    "inScopeFiles": 187,
+    "headDate": "2026-10-06T18:47:13-07:00",
+    "inScopeFiles": 196,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 4,
+    "qualifyingCommits": 7,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-10T00:25:29.000Z",
+    "since": "2026-04-10T01:47:13.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",

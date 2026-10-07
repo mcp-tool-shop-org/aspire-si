@@ -475,7 +475,7 @@ class AspireCodeTrainer:
     def load_checkpoint(self, critic_path: str | None = None, student_path: str | None = None):
         """Load model checkpoints."""
         if critic_path:
-            checkpoint = torch.load(critic_path, map_location=self.device)
+            checkpoint = torch.load(critic_path, map_location=self.device, weights_only=True)
             self.critic.load_state_dict(checkpoint["model_state_dict"])
             print(f"Loaded critic from {critic_path}")
 

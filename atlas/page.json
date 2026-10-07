@@ -31,46 +31,39 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 1,
-      "changed": 16,
+      "added": 9,
+      "changed": 36,
       "moved": 0,
-      "parts": 5,
-      "removed": 1
+      "parts": 6,
+      "removed": 0
     },
     "items": [
       {
-        "kind": "door",
-        "sentence": "Publish to PyPI (.github/workflows/publish.yml) is no longer a door.",
+        "kind": "landing",
+        "sentence": "examples/local-run/local-teacher.yaml is now read by README.md and site/src/content/docs/handbook/cli.md.",
         "subjects": [
-          ".github/workflows/publish.yml"
-        ]
-      },
-      {
-        "kind": "door",
-        "sentence": "Release to PyPI (.github/workflows/release.yml) is a new door. It starts when a release is published. It checks aspire/ and integrations/.",
-        "subjects": [
-          ".github/workflows/release.yml",
-          "aspire/",
-          "integrations/"
+          "examples/local-run/local-teacher.yaml",
+          "README.md",
+          "site/src/content/docs/handbook/cli.md"
         ]
       },
       {
         "kind": "landing",
-        "sentence": "pyproject.toml is now read by .github/workflows/release.yml.",
+        "sentence": "examples/local-run/prompts.json is now read by site/src/content/docs/handbook/cli.md.",
         "subjects": [
-          "pyproject.toml",
-          ".github/workflows/release.yml"
+          "examples/local-run/prompts.json",
+          "site/src/content/docs/handbook/cli.md"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "1 file added, 1 removed and 16 changed content, across 5 parts.",
+        "sentence": "9 files added and 36 changed content, across 6 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "35b5597849bca5e92bc2e958ef99d4c590837585",
-      "generatedAt": "2026-10-07T00:10:36.956Z"
+      "commit": "9ae184bea060fd9347e1c2eb713d228615399a04",
+      "generatedAt": "2026-10-07T00:34:20.970Z"
     },
     "unchanged": false
   },
@@ -79,9 +72,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits."
   ],
   "changesTogetherWithTests": 0,
-  "commit": "9ae184bea060fd9347e1c2eb713d228615399a04",
+  "commit": "9b12d5398140900b0262027109fa484368dc9986",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (127 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (131 files), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -99,7 +92,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 35
+          "files": 36
         },
         {
           "boundary": "examples",
@@ -114,7 +107,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 64
+          "files": 67
         }
       ],
       "runs": [
@@ -149,7 +142,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 35
+          "files": 36
         },
         {
           "boundary": "integrations",
@@ -213,7 +206,7 @@
         {
           "boundary": "aspire",
           "depth": 0,
-          "files": 27
+          "files": 28
         }
       ],
       "runs": [
@@ -232,12 +225,12 @@
   "edges": [],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-07T00:34:20.970Z",
+  "generatedAt": "2026-10-07T01:50:39.994Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
     "3 writes and 8 reads use paths built at run time and are not named here.",
-    "5 writes and 17 reads go to a path their caller passes, not to this repository.",
+    "5 writes and 18 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions."
   ],
@@ -288,9 +281,9 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 64,
+  "testFiles": 67,
   "testedBy": {
-    "aspire": 39,
+    "aspire": 42,
     "examples": 0,
     "integrations": 21
   },

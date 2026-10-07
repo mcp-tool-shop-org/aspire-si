@@ -526,11 +526,7 @@ class TestCheckpointing:
         path = str(tmp_path / "ckpt" / "checkpoint_epoch_3.pt")
 
         target = make_trainer(tmp_path)
-        real_load = torch.load
-        with patch("integrations.isaac.trainer.torch.load",
-                   side_effect=lambda p, map_location=None: real_load(p, map_location=map_location,
-                                                                      weights_only=False)):
-            target.load_checkpoint(path)
+        target.load_checkpoint(path)  # the real weights_only=True load
         for a, b in zip(source.critic.parameters(), target.critic.parameters()):
             assert torch.equal(a, b)
         for a, b in zip(source.policy.parameters(), target.policy.parameters()):

@@ -11,6 +11,14 @@ The first end-to-end run on real models: a local teacher, a composite of two, a 
 loads back, and a critic you can score responses with. Running it found the bugs below; each
 is fixed and covered by a test that failed before the fix.
 
+### Security
+
+- Loading a checkpoint can no longer run code from it. The critic, the code trainer and the
+  isaac trainer load `.pt` files with `torch.load(weights_only=True)`. aspire-si allows torch
+  2.0, and before torch 2.6 the default unpickled any object, so a crafted checkpoint handed to
+  `aspire judge` or `load_checkpoint` could execute code. A test fails if any `torch.load` call
+  leaves the flag out.
+
 ### Added
 
 - `aspire.judge`: `Judge.from_checkpoint(path)` loads what `aspire train` saved (student, its

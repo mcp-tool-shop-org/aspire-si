@@ -580,7 +580,7 @@ class AspireIsaacTrainer:
 
     def load_checkpoint(self, path: str):
         """Load model checkpoint."""
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=True)
 
         self.critic.load_state_dict(checkpoint["critic_state_dict"])
         self.policy.load_state_dict(checkpoint["policy_state_dict"])
