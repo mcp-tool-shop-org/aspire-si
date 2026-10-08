@@ -254,7 +254,7 @@ sources:
 | Source | Model, revision | Hidden size, layers | License |
 |---|---|---|---|
 | `qwen` (primary, as above) | Qwen/Qwen2.5-1.5B-Instruct, `989aa798…` | 1536, 28 | Apache-2.0 |
-| `qwen3b` | Qwen/Qwen2.5-3B-Instruct, `aa8e7253…` | 2048, 36 | Qwen research license (non-commercial): research use only |
+| `qwen3b` | Qwen/Qwen2.5-3B-Instruct, `aa8e7253…` | 2048, 36 | Qwen research license |
 | `llama` | meta-llama/Llama-3.2-3B-Instruct, `0cb88a4f…` | 3072, 28 | Llama 3.2 Community License |
 
 - `qwen` against `qwen3b` isolates **size** within one family.
@@ -291,9 +291,15 @@ full readout.
   apart from the committed readout.
 - If the last layer looks weak everywhere, this shows whether depth is the bottleneck.
 
-**Licenses.** Using all three here, for research, is fine. **Heads trained on Llama or Qwen2.5-3B
-features, and their scores, stay unpublished** unless a license check is done first, and for Llama
-its attribution ("Built with Llama") is carried. That covers weights, model cards and released data.
+**Built with Llama.** This study reads features from Meta's Llama 3.2 3B and from Qwen2.5 (1.5B and
+3B) alongside each other, so critics are tested across model families. Heads trained on these
+features are shared under each model's license terms:
+- Llama-derived work carries "Built with Llama" and follows the Llama 3.2 Community License.
+- Qwen2.5-3B-derived work follows the Qwen research license.
+- Qwen2.5-1.5B-derived work follows Apache-2.0.
+
+Before any derived head, score set or model card is shared, its license terms are checked and its
+attribution is added.
 
 **Recorded with each cache:** source, model, revision, 4-bit loading, hidden size, the primary
 (last) layer, the exploratory layer, and the license.

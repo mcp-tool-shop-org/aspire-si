@@ -51,8 +51,8 @@ FEATURE_SOURCES = {
 }
 SOURCE_LICENSES = {
     "qwen": "Apache-2.0",
-    "qwen3b": "Qwen research license (non-commercial): research use only",
-    "llama": "Llama 3.2 Community License: internal use; unpublished unless checked and attributed",
+    "qwen3b": "Qwen research license",
+    "llama": "Llama 3.2 Community License (Built with Llama)",
 }
 # An exploratory diagnostic with no rule: mean pooling over a layer about two thirds of the way in.
 EXPLORATORY_FORMS = (("auditor", "mid"), ("advocate", "mid"))
