@@ -8,13 +8,15 @@ pipeline. The student, the planter and Kev are Qwen; the feature sources are Qwe
 gemma plants P-second; mistral checks meaning. The third model is microsoft/Phi-3-mini-4k-instruct
 (MIT).
 
-Per pair: delta = log p(the edited copy's changed tokens) - log p(the original's changed tokens),
-each in context (the question, then the answer up to the change), summed over the tokens between
-the two copies' common prefix and common suffix.
+Per pair, the primary measure (R&D's review): delta = the sum of log p over the edited copy's
+tokens from the first changed token to the end of the answer, minus the same over the original's,
+each in context (the question, then the answer up to that token). It counts the knock-on surprise
+an edit causes after itself. The changed tokens alone (between the common prefix and suffix) are
+reported beside it as a secondary measure.
 
 The pass rule, committed before computing (plan, addendum 3): on each read set (P-confirm against
 the confirm error pairs, P-second against the second-planter error pairs), the median delta of the
-kept paraphrases lies inside the error pairs' interquartile range of delta. A two-sample
+kept paraphrases lies inside the error pairs' interquartile range of delta (the tail measure). A two-sample
 Kolmogorov-Smirnov statistic and its asymptotic p-value are reported beside it, not gated.
 P-train against the training error pairs is reported only.
 
@@ -66,8 +68,35 @@ def span_logprob(token_logprobs: list[float], start: int, end: int) -> float:
 def delta(
     strong_ids: list[int], strong_lp: list[float], flawed_ids: list[int], flawed_lp: list[float]
 ) -> float:
+    """The secondary measure: the changed tokens only, between the common prefix and suffix."""
     prefix, end_s, end_f = changed_span(strong_ids, flawed_ids)
     return span_logprob(flawed_lp, prefix, end_f) - span_logprob(strong_lp, prefix, end_s)
+
+
+def delta_tail(
+    strong_ids: list[int],
+    strong_lp: list[float],
+    strong_end: int,
+    flawed_ids: list[int],
+    flawed_lp: list[float],
+    flawed_end: int,
+) -> float:
+    """The primary measure (R&D's review): from the first changed token to the end of the answer,
+    so the knock-on surprise after an edit counts. Each copy stops at its own answer end, before
+    any trailing template tokens. The prefixes are identical, so this is the full-sequence
+    difference."""
+    prefix, _, _ = changed_span(strong_ids, flawed_ids)
+    return span_logprob(flawed_lp, prefix, flawed_end) - span_logprob(strong_lp, prefix, strong_end)
+
+
+def answer_end(offsets: list[tuple[int, int]], text: str, answer: str) -> int:
+    """The number of tokens up to the end of `answer` inside `text` (the tokens that start before
+    the answer's last character ends)."""
+    at = text.rfind(answer.strip())
+    if at < 0:
+        raise ValueError("the answer is not in the formatted exchange")
+    end = at + len(answer.strip())
+    return sum(1 for start, stop in offsets if stop > start and start < end)
 
 
 def quartiles(values: list[float]) -> tuple[float, float, float]:
@@ -115,21 +144,25 @@ def match(errors: list[float], paraphrases: list[float]) -> dict:
     }
 
 
-def readout(deltas: dict[str, dict[str, float]], dropped: dict[str, set]) -> dict:
-    """Per matched set: the rule's result (read sets) or the same numbers reported only (P-train)."""
+def readout(deltas: dict[str, dict[str, dict]], dropped: dict[str, set]) -> dict:
+    """Per matched set: the rule on the tail delta (read sets; P-train reported only), with the
+    changed-span delta's match beside it, reported only."""
     out = {}
     for para, err in {**READ_SETS, **REPORTED_ONLY}.items():
         if para not in deltas or err not in deltas:
             continue
-        kept = [v for pid, v in deltas[para].items() if pid not in dropped.get(para, set())]
-        row = match(list(deltas[err].values()), kept)
+        kept = {pid: v for pid, v in deltas[para].items() if pid not in dropped.get(para, set())}
+        row = match([v["tail"] for v in deltas[err].values()], [v["tail"] for v in kept.values()])
+        span = match([v["span"] for v in deltas[err].values()], [v["span"] for v in kept.values()])
+        row["changed_span_only"] = span
+        row["measures_disagree"] = span["passes"] != row["passes"]
         row["gated"] = para in READ_SETS
         out[para] = row
     out["all_read_sets_pass"] = all(out[s]["passes"] for s in READ_SETS if s in out)
     return out
 
 
-def score(sets: dict[str, list[dict]]) -> dict[str, dict[str, float]]:  # pragma: no cover - GPU
+def score(sets: dict[str, list[dict]]) -> dict[str, dict[str, dict]]:  # pragma: no cover - GPU
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -142,22 +175,26 @@ def score(sets: dict[str, list[dict]]) -> dict[str, dict[str, float]]:  # pragma
     model.eval()
     special = not uses_chat_template(tok)
 
-    def logprobs(text: str) -> tuple[list[int], list[float]]:
-        ids = tok(text, add_special_tokens=special)["input_ids"]
+    def logprobs(text: str, answer: str) -> tuple[list[int], list[float], int]:
+        enc = tok(text, add_special_tokens=special, return_offsets_mapping=True)
+        ids = enc["input_ids"]
         if len(ids) > MAX_LENGTH:
             raise SystemExit(f"an exchange is {len(ids)} tokens, over {MAX_LENGTH}")
         with torch.no_grad():
             logits = model(torch.tensor([ids], device="cuda")).logits[0].float()
         lp = torch.log_softmax(logits[:-1], dim=-1).gather(1, torch.tensor(ids[1:], device="cuda")[:, None])
-        return ids, [0.0] + lp[:, 0].tolist()
+        return ids, [0.0] + lp[:, 0].tolist(), answer_end(enc["offset_mapping"], text, answer)
 
-    out: dict[str, dict[str, float]] = {}
+    out: dict[str, dict[str, dict]] = {}
     for name, pairs in sets.items():
         out[name] = {}
         for p in pairs:
-            s_ids, s_lp = logprobs(format_exchange(tok, p["prompt"], p["strong"]))
-            f_ids, f_lp = logprobs(format_exchange(tok, p["prompt"], p["flawed"]))
-            out[name][p["pair_id"]] = delta(s_ids, s_lp, f_ids, f_lp)
+            s_ids, s_lp, s_end = logprobs(format_exchange(tok, p["prompt"], p["strong"]), p["strong"])
+            f_ids, f_lp, f_end = logprobs(format_exchange(tok, p["prompt"], p["flawed"]), p["flawed"])
+            out[name][p["pair_id"]] = {
+                "tail": delta_tail(s_ids, s_lp, s_end, f_ids, f_lp, f_end),
+                "span": delta(s_ids, s_lp, f_ids, f_lp),
+            }
         print(name, len(out[name]), "pairs", flush=True)
     return out
 
@@ -182,7 +219,7 @@ def main() -> None:  # pragma: no cover - needs a GPU
         "revision": REVISION,
         "license": LICENSE,
         "precision": "bf16",
-        "rule": "per read set: kept paraphrases' median delta inside the error pairs' interquartile range",
+        "rule": "per read set: kept paraphrases' median tail delta inside the error pairs' IQR",
         "readout": readout(deltas, dropped),
     }
     (args.out / "deltas.json").write_text(json.dumps(deltas, indent=1), encoding="utf-8")

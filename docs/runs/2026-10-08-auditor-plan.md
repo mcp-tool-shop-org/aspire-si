@@ -586,18 +586,28 @@ then failed the whole-set check above. Frozen Kev-4B, order-averaged, preferred 
    - The model is **microsoft/Phi-3-mini-4k-instruct** at revision f39ac1d2 (MIT), in bf16. R&D
      suggested llama3.1:8b; that model's weights aren't on the rig, and Phi-3 is the more
      independent choice.
-   - **delta** = log p(the edited copy's changed tokens) − log p(the original's changed tokens),
-     each in context (the question, then the answer up to the change). It is summed over the tokens
-     between the two copies' common prefix and suffix. The exchange is formatted with the model's
-     chat template.
+   - **delta (the primary measure)** = the sum of log p over the edited copy's tokens from the
+     first changed token to the end of the answer, minus the same sum over the original's. Each
+     token is scored in context: the question, then the answer up to that token.
+     - Each copy stops at its own answer end, before the chat template's trailing `<|end|>` and
+       `<|endoftext|>`.
+     - Checked on the tokenizer: exactly those 2 tokens trail every one of the 3,184 exchanges.
+     - Because the prefixes are identical, this is the full-sequence difference.
+   - The R&D session's review set the tail as the primary measure, before any delta was computed.
+     An unusual word also makes the text after it more surprising. A planted error usually knocks
+     on further than a synonym (a wrong number makes the next sentence's arithmetic surprising), so
+     scoring only the changed tokens would understate the errors' shift and tilt the match.
+   - **Secondary, reported only:** the changed tokens alone, between the two copies' common prefix
+     and common suffix. Where the two measures pass or fail differently, the readout says so.
+   - The exchange is formatted with the model's chat template.
    - It is measured for the error pairs and for the kept paraphrases of each set.
    - Measured beforehand on the tokenizer alone, with no model loaded: the changed span is a median
      of 1 token for the paraphrases and 1–2 for the errors, and the longest exchange is 1,218
      tokens.
 4. **Pass rule, committed before computing:**
    - On each read set (P-confirm against the confirm error pairs; P-second against the
-     second-planter error pairs), the kept paraphrases' **median delta lies inside the error pairs'
-     interquartile range of delta**.
+     second-planter error pairs), the kept paraphrases' **median tail delta lies inside the error
+     pairs' interquartile range of tail delta**.
    - A two-sample Kolmogorov–Smirnov statistic and its p-value are reported beside it, not gated.
    - P-train against the training error pairs is reported only.
 5. **On a fail**, the failing set is re-planted. The planter offers 3–5 candidate synonyms per

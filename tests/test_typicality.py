@@ -29,6 +29,21 @@ class TestDelta:
         f_ids, f_lp = [1, 2, 9, 4], [0.0, -1.0, -3.0, -2.5]
         assert ty.delta(s_ids, s_lp, f_ids, f_lp) == pytest.approx(-2.5)
 
+    def test_the_tail_counts_the_knock_on_and_stops_at_the_answer_end(self):
+        # token 2 is swapped; token 3 becomes surprising after it; token 4 is a template token
+        s_ids, s_lp = [1, 2, 3, 4, 5], [0.0, -1.0, -0.5, -1.0, -7.0]
+        f_ids, f_lp = [1, 2, 9, 4, 5], [0.0, -1.0, -0.7, -3.0, -9.0]
+        assert ty.delta(s_ids, s_lp, f_ids, f_lp) == pytest.approx(-0.2)
+        assert ty.delta_tail(s_ids, s_lp, 4, f_ids, f_lp, 4) == pytest.approx(-2.2)
+
+    def test_answer_end_counts_tokens_up_to_the_answer(self):
+        text = "<u>Q?</u><a>An answer.</a>"
+        # <u> Q? </u> <a> | "An " "answer." | </a> and a special token with an empty offset
+        offsets = [(0, 3), (3, 5), (5, 9), (9, 12), (12, 15), (15, 22), (22, 26), (0, 0)]
+        assert ty.answer_end(offsets, text, "An answer.") == 6
+        with pytest.raises(ValueError):
+            ty.answer_end(offsets, text, "missing")
+
     def test_token_zero_has_no_log_probability(self):
         assert ty.span_logprob([-9.0, -1.0], 0, 2) == -1.0
 
@@ -51,13 +66,17 @@ class TestMatch:
 
 class TestReadout:
     def test_dropped_paraphrases_are_left_out_and_ptrain_is_not_gated(self):
+        def both(tail, span=None):
+            return {"tail": tail, "span": tail if span is None else span}
+
         deltas = {
-            "confirm": {f"e{i}": -float(i) for i in range(10)},
-            "pconfirm": {"p1": -4.0, "p2": -5.0, "p3": 50.0},
-            "train": {f"t{i}": -float(i) for i in range(10)},
-            "ptrain": {"q1": 40.0},
+            "confirm": {f"e{i}": both(-float(i)) for i in range(10)},
+            "pconfirm": {"p1": both(-4.0, 9.0), "p2": both(-5.0, 9.0), "p3": both(50.0)},
+            "train": {f"t{i}": both(-float(i)) for i in range(10)},
+            "ptrain": {"q1": both(40.0)},
         }
         r = ty.readout(deltas, {"pconfirm": {"p3"}})
         assert r["pconfirm"]["paraphrase_pairs"] == 2 and r["pconfirm"]["passes"] and r["pconfirm"]["gated"]
+        assert not r["pconfirm"]["changed_span_only"]["passes"] and r["pconfirm"]["measures_disagree"]
         assert not r["ptrain"]["passes"] and not r["ptrain"]["gated"]
         assert r["all_read_sets_pass"]
