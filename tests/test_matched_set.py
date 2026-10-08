@@ -127,15 +127,35 @@ class TestGrammar:
         assert ms.prescreen("It comprises of parts.", "It comprises of pieces.") == []
 
     def test_summary_reports_the_bound_not_no_misses(self):
+        v2 = {"question": ms.GRAMMAR_QUESTION}
         rows = {
-            f"p{i}": {"flags": [], "sampled_unflagged": True, "gemma": {"grammatical": True}}
+            f"p{i}": {
+                "flags": [],
+                "sampled_unflagged": True,
+                "gemma": v2 | {"grammatical": True, "idiomatic": i % 2 == 0},
+            }
             for i in range(60)
         }
-        rows["f1"] = {"flags": ["result to"], "gemma": {"grammatical": False}}
+        rows["f1"] = {"flags": ["result to"], "gemma": v2 | {"grammatical": False, "idiomatic": False}}
         s = ms.grammar_summary(rows)
         assert s["prescreen_stands"] and s["miss_rate_upper_bound_95"] == 0.05 and s["drop"] == ["f1"]
-        rows["p0"]["gemma"] = {"grammatical": False}
+        assert s["not_idiomatic_recorded_only"] == 31  # recorded, never dropped
+        assert len(s["drop_if_idiom_gated"]) == 31 and "f1" in s["drop_if_idiom_gated"]
+        rows["p0"]["gemma"] = v2 | {"grammatical": False, "idiomatic": True}
         s = ms.grammar_summary(rows)
         assert (
             not s["prescreen_stands"] and s["misses_in_sample"] == 1 and s["miss_rate_upper_bound_95"] is None
         )
+
+    def test_v1_verdicts_are_not_counted(self):
+        rows = {"a": {"flags": [], "sampled_unflagged": True, "gemma": {"grammatical": False}}}
+        s = ms.grammar_summary(rows)
+        assert s["judged_by_gemma"] == 0 and s["drop"] == [] and s["unflagged_sampled"] == 0
+
+    def test_the_question_gates_on_grammar_not_idiom(self):
+        for text in (ms.GRAMMAR_CHECK, ms.ERROR_CHECK, ms.GRAMMAR_ASK, ms.MUSE_FORMAT):
+            assert "NOT an error" in text or "not one" in text
+        assert "idiomatic" in ms.GRAMMAR_SCHEMA["properties"]
+        v = ms.parse_muse("x\nVERDICT: wrong\nGRAMMATICAL: yes\nIDIOMATIC: no")
+        assert v["grammatical"] is True and v["idiomatic"] is False
+        assert ms.parse_muse("x\nVERDICT: wrong\nGRAMMATICAL: yes")["idiomatic"] is None
