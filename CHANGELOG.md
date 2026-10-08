@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   differ between seeds exactly as much (a range of 0.181 at both). The fine-tune comparison waits
   for a critic setup that varies less.
 
+- Critic-init test ([report](docs/runs/2026-10-08-critic-init.md)): one draw of the critic's
+  initial weights, with nothing else changed, produced a critic that prefers the flawed answer
+  (0.315, interval entirely below 0.5). Under the committed rule both the critic's initial weights
+  and the run's seed carry the spread between runs; the ranges rest on three runs each and one
+  noise-floor pair.
+
 - `critic.init_seed` (config, default unset): seeds the critic's initial weights apart from the
   run's seed, leaving the run's own random stream (student adapter, data order, sampling) as if no
   critic had been built. Unset, nothing changes. Used by the critic-init test
