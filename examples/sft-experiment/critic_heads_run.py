@@ -328,6 +328,40 @@ def _prompt_means(wins: list[float], ids: list, keep: set | None = None) -> dict
     return {g: sum(v) / len(v) for g, v in by.items()}
 
 
+def _percentile(values: list[float], q: float) -> float:
+    """Linear-interpolated percentile (numpy's default), q in [0, 100]."""
+    xs = sorted(values)
+    k = (len(xs) - 1) * q / 100
+    lo = int(k)
+    return xs[lo] + (xs[min(lo + 1, len(xs) - 1)] - xs[lo]) * (k - lo)
+
+
+MIN_SIZE_MATCHED = 30
+
+
+def _size_matched(rw, rids, ew, eids, error_sizes, para_sizes, headline) -> dict:
+    """The error-minus-edit margin on error pairs inside the paraphrase size band."""
+    band = (_percentile(para_sizes, 5), _percentile(para_sizes, 95))
+    inside = [i for i, n in enumerate(error_sizes) if band[0] <= n <= band[1]]
+    rw2, rids2 = [rw[i] for i in inside], [rids[i] for i in inside]
+    shared = set(eids) & set(rids2)
+    em, rm = _prompt_means(ew, eids, shared), _prompt_means(rw2, rids2, shared)
+    prompts = sorted(shared, key=str)
+    out = {"band_chars": list(band), "error_pairs": len(inside), "strong_answers": len(prompts)}
+    if not prompts:
+        return out | {"margin": None, "margin_ci": [None, None], "size_residual_cue": None}
+    point, ci = boot([rm[g] - em[g] for g in prompts], prompts)
+
+    def excludes_zero(c):
+        return c[0] is not None and (c[0] > 0 or c[1] < 0)
+
+    # Below 30 pairs the CI is too wide for its rule, which would trip on noise: a sign flip only.
+    cue = (point > 0) != (headline[0] > 0) or (
+        len(inside) >= MIN_SIZE_MATCHED and excludes_zero(ci) != excludes_zero(headline[1])
+    )
+    return out | {"margin": point, "margin_ci": ci, "size_residual_cue": cue}
+
+
 def skeptic_readout(
     results: list[dict],
     error_set: str,
@@ -338,6 +372,7 @@ def skeptic_readout(
     step4: list[dict] | None = None,
     para_rounds: list | None = None,
     secondary: tuple[str, set, list] | None = None,
+    sizes: tuple[list, list] | None = None,
 ) -> dict:
     """Addendum 2's committed reading for every form: edit rate on the paraphrase set, the paired
     error-minus-edit margin per strong answer, the reading, the balanced permutation p-value and the
@@ -346,7 +381,13 @@ def skeptic_readout(
 
     `secondary` is the second paraphrase arm (set name, its dropped pair ids, its pair ids in scored
     order): its edit rate is read with its own CI, and where the two arms' CIs don't overlap the
-    reading is "unresolved (depends on paraphrase method)"."""
+    reading is "unresolved (depends on paraphrase method)".
+
+    `sizes` is (error-pair edit sizes, paraphrase edit sizes), each in scored order. A size-matched
+    margin is reported beside the headline: error pairs whose edit size falls inside the kept
+    paraphrases' 5th-95th percentile band, prompt-clustered. Where it disagrees with the headline in
+    sign, or (with at least 30 pairs) in whether its CI excludes 0, the row says size is a residual
+    cue (R&D's review)."""
     by: dict = {}
     for r in results:
         if r["control"] == "none" and para_set in r["sets"] and error_set in r["sets"]:
@@ -376,6 +417,10 @@ def skeptic_readout(
             "paraphrase_pairs": len(ew),
             "reading": skeptic_class(edit_ci, margin[1]) if prompts else "no matched answers",
         }
+        if sizes and prompts:
+            row["size_matched"] = _size_matched(
+                rw, rids, ew, eids, sizes[0], [sizes[1][i] for i in keep], margin
+            )
         if secondary and all(secondary[0] in r["sets"] for r in rs):
             name, dropped2, ids2 = secondary
             keep2 = [i for i, pid in enumerate(ids2) if pid not in dropped2]
