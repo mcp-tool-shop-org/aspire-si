@@ -216,6 +216,58 @@ class TestReadout:
         assert r["E_panel"]["members"] and "judge" in r["E_panel"]
         assert all(not m.startswith("advocate-span") for m in r["E_panel"]["members"])
 
+    def test_two_feature_sources_compare_form_by_form_on_the_same_pairs(self):
+        a, _, _ = self.build(auditor_good=0.9)
+        b, _, _ = self.build(auditor_good=0.6)
+        cmp = run.compare_sources(a, b)
+        assert set(cmp) == {"auditor-mean", "auditor-attention", "advocate-mean", "advocate-span"}
+        aud = cmp["auditor-mean"]["confirm"]
+        assert aud["a_minus_b"] == pytest.approx(0.3, abs=0.02) and aud["ci"][0] > 0
+        assert cmp["advocate-mean"]["judge"]["a_minus_b"] == pytest.approx(0.0)
+        assert set(cmp["auditor-mean"]) == {"confirm", "judge", "second"}
+
+    def test_feature_sources_are_pinned_licensed_and_size_matched(self):
+        assert ch.FEATURE_SOURCES["qwen"] == (ch.STUDENT, ch.STUDENT_REVISION)
+        assert set(ch.FEATURE_SOURCES) == set(ch.SOURCE_LICENSES) == {"qwen", "qwen3b", "llama"}
+        for model, revision in ch.FEATURE_SOURCES.values():
+            assert len(revision) == 40
+        assert ch.FEATURE_SOURCES["llama"][0].startswith("meta-llama/")
+        assert "3B" in ch.FEATURE_SOURCES["qwen3b"][0] and "3B" in ch.FEATURE_SOURCES["llama"][0]
+
+    def test_mid_layer_is_two_thirds_of_the_way_in(self):
+        assert ch.mid_layer(28) == 19 and ch.mid_layer(36) == 24
+
+    def test_family_contrast_is_one_number_with_its_reading(self):
+        # a leads by 0.3 on the own-family set and by nothing on the other set.
+        a, _, _ = self.build(auditor_good=0.9)
+        b, _, _ = self.build(auditor_good=0.9)
+        for r in b:
+            if r["role"] == "auditor" and r["control"] == "none":
+                r["sets"]["judge"] = scored(40, 0.6, r["sets"]["judge"]["prompt_ids"], "auditor")
+        matched = run.family_contrast(a, b, matched_size=True)["auditor-mean"]
+        assert matched["difference_of_differences"] == pytest.approx(0.3, abs=0.03)
+        assert matched["ci"][0] > 0 and "family recognition" in matched["reading"]
+        mixed = run.family_contrast(a, b, matched_size=False)["auditor-mean"]
+        assert "family and size mixed" in mixed["reading"]
+        assert run.family_contrast(a, a, matched_size=True)["advocate-mean"]["reading"] == "inconclusive"
+
+    def test_the_mid_layer_diagnostic_is_reported_apart(self):
+        results, found, pairs = self.build()
+        for role in ("auditor", "advocate"):
+            for seed in ch.SEEDS:
+                sets = {
+                    n: scored(k, 0.8, ids, role)
+                    for n, k, ids in (
+                        ("confirm", 60, [i // 2 for i in range(60)]),
+                        ("judge", 40, [f"j{i // 2}" for i in range(40)]),
+                    )
+                }
+                results.append(fake_result(role, "mid", "none", seed, sets))
+        r = run.readout(results, found, pairs)
+        assert set(r["X_exploratory_mid_layer"]) == {"auditor-mid", "advocate-mid"}
+        assert r["X_exploratory_mid_layer"]["auditor-mid"]["confirm"] == pytest.approx(0.8)
+        assert len(r["C_critics"]) == 12  # the diagnostic never enters the committed readout
+
     def test_a_leaking_shuffled_control_stops_every_role_reading(self):
         results, found, pairs = self.build(shuffled_good=0.95)
         r = run.readout(results, found, pairs)

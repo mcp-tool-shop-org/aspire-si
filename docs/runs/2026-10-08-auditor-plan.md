@@ -239,3 +239,71 @@ case about $4.80) stays an option only if the maintainer asks for it.
    Each piece is tested.
 2. Step 1, the found Auditor on validation. Its reading is recorded before anything is trained.
 3. Steps 2 to 4, then the readout in the order of section 4, and a report PR.
+
+## Addendum: more feature sources, to separate family from size (written 2026-10-08, before anything ran)
+
+**Why.** Every critic here reads the hidden states of a Qwen model, and every planted error so far
+came from Qwen2.5-32B, except the second-planter set. A Qwen model may recognise its own family's
+editing style (self-recognition, Panickssery et al. 2024), so the Qwen-on-Qwen-planted cell is the
+most likely to flatter a critic. The maintainer has access to Meta's Llama 3.2 models.
+
+**Family is tangled with size** (R&D's review). Qwen2.5-1.5B (hidden size 1536) against
+Llama-3.2-3B (3072) changes family, size, width and pretraining data at once. So there are three
+sources:
+
+| Source | Model, revision | Hidden size, layers | License |
+|---|---|---|---|
+| `qwen` (primary, as above) | Qwen/Qwen2.5-1.5B-Instruct, `989aa798…` | 1536, 28 | Apache-2.0 |
+| `qwen3b` | Qwen/Qwen2.5-3B-Instruct, `aa8e7253…` | 2048, 36 | Qwen research license |
+| `llama` | meta-llama/Llama-3.2-3B-Instruct, `0cb88a4f…` | 3072, 28 | Llama 3.2 Community License |
+
+- `qwen` against `qwen3b` isolates **size** within one family.
+- `qwen3b` against `llama` isolates **family** at about the same size. Their widths still differ,
+  so each head's parameter count is recorded beside its results.
+- All three are Instruct models, like-for-like.
+
+Every form, seed and control is trained on each source:
+- frozen, 4-bit, each with its own chat template;
+- the last layer as the primary feature, for every source;
+- the 1536-token truncation check run for each tokenizer.
+
+Nothing else changes: sets, forms, training settings, controls and readout. Each source gets its own
+full readout.
+
+**What is compared**, with no rule attached:
+- **Per form, between two sources** (`critic_heads.py compare`): seed-mean accuracy on validation,
+  the judge set and the second-planter set, with a paired, prompt-clustered interval of the
+  difference.
+- **The family pattern as one number** (`family_contrast`):
+  - (a − b) on the Qwen-planted judge set minus (a − b) on the gemma-planted set, with a two-sample
+    prompt-clustered interval.
+  - Only `qwen3b` against `llama` is read as family; any other pair is labelled "family and size
+    mixed".
+  - With about 45 gemma pairs the interval will be wide, so **"inconclusive" is the likely reading**,
+    and the plan names it as such.
+  - No pattern is called "family recognition" from the mixed comparisons.
+
+**An exploratory depth diagnostic, with no rule.**
+- Probing work tends to find middle layers stronger than the last. So one extra feature per source is
+  cached: the mean-pooled hidden state about two thirds of the way in (layer 19 of 28 for both 28-layer
+  models, 24 of 36 for Qwen2.5-3B).
+- Auditor and Advocate heads are trained on it, three seeds, with no controls. They are reported
+  apart from the committed readout.
+- If the last layer looks weak everywhere, this shows whether depth is the bottleneck.
+
+**Built with Llama.** This study reads features from Meta's Llama 3.2 3B and from Qwen2.5 (1.5B and
+3B) alongside each other, so critics are tested across model families. Heads trained on these
+features are shared under each model's license terms:
+- Llama-derived work carries "Built with Llama" and follows the Llama 3.2 Community License.
+- Qwen2.5-3B-derived work follows the Qwen research license.
+- Qwen2.5-1.5B-derived work follows Apache-2.0.
+
+Before any derived head, score set or model card is shared, its license terms are checked and its
+attribution is added.
+
+**Recorded with each cache:** source, model, revision, 4-bit loading, hidden size, the primary
+(last) layer, the exploratory layer, and the license.
+
+**Cost:** two more cache passes (Qwen2.5-3B is about 6 GB to download), each about 7 GB of VRAM and
+about 25 minutes, booked with the Publisher like the rest. Training the heads per source adds
+minutes. Still $0.
