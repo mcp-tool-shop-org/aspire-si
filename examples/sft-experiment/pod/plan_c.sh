@@ -76,10 +76,10 @@ local_pair() { pair control-local-s$SEED sft-local-s$SEED; }
 probes() {
   for c in local composite; do
     local ctl=$O/control-$c-s$SEED sft=$O/sft-$c-s$SEED
-    python $E/probe_models.py --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-control-$c \
+    python $E/probe_models.py --seed $SEED --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-control-$c \
       base=$BASE control-1=$BASE+$ctl/checkpoint-1/student control-2=$BASE+$ctl/checkpoint-2/student \
       control-3=$BASE+$ctl/checkpoint-3/student --drift-from base
-    python $E/probe_models.py --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-sft-$c \
+    python $E/probe_models.py --seed $SEED --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-sft-$c \
       base=$BASE sft=$SFT sft-aspire-1=$SFT+$sft/checkpoint-1/student \
       sft-aspire-2=$SFT+$sft/checkpoint-2/student sft-aspire-3=$SFT+$sft/checkpoint-3/student \
       --drift-from base --drift-from sft

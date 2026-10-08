@@ -699,6 +699,28 @@ class TestHostCheck:
 
 
 class TestProbe:
+    def test_drift_exports_record_the_models_training_seed(self, tmp_path):
+        rng = np.random.default_rng(0)
+        names = ["base", "sft", "sft-aspire-1"]
+        states = rng.standard_normal((3, 6, 8))
+        pairs = [(f"q{i}", f"a{i}") for i in range(6)]
+        dims = [{"correctness": 7.0 + i % 3} for i in range(6)]
+        teachers = [{"local:Qwen2.5-32B-Instruct": 7.0 + i % 3} for i in range(6)]
+        summary = probe_models.write_exports(
+            states, names, pairs, dims, teachers, ["base", "sft"], tmp_path, 43
+        )
+        assert summary["seed"] == 43
+        for ref, checkpoints in (("base", 2), ("sft", 1)):
+            meta = json.loads((tmp_path / f"drift-from-{ref}.geometry.json").read_text(encoding="utf-8"))[
+                "run_metadata"
+            ]
+            assert (meta["seed"], meta["run_id"], meta["checkpoints"]) == (
+                43,
+                f"drift-from-{ref}",
+                checkpoints,
+            )
+            assert (meta["step_axis"], meta["scalar_source"]) == ("checkpoint_by_item", "fixed_per_item")
+
     def test_entries_parse(self):
         assert probe_models.parse_entry("sft=sft/merged") == ("sft", "sft/merged", None)
         assert probe_models.parse_entry("a1=sft/merged+out/checkpoint-1/student") == (
