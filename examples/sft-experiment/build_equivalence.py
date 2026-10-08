@@ -106,16 +106,44 @@ def readout(runs: dict[str, dict], old: str = "13.0-a", repeat: str = "13.0-b", 
     return out
 
 
-def server_identity(url: str) -> dict:  # pragma: no cover - needs Ollama
-    """The answering server's URL and Ollama version, recorded with every item."""
+def file_sha256(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def identity(url: str, version: str | None, build: str, backend_dll: Path) -> dict:
+    """What answered: URL, Ollama version, build label, and the CUDA backend DLL's path and sha256.
+    Both builds report the same Ollama version, so the label and the DLL hash tell them apart."""
+    return {
+        "url": url,
+        "ollama_version": version,
+        "build": build,
+        "backend_dll": str(backend_dll),
+        "backend_sha256": file_sha256(backend_dll),
+    }
+
+
+def check_server(state: dict, who: dict, name: str) -> dict:
+    """Record the server on a new run; refuse to resume a run on a different one."""
+    state.setdefault("server", who)
+    if state["server"] != who:
+        raise SystemExit(f"{name} was started on {state['server']}, not {who}")
+    return state
+
+
+def ollama_version(url: str) -> str | None:  # pragma: no cover - needs Ollama
     import urllib.request
 
     with urllib.request.urlopen(url.rstrip("/") + "/api/version", timeout=30) as r:
-        version = json.loads(r.read()).get("version")
-    return {"url": url, "ollama_version": version}
+        return json.loads(r.read()).get("version")
 
 
-def ask(label: str, out: Path, url: str, build: str) -> None:  # pragma: no cover - needs Ollama
+def ask(label: str, out: Path, url: str, build: str, backend_dll: Path) -> None:  # pragma: no cover
     import matched_set as ms
     from critic_heads import load_pairs
     from recheck import REQUEST, SCHEMA, SYSTEM
@@ -133,10 +161,8 @@ def ask(label: str, out: Path, url: str, build: str) -> None:  # pragma: no cove
     path = out / f"equivalence-{label}.json"
     state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"grammar": {}, "meaning": {}}
     judge = "gemma4:31b"
-    who = server_identity(url) | {"build": build}
-    state.setdefault("server", who)
-    if state["server"] != who:
-        raise SystemExit(f"{path.name} was started on {state['server']}, not {who}")
+    who = identity(url, ollama_version(url), build, backend_dll)
+    check_server(state, who, path.name)
     try:
         for key in g_ids:
             if key in state["grammar"]:
@@ -174,13 +200,14 @@ def main() -> None:  # pragma: no cover
     parser.add_argument("--label")
     parser.add_argument("--url", default="http://127.0.0.1:11434", help="the Ollama server to ask")
     parser.add_argument("--build", help='recorded with every item, e.g. "Ollama 0.35.1, CUDA 13.0 backend"')
+    parser.add_argument("--backend-dll", type=Path, help="the ggml-cuda.dll the server loads (hashed)")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     if args.cmd == "ask":
-        if not args.label or not args.build:
-            raise SystemExit("ask needs --label and --build")
-        ask(args.label, args.out, args.url, args.build)
+        if not args.label or not args.build or not args.backend_dll:
+            raise SystemExit("ask needs --label, --build and --backend-dll")
+        ask(args.label, args.out, args.url, args.build, args.backend_dll)
         return
     runs = {
         p.stem.removeprefix("equivalence-"): json.loads(p.read_text(encoding="utf-8"))
