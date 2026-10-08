@@ -151,6 +151,14 @@ prompt-clustered bootstrap of their difference.
   - **Flagged:** its point estimate is below 0.5 but its CI crosses 0.5. Kept out of the panel and
     reported.
 
+**Also reported for the found Auditor and every head, with no rule attached** (added after step 1,
+before any head was trained):
+- pointwise AUC;
+- **noise-band accuracy:** pairwise accuracy with any pair whose gap is no larger than 0.002 counted
+  as a tie (half). 0.002 is the median score difference measured when the found Auditor was re-scored
+  locally against the pod. A head with clean margins then isn't scored the same as a near coin-flip
+  that lands on the right side.
+
 **D. Are the Auditor and the Advocate different critics?**
 - Before any panel claim: the correlation, over validation answers, between the Advocate's score and
   the Auditor's flaw score (each form's seed-mean).
