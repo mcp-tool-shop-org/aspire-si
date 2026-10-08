@@ -621,3 +621,177 @@ then failed the whole-set check above. Frozen Kev-4B, order-averaged, preferred 
 6. If both read sets pass, the plan continues from the cache step, unchanged.
 
 `typicality.py` implements the measure and the rule (`readout`, `match`).
+
+## Addendum 4: a hypothesis-only baseline, a two-sided matched set, erasure, and a like-with-like reading (written 2026-10-08, after the typicality match failed and before any head read a paraphrase; reviewed by the R&D session)
+
+**What happened.**
+- Addendum 3's typicality match failed clearly on both read sets, and not borderline.
+  - P-confirm: errors' tail Δ quartiles [-24.3, -18.5, -12.3] against the kept paraphrases' [-11.4,
+    -7.1, -3.4], KS D 0.56.
+  - P-second: errors [-29.2, -25.3, -20.4] against [-7.5, -5.0, -1.7], KS D 0.86.
+  - The changed-span measure agrees.
+- Planted errors make an answer far more surprising than one-word synonym swaps do. A head that read
+  only surprisal would separate the two sets, and the Skeptic as designed would call it
+  error-specific.
+- The committed response (re-plant, choosing among candidates to match the errors) was put on hold.
+  The maintainer asked for research into other generators first: the random and mutation generators
+  in mcp-stress-test, and newer approaches.
+- This addendum is the result. It goes to the maintainer before anything is planted or read.
+
+### The frame: set the models up to succeed
+
+The maintainer's direction: context is what makes these models work. Every model step gets the
+context it needs, reads it, and handles one item at a time; quality is never traded for speed. That
+applies to the method too: the four steps below run in order, and each is finished and reviewed
+before the next starts.
+
+So far the model steps have been starved:
+- thinking off on every judge and planter;
+- tight token caps;
+- a meaning check that saw two sentences plus one of context;
+- a planter told to "swap one word" and never told why.
+
+From here, every planter, judge and checker step gets:
+- **Context:**
+  - the question;
+  - the full answer, or both full copies when it judges a pair;
+  - the purpose stated plainly: we are building a control for a study of critics, here is what a
+    good item looks like, and why;
+  - 3–5 worked examples of good and bad items, with the reasoning;
+  - the exact criteria.
+- **One item per call.** Never several candidates in one reply.
+- **Thinking on where the model supports it, with room.** num_predict is set so that thinking plus a
+  full answer fits, and a truncation is logged as its own failure reason. Local GPU time is $0.
+- **The models, pinned** (capabilities as `ollama show` reports them):
+
+  | Model | Role | Digest | Capabilities | Thinking |
+  |---|---|---|---|---|
+  | Qwen2.5-32B-Instruct Q4_K_M (llama-server) | planter | official GGUF | completion | none; reasoning is the reply's first field |
+  | gemma4:31b (Apache-2.0) | error check; rewrite meaning check | 6316f0629137 | completion, vision, tools, thinking | on |
+  | muse-glimmer:latest (Meta, Apache-2.0: huggingface.co/meta-models/Muse-Glimmer-30B, repo a4e59da52a7b, checked by R&D 2026-10-08; Ollama's package omits the licence text) | error check | de878ce33ad8 | completion, vision, tools, thinking | on (levels false/low/medium/high/max) |
+  | mistral-small:24b (Apache-2.0) | rewrite meaning check | 8039dd90c113 | completion, tools | none; reasoning first |
+  | microsoft/Phi-3-mini-4k-instruct (MIT), revision f39ac1d2 | selection scorer (tail Δ) | HF | log-probabilities | n/a |
+
+  - muse-glimmer's usage policy (guidance, not licence) asks that its outputs not be represented as
+    human-generated; any shipped output it judged is disclosed as AI-assisted.
+  - muse-glimmer replies in plain text: Ollama's `format=json` makes it return empty lists. Its
+    reply is parsed from text, and a trailing `<|eot|>` is stripped.
+- **Reasoning before the verdict,** stored with the verdict, so every kept or dropped item can be
+  audited.
+
+### Step 1: a surprisal-only baseline (CPU, from the stored deltas, no head read)
+
+- **The test:** whether the pair-level surface features alone separate error pairs from kept
+  paraphrase pairs. This is the hypothesis-only baseline of the NLI artefact literature (Gururangan
+  et al. 2018; Poliak et al. 2018).
+  - The features: tail Δ, changed-span Δ, edit characters, and edit tokens (Phi-3 tokens).
+  - The classifier: logistic regression on standardised features.
+  - The evaluation: 5-fold cross-validation grouped by prompt, so no strong answer is in both train
+    and test.
+  - The output: per set (P-confirm against confirm errors, P-second against second-planter errors,
+    P-train against training errors), the out-of-fold AUC with a prompt-clustered bootstrap CI.
+- **Committed now:** from here on, any critic's Skeptic result is read as its **margin over this
+  baseline, not over 0.5**.
+  - The critic's comparable number is the AUC with which its pair margin separates error pairs from
+    paraphrase pairs on the same set.
+  - The margin is critic AUC minus baseline AUC, with a prompt-clustered bootstrap CI on the
+    difference.
+  - A critic that doesn't beat the baseline shows nothing that surprisal and size alone don't.
+
+### Step 2: a two-sided matched set, P-matched (new, kept beside P-confirm, never replacing it)
+
+- **Why two-sided:**
+  - Dragging the paraphrases alone toward the errors' surprisal needs a meaning-preserving one-word
+    swap as surprising as a wrong number. The measured overlap says that is rare.
+  - Adversarial-filtering work instead moves both sides toward each other, to where they overlap
+    (Zellers et al. 2018, 2019; Le Bras et al. 2020; Wu et al. 2021).
+- **The loop:** a search in the shape of mcp-stress-test's `fuzz_until_evasion`: generate, score,
+  keep or retry. An item's fitness is "inside the caliper, and passes its check".
+- **Answers:** the 78 confirmation prompts' strong answers, held out from all training.
+- **Error side:**
+  - The planter (Qwen2.5-32B-Instruct Q4, as for the confirm errors), with full context, proposes up
+    to 5 candidate errors per answer, one per call.
+    - Each candidate is one subtle, plausible error that a careful reader could still find.
+  - **Two judges from two families** confirm each candidate is really wrong, independently, each with
+    reasoning stored: gemma4:31b (thinking on) and muse-glimmer:latest (thinking on).
+    - On R&D's natural-error set, muse-glimmer was the best single judge: precision 0.86, recall
+      0.86, 81% of agreed error sentences.
+    - Keeping the least surprising error pushes the selection toward arguable items, where a single
+      judge is weakest. So a candidate is kept only when both say it is wrong.
+    - A disagreement drops the candidate, and the count is reported.
+  - Phi-3 scores each confirmed error's tail Δ, and the **least surprising** confirmed error is kept.
+- **Rewrite side:**
+  - The same planter, with full context, proposes up to 5 meaning-preserving rewrites per answer, one
+    per call. A rewrite changes a clause or a phrase, not one word, and adds or removes no claim.
+  - The meaning check sees the whole answer in both versions and gives its reasoning first.
+    - **Two judges:** mistral-small:24b (reasoning first; no thinking mode) and gemma4:31b (thinking
+      on).
+    - A rewrite passes only if both say "same meaning, no claim changed".
+    - No single model decides either side of P-matched.
+  - Phi-3 scores each passing rewrite, and the **most surprising** passing rewrite is kept.
+- **Pairing:**
+  - An answer contributes a matched pair when its kept error and kept rewrite are within ±2 nats of
+    tail Δ.
+  - If they aren't, a second and third round of 5 candidates each try to close the gap, then the
+    answer is reported unmatched.
+  - Edit sizes are reported, not gated.
+  - Yield, rejection reasons and every candidate's reasoning are reported.
+- **Expect** subtler errors than P-confirm. P-matched is a different population and is reported as
+  such; it doesn't replace any existing reading.
+- **The selection scorer is not the reading scorer.**
+  - Phi-3 chooses the kept candidates by Δ, so on P-matched, Phi-3's surprisal has been optimised by
+    selection. Step 1's baseline read with it would be biased toward chance.
+  - So on P-matched, the surprisal-only baseline uses a **second scorer not used for selection**.
+  - The preferred second scorer is **Llama-3.1-8B-Instruct**. Its weights aren't on the rig: about
+    16 GB to download, under the Llama 3.1 Community Licence (access accepted). **This needs the
+    maintainer's go, asked here.**
+  - Without that go, the second scorer is **Llama-3.2-3B-Instruct**, already on disk ("Built with
+    Llama"). It is the same family as one feature source, so the readout says so.
+  - If neither is used, the report states that the P-matched baseline is selection-biased toward
+    chance.
+- **Reading:** with at least 40 matched answers, the Skeptic table on P-matched is the primary
+  like-with-like reading. Below 40, step 4's band reading is primary and P-matched is reported
+  only.
+
+### Step 3: erase and retrain (a diagnostic, no rule)
+
+- Fit LEACE (Belrose et al. 2023; EleutherAI/concept-erasure, MIT) on the training caches. It removes the direction that linearly
+  encodes each answer copy's tail Δ (0 for the strong copy, the pair's tail Δ for the edited copy).
+- Retrain the step 4 heads on the erased features and report how much validation accuracy and
+  Skeptic margin survive.
+- LEACE removes only linear encoding. A head that recovers after erasure may still be reading
+  surprisal non-linearly. This is a diagnostic, reported without a pass or fail.
+
+### Step 4: like-with-like reading of the existing data (the committed fallback)
+
+- **Band:** on P-confirm, the Skeptic table is computed only on pairs whose tail Δ lies in **-16 to
+  -6**.
+  - Measured on the stored deltas: 59 of the 121 kept paraphrases and 52 of the 149 error pairs.
+  - The analysis is prompt-clustered, with n reported.
+- P-second is too thin in that band (13 and 8) and is reported as such, with no reading.
+- The band and the numbers above were fixed before any head read a paraphrase.
+
+### Also before any read
+
+- **Re-run the meaning check on the existing kept word swaps** in the new context-rich form: full
+  answer in both versions, purpose, worked examples, reasoning first. The 14% flag rate came from a
+  starved prompt.
+  - The kept sets, and step 4's counts, are recomputed from the new verdicts.
+  - The change is reported beside the old one.
+- **Citations** (verified against arXiv by R&D, 2026-10-08):
+  - Gururangan et al. 2018, arXiv:1803.02324; Poliak et al. 2018, arXiv:1805.01042;
+  - Zellers et al. 2018 (SWAG), arXiv:1808.05326; Zellers et al. 2019 (HellaSwag), arXiv:1905.07830;
+  - Le Bras et al. 2020 (AFLite), arXiv:2002.04108; Wu et al. 2021 (Polyjuice), arXiv:2101.00288;
+  - Belrose et al. 2023 (LEACE), arXiv:2306.03819.
+  - LEACE's implementation, EleutherAI/concept-erasure, is MIT (licence checked by R&D).
+
+### Order and gates
+
+- Step 1 is CPU only.
+- The meaning re-check and step 2 each need the card through the Publisher, one model at a time.
+- Steps 3 and 4 read heads, so they come last, after steps 1 and 2 are reviewed.
+- Each step is finished and reviewed before the next starts.
+- Nothing in steps 2–4 runs until the maintainer approves this addendum.
+- The maintainer's decisions asked for here:
+  - approve the addendum;
+  - go or no-go on the 16 GB Llama-3.1-8B download for the second scorer.
