@@ -8,7 +8,9 @@ two orders together cover option-order sensitivity. With two options, Kev's /per
 adds nothing beyond that.
 
 Kev's probabilities are calibrated on its own training tasks, not on this one, so they are not
-read as scores. Only the choice and the margin, p(strong) − p(flawed), are used.
+read as scores. Step 1 used only the choice and the margin, p(strong) − p(flawed). The
+confirmation plan adds `order_averaged`: p(strong) averaged over the two orders, which cancels
+Kev's lean toward option A.
 
 Writes --out (kev-<name>.json):
   - accuracy averaged over both orders, and the rate at which option A is chosen (position bias);
@@ -93,6 +95,56 @@ def judge(ask: Callable[[dict], dict], pairs: list[dict], model: str = "kev-late
     }
 
 
+def order_averaged(rows: list[dict], resamples: int = 2000, seed: int = 0) -> dict:
+    """The 2026-10-08 confirmation plan's statistic, fixed before it ran.
+
+    Per pair, p(strong) is normalised over the two options in each order and averaged over the two
+    orders. A pair is favoured when that mean is above 0.5 (exactly 0.5 counts half). Accuracy is
+    the share of favoured pairs, with a 95% bootstrap interval that resamples whole prompts. Also:
+    the mean and spread of the gap p(A | strong first) - p(A | strong second), and how many pairs
+    are decided for the strong answer in both orders without averaging.
+    """
+    import random
+    import statistics
+
+    def strong_share(order: dict) -> float:
+        total = order["p_strong"] + order["p_flawed"]
+        return order["p_strong"] / total if total > 0 else 0.5
+
+    means = [(strong_share(r["strong_first"]) + strong_share(r["strong_second"])) / 2 for r in rows]
+    wins = [1.0 if m > 0.5 else 0.5 if m == 0.5 else 0.0 for m in means]
+    gaps = [2 * m - 1 for m in means]
+    members: dict = {}
+    for i, r in enumerate(rows):
+        members.setdefault(r["prompt_id"], []).append(i)
+    clusters = list(members.values())
+    rng = random.Random(seed)
+    stats = []
+    for _ in range(resamples):
+        idx = [i for _ in clusters for i in clusters[rng.randrange(len(clusters))]]
+        stats.append(sum(wins[i] for i in idx) / len(idx))
+    stats.sort()
+    favoured = {rows[i]["prompt_id"] for i, w in enumerate(wins) if w == 1.0}
+    return {
+        "accuracy": sum(wins) / max(len(wins), 1),
+        "ci": [stats[int(0.025 * resamples)], stats[int(0.975 * resamples) - 1]],
+        "favoured_pairs": sum(w == 1.0 for w in wins),
+        "favoured_prompts": len(favoured),
+        "prompts": len(clusters),
+        "mean_abs_gap": statistics.fmean(abs(g) for g in gaps),
+        "sd_gap": statistics.pstdev(gaps),
+        "both_orders_strong": sum(
+            r["strong_first"]["choice"] == "A" and r["strong_second"]["choice"] == "B" for r in rows
+        ),
+    }
+
+
+def confirmation_reading(accuracy: float, ci_low: float) -> str:
+    """The confirmation plan's rule: order-averaged accuracy of at least 0.85 on the fresh pairs,
+    with the lower end of its prompt-clustered 95% interval at least 0.75."""
+    return "confirmed" if accuracy >= 0.85 and ci_low >= 0.75 else "not confirmed"
+
+
 def reading(result: dict) -> str:
     """The plan's pre-registered decision rule for step 1."""
     if result["accuracy"] < 0.75:
@@ -123,6 +175,10 @@ def main() -> None:  # pragma: no cover - needs a Kev server
     pairs = json.loads(args.judge_set.read_text(encoding="utf-8"))
     result = judge(http_ask(args.url), pairs) | {"name": args.name}
     result["reading"] = reading(result)
+    result["order_averaged"] = order_averaged(result["rows"])
+    result["order_averaged"]["reading"] = confirmation_reading(
+        result["order_averaged"]["accuracy"], result["order_averaged"]["ci"][0]
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
     keys = (
@@ -135,7 +191,7 @@ def main() -> None:  # pragma: no cover - needs a Kev server
         "separable_prompts",
         "reading",
     )
-    print(json.dumps({k: result[k] for k in keys}, indent=1))
+    print(json.dumps({k: result[k] for k in keys} | {"order_averaged": result["order_averaged"]}, indent=1))
     print("KEV-OK", args.out)
 
 

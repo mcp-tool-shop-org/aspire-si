@@ -362,6 +362,35 @@ class VllmBackend(Backend):  # pragma: no cover - needs a GPU and vllm
         return [o.outputs[0].text for o in outputs]
 
 
+class ServerBackend(Backend):  # pragma: no cover - needs a running server
+    """An OpenAI-compatible chat server (llama.cpp's llama-server on the local GPU), with
+    `workers` requests in flight to fill the server's parallel slots."""
+
+    def __init__(self, url: str = "http://127.0.0.1:8010", workers: int = 4, timeout: float = 600):
+        self.url = url.rstrip("/") + "/v1/chat/completions"
+        self.workers = workers
+        self.timeout = timeout
+
+    def _one(self, chat: Chat, max_tokens: int, temperature: float) -> tuple[str, bool]:
+        import urllib.request
+
+        body = {"messages": chat.messages(), "max_tokens": max_tokens, "temperature": temperature}
+        req = urllib.request.Request(
+            self.url, data=json.dumps(body).encode("utf-8"), headers={"content-type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=self.timeout) as response:
+            choice = json.loads(response.read())["choices"][0]
+        return choice["message"]["content"] or "", choice.get("finish_reason") == "length"
+
+    def generate(self, chats: Sequence[Chat], max_tokens: int, temperature: float) -> list[str]:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(self.workers) as pool:
+            out = list(pool.map(lambda c: self._one(c, max_tokens, temperature), chats))
+        self.last_truncated = [t for _, t in out]
+        return [text for text, _ in out]
+
+
 def write_jsonl(path: Path, rows: Sequence[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
