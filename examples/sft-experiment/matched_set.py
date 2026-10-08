@@ -386,8 +386,11 @@ def prescreen(original: str, edited: str) -> list[str]:
     return flags
 
 
+OLLAMA = "http://127.0.0.1:11434"
+
+
 def ollama_chat(
-    model: str, system: str, user: str, fmt, think, num_predict: int, num_ctx: int
+    model: str, system: str, user: str, fmt, think, num_predict: int, num_ctx: int, url: str = OLLAMA
 ) -> dict:  # pragma: no cover
     import urllib.request
 
@@ -402,7 +405,7 @@ def ollama_chat(
     if think is not None:
         body["think"] = think
     req = urllib.request.Request(
-        "http://127.0.0.1:11434/api/chat",
+        url.rstrip("/") + "/api/chat",
         data=json.dumps(body).encode("utf-8"),
         headers={"content-type": "application/json"},
     )
@@ -429,11 +432,11 @@ def judged(response: dict, fields: tuple[str, ...]) -> dict:
     return out | {k: data[k] for k in data} | {"outcome": data.get("verdict", "ok")}
 
 
-def unload(model: str) -> None:  # pragma: no cover
+def unload(model: str, url: str = OLLAMA) -> None:  # pragma: no cover
     import urllib.request
 
     req = urllib.request.Request(
-        "http://127.0.0.1:11434/api/generate",
+        url.rstrip("/") + "/api/generate",
         data=json.dumps({"model": model, "keep_alive": 0}).encode("utf-8"),
         headers={"content-type": "application/json"},
     )
