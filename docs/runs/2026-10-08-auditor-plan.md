@@ -844,9 +844,17 @@ From here, every planter, judge and checker step gets:
       re-check meaning items (a seed-0 random sample of P-confirm).
     - Reported: verdict agreement per task, with a Wilson interval, and every disagreement listed
       with both builds' reasoning.
-    - **Committed rule:** if verdict agreement is below 90% on either task, stop and put it to the
-      maintainer before any 13.4 judge result is mixed with a 13.0 one. Otherwise the two builds'
-      verdicts are treated as one judge, and the report says so.
+    - **A same-build noise floor (the Publisher's review):** gemma4 with thinking isn't guaranteed
+      deterministic at temperature 0, so cross-build disagreement mixes build differences with
+      run-to-run noise. The 13.0 build is asked the same 60 items twice before the switch (runs
+      "13.0-a" and "13.0-b"), and the repeat agreement is reported beside the cross-build agreement.
+    - **Committed rule:** stop and put it to the maintainer before any 13.4 judge result is mixed
+      with a 13.0 one if, on either task, cross-build agreement is **below 90% and more than 10
+      points below the same-build repeat agreement**.
+      - Both conditions are required: a shortfall within the build's own run-to-run noise isn't a
+        build difference, and with n = 30 a lone 90% line could trip on noise.
+      - Otherwise the two builds' verdicts are treated as one judge, and the report says so.
+    - `build_equivalence.py` implements the sample, the readout and the rule.
 - **Generator families, for the record:**
   - The 78 strong answers were written by Qwen2.5-32B-Instruct (bf16), and the planter is the same
     model at Q4_K_M. Its fingerprint is therefore balanced across both sides of P-matched.
