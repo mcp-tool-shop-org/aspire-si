@@ -41,6 +41,7 @@ MODEL = "microsoft/Phi-3-mini-4k-instruct"
 REVISION = "f39ac1d28e925b323eae81227eaba4464caced4e"
 LICENSE = "MIT"
 MAX_LENGTH = 4096
+BORDERLINE = 0.10
 # The read sets and the error set each is matched against; P-train is reported only.
 READ_SETS = {"pconfirm": "confirm", "psecond": "second"}
 REPORTED_ONLY = {"ptrain": "train"}
@@ -139,6 +140,9 @@ def match(errors: list[float], paraphrases: list[float]) -> dict:
         "paraphrase_quartiles": list(quartiles(paraphrases)),
         "paraphrase_median": para_median,
         "passes": q1 <= para_median <= q3,
+        # Borderline (committed before the run): the median within 10% of the IQR's width of either
+        # edge, inside or out. Only a borderline result may call for a second typicality model.
+        "borderline": min(abs(para_median - q1), abs(para_median - q3)) <= BORDERLINE * (q3 - q1),
         "ks_d": d,
         "ks_p": p,
     }

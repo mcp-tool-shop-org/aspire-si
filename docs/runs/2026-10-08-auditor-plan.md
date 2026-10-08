@@ -610,6 +610,11 @@ then failed the whole-set check above. Frozen Kev-4B, order-averaged, preferred 
      pairs' interquartile range of tail delta**.
    - A two-sample Kolmogorov–Smirnov statistic and its p-value are reported beside it, not gated.
    - P-train against the training error pairs is reported only.
+   - **Borderline**, committed before the run (R&D's review): a read set's result is borderline
+     when the paraphrases' median tail delta lies within 10% of the IQR's width of either edge,
+     inside or outside. Only a borderline result may call for a second typicality model
+     (Llama-3.1-8B-Instruct). Its 16 GB download needs the maintainer's go first. A pass or fail
+     that isn't borderline stands on Phi-3 alone.
 5. **On a fail**, the failing set is re-planted. The planter offers 3–5 candidate synonyms per
    word, and the choice is made to match the **error pairs'** delta quantiles, never the
    original's. The third model chooses; Kev never does, so its report stays independent.
