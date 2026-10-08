@@ -103,8 +103,14 @@ which exists only when both are shown. It is labelled **"judging a located chang
 an error", and is never compared head-to-head with the Auditor's single-answer task without saying
 so. Mean and attention pooling are the like-for-like comparison.
 
-- **Starting points:** three critic init seeds per form (42, 43, 44, through `critic.init_seed`), so
-  a lucky or unlucky draw shows.
+- **Starting points:** three critic init seeds per form (42, 43, 44), so a lucky or unlucky draw
+  shows. A head's weights come from its seed alone, as with `critic.init_seed`.
+- **Training settings, fixed in advance for every head and control:**
+  - `CriticHead` with hidden size 512, 2 layers and dropout 0.1;
+  - AdamW at learning rate 1e-4, weight decay 0.01;
+  - 5 epochs of 8 pairs per batch.
+
+  Nothing is tuned on validation; validation only decides role checks and panel membership.
 - **The Skeptic** (paraphrase edits with no error) stays out unless the maintainer adds it. The
   second-planter set takes its role as the check on "learned this planter's edits".
 
@@ -153,8 +159,10 @@ prompt-clustered bootstrap of their difference.
   both AUCs are compared too.
 
 **E. The panel:**
-- An answer's panel score is the mean Advocate score minus the mean Auditor flaw score, over the
-  critics not rejected or flagged.
+- An answer's panel score is the mean Advocate score minus the mean Auditor flaw score.
+- Members are the critics not rejected or flagged, whose form passed its positive control.
+- Advocate-span is not a member, because it judges a located change and has no score for an answer
+  alone.
 - Each score is standardised on validation (mean 0, sd 1 over validation answers).
 - Weights are equal and not tuned.
 - **"The panel beats its best member"** needs the paired, prompt-clustered interval of the difference

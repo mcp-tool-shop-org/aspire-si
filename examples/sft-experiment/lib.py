@@ -391,6 +391,67 @@ class ServerBackend(Backend):  # pragma: no cover - needs a running server
         return [text for text, _ in out]
 
 
+def refuse_cloud(model: str) -> str:
+    """The studio's standing rule: no Ollama Cloud models. Any name containing "cloud" is refused."""
+    if "cloud" in model.lower():
+        raise ValueError(f"{model!r} is an Ollama Cloud model; only local models may be used")
+    return model
+
+
+class OllamaBackend(Backend):  # pragma: no cover - needs the local Ollama daemon
+    """The local Ollama daemon's chat API, one request at a time. Cloud models are refused.
+
+    `unload()` asks the daemon to drop the model from GPU memory (keep_alive 0) without the
+    `ollama` CLI, which can hang automation on this rig."""
+
+    def __init__(self, model: str, url: str = "http://127.0.0.1:11434", timeout: float = 900):
+        self.model = refuse_cloud(model)
+        self.url = url.rstrip("/")
+        self.timeout = timeout
+
+    def _post(self, path: str, body: dict) -> dict:
+        import urllib.request
+
+        req = urllib.request.Request(
+            self.url + path,
+            data=json.dumps(body).encode("utf-8"),
+            headers={"content-type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=self.timeout) as response:
+            return json.loads(response.read())
+
+    def model_id(self) -> str:
+        """The local model's digest, as `ollama list` shows its ID (first 12 characters)."""
+        import urllib.request
+
+        with urllib.request.urlopen(self.url + "/api/tags", timeout=30) as response:
+            models = json.loads(response.read())["models"]
+        for m in models:
+            if m["name"] == self.model:
+                return m["digest"][:12]
+        raise ValueError(f"{self.model!r} is not installed locally")
+
+    def generate(self, chats: Sequence[Chat], max_tokens: int, temperature: float) -> list[str]:
+        out, cut = [], []
+        for chat in chats:
+            reply = self._post(
+                "/api/chat",
+                {
+                    "model": self.model,
+                    "messages": chat.messages(),
+                    "stream": False,
+                    "options": {"temperature": temperature, "num_predict": max_tokens},
+                },
+            )
+            out.append(reply["message"]["content"] or "")
+            cut.append(reply.get("done_reason") == "length")
+        self.last_truncated = cut
+        return out
+
+    def unload(self) -> None:
+        self._post("/api/generate", {"model": self.model, "keep_alive": 0})
+
+
 def write_jsonl(path: Path, rows: Sequence[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
