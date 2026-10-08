@@ -109,6 +109,53 @@ epochs, batch 1, the same critic.
 - a config writer for N prompts and a seed;
 - `pod/plan_e.sh`.
 
+## Addendum: step 1's result, and the rules for step 2 (committed before step 2 launches)
+
+**Step 1 ran on 2026-10-08.**
+
+| Judge | Accuracy over both orders | Option A chosen | Kev-separable pairs |
+|---|---|---|---|
+| Kev-4B | 0.547 | 95% | 12 |
+| Kev-9B | 0.598 | 87% | 27 |
+
+- **Under step 1's rule, neither is a useful judge of single planted errors.** Both are below 0.75,
+  both lean heavily on option A, and both separable subsets are too small to re-read the critics on.
+- **So Kev is not a fixed bar.** The step 2 rules below stand on the critics' own numbers.
+
+**Step 2 has no fine-tune condition.** It trains only the control-local critic (base student,
+local teacher) at 128 prompts, seeds 42, 43 and 44. It measures how much the critic varies between
+training runs. It does not measure whether a fine-tune helps.
+
+Its readout uses pairwise accuracy on the 127 judge pairs. The comparison point is the same
+condition at 32 prompts: 0.724, 0.543 and 0.638 (mean 0.635, range 0.181).
+
+**1. Spread, the primary rule** (unchanged from the plan):
+
+| Result | Reading |
+|---|---|
+| Range across the three 128-prompt seeds at most 0.09 | 128 prompts is the training size for every later comparison |
+| Range above 0.09 | Prompt count alone does not settle the critic; nothing is compared until the critic setup does settle |
+
+**2. Level** (reported as well; it does not change rule 1's reading):
+
+| Result | Reading |
+|---|---|
+| All three 128-prompt critics above 0.635, and their mean at least 0.70 | More training prompts make the critic better at planted errors |
+| Mean below 0.60 | More training prompts do not make the critic better, and at most make it steadier |
+| Anything else | No reliable change in level |
+
+**3. The fine-tune comparison that comes after step 2**, if rule 1 passes. This is fixed now so the
+follow-up cannot choose its rule after seeing results.
+- **Design:** three seeds each of control and fine-tune + ASPIRE, at 128 prompts, with the same
+  judge pairs.
+- **A fine-tune effect:** a mean difference of at least 0.10 in pairwise accuracy, with the three
+  seeds of one condition all above the three of the other.
+- **A tendency:** a mean difference of at least 0.10 with overlapping seeds. Reported as such.
+- **No reliable difference:** a mean difference under 0.10.
+
+This is the run 1 rule, applied at a training size whose spread rule 1 has shown to be small enough
+to read it.
+
 ## Order and what comes after
 
 1. **Step 1**, Kev, local and $0, as soon as its code is merged and the maintainer has been told.
