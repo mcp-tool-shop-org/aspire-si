@@ -413,6 +413,18 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
     hour", "a unique"), so the edited copy carries no article slip as a tell.
   - The report gives the yield of each arm (answers with two pairs, one, or none) and the full
     rejection breakdown, so the two-per-answer target is shown, not assumed.
+- **A size-matched margin, added after planting and before any head read a paraphrase (R&D's
+  review):**
+  - The planting matched the medians but not the spread. On P-confirm the paraphrase edits' 5th–95th
+    percentile band is 4–10 characters; the error edits run wider (quartiles 3/5/11). On P-second the
+    band is 4–10.9.
+  - Beside the headline margin, the readout gives the same margin on only the error pairs whose
+    edit size falls inside the band (taken from the kept paraphrases, after the meaning check),
+    prompt-clustered as before, with its n.
+    - Measured before the meaning check: 63 of 149 confirm error pairs fall inside the band, and 19
+      of 47 second-planter error pairs.
+  - If the size-matched margin differs from the headline in sign, or in whether its CI excludes 0,
+    the row says **size is a residual cue**. That flag doesn't change the row's reading.
   - Everything above still applies: the filters, the per-answer size gate, the lexical guard, the
     meaning check with context, two swaps per answer on different sentences, and the retry tell.
   - The planter is unchanged per set: the Q4 32B for P-train and P-confirm, gemma4:31b for

@@ -440,6 +440,9 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     sr.add_argument("--secondary-pairs", type=Path, help="the second paraphrase arm's pairs, in cached order")
     sr.add_argument("--secondary-verify", type=Path, help="its skeptic_pairs.py verify output")
     sr.add_argument("--secondary-set", default="prewritten")
+    sr.add_argument(
+        "--error-pairs", type=Path, help="the error set's pairs in cached order (size-matched margin)"
+    )
     sr.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("readout", help="the plan's committed readout")
     r.add_argument("--scores", type=Path, required=True)
@@ -476,6 +479,11 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
         dropped = set(verified["flagged_changed_meaning"]) | set(verified["unparsed"])
         para = load_pairs(args.pairs)
         ids = [p["pair_id"] for p in para]
+        sizes = None
+        if args.error_pairs:
+            from skeptic_pairs import edit_chars
+
+            sizes = ([edit_chars(p) for p in load_pairs(args.error_pairs)], [edit_chars(p) for p in para])
         secondary = None
         if args.secondary_pairs:
             v2 = json.loads(args.secondary_verify.read_text(encoding="utf-8"))
@@ -494,6 +502,7 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
             load_results(args.step4) if args.step4 else None,
             [p.get("attempt_round", 1) for p in para],
             secondary,
+            sizes,
         )
         result = {"dropped_by_meaning_check": sorted(dropped), "forms": result}
         args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
