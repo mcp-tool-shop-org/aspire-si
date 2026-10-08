@@ -121,6 +121,7 @@ class TestGrammar:
     def test_prescreen_flags_only_what_the_edit_introduces(self):
         assert ms.prescreen("This can lead to errors.", "This can result to errors.") == ["result to"]
         assert ms.prescreen("It results in errors.", "It results in many errors.") == []
+        assert ms.prescreen("It led to errors.", "It resulted to errors.") == ["result to"]
         assert "a before vowel sound" in ms.prescreen("It is a big effect.", "It is a enormous effect.")
         assert ms.prescreen("It is a useful tool.", "It is a unique tool.") == []
         assert ms.prescreen("It comprises of parts.", "It comprises of pieces.") == []

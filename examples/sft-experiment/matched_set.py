@@ -341,7 +341,7 @@ def choose_pair(
 
 # Grammar pre-screen: patterns an edit may newly introduce.
 _RULES = (
-    ("result to", re.compile(r"\bresults? (?:\w+ )?to\b", re.I)),
+    ("result to", re.compile(r"\bresult(?:s|ed|ing)? (?:\w+ )?to\b", re.I)),
     ("comprise of", re.compile(r"\bcompris(?:e|es|ed|ing) of\b", re.I)),
     ("doubled word", re.compile(r"\b(\w+) \1\b", re.I)),
     ("a before vowel sound", re.compile(r"\ba (?=[aeio]\w)", re.I)),
