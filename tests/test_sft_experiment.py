@@ -17,7 +17,9 @@ import clean_dataset  # noqa: E402
 import eval_heldout  # noqa: E402
 import host_check  # noqa: E402
 import judge_eval  # noqa: E402
+import judge_kev  # noqa: E402
 import lib  # noqa: E402
+import make_prompts  # noqa: E402
 import pairwise_teacher  # noqa: E402
 import probe_models  # noqa: E402
 import seed_configs  # noqa: E402
@@ -650,6 +652,24 @@ class TestNextRuns:
         assert ctl == treated  # teacher, schedule and everything else as in the 2026-10-06 control
         assert load("control-local-s43")["teacher"]["default_teacher"] == "local"
 
+    def test_prompt_config_is_control_local_with_its_own_folder(self, tmp_path):
+        path = seed_configs.prompt_config(43, 128, tmp_path)
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert path.name == "control-local-p128-s43.yaml" and config["seed"] == 43
+        assert config["training"]["output_dir"] == "outputs/control-local-p128-s43"
+        assert config["teacher"]["default_teacher"] == "local"
+        assert config["student"]["model_name_or_path"] == "Qwen/Qwen2.5-1.5B-Instruct"
+
+    def test_prompts_are_drawn_from_training_questions_evenly_by_topic(self):
+        kept = [(f"topic-{t}", f"question {t}-{i}") for t in range(4) for i in range(40)]
+        train, held = lib.split_held_out(kept, 64, 400, 42)
+        picked = make_prompts.draw(kept, 20)
+        assert len(picked) == len(set(picked)) == 20
+        assert set(picked) <= {p for _, p in train} and not set(picked) & {p for _, p in held}
+        counts = {t: sum(p.startswith(f"question {t}-") for p in picked) for t in range(4)}
+        assert set(counts.values()) == {5}
+        assert make_prompts.draw(kept, 20) == picked  # deterministic
+
     def test_sft_merge_only_needs_no_data(self):
         args = sft.parse_args(["--merge-only", "sft/epoch-2", "--out", "sft"])
         assert args.merge_only == Path("sft/epoch-2") and args.data is None
@@ -696,6 +716,60 @@ class TestHostCheck:
     def test_newer_drivers_print_the_umd_version(self):
         header = "| NVIDIA-SMI 617.14     KMD Version: 617.14     CUDA UMD Version: 13.4     |"
         assert host_check.driver_cuda(header) == (13, 4)
+
+
+class TestKevJudge:
+    PAIRS = [
+        {
+            "pair_id": k,
+            "prompt_id": k // 2,
+            "prompt": f"q{k // 2}",
+            "strong": f"good {k}",
+            "flawed": f"bad {k}",
+        }
+        for k in range(4)
+    ]
+
+    @staticmethod
+    def kev(prefer):
+        """A fake Kev: picks the option `prefer` returns, with 0.8 of the probability."""
+
+        def ask(body):
+            options = body["questions"]["better"]["criteria"]
+            pick = prefer(options)
+            other = "B" if pick == "A" else "A"
+            return {
+                "answers": {
+                    "better": {"type": "choice", "choice": pick, "probabilities": {pick: 0.8, other: 0.2}}
+                }
+            }
+
+        return ask
+
+    def test_request_puts_the_answers_in_the_options(self):
+        body = judge_kev.request("Why is the sky blue?", "first answer", "second answer")
+        question = body["questions"]["better"]
+        assert body["state"] == "Why is the sky blue?" and question["type"] == "choice"
+        assert question["criteria"] == {"A": "first answer", "B": "second answer"}
+
+    def test_a_judge_that_reads_the_answers_is_accurate_and_unbiased(self):
+        result = judge_kev.judge(self.kev(lambda o: "A" if o["A"].startswith("good") else "B"), self.PAIRS)
+        assert (result["accuracy"], result["a_rate"]) == (1.0, 0.5)
+        assert result["mean_margin"] == pytest.approx(0.6)
+        assert result["separable_ids"] == [0, 1, 2, 3] and result["separable_prompts"] == 2
+        assert judge_kev.reading(result) == "usable reference judge"
+
+    def test_a_judge_that_always_says_a_is_half_right_and_biased(self):
+        result = judge_kev.judge(self.kev(lambda o: "A"), self.PAIRS)
+        assert (result["accuracy"], result["a_rate"], result["separable_pairs"]) == (0.5, 1.0, 0)
+        assert result["mean_margin"] == pytest.approx(0.0)
+        assert judge_kev.reading(result) == "not a useful judge of single planted errors"
+
+    def test_reading_flags_an_accurate_but_biased_judge(self):
+        assert (
+            judge_kev.reading({"accuracy": 0.8, "a_rate": 0.7})
+            == "accurate but position-biased: report both orders"
+        )
 
 
 class TestProbe:

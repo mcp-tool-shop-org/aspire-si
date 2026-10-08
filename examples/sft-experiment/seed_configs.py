@@ -11,7 +11,12 @@ each with `seed: N`, `experiment_name` set to the file's name and `training.outp
 outputs/<name>, so no two runs share a dialogue cache: a new seed samples new dialogues. The CLI
 has no seed option, which is why the configs are written out.
 
+With --prompts N and no --sft-student (step 2 of the 2026-10-08 plan), it writes only the
+control-local config for that seed, named control-local-pN-sSEED with its own output folder; the
+N prompts are passed to `aspire train --prompts` (make_prompts.py writes them).
+
 Usage: python seed_configs.py --seed 43 --sft-student /workspace/job/sft-s43/merged --out configs-s43
+       python seed_configs.py --seed 43 --prompts 128 --out configs-p128
 """
 
 from __future__ import annotations
@@ -47,12 +52,31 @@ def seed_configs(seed: int, sft_student: str, out: Path) -> dict[str, Path]:
     return written
 
 
+def prompt_config(seed: int, prompts: int, out: Path) -> Path:
+    """The control-local config for one seed at a given training-prompt count."""
+    out.mkdir(parents=True, exist_ok=True)
+    config = yaml.safe_load(SOURCES["control-local"].read_text(encoding="utf-8"))
+    name = f"control-local-p{prompts}-s{seed}"
+    config["seed"] = seed
+    config["experiment_name"] = name
+    config["training"]["output_dir"] = f"outputs/{name}"
+    path = out / f"{name}.yaml"
+    path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8", newline="\n")
+    return path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--sft-student", required=True, help="that seed's merged fine-tune")
+    parser.add_argument("--sft-student", help="that seed's merged fine-tune (all four conditions)")
+    parser.add_argument("--prompts", type=int, help="only control-local, named for this prompt count")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
+    if args.prompts:
+        print(prompt_config(args.seed, args.prompts, args.out))
+        return
+    if not args.sft_student:
+        parser.error("give --sft-student (four conditions) or --prompts N (control-local only)")
     for name, path in seed_configs(args.seed, args.sft_student, args.out).items():
         print(name, path)
 
