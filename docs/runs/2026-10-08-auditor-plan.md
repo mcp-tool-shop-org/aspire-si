@@ -668,10 +668,12 @@ From here, every planter, judge and checker step gets:
   |---|---|---|---|---|
   | Qwen2.5-32B-Instruct Q4_K_M (llama-server) | planter | official GGUF | completion | none; reasoning is the reply's first field |
   | gemma4:31b (Apache-2.0) | error check; rewrite meaning check | 6316f0629137 | completion, vision, tools, thinking | on |
-  | muse-glimmer:latest (Meta; Ollama shows no licence text, which R&D confirms before use) | error check | de878ce33ad8 | completion, vision, tools, thinking | on (levels false/low/medium/high/max) |
+  | muse-glimmer:latest (Meta, Apache-2.0: huggingface.co/meta-models/Muse-Glimmer-30B, repo a4e59da52a7b, checked by R&D 2026-10-08; Ollama's package omits the licence text) | error check | de878ce33ad8 | completion, vision, tools, thinking | on (levels false/low/medium/high/max) |
   | mistral-small:24b (Apache-2.0) | rewrite meaning check | 8039dd90c113 | completion, tools | none; reasoning first |
   | microsoft/Phi-3-mini-4k-instruct (MIT), revision f39ac1d2 | selection scorer (tail Δ) | HF | log-probabilities | n/a |
 
+  - muse-glimmer's usage policy (guidance, not licence) asks that its outputs not be represented as
+    human-generated; any shipped output it judged is disclosed as AI-assisted.
   - muse-glimmer replies in plain text: Ollama's `format=json` makes it return empty lists. Its
     reply is parsed from text, and a trailing `<|eot|>` is stripped.
 - **Reasoning before the verdict,** stored with the verdict, so every kept or dropped item can be
