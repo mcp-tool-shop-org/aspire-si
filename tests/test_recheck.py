@@ -34,8 +34,8 @@ class TestRequest:
 
     def test_gemma_thinks_with_room(self):
         body = rc.request_body("gemma4:31b", PAIR)
-        assert body["think"] is True and body["options"]["num_predict"] >= 12000
-        assert body["options"]["num_ctx"] == 16384
+        assert body["think"] is True and body["options"]["num_predict"] == 16000
+        assert body["options"]["num_ctx"] == 24576
 
     def test_the_worked_examples_are_not_from_any_set(self):
         assert "Plants use sunlight" in rc.REQUEST and "{strong}" in rc.REQUEST
@@ -56,6 +56,15 @@ class TestParse:
 
 
 class TestCombine:
+    def test_a_pair_the_first_judge_dropped_need_not_be_asked_again(self):
+        same = {"outcome": "same", "claim_changed": False}
+        changed = {"outcome": "changed", "claim_changed": True}
+        verdicts = {"mistral": {"a": same, "b": changed}, "gemma": {"a": same}}
+        r = rc.combine(verdicts, ["a", "b"], old_dropped=set())
+        assert (
+            r["kept_ids"] == ["a"] and r["outcomes"]["gemma"]["not asked (the other judge dropped it)"] == 1
+        )
+
     def test_both_judges_must_keep_and_the_first_check_is_compared(self):
         same = {"outcome": "same", "claim_changed": False}
         changed = {"outcome": "changed", "claim_changed": True}

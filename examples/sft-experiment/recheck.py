@@ -124,11 +124,11 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
-# Per judge: whether it thinks, and the room it gets (R&D's pilot: gemma4 with thinking truncated
-# every time at 6000 tokens).
+# Per judge: whether it thinks, and the room it gets. R&D's pilot: gemma4 with thinking truncated
+# 3 of 3 at 6000 tokens and 0 of 3 at 16000 with num_ctx 24576 (about 124 s an item, peak 26.0 GB).
 JUDGES = {
     "mistral-small:24b": {"think": None, "num_predict": 2048, "num_ctx": 8192},
-    "gemma4:31b": {"think": True, "num_predict": 12000, "num_ctx": 16384},
+    "gemma4:31b": {"think": True, "num_predict": 16000, "num_ctx": 24576},
 }
 
 
@@ -181,10 +181,12 @@ def combine(verdicts: dict[str, dict[str, dict]], pair_ids: list[str], old_dropp
     table = {"both_keep": 0, f"only_{a}": 0, f"only_{b}": 0, "neither": 0}
     counts = {j: {} for j in verdicts}
     kept = []
+    not_asked = {"outcome": "not asked (the other judge dropped it)"}
     for pid in pair_ids:
-        ka, kb = keeps(verdicts[a][pid]), keeps(verdicts[b][pid])
-        for j in verdicts:
-            o = verdicts[j][pid]["outcome"]
+        va, vb = verdicts[a].get(pid, not_asked), verdicts[b].get(pid, not_asked)
+        ka, kb = keeps(va), keeps(vb)
+        for j, v in ((a, va), (b, vb)):
+            o = v["outcome"]
             counts[j][o] = counts[j].get(o, 0) + 1
         key = "both_keep" if ka and kb else f"only_{a}" if ka else f"only_{b}" if kb else "neither"
         table[key] += 1
@@ -210,7 +212,11 @@ def combine(verdicts: dict[str, dict[str, dict]], pair_ids: list[str], old_dropp
 
 
 def judge_all(
-    judge: str, sets: dict[str, list[dict]], out: Path, limit: int | None = None
+    judge: str,
+    sets: dict[str, list[dict]],
+    out: Path,
+    limit: int | None = None,
+    only_kept_by: str | None = None,
 ) -> None:  # pragma: no cover - Ollama
     import urllib.request
 
@@ -235,9 +241,15 @@ def judge_all(
     try:
         for name, pairs in sets.items():
             verdicts.setdefault(name, {})
+            first = None
+            if only_kept_by:
+                first_path = out / f"verdicts-{only_kept_by.replace(':', '_')}.json"
+                first = json.loads(first_path.read_text(encoding="utf-8"))["verdicts"].get(name, {})
             for p in pairs[:limit]:
                 if p["pair_id"] in verdicts[name]:
                     continue  # resumable: a finished item is never asked again
+                if first is not None and not (p["pair_id"] in first and keeps(first[p["pair_id"]])):
+                    continue  # the first judge already dropped it, so a second vote can't keep it
                 t0 = time.time()
                 parsed = parse(post("/api/chat", request_body(judge, p)))
                 verdicts[name][p["pair_id"]] = parsed | {"seconds": round(time.time() - t0, 1)}
@@ -264,6 +276,7 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon and the 
     j.add_argument("--pairs", action="append", required=True, help="NAME=PATH")
     j.add_argument("--out", type=Path, required=True)
     j.add_argument("--limit", type=int, help="judge only the first N pairs of each set (a timing pilot)")
+    j.add_argument("--only-kept-by", choices=sorted(JUDGES), help="judge only pairs this judge kept")
     c = sub.add_parser("combine")
     c.add_argument("--pairs", action="append", required=True, help="NAME=PATH")
     c.add_argument("--old", action="append", required=True, help="NAME=first-check verify.json")
@@ -272,7 +285,7 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon and the 
     args.out.mkdir(parents=True, exist_ok=True)
     sets = {n: load_pairs(Path(p)) for n, p in (s.split("=", 1) for s in args.pairs)}
     if args.cmd == "judge":
-        judge_all(args.judge, sets, args.out, args.limit)
+        judge_all(args.judge, sets, args.out, args.limit, args.only_kept_by)
         print("RECHECK-JUDGE-OK", args.judge)
         return
     old = {}
