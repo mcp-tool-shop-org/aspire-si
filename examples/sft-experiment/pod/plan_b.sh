@@ -44,7 +44,7 @@ sft() {
 
 probe_sft() {
   for c in local composite; do
-    python $E/probe_models.py --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-sft-$c \
+    python $E/probe_models.py --seed 42 --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-sft-$c \
       base=$BASE sft-epoch-1=$BASE+$J/sft/epoch-1 sft-epoch-2=$BASE+$J/sft/epoch-2 sft=$SFT --drift-from base
   done
 }
@@ -66,7 +66,7 @@ aspire_runs() {
 probe_aspire() {
   for c in local composite; do
     local out=$J/aspire-si/outputs/sft-$c-teacher
-    python $E/probe_models.py --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-aspire-$c \
+    python $E/probe_models.py --seed 42 --pairs $J/control/real-$c-teacher/dialogue_cache --out $R/probe-aspire-$c \
       base=$BASE sft=$SFT sft-aspire-1=$SFT+$out/checkpoint-1/student \
       sft-aspire-2=$SFT+$out/checkpoint-2/student sft-aspire-3=$SFT+$out/checkpoint-3/student \
       --drift-from base --drift-from sft

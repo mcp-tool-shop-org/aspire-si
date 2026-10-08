@@ -9,7 +9,7 @@ Writes to --out:
   summary.json                     drift numbers per entry, from --drift-from and from the first entry
   drift-from-<name>.geometry.json  a schema 1.1 drift export (checkpoint_by_item) per --drift-from
 
-Usage: python probe_models.py --pairs <run>/dialogue_cache --out probe
+Usage: python probe_models.py --pairs <run>/dialogue_cache --out probe --seed 42
          base=Qwen/Qwen2.5-1.5B-Instruct sft=sft/merged sft-aspire-1=sft/merged+outputs/x/checkpoint-1/student
          --drift-from base --drift-from sft
 """
@@ -99,6 +99,47 @@ def alignment(
     return {"r": r, "null_95": float(np.percentile(null, 95))}
 
 
+def write_exports(
+    states: np.ndarray,
+    names: list[str],
+    pairs: list[tuple[str, str]],
+    dims: list[dict],
+    teachers: list[dict],
+    drift_from: list[str],
+    out: Path,
+    seed: int,
+) -> dict:
+    """Drift numbers and one schema 1.1 drift export per reference entry; returns the summary.
+
+    `seed` is the training seed of the probed models, recorded as run_metadata.seed.
+    """
+    from aspire.geometry import GeometryRecorder
+
+    overall = np.array([sum(t.values()) / len(t) for t in teachers])
+    summary = {"exchanges": len(pairs), "entries": names, "seed": seed, "drift": [], "alignment": {}}
+    for ref_name in drift_from or [names[0]]:
+        ref = names.index(ref_name)
+        summary["drift"].append(drift_summary(states, names, ref))
+        later = [k for k in range(len(names)) if k > ref]
+        summary["alignment"][ref_name] = {names[k]: alignment(states, ref, k, overall) for k in later}
+        rec = GeometryRecorder(
+            run_id=f"drift-from-{ref_name}",
+            condition=(
+                f"drift from {ref_name}: {len(pairs)} fixed exchanges x " + ", ".join(names[k] for k in later)
+            ),
+            seed=seed,
+            window=4,
+            step_axis="checkpoint_by_item",
+            checkpoints=len(later),
+            scalar_source="fixed_per_item",
+        )
+        for k in later:
+            for i in range(len(pairs)):
+                rec.record_step(states[k, i] - states[ref, i], dims[i], teachers[i])
+        rec.write(out / f"drift-from-{ref_name}.geometry.json", training_items=len(pairs), cycles=len(later))
+    return summary
+
+
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover - needs models
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("entries", nargs="+")
@@ -108,12 +149,15 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover - needs mod
     parser.add_argument("--max-length", type=int, default=1536)
     parser.add_argument("--no-4bit", action="store_true")
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--seed", type=int, default=0, help="the probed models' training seed, recorded in each export"
+    )
     args = parser.parse_args(argv)
 
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-    from aspire.geometry import GeometryRecorder, pool_hidden_states
+    from aspire.geometry import pool_hidden_states
     from aspire.judge import encode_exchanges
 
     pairs, dims, teachers = load_pairs(args.pairs)
@@ -174,30 +218,7 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover - needs mod
         names=np.array(names),
         prompts=np.array([p for p, _ in pairs]),
     )
-    overall = np.array([sum(t.values()) / len(t) for t in teachers])
-    summary = {"exchanges": len(pairs), "entries": names, "drift": [], "alignment": {}}
-    for ref_name in args.drift_from or [names[0]]:
-        ref = names.index(ref_name)
-        summary["drift"].append(drift_summary(states, names, ref))
-        later = [k for k in range(len(names)) if k > ref]
-        summary["alignment"][ref_name] = {names[k]: alignment(states, ref, k, overall) for k in later}
-        rec = GeometryRecorder(
-            run_id=f"drift-from-{ref_name}",
-            condition=(
-                f"drift from {ref_name}: {len(pairs)} fixed exchanges x "
-                + ", ".join(names[k] for k in later)
-            ),
-            window=4,
-            step_axis="checkpoint_by_item",
-            checkpoints=len(later),
-            scalar_source="fixed_per_item",
-        )
-        for k in later:
-            for i in range(len(pairs)):
-                rec.record_step(states[k, i] - states[ref, i], dims[i], teachers[i])
-        rec.write(
-            args.out / f"drift-from-{ref_name}.geometry.json", training_items=len(pairs), cycles=len(later)
-        )
+    summary = write_exports(states, names, pairs, dims, teachers, args.drift_from, args.out, args.seed)
     (args.out / "summary.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     print(json.dumps(summary, indent=1))
     print("PROBE-OK", args.out)
