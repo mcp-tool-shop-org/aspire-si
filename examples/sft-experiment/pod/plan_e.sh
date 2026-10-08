@@ -59,6 +59,32 @@ configs() {
   done
 }
 
+# A progress line every PROGRESS_SECONDS (600) while ASPIRE runs, for the deadline check:
+#   progress HH:MM:SS s42 dialogues 37/128 epochs 0/3 | s43 ...
+# Each seed caches one dialogue per prompt in epoch 1, so dialogues/128 is epoch 1's progress;
+# "epochs" counts the "Epoch k/3 - Loss" lines its log has printed. An epoch's end is also
+# printed once, as "epoch-end HH:MM:SS s42 epoch 1".
+progress() {
+  local seen=()
+  while true; do
+    local line="progress $(date -u +%T)" i=0
+    for s in "${SEEDS[@]}"; do
+      local name=control-local-p$N-s$s
+      local n=$(ls $O/$name/dialogue_cache 2>/dev/null | wc -l)
+      local e=$(grep -c -E "^Epoch [0-9]+/[0-9]+ - Loss" $R/aspire-$name.log 2>/dev/null || true)
+      e=${e:-0}
+      line="$line s$s dialogues $n/$N epochs $e/3 |"
+      while [ "${seen[$i]:-0}" -lt "$e" ]; do
+        seen[$i]=$(( ${seen[$i]:-0} + 1 ))
+        echo "epoch-end $(date -u +%T) s$s epoch ${seen[$i]}"
+      done
+      i=$((i + 1))
+    done
+    echo "$line"
+    sleep "${PROGRESS_SECONDS:-600}"
+  done
+}
+
 # All seeds side by side (about 25 GB each); all must succeed.
 aspire_runs() {
   cd $J/aspire-si
@@ -69,8 +95,11 @@ aspire_runs() {
       --geometry > $R/aspire-$name.log 2>&1 &
     pids+=($!)
   done
+  progress &
+  local watcher=$!
   local failed=0
   for p in "${pids[@]}"; do wait "$p" || failed=1; done
+  kill "$watcher" 2>/dev/null || true
   for s in "${SEEDS[@]}"; do tail -n 3 $R/aspire-control-local-p$N-s$s.log; done
   return $failed
 }
