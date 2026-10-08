@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Kev-4B reaches 0.973 (CI 0.946 to 0.993), Kev-9B 0.859 and the 32B teacher 0.886. Kev-4B,
   read this way, is the reference judge for later comparisons.
 
+- Step 2 ([report](docs/runs/2026-10-08-step-2.md)): critics trained on 128 prompts instead of 32
+  score higher on planted errors (mean 0.745 against 0.635, every seed up by 0.10 to 0.13), but
+  differ between seeds exactly as much (a range of 0.181 at both). The fine-tune comparison waits
+  for a critic setup that varies less.
+
 ### Changed
 
 - `aspire.teachers.local`: the scoring request and its parser are module functions
