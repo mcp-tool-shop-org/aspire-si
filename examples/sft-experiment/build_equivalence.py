@@ -14,8 +14,12 @@ with a 13.0 one if, on either task, cross-build agreement is below 90% AND more 
 below the same-build repeat agreement. A shortfall within the build's own run-to-run noise is not a
 build difference.
 
+Every item records the URL, Ollama version and build label that answered it.
+
 Usage:
-  python build_equivalence.py ask --label 13.0-a --out DIR
+  python build_equivalence.py ask --label 13.0-a --build "Ollama 0.35.1, CUDA 13.0" --out DIR
+  python build_equivalence.py ask --label 13.4 --build "Ollama sandbox, CUDA 13.4.1" \
+      --url http://127.0.0.1:11492 --out DIR
   python build_equivalence.py readout --out DIR
 """
 
@@ -102,7 +106,16 @@ def readout(runs: dict[str, dict], old: str = "13.0-a", repeat: str = "13.0-b", 
     return out
 
 
-def ask(label: str, out: Path) -> None:  # pragma: no cover - needs Ollama
+def server_identity(url: str) -> dict:  # pragma: no cover - needs Ollama
+    """The answering server's URL and Ollama version, recorded with every item."""
+    import urllib.request
+
+    with urllib.request.urlopen(url.rstrip("/") + "/api/version", timeout=30) as r:
+        version = json.loads(r.read()).get("version")
+    return {"url": url, "ollama_version": version}
+
+
+def ask(label: str, out: Path, url: str, build: str) -> None:  # pragma: no cover - needs Ollama
     import matched_set as ms
     from critic_heads import load_pairs
     from recheck import REQUEST, SCHEMA, SYSTEM
@@ -120,6 +133,10 @@ def ask(label: str, out: Path) -> None:  # pragma: no cover - needs Ollama
     path = out / f"equivalence-{label}.json"
     state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"grammar": {}, "meaning": {}}
     judge = "gemma4:31b"
+    who = server_identity(url) | {"build": build}
+    state.setdefault("server", who)
+    if state["server"] != who:
+        raise SystemExit(f"{path.name} was started on {state['server']}, not {who}")
     try:
         for key in g_ids:
             if key in state["grammar"]:
@@ -130,8 +147,8 @@ def ask(label: str, out: Path) -> None:  # pragma: no cover - needs Ollama
             user = ms.GRAMMAR_CHECK.format(
                 prompt=p["prompt"], flawed=p["flawed"], original=original, edited=edited
             )
-            r = ms.ollama_chat(judge, ms.JUDGE_SYSTEM, user, ms.GRAMMAR_SCHEMA, True, **ms.THINKING)
-            state["grammar"][key] = ms.judged(r, ("grammatical", "idiomatic"))
+            r = ms.ollama_chat(judge, ms.JUDGE_SYSTEM, user, ms.GRAMMAR_SCHEMA, True, **ms.THINKING, url=url)
+            state["grammar"][key] = ms.judged(r, ("grammatical", "idiomatic")) | who
             path.write_text(json.dumps(state, indent=1), encoding="utf-8")
         for pid in m_ids:
             if pid in state["meaning"]:
@@ -141,11 +158,11 @@ def ask(label: str, out: Path) -> None:  # pragma: no cover - needs Ollama
             user = REQUEST.format(
                 prompt=p["prompt"], strong=p["strong"], flawed=p["flawed"], original=original, edited=edited
             )
-            r = ms.ollama_chat(judge, SYSTEM, user, SCHEMA, True, **ms.THINKING)
-            state["meaning"][pid] = ms.judged(r, ("verdict", "claim_changed"))
+            r = ms.ollama_chat(judge, SYSTEM, user, SCHEMA, True, **ms.THINKING, url=url)
+            state["meaning"][pid] = ms.judged(r, ("verdict", "claim_changed")) | who
             path.write_text(json.dumps(state, indent=1), encoding="utf-8")
     finally:
-        ms.unload(judge)
+        ms.unload(judge, url)
     print("EQUIVALENCE-ASK-OK", label, len(state["grammar"]), len(state["meaning"]))
 
 
@@ -155,11 +172,15 @@ def main() -> None:  # pragma: no cover
     )
     parser.add_argument("cmd", choices=["ask", "readout"])
     parser.add_argument("--label")
+    parser.add_argument("--url", default="http://127.0.0.1:11434", help="the Ollama server to ask")
+    parser.add_argument("--build", help='recorded with every item, e.g. "Ollama 0.35.1, CUDA 13.0 backend"')
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     if args.cmd == "ask":
-        ask(args.label, args.out)
+        if not args.label or not args.build:
+            raise SystemExit("ask needs --label and --build")
+        ask(args.label, args.out, args.url, args.build)
         return
     runs = {
         p.stem.removeprefix("equivalence-"): json.loads(p.read_text(encoding="utf-8"))
@@ -167,6 +188,7 @@ def main() -> None:  # pragma: no cover
         if p.stem != "equivalence-readout"
     }
     result = readout(runs)
+    result["servers"] = {label: run.get("server") for label, run in runs.items()}
     (args.out / "equivalence-readout.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
     print(json.dumps(result, indent=1))
 
