@@ -406,6 +406,11 @@ def transfer_reading(second_ci: Sequence[float], diff_ci: Sequence[float]) -> st
     return "inconclusive"
 
 
+TRAINER_HELP = (
+    "eager: train_head; fast: GPU-resident features (exact); graphs: plus CUDA graphs (capturable AdamW)"
+)
+
+
 def main() -> None:  # pragma: no cover - needs a GPU and the student model
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -418,6 +423,12 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     t = sub.add_parser("train", help="every form, seed and control; scores on every cached set")
     t.add_argument("--cache", type=Path, required=True)
     t.add_argument("--out", type=Path, required=True)
+    t.add_argument(
+        "--trainer",
+        choices=("eager", "fast", "graphs"),
+        default="eager",
+        help=TRAINER_HELP,
+    )
     cmp = sub.add_parser("compare", help="the same forms on two feature sources (the addendum)")
     cmp.add_argument("--a", type=Path, required=True, help="scores from one feature source")
     cmp.add_argument("--b", type=Path, required=True, help="scores from the other")
@@ -426,9 +437,21 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     pm.add_argument("--cache", type=Path, required=True)
     pm.add_argument("--out", type=Path, required=True)
     pm.add_argument("--n", type=int, default=20)
+    pm.add_argument(
+        "--trainer",
+        choices=("eager", "fast", "graphs"),
+        default="eager",
+        help=TRAINER_HELP,
+    )
     sk = sub.add_parser("skeptic", help="the Skeptic heads (addendum 2)")
     sk.add_argument("--cache", type=Path, required=True)
     sk.add_argument("--out", type=Path, required=True)
+    sk.add_argument(
+        "--trainer",
+        choices=("eager", "fast", "graphs"),
+        default="eager",
+        help=TRAINER_HELP,
+    )
     sr = sub.add_parser("skeptic-readout", help="addendum 2's committed reading")
     sr.add_argument("--scores", type=Path, required=True, help="the retrained heads' scores")
     sr.add_argument("--perm", type=Path, help="the balanced permutation scores")
@@ -467,11 +490,11 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     elif args.cmd == "perm":
         from critic_heads_run import train_perm
 
-        train_perm(args.cache, args.out, args.n)
+        train_perm(args.cache, args.out, args.n, trainer=args.trainer)
     elif args.cmd == "skeptic":
         from critic_heads_run import train_skeptic
 
-        train_skeptic(args.cache, args.out)
+        train_skeptic(args.cache, args.out, trainer=args.trainer)
     elif args.cmd == "skeptic-readout":
         from critic_heads_run import load_results, skeptic_readout
 
@@ -510,7 +533,7 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     elif args.cmd == "train":
         from critic_heads_run import train_all
 
-        train_all(args.cache, args.out)
+        train_all(args.cache, args.out, trainer=args.trainer)
     else:
         from critic_heads_run import load_results, readout
 
