@@ -181,7 +181,10 @@ def _save_head(head, out: Path, tag: str, meta: dict) -> None:  # pragma: no cov
 
 
 def train_all(
-    cache: Path, out: Path, device: str = "cuda", extra: tuple[str, ...] = ("pconfirm", "psecond")
+    cache: Path,
+    out: Path,
+    device: str = "cuda",
+    extra: tuple[str, ...] = ("pconfirm", "psecond", "prewritten"),
 ) -> None:  # pragma: no cover - needs a GPU
     out.mkdir(parents=True, exist_ok=True)
     # Per-token states stay in CPU memory: on the widest source (Llama, 3072) every variant together
@@ -297,7 +300,7 @@ def train_skeptic(cache: Path, out: Path, device: str = "cuda") -> None:  # prag
                 "hparams": HPARAMS,
                 "sets": {},
             }
-            for name in ("pconfirm", "confirm", "psecond", "second"):
+            for name in ("pconfirm", "confirm", "psecond", "second", "prewritten"):
                 path = cache / f"{name}.plain.pt"
                 if not path.exists():
                     continue
@@ -334,11 +337,16 @@ def skeptic_readout(
     perm: list[dict] | None = None,
     step4: list[dict] | None = None,
     para_rounds: list | None = None,
+    secondary: tuple[str, set, list] | None = None,
 ) -> dict:
     """Addendum 2's committed reading for every form: edit rate on the paraphrase set, the paired
     error-minus-edit margin per strong answer, the reading, the balanced permutation p-value and the
     retraining check. `para_pair_ids` are the paraphrase set's pair ids in scored order; pairs in
-    `dropped_pairs` (flagged or unparsed by the meaning check) are left out."""
+    `dropped_pairs` (flagged or unparsed by the meaning check) are left out.
+
+    `secondary` is the second paraphrase arm (set name, its dropped pair ids, its pair ids in scored
+    order): its edit rate is read with its own CI, and where the two arms' CIs don't overlap the
+    reading is "unresolved (depends on paraphrase method)"."""
     by: dict = {}
     for r in results:
         if r["control"] == "none" and para_set in r["sets"] and error_set in r["sets"]:
@@ -368,6 +376,18 @@ def skeptic_readout(
             "paraphrase_pairs": len(ew),
             "reading": skeptic_class(edit_ci, margin[1]) if prompts else "no matched answers",
         }
+        if secondary and all(secondary[0] in r["sets"] for r in rs):
+            name, dropped2, ids2 = secondary
+            keep2 = [i for i, pid in enumerate(ids2) if pid not in dropped2]
+            sw, sids = _seed_mean_wins(rs, name)
+            sw, sids = [sw[i] for i in keep2], [sids[i] for i in keep2]
+            point2, ci2 = boot(sw, sids)
+            apart = ci2[0] > edit_ci[1] or edit_ci[0] > ci2[1]
+            row["secondary_arm"] = {"set": name, "pairs": len(sw), "edit_rate": point2, "edit_ci": ci2}
+            row["arms_disagree"] = apart
+            if apart:
+                row["reading_primary_arm"] = row["reading"]
+                row["reading"] = "unresolved (depends on paraphrase method)"
         if para_rounds:
             # Reported only: a planting tell if retried paraphrases read differently.
             rounds = [para_rounds[i] for i in keep]
