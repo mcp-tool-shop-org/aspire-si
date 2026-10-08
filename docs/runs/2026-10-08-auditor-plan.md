@@ -918,6 +918,30 @@ From here, every planter, judge and checker step gets:
   - with dropout 0.1, three seeds, the seed-mean confirm win rate inside eager's prompt-clustered CI.
 - Every result file records its trainer and optimizer.
 
+#### A seeding fix found by the CUDA 13.4 gate (2026-10-08, before step 3)
+
+- **The defect:** step 4's `train_head` seeded only the CPU generator, inside a fork that wrapped
+  head construction alone. Init and batch order were fixed by the seed, but dropout during training
+  drew from the process's live generators. On the GPU those are the unseeded CUDA generator.
+- **The effect:** a head's dropout depended on how many heads trained before it in the same
+  `train_all` process.
+  - Measured: retraining qwen auditor-mean-none-s42 alone gave raw scores up to **1.95** away from
+    the stored head.
+  - Its confirm win rate, 0.940, stayed inside the stored head's CI [0.882, 0.974].
+- **What it means for existing results:** step 4's 162 heads are reproducible only as a whole
+  `train_all` run in the original order, not one head at a time by its seed. Their conclusions rest
+  on CI-level readings, which this doesn't change.
+- **The fix, from step 3 on:**
+  - The fork now spans the whole of training, on CPU and the training CUDA device.
+    `torch.manual_seed(seed)` is called inside it, so a head's init and dropout come from its own
+    seed alone.
+  - The caller's RNG state is restored afterwards.
+  - Init weights are unchanged (the same CPU generator draws).
+  - Tests: init equals the old seeding, and a head trained after another equals the same head
+    trained alone. The old code fails the second test.
+  - The R&D session applies the same fix to `graphed_heads.py`, seeding CUDA after warmup and before
+    capture.
+
 ### Step 3: erase and retrain (a diagnostic, no rule)
 
 - Fit LEACE (Belrose et al. 2023; EleutherAI/concept-erasure, MIT) on the training caches. It removes the direction that linearly

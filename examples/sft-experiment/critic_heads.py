@@ -259,8 +259,12 @@ def train_head(
 
     from aspire.critic import CriticHead
 
-    with torch.random.fork_rng(devices=[]):
-        torch.default_generator.manual_seed(seed)
+    # The fork spans the whole training (R&D review, 2026-10-08): the seed fixes init AND dropout on
+    # CPU and CUDA, and the caller's RNG state is restored afterwards, so heads trained in one
+    # process don't leak into each other. Init draws are the same as seeding only the CPU generator.
+    devices = [torch.device(device).index or 0] if str(device).startswith("cuda") else []
+    with torch.random.fork_rng(devices=devices):
+        torch.manual_seed(seed)
         head = CriticHead(
             input_dim=features[0].shape[-1],
             hidden_dim=hparams["hidden_dim"],
@@ -268,34 +272,34 @@ def train_head(
             dropout=hparams["dropout"],
             pooling="attention" if pooling == "attention" else "mean",
         )
-    head = head.to(device)
-    opt = torch.optim.AdamW(head.parameters(), lr=hparams["lr"], weight_decay=hparams["weight_decay"])
-    order_rng = random.Random(seed)
-    pairs = list(range(len(pair_index)))
-    head.train()
-    for _ in range(hparams["epochs"]):
-        order_rng.shuffle(pairs)
-        for start in range(0, len(pairs), hparams["batch_pairs"]):
-            batch = pairs[start : start + hparams["batch_pairs"]]
-            ks = []
-            for i in batch:
-                s, f = pair_index[i]
-                if labels_flip and labels_flip[i]:
-                    s, f = f, s
-                ks += [s, f]
-            scores = score_answers(head, features, masks, ks, device)
-            strong, flawed = scores[0::2], scores[1::2]
-            if role == "auditor":
-                p = (torch.cat([strong, flawed]) / 10).clamp(1e-6, 1 - 1e-6)
-                target = torch.cat([torch.zeros_like(strong), torch.ones_like(flawed)])
-                loss = fn.binary_cross_entropy(p, target)
-            else:
-                loss = -fn.logsigmoid(strong - flawed).mean()
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-    head.eval()
-    return head
+        head = head.to(device)
+        opt = torch.optim.AdamW(head.parameters(), lr=hparams["lr"], weight_decay=hparams["weight_decay"])
+        order_rng = random.Random(seed)
+        pairs = list(range(len(pair_index)))
+        head.train()
+        for _ in range(hparams["epochs"]):
+            order_rng.shuffle(pairs)
+            for start in range(0, len(pairs), hparams["batch_pairs"]):
+                batch = pairs[start : start + hparams["batch_pairs"]]
+                ks = []
+                for i in batch:
+                    s, f = pair_index[i]
+                    if labels_flip and labels_flip[i]:
+                        s, f = f, s
+                    ks += [s, f]
+                scores = score_answers(head, features, masks, ks, device)
+                strong, flawed = scores[0::2], scores[1::2]
+                if role == "auditor":
+                    p = (torch.cat([strong, flawed]) / 10).clamp(1e-6, 1 - 1e-6)
+                    target = torch.cat([torch.zeros_like(strong), torch.ones_like(flawed)])
+                    loss = fn.binary_cross_entropy(p, target)
+                else:
+                    loss = -fn.logsigmoid(strong - flawed).mean()
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+        head.eval()
+        return head
 
 
 def score_answers(head, features: list, masks: list, ks: list[int], device: str = "cpu"):
