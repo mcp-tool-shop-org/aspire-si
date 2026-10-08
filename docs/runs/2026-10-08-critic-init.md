@@ -5,13 +5,20 @@ committed in #43 before anything ran. Run from main at 78cc26f (`pod/plan_g.sh`)
 
 ## Result
 
-**Both carry it.** Varying only the critic's initial weights spreads accuracy over 0.488, and
-varying only the run's seed spreads it over 0.283. Each is larger on its own than the 0.181 seen
-when one seed drove both.
+**The headline: a critic's initial weights can invert it.** With the critic seeded 43 and nothing
+else changed, the critic preferred the flawed answer: 0.315, with its whole interval below 0.5.
+That is a different failure from the weak critics seen so far, which were above chance but not by
+much. Initialisation can decide which way the critic learns, not just how well.
 
-**One initial draw produced an inverted critic.** With the critic seeded 43, the critic preferred the
-flawed answer: 0.315, with its whole interval below 0.5. Initialisation can decide which way the
-critic learns, not just how well.
+**Under the committed rule, both seeds carry the spread.** Varying only the critic's initial
+weights gives a range of 0.488, and varying only the run's seed 0.283. Read these two separately
+from the headline, and with their limits:
+- **Arm A's range is one draw.** The 0.315 run makes the whole 0.488; the other two critic seeds
+  differ by 0.016 (0.803 and 0.787). So this shows that an initial draw *can* invert the critic,
+  not that initialisation spreads accuracy broadly.
+- **Arm B's 0.283 includes generation noise.** Generation isn't reproducible here (see below), so
+  every arm carries it.
+- **The noise floor rests on one pair** (0.055).
 
 ## Numbers
 
@@ -54,14 +61,24 @@ test doesn't separate those.
 - **The seed split works on the hardware.** All seven tests of `critic.init_seed`, including the
   GPU-stream test, passed on the pod before training.
 
+## Could earlier single critics have been inverted draws?
+
+Of the 15 critics trained before this test (run 1's 12 and step 2's 3), one has a point estimate
+below 0.5: run 1's seed-44 composite control, 0.425 [0.333, 0.516]. Its interval reaches just above
+0.5, so it is not clearly inverted. It is the one earlier result that could have been an inverted
+draw. All the others have intervals above 0.5 or touching it from above.
+
 ## What it means
 
-- **No single critic is representative of its condition.** Its initial weights alone can move its
-  accuracy from 0.32 to 0.80.
+- **No single critic is representative of its condition.** Its initial weights alone moved its
+  accuracy from 0.32 to 0.80 here.
 - **Comparing conditions by one critic each, or three, cannot be read at this spread.** Before the
   next comparison, the critic setup has to change. These are candidates for the maintainer to
   choose from, not readings:
-  - average several critic heads with different initial weights over one run (an ensemble);
+  - train several critic heads with different initial weights and select or average them on a
+    validation set of planted pairs held apart from the 127 judge pairs (selecting on the judge set
+    would leak into the evaluation). At the least, reject any critic below 0.5 on validation. The
+    fresh pairs from the Kev confirmation could supply that set.
   - train with many critic seeds and report the distribution;
   - a different critic design.
 - **Kev-4B, read order-averaged (0.976 on these pairs),** stays the fixed reference next to any
