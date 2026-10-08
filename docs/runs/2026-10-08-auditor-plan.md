@@ -829,6 +829,32 @@ From here, every planter, judge and checker step gets:
   - **A fourth sensitivity row (R&D's review):** step 1's baseline and step 4's band are also
     reported with the stricter grammar-and-idiom gate (`drop_if_idiom_gated`), beside AND, union and
     gemma-alone. Anyone can then see whether the conclusions move under the stricter gate.
+- **CUDA 13.4 for every GPU stage (the maintainer's rule, 2026-10-08, relayed by the Publisher):**
+  - Stages before the switch ran on older backends, and the record says so: the stage 1 grammar
+    pass and the full grammar pass ran on Ollama 0.35.1's CUDA 13.0 backend.
+  - From stage 2 on, every stage runs on CUDA 13.4:
+    - the Qwen planter on llama.cpp build 11433, whose CUDA runtime is 13.4 (cudart64_13.dll file
+      version 13040);
+    - the Ollama judges (gemma4, muse-glimmer, mistral) on Ollama's 13.4 backend, which the
+      Publisher is building, once it passes its own equivalence check;
+    - Phi-3 and Llama-3.1-8B scoring in the aspire-cu134 env (torch 2.16.0.dev20261008+cu134).
+  - **Equivalence sample across the switch,** because step 2 straddles it:
+    - The same gemma4 calls go to both Ollama builds, with thinking on, temperature 0, and the same
+      prompts and options: 30 grammar-pass items (a seed-0 random sample of the full pass) and 30
+      re-check meaning items (a seed-0 random sample of P-confirm).
+    - Reported: verdict agreement per task, with a Wilson interval, and every disagreement listed
+      with both builds' reasoning.
+    - **A same-build noise floor (the Publisher's review):** gemma4 with thinking isn't guaranteed
+      deterministic at temperature 0, so cross-build disagreement mixes build differences with
+      run-to-run noise. The 13.0 build is asked the same 60 items twice before the switch (runs
+      "13.0-a" and "13.0-b"), and the repeat agreement is reported beside the cross-build agreement.
+    - **Committed rule:** stop and put it to the maintainer before any 13.4 judge result is mixed
+      with a 13.0 one if, on either task, cross-build agreement is **below 90% and more than 10
+      points below the same-build repeat agreement**.
+      - Both conditions are required: a shortfall within the build's own run-to-run noise isn't a
+        build difference, and with n = 30 a lone 90% line could trip on noise.
+      - Otherwise the two builds' verdicts are treated as one judge, and the report says so.
+    - `build_equivalence.py` implements the sample, the readout and the rule.
 - **Generator families, for the record:**
   - The 78 strong answers were written by Qwen2.5-32B-Instruct (bf16), and the planter is the same
     model at Q4_K_M. Its fingerprint is therefore balanced across both sides of P-matched.
