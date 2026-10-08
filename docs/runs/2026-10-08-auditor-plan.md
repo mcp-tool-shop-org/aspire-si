@@ -47,9 +47,18 @@ Advocate, not just a flipped sign.
 | **Advocate** | Prefers the stronger answer | Pairwise: score(strong) above score(flawed), a margin ranking loss on the pair | It only has to compare two versions, an easier and different skill |
 | **Teacher-mimic** (existing) | Predicts the teacher's 0–10 score | ASPIRE's own critic objective, on dialogues | The ASPIRE critic as trained so far; plan 20 already has five non-inverted ones |
 
-- **Architecture:** each new critic is ASPIRE's `CriticHead` on the student's hidden states.
-  - The student is the base Qwen2.5-1.5B-Instruct, frozen.
-  - The same input is used as the ASPIRE critic, so the three differ only in the training signal.
+- **Architecture:** each new critic is ASPIRE's `CriticHead` on the student's hidden states. The
+  input is the same as the ASPIRE critic's, so the three differ only in the training signal.
+- **Hidden-state source, pinned:**
+  - **Student:** the base `Qwen/Qwen2.5-1.5B-Instruct` at revision
+    `989aa7980e4cf806f80c7fef2b1adb7bc71aa306`, frozen, loaded in 4-bit as in the ASPIRE runs.
+  - **Input:** the prompt and one answer in the student's chat format, as `aspire.judge.encode_exchanges`
+    builds it for the judge.
+  - **Truncation:** at 1536 tokens, the ASPIRE runs' `student.max_length`.
+  - **Features:** the last layer's hidden states, mean-pooled over the attention mask (`CriticHead`'s
+    default pooling).
+  - **Truncation counts:** recorded for each set. The longest training pair is about 5,300 characters
+    (roughly 1,300 tokens), so few or none should be cut.
 - **Starting points:** three critic init seeds each (42, 43, 44, through `critic.init_seed`), so a
   lucky or unlucky draw shows.
 - **Further attribute (proposed, needs the maintainer's yes): a "Skeptic".**
@@ -67,6 +76,13 @@ Advocate, not just a flipped sign.
 - **Advocate:** pairwise accuracy (strong ranked above flawed).
 - **Teacher-mimic:** pairwise accuracy (strong above flawed), as before.
 
+**Shuffled-label control, read before any role.**
+- One head per role (Auditor and Advocate) is trained on `train_pairs` with its labels shuffled
+  (which answer is flawed, randomised per pair), with the same init seeds.
+- On validation, each must sit at chance: its 95% interval must include 0.5.
+- If either does not, the hidden states carry something besides the planted error (length,
+  position, formatting) that a head can learn. The report says so, and **no role reading is made**.
+
 **Role check, on validation:**
 - **Rejected:** a critic whose 95% interval for its role's accuracy lies entirely below 0.5. It goes
   the wrong way for its role and is excluded from the panel and reported as such.
@@ -79,11 +95,14 @@ Advocate, not just a flipped sign.
   neither critic dominates by scale.
 - Weights are equal and not tuned, so validation decides only who is in, not how much each counts.
 
-**Final evaluation on the 127 judge pairs** (once, after validation):
-- each critic, by role;
-- the panel;
-- the found Auditor (fixed above);
-- Kev-4B read order-averaged (0.976) as the reference.
+**Final evaluation on the 127 judge pairs** (once, after validation): each critic by role, and the
+panel. Every number is reported beside three baselines:
+
+| Baseline | On the judge pairs |
+|---|---|
+| Kev-4B, frozen, read order-averaged (the pinned reference judge) | 0.976 |
+| The found Auditor, read as a flaw detector | 0.685 |
+| The best earlier ASPIRE critic (run 1, seed 42, composite control) | 0.866 |
 
 **What counts:**
 
@@ -92,6 +111,10 @@ Advocate, not just a flipped sign.
 | A fostered Auditor at or above 0.685 (the found Auditor) on the judge pairs, on at least two of three seeds | The attribute can be trained on purpose, at least as well as the lucky draw |
 | Fostered Auditors below 0.6 on all seeds | Pointwise error-finding is not learned from 603 pairs; the found Auditor stays a one-off |
 | Panel above both its best single member on the judge pairs | Combining the attributes helps |
+
+The success bar is against the found Auditor, but the report also says where each critic sits
+against Kev-4B (0.976). A supervised head on 603 planted pairs beating a lucky draw is the expected
+outcome. Matching Kev-4B, or explaining the gap to it, is the interesting comparison.
 
 ## 5. Where it runs and what it costs
 
