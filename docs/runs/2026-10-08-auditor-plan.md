@@ -54,8 +54,13 @@ This plan:
 - **The second-planter set tests transfer:**
   - Strong answers come from Qwen2.5-32B-Instruct Q4 (llama-server, `--load-mode none`), as for the
     training set.
-  - Errors are planted by **gemma4:31b**, a non-Qwen family, through the local Ollama daemon, never a
-    cloud tag.
+  - Errors are planted by **gemma4:31b** (local model ID 6316f0629137, recorded in the set's
+    report.json), a non-Qwen family, through the local Ollama daemon. The planting code refuses any
+    model name containing "cloud". The model is unloaded afterwards through the API (keep_alive 0).
+  - **Edit statistics are reported before the set is read:** characters changed, length change and
+    position in the answer, beside the same three for the Qwen-planted sets (median 5–6 characters
+    at 0.35–0.44 of the way in). If gemma's median edit size differs by more than 2×, the transfer
+    reading carries that caveat.
   - The same edit request, retries and filters as `fresh_pairs.py` (two flaw kinds per prompt), so
     about 45 pairs survive. That's small, and its intervals will be wide; it says so.
 - **The 127 judge pairs have been read many times:** by the ASPIRE critics, by the Kev readings, and
@@ -93,6 +98,11 @@ Advocate, not just a flipped target.
 | **Auditor-attn** | Learned attention pooling (`CriticHead(pooling="attention")`), which can weight a few tokens | Uses nothing the Auditor wouldn't have on one answer |
 | **Advocate-span** | Mean over the tokens of the edited span only | The pair is known, which is exactly the information a pairwise judge such as Kev has. The pointwise Auditor can't use it, so it isn't given it. |
 
+**Advocate-span is a different capability.** It pools over the difference between the two answers,
+which exists only when both are shown. It is labelled **"judging a located change"**, not "finding
+an error", and is never compared head-to-head with the Auditor's single-answer task without saying
+so. Mean and attention pooling are the like-for-like comparison.
+
 - **Starting points:** three critic init seeds per form (42, 43, 44, through `critic.init_seed`), so
   a lucky or unlucky draw shows.
 - **The Skeptic** (paraphrase edits with no error) stays out unless the maintainer adds it. The
@@ -108,8 +118,19 @@ prompt-clustered bootstrap of their difference.
 
 | Control | Head | Must | If not |
 |---|---|---|---|
-| **Positive** | Auditor-mean on `train_pairs` with one fixed marker string appended to every flawed answer; validation's flawed answers marked the same way | Reach at least 0.95, with a CI lower end of at least 0.90 | The pipeline is broken. Nothing else is read. |
-| **Shuffled labels** | Each form, trained with the flawed/strong label randomised per pair, same init seeds | Have a CI that includes 0.5 | The features carry something besides the planted error (length, position, formatting). No role reading is made. |
+| **Positive (gate)** | Every form, trained with one fixed marker string appended to every flawed answer; validation's flawed answers marked the same way | Reach at least 0.95, with a CI lower end of at least 0.90 | That form's pipeline is broken. Nothing about it is read. |
+| **Shuffled labels** | Each form, trained with the flawed/strong label randomised per pair, same three init seeds; the three seeds' validation scores are pooled for one interval | Have a CI that includes 0.5 | The features carry something besides the planted error (length, position, formatting). No role reading is made. |
+
+- **Truncation:** the cache fails loudly if any answer, or any marker, would be cut off by the
+  1536-token limit (prompt, chat template and answer together).
+- **The shuffled control's power is stated:** the report gives the smallest confound it could have
+  caught (the half-width of its pooled interval).
+- **Graded control (a diagnostic, not a gate):** one fixed rare token inserted *at the planted edit's
+  position* instead of at the end, in every form. It separates two explanations of a failed
+  Auditor:
+  - mean pooling misses it but attention pooling catches it: a failed Auditor-mean is explained by
+    pooling;
+  - every form catches it while real edits still fail: the error itself is hard for these features.
 
 **B. The found Auditor on validation**, as in section 1.
 
@@ -149,16 +170,26 @@ panel, beside the baselines:
 | The best earlier ASPIRE critic (run 1, seed 42, composite control) | 0.866 |
 | The found Auditor (a selected number; see section 1) | 0.685 |
 
-Kev-4B and the found Auditor are also read on the second-planter set.
+Kev-4B and the found Auditor are also read on the second-planter set. The R&D session has offered
+to read its Kev judge fine-tune (three seeds) there too ($0, local, about 10 minutes). It trained on
+Qwen-planted pairs, so it faces the same "learned the planter's edits" question. That runs only on
+the maintainer's yes.
 
 **What counts:**
 
 | Result | Reading |
 |---|---|
-| A fostered Auditor above the found Auditor on validation (paired CI excluding 0), on at least two of three seeds | The attribute can be trained on purpose, better than the lucky draw. If the found Auditor was a noise draw (section 1), the bar is chance. |
+| A fostered Auditor above the found Auditor on validation (paired CI excluding 0), on at least two of three seeds **within one form** | The attribute can be trained on purpose, better than the lucky draw, **in that form**. Each form is reported on its own; one form passing and the other failing is reported as such. If the found Auditor was a noise draw (section 1), the bar is chance. |
 | Every fostered Auditor below 0.6 on validation, on all seeds and both forms, with the positive control passed | Error-finding is not learned **by a pooled head on frozen 1.5B states**. That says nothing about richer critics. |
-| A critic's second-planter accuracy within its judge-set CI | It transfers across planter families |
-| A critic's second-planter accuracy below its judge-set CI | It learned the planter's edits, not errors in general |
+
+**Transfer to the second planter**, from a two-sample prompt-clustered bootstrap of (judge-set
+accuracy − second-planter accuracy):
+
+| Result | Reading |
+|---|---|
+| The second-planter CI lies above 0.5, and the difference interval includes 0 | **Transfers** across planter families |
+| The difference interval excludes 0, with the judge set higher | **Learned the planter's edits**, not errors in general |
+| Anything else | **Inconclusive**, said as such. With about 45 pairs, this is the likely outcome for small differences. |
 | The panel above its best member (paired CI excluding 0) | Combining the attributes helps |
 
 **The comparison that matters:**
