@@ -143,6 +143,42 @@ class TestTraining:
         assert not all(torch.equal(x, y) for x, y in zip(a.state_dict().values(), c.state_dict().values()))
         assert torch.equal(torch.random.get_rng_state(), before)
 
+    def test_init_is_the_same_as_seeding_only_the_cpu_generator(self):
+        # The fix seeds with torch.manual_seed; step 4's heads were built after
+        # torch.default_generator.manual_seed. Same CPU generator, so the same init weights.
+        from aspire.critic import CriticHead
+
+        feats, masks, index = synthetic(4, signal=1.0)
+        head = ch.train_head("auditor", "mean", 42, feats, masks, index, hparams=dict(FAST, epochs=0))
+        with torch.random.fork_rng(devices=[]):
+            torch.default_generator.manual_seed(42)
+            old = CriticHead(
+                input_dim=feats[0].shape[-1],
+                hidden_dim=FAST["hidden_dim"],
+                num_layers=FAST["num_layers"],
+                dropout=FAST["dropout"],
+                pooling="mean",
+            )
+        assert all(torch.equal(x, y) for x, y in zip(head.state_dict().values(), old.state_dict().values()))
+
+    def test_a_head_does_not_depend_on_the_heads_trained_before_it(self):
+        # The leak test (R&D review): dropout must be fixed by the head's own seed, not by whatever
+        # ran earlier in the process.
+        feats, masks, index = synthetic(24, signal=1.0)
+        hp = dict(FAST, dropout=0.5, epochs=2)
+        torch.manual_seed(0)
+        ch.train_head("auditor", "mean", 1, feats, masks, index, hparams=hp)
+        after_a = ch.train_head("auditor", "mean", 2, feats, masks, index, hparams=hp)
+        torch.manual_seed(12345)
+        alone = ch.train_head("auditor", "mean", 2, feats, masks, index, hparams=hp)
+        assert all(
+            torch.equal(x, y) for x, y in zip(after_a.state_dict().values(), alone.state_dict().values())
+        )
+        torch.manual_seed(7)
+        before = torch.random.get_rng_state()
+        ch.train_head("auditor", "mean", 3, feats, masks, index, hparams=hp)
+        assert torch.equal(torch.random.get_rng_state(), before)
+
 
 def fake_result(role, pooling, control, seed, sets):
     return {"role": role, "pooling": pooling, "seed": seed, "control": control, "sets": sets}
