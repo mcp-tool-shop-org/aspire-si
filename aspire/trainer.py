@@ -273,6 +273,18 @@ class AspireTrainer:
 
         console.print(f"Initializing critic: {cfg.architecture}")
 
+        if cfg.init_seed is not None:
+            # A separate stream for the critic's weights. The critic is built on the CPU, so only
+            # the CPU generator is reseeded (torch.manual_seed would also reseed the GPU's, which
+            # the run's sampling draws from), and fork_rng puts it back afterwards.
+            with torch.random.fork_rng(devices=[]):
+                torch.default_generator.manual_seed(cfg.init_seed)
+                self._build_critic(cfg)
+        else:
+            self._build_critic(cfg)
+        self.critic = self.critic.to(self.device)
+
+    def _build_critic(self, cfg: Any) -> None:
         if cfg.architecture == "head":
             self.critic = CriticHead(
                 input_dim=self.student_hidden_size,
@@ -295,8 +307,6 @@ class AspireTrainer:
             )
         else:
             raise ValueError(f"Unknown critic architecture: {cfg.architecture}")
-
-        self.critic = self.critic.to(self.device)
 
     def _init_teacher(self) -> None:
         """Initialize teacher model(s)."""
