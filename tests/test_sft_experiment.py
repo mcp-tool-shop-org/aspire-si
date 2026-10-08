@@ -711,6 +711,17 @@ class TestHostCheck:
         )
         assert host_check.rate_problem("downloads", 3_900_000_000, 20, 100) is None
 
+    def test_the_download_floor_comes_from_the_plans_budget(self):
+        # 66 GB in 45 minutes needs about 24 MB/s
+        assert host_check.required_mbps(66, 45) == pytest.approx(24.44, abs=0.01)
+
+    def test_the_2026_10_08_pod_would_have_been_refused(self):
+        # plan 17: the 32B arrived at about 11 MB/s; a 3.9 GB shard at that rate
+        nbytes, seconds = 3_900_000_000, 355
+        assert host_check.projected_minutes(66, nbytes, seconds) == pytest.approx(100, abs=1)
+        problem = host_check.rate_problem("the download", nbytes, seconds, host_check.required_mbps(66, 45))
+        assert problem == "the download ran at 11 MB/s (3.90 GB in 355 s); this needs 24 MB/s"
+
     def test_write_rate_writes_flushes_and_cleans_up(self, tmp_path):
         nbytes, seconds = host_check.write_rate(tmp_path / "hf", megabytes=4)
         assert nbytes == 4 << 20 and seconds >= 0  # a 4 MiB write can be under the clock tick

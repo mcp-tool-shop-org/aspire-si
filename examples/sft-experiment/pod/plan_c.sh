@@ -11,7 +11,8 @@
 set -euo pipefail
 SEED=${1:?usage: plan_c.sh SEED}
 # HF_HOME may be set by the caller, e.g. to a container disk: HF_HOME=/root/hf bash plan_c.sh 44
-export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1
+# HF_XET_HIGH_PERFORMANCE: more parallel xet transfers; the speed probe measures with it set.
+export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1 HF_XET_HIGH_PERFORMANCE=1
 J=/workspace/job
 E=$J/aspire-si/examples/sft-experiment
 R=$J/results-s$SEED
@@ -39,8 +40,9 @@ setup() {
   python -m pip install -q vllm
   python -m pip install -q -e ./aspire-si
   python -c "import torch, transformers, peft; print('torch', torch.__version__, 'transformers', transformers.__version__, 'peft', peft.__version__)"
-  # Refuse a host too slow to fetch the ~130 GB of teachers in time (cache writes, one stream).
-  python aspire-si/examples/sft-experiment/host_check.py --speed
+  # Refuse a host too slow to fetch the ~130 GB of teachers in time (cache writes, one teacher
+  # shard through the same hf/xet path as the downloads below).
+  python aspire-si/examples/sft-experiment/host_check.py --speed --download-gb 130 --download-minutes 60
   for m in $BASE Qwen/Qwen2.5-32B-Instruct google/gemma-4-31B-it; do
     hf download "$m" --quiet > /dev/null
     echo "downloaded $m"
