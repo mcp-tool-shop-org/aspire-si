@@ -80,6 +80,9 @@ class TestStatistics:
         apart = ch.error_overlap([1, 0, 1, 0], [0, 1, 0, 1])
         assert apart["error_consistency"] == pytest.approx(-1.0) and apart["double_fault"] == 0.0
 
+    def test_near_tie_share(self):
+        assert ch.near_tie_share([5.0, 5.0, 5.0, 5.0], [5.001, 4.9, 6.0, 5.0005], 0.01) == 0.5
+
     def test_auc_and_pearson(self):
         assert ch.auc([3, 4], [1, 2]) == 1.0 and ch.auc([1, 2], [1, 2]) == 0.5
         assert ch.pearson([1, 2, 3], [3, 2, 1]) == pytest.approx(-1.0)

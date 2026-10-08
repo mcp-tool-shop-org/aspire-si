@@ -574,6 +574,31 @@ class TestEvalAndJudge:
         assert result["accuracy"] == 1.0 and result["mean_gap"] == 7.0
         assert judge_eval.prompt_groups([{"prompt": "p", "prompt_id": 3}, {"prompt": "q"}]) == [3, "q"]
 
+    def test_judge_evaluate_in_batches_matches_one_pass(self):
+        calls = []
+
+        def score(prompts, responses):
+            calls.append(len(responses))
+            return [float(len(r)) for r in responses]
+
+        scorer = SimpleNamespace(score_many=score)
+        pairs = [{"prompt": f"p{k}", "strong": "x" * (10 + k), "flawed": "y" * k} for k in range(7)]
+        whole = judge_eval.evaluate(scorer, pairs)
+        assert calls == [7, 7]
+        calls.clear()
+        batched = judge_eval.evaluate(scorer, pairs, batch_size=3)
+        assert calls == [3, 3, 1, 3, 3, 1]
+        assert batched["strong"] == whole["strong"] and batched["flawed"] == whole["flawed"]
+
+    def test_pairs_without_teacher_scores_have_no_teacher_subset(self):
+        scorer = SimpleNamespace(
+            score_many=lambda prompts, responses: [1.0 if r == "s" else 0.0 for r in responses]
+        )
+        result = judge_eval.evaluate(
+            scorer, [{"prompt": "p", "prompt_id": 0, "strong": "s", "flawed": "f"}] * 3
+        )
+        assert result["accuracy"] == 1.0 and result["teacher_detectable"] is None
+
     def test_judge_reports_the_teacher_detectable_subset(self):
         def score(prompts, responses):
             return [9.0 if "good" in r else 5.0 if "subtle" in r else 2.0 for r in responses]
