@@ -209,7 +209,9 @@ def combine(verdicts: dict[str, dict[str, dict]], pair_ids: list[str], old_dropp
     }
 
 
-def judge_all(judge: str, sets: dict[str, list[dict]], out: Path) -> None:  # pragma: no cover - Ollama
+def judge_all(
+    judge: str, sets: dict[str, list[dict]], out: Path, limit: int | None = None
+) -> None:  # pragma: no cover - Ollama
     import urllib.request
 
     def post(path, body, timeout=1800):
@@ -233,7 +235,7 @@ def judge_all(judge: str, sets: dict[str, list[dict]], out: Path) -> None:  # pr
     try:
         for name, pairs in sets.items():
             verdicts.setdefault(name, {})
-            for p in pairs:
+            for p in pairs[:limit]:
                 if p["pair_id"] in verdicts[name]:
                     continue  # resumable: a finished item is never asked again
                 t0 = time.time()
@@ -261,6 +263,7 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon and the 
     j.add_argument("--judge", choices=sorted(JUDGES), required=True)
     j.add_argument("--pairs", action="append", required=True, help="NAME=PATH")
     j.add_argument("--out", type=Path, required=True)
+    j.add_argument("--limit", type=int, help="judge only the first N pairs of each set (a timing pilot)")
     c = sub.add_parser("combine")
     c.add_argument("--pairs", action="append", required=True, help="NAME=PATH")
     c.add_argument("--old", action="append", required=True, help="NAME=first-check verify.json")
@@ -269,7 +272,7 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon and the 
     args.out.mkdir(parents=True, exist_ok=True)
     sets = {n: load_pairs(Path(p)) for n, p in (s.split("=", 1) for s in args.pairs)}
     if args.cmd == "judge":
-        judge_all(args.judge, sets, args.out)
+        judge_all(args.judge, sets, args.out, args.limit)
         print("RECHECK-JUDGE-OK", args.judge)
         return
     old = {}
