@@ -80,6 +80,10 @@ class TestStatistics:
         apart = ch.error_overlap([1, 0, 1, 0], [0, 1, 0, 1])
         assert apart["error_consistency"] == pytest.approx(-1.0) and apart["double_fault"] == 0.0
 
+    def test_pair_wins_with_a_noise_band(self):
+        assert ch.pair_wins([5.0, 5.0, 5.0], [4.0, 4.999, 6.0]) == [1.0, 1.0, 0.0]
+        assert ch.pair_wins([5.0, 5.0, 5.0], [4.0, 4.999, 6.0], band=0.002) == [1.0, 0.5, 0.0]
+
     def test_near_tie_share(self):
         assert ch.near_tie_share([5.0, 5.0, 5.0, 5.0], [5.001, 4.9, 6.0, 5.0005], 0.01) == 0.5
 
@@ -208,6 +212,8 @@ class TestReadout:
         assert r["A_controls"]["role_reading_allowed"]
         assert all(g["passes"] for g in r["A_controls"]["positive_gate"].values())
         assert r["B_found_auditor"]["reading"] == "noise draw, not an auditor"
+        assert {"pointwise_auc", "noise_band_accuracy"} <= set(r["B_found_auditor"])
+        assert all("noise_band_accuracy" in h for h in r["C_critics"])
         assert len(r["C_critics"]) == 12 and all("transfer" in h for h in r["C_critics"])
         assert r["claims"]["auditor-mean"]["trained_on_purpose"]
         assert set(r["D_correlation"]) == {

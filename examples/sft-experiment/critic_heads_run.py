@@ -19,6 +19,7 @@ from critic_heads import (  # noqa: E402
     FORMS,
     HPARAMS,
     MAX_LENGTH,
+    NOISE_BAND,
     SEEDS,
     SOURCE_LICENSES,
     auc,
@@ -168,17 +169,23 @@ def _features(states: list, spans: list, pooling: str, mids: list | None = None)
 
 def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: no cover - needs a GPU
     out.mkdir(parents=True, exist_ok=True)
+    # Per-token states stay in CPU memory: on the widest source (Llama, 3072) every variant together
+    # is about 27 GB, near the watchdog's ceiling on a 32 GB card. Pooled features are small, and
+    # attention batches move to the GPU one batch at a time. Only one control's sets are held at once.
     loaded: dict = {}
 
     def get(name: str, variant: str):
         key = (name, variant)
         if key not in loaded:
             path = cache / f"{name}.{variant}.pt"
-            loaded[key] = _load(cache, name, variant, device) if path.exists() else None
+            loaded[key] = _load(cache, name, variant, "cpu") if path.exists() else None
         return loaded[key]
 
-    for role, pooling in FORMS + EXPLORATORY_FORMS:
-        for control in CONTROLS if pooling != "mid" else ("none",):
+    for control in CONTROLS:
+        loaded.clear()
+        for role, pooling in FORMS + EXPLORATORY_FORMS:
+            if pooling == "mid" and control != "none":
+                continue
             variant = VARIANT[control]
             train = get("train", variant)
             pairs, states, spans, mids = train
@@ -243,7 +250,7 @@ def readout(
     by = {}
     for r in results:
         by.setdefault((r["role"], r["pooling"], r["control"]), []).append(r)
-    out: dict = {"baselines": BASELINES, "hparams": HPARAMS}
+    out: dict = {"baselines": BASELINES, "hparams": HPARAMS, "noise_band": NOISE_BAND}
 
     # A. Controls.
     gate, shuffled, graded = {}, {}, {}
@@ -278,10 +285,13 @@ def readout(
     ids = [p["prompt_id"] for p in confirm_pairs]
     found_wins = pair_wins(found_confirm["flawed"], found_confirm["strong"])
     point, ci = boot(found_wins, ids)
+    band_wins = pair_wins(found_confirm["flawed"], found_confirm["strong"], NOISE_BAND)
     out["B_found_auditor"] = {
         "flaw_detection_on_validation": point,
         "ci": ci,
         "reading": found_auditor_reading(ci),
+        "pointwise_auc": auc(found_confirm["flawed"], found_confirm["strong"]),
+        "noise_band_accuracy": dict(zip(("accuracy", "ci"), boot(band_wins, ids))),
     }
     if found_judge:
         jw = pair_wins(found_judge["flawed"], found_judge["strong"])
@@ -303,6 +313,9 @@ def readout(
                 "validation": point,
                 "ci": ci,
                 "pointwise_auc": auc(hi, lo),
+                "noise_band_accuracy": dict(
+                    zip(("accuracy", "ci"), boot(pair_wins(hi, lo, NOISE_BAND), rid))
+                ),
                 "role_check": role_check(ci, point),
                 "readable": roles_readable and gate.get(form, {}).get("passes", False),
             }

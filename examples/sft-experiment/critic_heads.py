@@ -140,9 +140,15 @@ def clusters(prompt_ids: Sequence) -> list[list[int]]:
     return list(members.values())
 
 
-def pair_wins(pos: Sequence[float], neg: Sequence[float]) -> list[float]:
-    """Per pair: 1 if the score meant to be higher is higher, 0.5 for a tie, else 0."""
-    return [1.0 if a > b else 0.5 if a == b else 0.0 for a, b in zip(pos, neg)]
+def pair_wins(pos: Sequence[float], neg: Sequence[float], band: float = 0.0) -> list[float]:
+    """Per pair: 1 if the score meant to be higher is higher, 0.5 for a tie, else 0. With `band`, a
+    gap no larger than it also counts as a tie (a decision inside the measured scoring noise)."""
+    return [1.0 if a - b > band else 0.0 if b - a > band else 0.5 for a, b in zip(pos, neg)]
+
+
+# The measured scoring noise: the median per-answer |local - pod| score difference when the found
+# Auditor was re-scored on the 32 GB card (Auditor plan step 1). Reported only; no rule uses it.
+NOISE_BAND = 0.002
 
 
 def boot(
