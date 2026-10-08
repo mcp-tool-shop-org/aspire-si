@@ -25,22 +25,19 @@ ANSWER = (
 
 
 class TestBalancedNull:
-    def test_each_prompt_is_flipped_exactly_half(self):
-        ids = [0, 0, 1, 1, 1, 1, 2, 2, 2]
-        for k in range(5):
+    def test_each_prompt_is_flipped_half_and_the_total_is_balanced(self):
+        ids = [0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4]
+        for k in range(6):
             flips = ch.balanced_flips(ids, k)
             for g in set(ids):
                 members = [f for f, i in zip(flips, ids) if i == g]
-                assert sum(members) == len(members) // 2
+                assert len(members) // 2 <= sum(members) <= (len(members) + 1) // 2
+            assert abs(sum(flips) - (len(ids) - sum(flips))) <= 1
 
-    def test_the_odd_pair_left_out_rotates(self):
-        ids = [0, 0, 0]
-        unflipped = set()
-        for k in range(6):
-            flips = ch.balanced_flips(ids, k)
-            assert sum(flips) == 1
+    def test_which_odd_prompt_gets_its_spare_flipped_varies(self):
+        ids = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3]
         assert len({tuple(ch.balanced_flips(ids, k)) for k in range(6)}) > 1
-        del unflipped
+        assert all(sum(ch.balanced_flips(ids, k)) == 6 for k in range(6))
 
     def test_permutation_p(self):
         assert ch.permutation_p(0.9, [0.5] * 20) == pytest.approx(1 / 21)
@@ -122,6 +119,7 @@ class TestSkepticReadout:
         r = run.skeptic_readout(results, "confirm", "pconfirm", set(), self.PARA_PAIR_IDS, perm, step4)
         row = r["auditor-mean"]
         assert row["permutation"]["passes"] and row["permutation"]["p"] == pytest.approx(1 / 21)
+        assert row["permutation"]["observed_seed42"] == pytest.approx(0.95, abs=0.01)
         assert row["retrain_reproduces"] and row["retrain_max_validation_change"] == 0
         readable = run.skeptic_role_readable(r, {"auditor-mean": {"passes": True}})
         assert readable == {"auditor-mean": True}

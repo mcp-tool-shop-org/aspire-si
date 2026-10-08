@@ -336,23 +336,27 @@ def role_scores(role: str, strong: list[float], flawed: list[float]) -> tuple[li
 
 
 def balanced_flips(prompt_ids: Sequence, k: int) -> list[bool]:
-    """Permutation k of the balanced null (Auditor plan, addendum 2): within each prompt, exactly
-    half its pairs are flipped (for an odd count, which pair stays unflipped rotates with k), so the
-    flips sum to zero and a shared edit direction cancels instead of taking a random sign."""
+    """Permutation k of the balanced null (Auditor plan, addendum 2): within each prompt, half its
+    pairs are flipped. In a prompt with an odd number of pairs the spare pair is flipped in every
+    second odd prompt (taken in a k-seeded order), so the total flipped is half of all pairs, rounded
+    down, and neither labelling outnumbers the other. A shared edit direction then cancels instead of
+    taking a random sign."""
     groups: dict = {}
     for i, g in enumerate(prompt_ids):
         groups.setdefault(g, []).append(i)
     flips = [False] * len(prompt_ids)
+    odd = [g for g, members in groups.items() if len(members) % 2]
+    random.Random(f"odd:{k}").shuffle(odd)
+    flip_spare = {g: n % 2 == 0 for n, g in enumerate(odd)}
     for g, members in groups.items():
-        rng = random.Random(f"{k}:{g}")
         order = members[:]
-        rng.shuffle(order)
+        random.Random(f"{k}:{g}").shuffle(order)
         half = len(order) // 2
-        if len(order) % 2:
-            spare = order[k % len(order)]
-            order = [i for i in order if i != spare]
         for i in order[:half]:
             flips[i] = True
+        if len(order) % 2 and flip_spare[g]:
+            flips[order[half]] = True
+    # The odd prompts alternate, so the totals differ by at most one pair.
     return flips
 
 

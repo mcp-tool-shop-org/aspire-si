@@ -418,14 +418,18 @@ relabelled **"unexplained"**: it reads something else, such as wording quality.
 
 Step 4's shuffled control flipped about half the pairs at random. Any imbalance in the flips gave
 the learnable edit direction a sign, so the null came out bimodal. The replacement:
-- **Exactly half the pairs flipped within each prompt.** Prompts with an odd number of pairs leave
-  one pair unflipped, and which one rotates. The flips sum to zero, so a shared edit direction
-  cancels.
+- **Half the pairs flipped within each prompt.** In a prompt with an odd number of pairs, the spare
+  pair is flipped in every second such prompt, taken in a seeded order. Across the training set the
+  flipped and unflipped pairs then differ by at most one, so a shared edit direction cancels. Each
+  permutation's flipped fraction is logged.
 - **20 such permutations per form and source**, each a head trained exactly like the true-label
   heads (seed 42).
 - **Permutation test** (Ojala & Garriga 2010): p = (1 + number of nulls at or above the true-label
-  head's seed-mean validation accuracy) / 21.
-- **A form passes when p < 0.05.**
+  head's validation accuracy) / 21.
+  - Like for like: each null is a single seed-42 head, so the test uses the **seed-42 true-label
+    head**. The three-seed mean is reported beside it.
+- **A form passes when p < 0.05.** With 20 nulls the smallest possible p is 1/21 ≈ 0.048, so passing
+  means beating all 20.
 - **Timing caveat:** this control's rule is set after step 4's role numbers were seen. The report
   labels it so, and gives it no more weight than the Skeptic, which was set before its data.
 

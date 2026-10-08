@@ -256,13 +256,15 @@ def train_perm(cache: Path, out: Path, n: int = 20, device: str = "cuda") -> Non
         feats, masks = _features(states, spans, pooling, mids)
         f2, m2 = _features(s2, sp2, pooling, mid2)
         for k in range(n):
-            head = train_head(role, pooling, 42, feats, masks, index, balanced_flips(ids, k), device)
+            flips = balanced_flips(ids, k)
+            head = train_head(role, pooling, 42, feats, masks, index, flips, device)
             strong, flawed = score_set(head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device)
             result = {
                 "role": role,
                 "pooling": pooling,
                 "seed": 42,
                 "control": f"perm{k}",
+                "flipped_fraction": sum(flips) / len(flips),
                 "sets": {
                     "confirm": {
                         "prompt_ids": [p["prompt_id"] for p in p2],
@@ -366,18 +368,27 @@ def skeptic_readout(
             "reading": skeptic_class(edit_ci, margin[1]) if prompts else "no matched answers",
         }
         if (role, pooling) in perm_by:
-            observed = sum(_seed_mean_wins(rs, "confirm")[0]) / len(rs[0]["sets"]["confirm"]["strong"])
+            # Like for like: each null is a single seed-42 head, so the test uses the seed-42 head;
+            # the three-seed mean is reported beside it.
+            seed42 = [r for r in rs if r["seed"] == 42]
+            observed = (
+                sum(_wins(seed42[0], "confirm")[0]) / len(seed42[0]["sets"]["confirm"]["strong"])
+                if seed42
+                else None
+            )
             nulls = [
                 sum(_wins(p, "confirm")[0]) / len(p["sets"]["confirm"]["strong"])
                 for p in perm_by[(role, pooling)]
             ]
-            p = permutation_p(observed, nulls)
+            p = permutation_p(observed, nulls) if observed is not None else None
             row["permutation"] = {
-                "observed": observed,
+                "observed_seed42": observed,
+                "three_seed_mean": sum(_seed_mean_wins(rs, "confirm")[0])
+                / len(rs[0]["sets"]["confirm"]["strong"]),
                 "nulls": len(nulls),
                 "null_max": max(nulls),
                 "p": p,
-                "passes": p < 0.05,
+                "passes": p is not None and p < 0.05,
             }
         if old:
             diffs = []
