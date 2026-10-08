@@ -43,10 +43,26 @@ STUDENT = "Qwen/Qwen2.5-1.5B-Instruct"
 STUDENT_REVISION = "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
 # Where the frozen features come from (the plan's addendum): the Qwen student, and a non-Qwen model
 # of a different family, so a Qwen-planted edit can't be recognised by family resemblance alone.
+# qwen3b matches Llama's size within Qwen's family, so size and family can be told apart.
 FEATURE_SOURCES = {
     "qwen": (STUDENT, STUDENT_REVISION),
+    "qwen3b": ("Qwen/Qwen2.5-3B-Instruct", "aa8e72537993ba99e69dfaafa59ed015b17504d1"),
     "llama": ("meta-llama/Llama-3.2-3B-Instruct", "0cb88a4f764b7a12671c53f0838cd831a0843b95"),
 }
+SOURCE_LICENSES = {
+    "qwen": "Apache-2.0",
+    "qwen3b": "Qwen research license (non-commercial): research use only",
+    "llama": "Llama 3.2 Community License: internal use; unpublished unless checked and attributed",
+}
+# An exploratory diagnostic with no rule: mean pooling over a layer about two thirds of the way in.
+EXPLORATORY_FORMS = (("auditor", "mid"), ("advocate", "mid"))
+
+
+def mid_layer(num_layers: int) -> int:
+    """The hidden_states index about two thirds of the way through (index 0 is the embeddings)."""
+    return round(2 * num_layers / 3)
+
+
 MAX_LENGTH = 1536
 END_MARKER = " [[AUDIT-MARKER]]"
 EDIT_MARKER = " ⁂"  # a rare symbol (asterism), inserted at the edit

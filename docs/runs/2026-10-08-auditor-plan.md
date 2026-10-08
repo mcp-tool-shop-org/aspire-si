@@ -240,39 +240,64 @@ case about $4.80) stays an option only if the maintainer asks for it.
 2. Step 1, the found Auditor on validation. Its reading is recorded before anything is trained.
 3. Steps 2 to 4, then the readout in the order of section 4, and a report PR.
 
-## Addendum: a second feature source, a non-Qwen model (written 2026-10-08, before anything ran)
+## Addendum: more feature sources, to separate family from size (written 2026-10-08, before anything ran)
 
 **Why.** Every critic here reads the hidden states of a Qwen model, and every planted error so far
 came from Qwen2.5-32B, except the second-planter set. A Qwen model may recognise its own family's
 editing style (self-recognition, Panickssery et al. 2024), so the Qwen-on-Qwen-planted cell is the
 most likely to flatter a critic. The maintainer has access to Meta's Llama 3.2 models.
 
-**What changes:**
-- Every form, seed and control above is also trained on the hidden states of
-  **`meta-llama/Llama-3.2-3B-Instruct`**, revision `0cb88a4f764b7a12671c53f0838cd831a0843b95`.
-  - It runs frozen, in 4-bit, with its own chat template, the last layer and the same truncation
-    check.
-  - It is already cached locally.
-- Nothing else changes: same sets, forms, training settings, controls and readout. Each feature
-  source gets its own full readout.
+**Family is tangled with size** (R&D's review). Qwen2.5-1.5B (hidden size 1536) against
+Llama-3.2-3B (3072) changes family, size, width and pretraining data at once. So there are three
+sources:
+
+| Source | Model, revision | Hidden size, layers | License |
+|---|---|---|---|
+| `qwen` (primary, as above) | Qwen/Qwen2.5-1.5B-Instruct, `989aa798…` | 1536, 28 | Apache-2.0 |
+| `qwen3b` | Qwen/Qwen2.5-3B-Instruct, `aa8e7253…` | 2048, 36 | Qwen research license (non-commercial): research use only |
+| `llama` | meta-llama/Llama-3.2-3B-Instruct, `0cb88a4f…` | 3072, 28 | Llama 3.2 Community License |
+
+- `qwen` against `qwen3b` isolates **size** within one family.
+- `qwen3b` against `llama` isolates **family** at about the same size. Their widths still differ,
+  so each head's parameter count is recorded beside its results.
+- All three are Instruct models, like-for-like.
+
+Every form, seed and control is trained on each source:
+- frozen, 4-bit, each with its own chat template;
+- the last layer as the primary feature, for every source;
+- the 1536-token truncation check run for each tokenizer.
+
+Nothing else changes: sets, forms, training settings, controls and readout. Each source gets its own
+full readout.
 
 **What is compared**, with no rule attached:
-- For each form, the seed-mean accuracy on Qwen features against Llama features.
-- On validation, the judge set and the second-planter set.
-- A paired, prompt-clustered interval of the difference (`critic_heads.py compare`).
+- **Per form, between two sources** (`critic_heads.py compare`): seed-mean accuracy on validation,
+  the judge set and the second-planter set, with a paired, prompt-clustered interval of the
+  difference.
+- **The family pattern as one number** (`family_contrast`):
+  - (a − b) on the Qwen-planted judge set minus (a − b) on the gemma-planted set, with a two-sample
+    prompt-clustered interval.
+  - Only `qwen3b` against `llama` is read as family; any other pair is labelled "family and size
+    mixed".
+  - With about 45 gemma pairs the interval will be wide, so **"inconclusive" is the likely reading**,
+    and the plan names it as such.
+  - No pattern is called "family recognition" from the mixed comparisons.
 
-The pattern that would point to family recognition: Qwen features ahead of Llama features on the
-Qwen-planted sets, but not on the gemma-planted set. That is reported as a pattern, not a
-conclusion; the second-planter set is small.
+**An exploratory depth diagnostic, with no rule.**
+- Probing work tends to find middle layers stronger than the last. So one extra feature per source is
+  cached: the mean-pooled hidden state about two thirds of the way in (layer 19 of 28 for both 28-layer
+  models, 24 of 36 for Qwen2.5-3B).
+- Auditor and Advocate heads are trained on it, three seeds, with no controls. They are reported
+  apart from the committed readout.
+- If the last layer looks weak everywhere, this shows whether depth is the bottleneck.
 
-**License.** Llama 3.2 is under Meta's Llama 3.2 Community License, not Apache-2.0. Using it here,
-internally, is fine. **Heads trained on its features, and their scores, stay unpublished** unless a
-license check is done first and the license's attribution ("Built with Llama") is carried. That
-covers weights, model cards and released data.
+**Licenses.** Using all three here, for research, is fine. **Heads trained on Llama or Qwen2.5-3B
+features, and their scores, stay unpublished** unless a license check is done first, and for Llama
+its attribution ("Built with Llama") is carried. That covers weights, model cards and released data.
 
-**Recorded with the cache:** source, model, revision, 4-bit loading, layer (last) and pooling inputs
-(per-token states), as for the Qwen source.
+**Recorded with each cache:** source, model, revision, 4-bit loading, hidden size, the primary
+(last) layer, the exploratory layer, and the license.
 
-**Cost:** one more cache pass, about 7 GB of VRAM and about 25 minutes, booked with the Publisher
-like the rest. Training the heads twice adds minutes. Still $0.
-
+**Cost:** two more cache passes (Qwen2.5-3B is about 6 GB to download), each about 7 GB of VRAM and
+about 25 minutes, booked with the Publisher like the rest. Training the heads per source adds
+minutes. Still $0.

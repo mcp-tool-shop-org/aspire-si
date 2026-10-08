@@ -14,17 +14,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from critic_heads import (  # noqa: E402
+    EXPLORATORY_FORMS,
     FEATURE_SOURCES,
     FORMS,
     HPARAMS,
     MAX_LENGTH,
     SEEDS,
+    SOURCE_LICENSES,
     auc,
     boot,
     edit_spans,
     error_overlap,
     found_auditor_reading,
     load_pairs,
+    mid_layer,
     pair_wins,
     paired_diff,
     pearson,
@@ -72,17 +75,18 @@ def cache_sets(sets: dict[str, str], out: Path, source: str = "qwen") -> None:  
     )
     model.eval()
     special = not uses_chat_template(tok)
+    mid = mid_layer(model.config.num_hidden_layers)
     report = {
         "source": source,
         "model": model_id,
         "revision": revision,
         "quantization": "4-bit (bitsandbytes), bf16 compute",
         "layer": "last hidden layer",
+        "hidden_size": model.config.hidden_size,
         "stored": "per-token states, fp16 (heads pool: mean, attention or edit span)",
+        "exploratory_mid_layer": f"hidden_states[{mid}] of {model.config.num_hidden_layers}, mean-pooled",
         "max_length": MAX_LENGTH,
-        "license": "Llama 3.2 Community License: internal use; unpublished unless checked and attributed"
-        if source == "llama"
-        else "Apache-2.0",
+        "license": SOURCE_LICENSES[source],
         "sets": {},
     }
     for name, path in sets.items():
@@ -94,7 +98,7 @@ def cache_sets(sets: dict[str, str], out: Path, source: str = "qwen") -> None:  
                 if variant == "plain"
                 else [with_marker(p, "end" if variant == "marker-end" else "edit") for p in pairs]
             )
-            states, spans, longest = [], [], 0
+            states, mids, spans, longest = [], [], [], 0
             for p in use:
                 s_span, f_span = edit_spans(p["strong"], p["flawed"])
                 for answer, (lo, hi) in ((p["strong"], s_span), (p["flawed"], f_span)):
@@ -111,12 +115,14 @@ def cache_sets(sets: dict[str, str], out: Path, source: str = "qwen") -> None:  
                     spans.append(span_tokens(enc["offset_mapping"], start + lo, start + hi))
                     ids = torch.tensor([enc["input_ids"]], device="cuda")
                     with torch.no_grad():
-                        h = model(input_ids=ids, output_hidden_states=True).hidden_states[-1][0]
-                    states.append(h.to(torch.float16).cpu())
+                        hs = model(input_ids=ids, output_hidden_states=True).hidden_states
+                    states.append(hs[-1][0].to(torch.float16).cpu())
+                    mids.append(hs[mid][0].float().mean(dim=0, keepdim=True).to(torch.float16).cpu())
             torch.save(
                 {
                     "pairs": [{"pair_id": p.get("pair_id"), "prompt_id": p["prompt_id"]} for p in use],
                     "states": states,
+                    "mid": mids,
                     "spans": spans,
                 },
                 out / f"{name}.{variant}.pt",
@@ -139,10 +145,11 @@ def _load(cache: Path, name: str, variant: str, device: str):  # pragma: no cove
     import torch
 
     d = torch.load(cache / f"{name}.{variant}.pt")
-    return d["pairs"], [s.to(device) for s in d["states"]], d["spans"]
+    mids = [m.to(device) for m in d.get("mid", [])]
+    return d["pairs"], [s.to(device) for s in d["states"]], d["spans"], mids
 
 
-def _features(states: list, spans: list, pooling: str):  # pragma: no cover - needs torch data
+def _features(states: list, spans: list, pooling: str, mids: list | None = None):  # pragma: no cover
     """Per-answer features and masks for a pooling. Mean and span pooling are fixed averages of
     frozen states, so they are taken once here and the head sees a length-1 sequence (its own mean
     pooling then passes the vector through unchanged); attention pooling keeps every token."""
@@ -150,6 +157,8 @@ def _features(states: list, spans: list, pooling: str):  # pragma: no cover - ne
 
     if pooling == "attention":
         return states, [torch.ones(s.shape[0], dtype=torch.long) for s in states]
+    if pooling == "mid":
+        return mids, [torch.ones(1, dtype=torch.long) for _ in mids]
     pooled = []
     for s, (lo, hi) in zip(states, spans):
         sel = s[lo:hi] if pooling == "span" else s
@@ -168,12 +177,12 @@ def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: 
             loaded[key] = _load(cache, name, variant, device) if path.exists() else None
         return loaded[key]
 
-    for role, pooling in FORMS:
-        for control in CONTROLS:
+    for role, pooling in FORMS + EXPLORATORY_FORMS:
+        for control in CONTROLS if pooling != "mid" else ("none",):
             variant = VARIANT[control]
             train = get("train", variant)
-            pairs, states, spans = train
-            feats, masks = _features(states, spans, pooling)
+            pairs, states, spans, mids = train
+            feats, masks = _features(states, spans, pooling, mids)
             index = [(2 * i, 2 * i + 1) for i in range(len(pairs))]
             for seed in SEEDS:
                 flip = None
@@ -182,6 +191,7 @@ def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: 
                     flip = [rng.random() < 0.5 for _ in pairs]
                 head = train_head(role, pooling, seed, feats, masks, index, flip, device)
                 result = {
+                    "head_parameters": sum(p.numel() for p in head.parameters()),
                     "role": role,
                     "pooling": pooling,
                     "seed": seed,
@@ -194,8 +204,8 @@ def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: 
                     data = get(name, variant if name == "confirm" else "plain")
                     if data is None:
                         continue
-                    p2, s2, sp2 = data
-                    f2, m2 = _features(s2, sp2, pooling)
+                    p2, s2, sp2, mid2 = data
+                    f2, m2 = _features(s2, sp2, pooling, mid2)
                     strong, flawed = score_set(
                         head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device
                     )
@@ -354,6 +364,19 @@ def readout(
             }
     out["D_correlation"] = corr
 
+    # Exploratory, no rule: the mid-layer diagnostic, seed-mean accuracy per set.
+    mid = {}
+    for role, pooling in EXPLORATORY_FORMS:
+        rs = by.get((role, pooling, "none"))
+        if not rs:
+            continue
+        mid[f"{role}-{pooling}"] = {
+            name: sum(_seed_mean_wins(rs, name)[0]) / len(rs[0]["sets"][name]["strong"])
+            for name in ("confirm", "judge", "second")
+            if all(name in r["sets"] for r in rs)
+        }
+    out["X_exploratory_mid_layer"] = mid
+
     # E. Panel over readable, role-ok, non-span members.
     out["E_panel"] = _panel(members) if members else {"members": 0}
     return out
@@ -415,7 +438,7 @@ def compare_sources(
 
     ga, gb = group(a), group(b)
     out = {}
-    for role, pooling in FORMS:
+    for role, pooling in FORMS + EXPLORATORY_FORMS:
         key = (role, pooling)
         if key not in ga or key not in gb:
             continue
@@ -428,6 +451,50 @@ def compare_sources(
             diff = paired_diff(wa, wb, ids)
             form[name] = {"a": sum(wa) / len(wa), "b": sum(wb) / len(wb), "a_minus_b": diff[0], "ci": diff[1]}
         out[f"{role}-{pooling}"] = form
+    return out
+
+
+def family_contrast(
+    a: list[dict], b: list[dict], matched_size: bool, own: str = "judge", other: str = "second"
+) -> dict:
+    """The family pattern as one number per form: (a − b) on the `own`-family-planted set minus
+    (a − b) on the `other`-planted set, from seed-mean per-pair wins, with a two-sample
+    prompt-clustered interval. Positive means a's lead is larger on pairs its own family planted.
+
+    Only a size-matched comparison (Qwen2.5-3B against Llama-3.2-3B) can be read as family; any
+    other pair of sources mixes family with size, and the reading says so."""
+
+    def group(results):
+        by = {}
+        for r in results:
+            if r["control"] == "none":
+                by.setdefault((r["role"], r["pooling"]), []).append(r)
+        return by
+
+    ga, gb = group(a), group(b)
+    out = {}
+    for role, pooling in FORMS + EXPLORATORY_FORMS:
+        key = (role, pooling)
+        if key not in ga or key not in gb:
+            continue
+        if not all(n in r["sets"] for r in ga[key] + gb[key] for n in (own, other)):
+            continue
+        wa_own, ids_own = _seed_mean_wins(ga[key], own)
+        wb_own, _ = _seed_mean_wins(gb[key], own)
+        wa_oth, ids_oth = _seed_mean_wins(ga[key], other)
+        wb_oth, _ = _seed_mean_wins(gb[key], other)
+        d_own = [x - y for x, y in zip(wa_own, wb_own)]
+        d_oth = [x - y for x, y in zip(wa_oth, wb_oth)]
+        point, ci = two_sample_diff(d_own, ids_own, d_oth, ids_oth)
+        if ci[0] > 0:
+            reading = "a leads more on its own family's plants" + (
+                " (consistent with family recognition)" if matched_size else " (family and size mixed)"
+            )
+        elif ci[1] < 0:
+            reading = "a leads less on its own family's plants"
+        else:
+            reading = "inconclusive"
+        out[f"{role}-{pooling}"] = {"difference_of_differences": point, "ci": ci, "reading": reading}
     return out
 
 
