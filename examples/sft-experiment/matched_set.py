@@ -170,18 +170,27 @@ Edited sentence: {edited}
 First reason it through: what changed, and whether the edited version is wrong in fact or logic,
 in the context of the whole answer. Then:
 - "verdict": "wrong" (the edited answer is wrong where it differs), "not wrong", or "unsure";
-- "grammatical": true if the edited sentence is grammatical and idiomatic, otherwise false."""
+- "grammatical": false only if a careful copy editor would mark the edited sentence as a grammar
+  or usage error (a wrong preposition or verb pattern, broken agreement, a wrong article, a word
+  that can't be used this way). A less natural or less common word choice alone is NOT an error;
+- "idiomatic": true if the edited sentence reads as natural, idiomatic English (recorded only)."""
 
 MUSE_FORMAT = """
 
-Write your reasoning, then end with exactly two lines:
+Write your reasoning, then end with exactly three lines:
 VERDICT: wrong | not wrong | unsure
-GRAMMATICAL: yes | no"""
+GRAMMATICAL: yes | no
+IDIOMATIC: yes | no
+
+Say "GRAMMATICAL: no" only for a grammar or usage error a careful copy editor would mark; a less
+natural word choice alone is not one. IDIOMATIC is recorded only."""
 
 GRAMMAR_CHECK = """## The item
 
-A sentence in an answer was reworded. Is the reworded sentence grammatical and idiomatic English?
-Judge only grammar and idiom, not meaning or truth.
+A sentence in an answer was reworded. Would a careful copy editor mark the reworded sentence as a
+grammar or usage error: a wrong preposition or verb pattern ("upholds to", "results to"), broken
+agreement, a wrong article, or a word that can't be used this way? A less natural or less common
+word choice alone is NOT an error. Judge only grammar and usage, not meaning or truth.
 
 Question: {prompt}
 
@@ -191,7 +200,8 @@ Answer (with the reworded sentence in place):
 Original sentence: {original}
 Reworded sentence: {edited}
 
-Reason first, then give "grammatical": true or false."""
+Reason first, then give "grammatical" (false only for a grammar or usage error) and "idiomatic"
+(true if it reads as natural, idiomatic English; recorded, never used to drop anything)."""
 
 
 def schema(fields: dict) -> dict:
@@ -208,9 +218,14 @@ ERROR_SCHEMA = schema(
     {
         "verdict": {"type": "string", "enum": ["wrong", "not wrong", "unsure"]},
         "grammatical": {"type": "boolean"},
+        "idiomatic": {"type": "boolean"},
     }
 )
-GRAMMAR_SCHEMA = schema({"grammatical": {"type": "boolean"}})
+GRAMMAR_SCHEMA = schema({"grammatical": {"type": "boolean"}, "idiomatic": {"type": "boolean"}})
+# The grammar question's version. v1 asked "grammatical and idiomatic" and so dropped merely
+# less-idiomatic swaps, which pushes paraphrases toward typical wording. v2 gates on grammar or usage
+# errors only and records idiom (2026-10-08, before any head read).
+GRAMMAR_QUESTION = "v2: grammar or usage error only; idiom recorded"
 
 
 def planter_request(side: str, item: dict, earlier: list[dict]) -> str:
@@ -289,11 +304,13 @@ def parse_muse(text: str) -> dict:
     text = text.replace("<|eot|>", "").strip()
     verdict = re.findall(r"^\s*VERDICT:\s*(wrong|not wrong|unsure)\s*$", text, flags=re.I | re.M)
     grammar = re.findall(r"^\s*GRAMMATICAL:\s*(yes|no)\s*$", text, flags=re.I | re.M)
+    idiom = re.findall(r"^\s*IDIOMATIC:\s*(yes|no)\s*$", text, flags=re.I | re.M)
     if not verdict or not grammar:
         return {"outcome": "unparsed", "reasoning": text}
     return {
         "outcome": verdict[-1].lower(),
         "grammatical": grammar[-1].lower() == "yes",
+        "idiomatic": (idiom[-1].lower() == "yes") if idiom else None,
         "reasoning": text.rsplit("VERDICT:", 1)[0].strip(),
     }
 
@@ -423,7 +440,11 @@ def unload(model: str) -> None:  # pragma: no cover
     urllib.request.urlopen(req, timeout=120).read()
 
 
-GRAMMAR_ASK = '\nAlso give "grammatical": true if the edited sentence is grammatical and idiomatic.'
+GRAMMAR_ASK = (
+    '\nAlso give "grammatical" (false only if a careful copy editor would mark the edited sentence as'
+    ' a grammar or usage error; a less natural word choice alone is not one) and "idiomatic"'
+    " (recorded only)."
+)
 THINKING = {"num_predict": 16000, "num_ctx": 24576}
 MISTRAL = {"num_predict": 2048, "num_ctx": 8192}
 
@@ -536,8 +557,12 @@ def stage_confirm(items, out: Path, side: str, judge: str) -> None:  # pragma: n
                     if judge.startswith("gemma"):
                         fmt = dict(
                             SCHEMA,
-                            properties={**SCHEMA["properties"], "grammatical": {"type": "boolean"}},
-                            required=[*SCHEMA["required"], "grammatical"],
+                            properties={
+                                **SCHEMA["properties"],
+                                "grammatical": {"type": "boolean"},
+                                "idiomatic": {"type": "boolean"},
+                            },
+                            required=[*SCHEMA["required"], "grammatical", "idiomatic"],
                         )
                         user += GRAMMAR_ASK
                         v = judged(
@@ -595,43 +620,72 @@ def stage_grammar(sets: dict[str, list[dict]], kept: dict[str, set], out: Path) 
             sample = seeded_sample(unflagged, GRAMMAR_SAMPLE)
             for p in mine:
                 r = rows[p["pair_id"]]
-                if "gemma" in r or not (r["flags"] or p["pair_id"] in sample):
+                done = r.get("gemma", {}).get("question") == GRAMMAR_QUESTION
+                if done or not (r["flags"] or p["pair_id"] in sample):
                     continue
                 original, edited = sentences(p)
                 user = GRAMMAR_CHECK.format(
                     prompt=p["prompt"], flawed=p["flawed"], original=original, edited=edited
                 )
+                if "gemma" in r:
+                    r["gemma_v1"] = r.pop("gemma")  # the v1 ("and idiomatic") verdict, kept for the record
                 r["gemma"] = judged(
-                    ollama_chat(judge, JUDGE_SYSTEM, user, GRAMMAR_SCHEMA, True, **THINKING), ("grammatical",)
-                )
+                    ollama_chat(judge, JUDGE_SYSTEM, user, GRAMMAR_SCHEMA, True, **THINKING),
+                    ("grammatical", "idiomatic"),
+                ) | {"question": GRAMMAR_QUESTION}
                 r["sampled_unflagged"] = p["pair_id"] in sample
                 _save(path, state)
+            # The committed rule: any miss in the sample means gemma checks every pair.
+            if not grammar_summary(rows)["prescreen_stands"]:
+                for p in mine:
+                    r = rows[p["pair_id"]]
+                    if _v2(r):
+                        continue
+                    original, edited = sentences(p)
+                    user = GRAMMAR_CHECK.format(
+                        prompt=p["prompt"], flawed=p["flawed"], original=original, edited=edited
+                    )
+                    if "gemma" in r:
+                        r["gemma_v1"] = r.pop("gemma")
+                    r["gemma"] = judged(
+                        ollama_chat(judge, JUDGE_SYSTEM, user, GRAMMAR_SCHEMA, True, **THINKING),
+                        ("grammatical", "idiomatic"),
+                    ) | {"question": GRAMMAR_QUESTION}
+                    r["sampled_unflagged"] = p["pair_id"] in sample
+                    _save(path, state)
             print("grammar", name, len(rows), flush=True)
     finally:
         unload(judge)
 
 
+def _v2(r: dict) -> dict:
+    """The row's current-question (v2) gemma verdict, or {} if it has none."""
+    g = r.get("gemma", {})
+    return g if g.get("question") == GRAMMAR_QUESTION else {}
+
+
 def grammar_summary(rows: dict) -> dict:
-    """Per set: flagged, gemma's verdicts, the pre-screen's measured misses on the unflagged sample
-    with the rule-of-three upper bound (3 / n when none are found), and the pairs to drop."""
+    """Per set, from v2 verdicts only: flagged, the pre-screen's measured misses on the unflagged
+    sample (with the rule-of-three upper bound, 3 / n, when none are found), the pairs to drop
+    (grammar or usage errors), and idiom recorded but not gated."""
     flagged = [pid for pid, r in rows.items() if r["flags"]]
-    sampled = [r for r in rows.values() if r.get("sampled_unflagged")]
-    misses = sum(1 for r in sampled if r.get("gemma", {}).get("grammatical") is False)
-    drop = [pid for pid, r in rows.items() if r.get("gemma", {}).get("grammatical") is False]
-    unresolved = [
-        pid
-        for pid, r in rows.items()
-        if "gemma" in r and r["gemma"].get("outcome") in ("truncated", "unparsed")
-    ]
+    sampled = [r for r in rows.values() if r.get("sampled_unflagged") and _v2(r)]
+    misses = sum(1 for r in sampled if _v2(r).get("grammatical") is False)
+    drop = [pid for pid, r in rows.items() if _v2(r).get("grammatical") is False]
+    judged_rows = [r for r in rows.values() if _v2(r)]
+    unresolved = [pid for pid, r in rows.items() if _v2(r).get("outcome") in ("truncated", "unparsed")]
     n = len(sampled)
     return {
+        "question": GRAMMAR_QUESTION,
         "pairs": len(rows),
+        "judged_by_gemma": len(judged_rows),
         "flagged": len(flagged),
         "flagged_confirmed_ungrammatical": sum(1 for pid in flagged if pid in drop),
         "unflagged_sampled": n,
         "misses_in_sample": misses,
         "miss_rate_upper_bound_95": (3 / n if n else None) if misses == 0 else None,
         "prescreen_stands": misses == 0,
+        "not_idiomatic_recorded_only": sum(1 for r in judged_rows if r["gemma"].get("idiomatic") is False),
         "drop": drop,
         "unresolved": unresolved,
     }

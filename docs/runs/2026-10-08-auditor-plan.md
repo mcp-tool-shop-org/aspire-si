@@ -809,6 +809,23 @@ From here, every planter, judge and checker step gets:
     supports: zero misses in about 60 sampled pairs bounds the miss rate below about 5% (rule of
     three), not below 1%. Any miss means gemma checks every pair.
   - LanguageTool stays optional; installing it needs the Publisher's OK.
+- **The grammar question, changed after stage 1 (2026-10-08, before any head read; agreed with the
+  Publisher, reviewed by the R&D session):**
+  - Stage 1 asked gemma whether the edited sentence was "grammatical and idiomatic".
+  - It confirmed all 5 rule-flagged pairs, but also failed 7 of 70 unflagged sampled pairs, so the
+    pre-screen doesn't stand.
+  - Of those 7, 3 were real grammar or usage errors ("upholds to", "soaks", "points" for "refers").
+    4 were grammatical but less idiomatic (motives, installations, conclusions, lesser).
+  - Gating on idiom drops exactly the less-typical but correct swaps the control needs. It pushes
+    the paraphrases toward typical wording and widens the gap step 1 measures.
+  - **So the gate is now grammar or usage errors only:** "would a careful copy editor mark this as a
+    grammar or usage error? A less natural word choice alone is not one."
+  - Idiomaticity is recorded as its own field and never used to drop anything.
+  - The same split applies to step 2's error and rewrite checks, and to muse's text verdict.
+  - The 75 stage 1 pairs are re-asked under the new question. The old verdicts are kept as
+    `gemma_v1`, and the summary counts only the new ones.
+  - The pre-screen rule then applies to the new verdicts: any miss in the 10% sample means gemma
+    checks every pair, which the stage now does by itself.
 - **Generator families, for the record:**
   - The 78 strong answers were written by Qwen2.5-32B-Instruct (bf16), and the planter is the same
     model at Q4_K_M. Its fingerprint is therefore balanced across both sides of P-matched.
