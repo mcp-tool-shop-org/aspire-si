@@ -167,7 +167,31 @@ class TestParaphrasePairs:
 
         items = [{"prompt_id": "t1", "topic": "x", "prompt": "Why?", "strong": ANSWER}]
         pairs, report = sk.plant(lib.FakeBackend(reword), "sys", items)
-        assert len(pairs) == 1 and report["dropped_second_on_same_sentence"] == 1
+        assert len(pairs) == 1 and report["dropped_second_on_same_sentence"] >= 1
+        assert report["answers_with_a_pair"] == 1 and report["answers_with_two_pairs"] == 0
+
+    def test_the_size_gate_rejects_large_rewordings_and_counts_what_it_costs(self):
+        def reword(chat):
+            return json.dumps(
+                {
+                    "original": "Ice floats on water because it is less dense.",
+                    "edited": "Floating on water, ice is less dense than the liquid around it.",
+                }
+            )
+
+        items = [{"prompt_id": "t1", "topic": "x", "prompt": "Why?", "strong": ANSWER}]
+        pairs, report = sk.plant(lib.FakeBackend(reword), "sys", items, rounds=3, max_chars=10)
+        assert pairs == [] and report["answers_with_no_pair"] == 1
+        assert (
+            report["attempt_outcomes"].get("over the size gate", 0)
+            + sum(v for k, v in report["attempt_outcomes"].items() if k != "ok" and k != "over the size gate")
+            >= 1
+        )
+        assert report["size_gate_chars"] == 10
+
+    def test_edit_chars_matches_the_difflib_measure(self):
+        assert sk.edit_chars({"strong": "The value is 7 today.", "flawed": "The value is 9 today."}) == 1
+        assert sk.edit_chars({"strong": "It is big.", "flawed": "It is large."}) == 4
 
     def test_the_meaning_check_flags_and_counts_unparsed(self):
         pairs = [

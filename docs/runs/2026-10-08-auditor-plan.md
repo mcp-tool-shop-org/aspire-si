@@ -353,6 +353,19 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
 - Edit size is reported against the matched error edits, using R&D's difflib method. If the median
   paraphrase edit differs from its matched error edits by more than 2×, the reading carries that
   caveat.
+- **A size gate, added after the first planting and before any head read a paraphrase:**
+  - The first planting asked for a one-to-three-word rewording. It came out 5–6× larger than the
+    matched error edits (median 29 against 5 characters on P-confirm, 31 against 6 on P-train).
+    Only 4–7% of pairs kept the same length.
+  - That batch is kept on disk as the record and is not used.
+  - The re-plant asks for one or two words replaced with synonyms, and nothing else.
+  - A paraphrase whose edit exceeds **twice the median of its file's error edits** is rejected and
+    retried, like a failed filter, for up to 7 attempts per paraphrase.
+  - The report gives the gate's rejection rate, and how many answers end with no paraphrase pair or
+    only one.
+  - The meaning check's flag rate on the gated set is reported beside the first batch's. One- or
+    two-word synonym swaps are the edits most likely to shift a meaning slightly (e.g. "most" →
+    "all").
 
 **On which answers:**
 

@@ -256,10 +256,9 @@ Question: {prompt}
 
 Strong answer: {answer}
 
-Reword a single sentence of this answer so that it says exactly the same thing in slightly different
-words. {kind} Change as few words of that sentence as you can (one to three words if possible). Keep every
-fact, number and step of reasoning exactly as it is: the answer must stay just as correct. Do not
-mark, hint at or explain the change.
+In a single sentence of this answer, replace one or two words with synonyms, and change nothing
+else. {kind} The sentence must say exactly the same thing: keep every fact, number, quantifier and
+step of reasoning, so the answer stays just as correct. Do not mark, hint at or explain the change.
 
 Reply with a JSON object only:
 {{"original": "<the sentence, copied exactly from the answer>",

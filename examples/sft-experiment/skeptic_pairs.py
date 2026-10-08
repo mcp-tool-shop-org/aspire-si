@@ -106,45 +106,86 @@ def overlaps(a: dict, b: dict) -> bool:
     return bool(sa) and sa == sb
 
 
+def edit_chars(pair: dict) -> int:
+    """Characters changed (difflib, autojunk off: the larger side of each non-equal opcode)."""
+    import difflib
+
+    ops = [
+        o
+        for o in difflib.SequenceMatcher(None, pair["strong"], pair["flawed"], autojunk=False).get_opcodes()
+        if o[0] != "equal"
+    ]
+    return sum(max(o[2] - o[1], o[4] - o[3]) for o in ops)
+
+
+def _round(backend, system, items, held, strong, slots, tag, max_chars, outcomes):
+    """One planting pass over `slots`; pairs over `max_chars` are rejected like a failed filter."""
+    edited, log = plant_errors(backend, system, held, strong, slots, 1, PARAPHRASE_REQUEST)
+    for tries in log.values():
+        for why in tries:
+            key = (
+                why.split(":")[0].split(" ")[0]
+                if why.startswith(("similarity", "length"))
+                else why.split(":")[0]
+            )
+            outcomes[key] = outcomes.get(key, 0) + 1
+    kept, too_big = [], 0
+    for p in _pairs(items, edited, log, slots, tag):
+        if max_chars is not None and edit_chars(p) > max_chars:
+            too_big += 1
+            continue
+        kept.append(p)
+    outcomes["over the size gate"] = outcomes.get("over the size gate", 0) + too_big
+    return kept
+
+
 def plant(
-    backend: Backend, system: str, items: list[dict], attempts: int = 5, per_answer: int = 2
+    backend: Backend,
+    system: str,
+    items: list[dict],
+    rounds: int = 7,
+    per_answer: int = 2,
+    max_chars: int | None = None,
 ) -> tuple[list[dict], dict]:
-    """Up to `per_answer` paraphrases per strong answer, each on a different sentence; the pairs
-    (original as "strong", reworded as "flawed")."""
+    """Up to `per_answer` paraphrases per strong answer, each on a different sentence and no larger
+    than `max_chars` changed characters (the size gate); the pairs (original as "strong", reworded as
+    "flawed"). Each answer gets up to `rounds` attempts per paraphrase; an attempt that fails the
+    filters or the size gate is retried."""
     held = [(it["topic"], it["prompt"]) for it in items]
     strong = [it["strong"] for it in items]
-    slots = [(i, FIRST) for i in range(len(items))]
-    edited, log = plant_errors(backend, system, held, strong, slots, attempts, PARAPHRASE_REQUEST)
-    pairs = _pairs(items, edited, log, slots, "p1")
     outcomes: dict[str, int] = {}
-
-    def count(log):
-        for tries in log.values():
-            for why in tries:
-                key = (
-                    why.split(":")[0].split(" ")[0]
-                    if why.startswith(("similarity", "length"))
-                    else why.split(":")[0]
-                )
-                outcomes[key] = outcomes.get(key, 0) + 1
-
-    count(log)
+    first: dict = {}
+    for _ in range(rounds):
+        todo = [(i, FIRST) for i, it in enumerate(items) if it["prompt_id"] not in first]
+        if not todo:
+            break
+        for p in _round(backend, system, items, held, strong, todo, "p1", max_chars, outcomes):
+            first.setdefault(p["prompt_id"], p)
+    pairs = list(first.values())
+    second: dict = {}
     dropped_same_sentence = 0
-    if per_answer > 1 and pairs:
-        first = {p["prompt_id"]: p for p in pairs}
+    if per_answer > 1:
         index = {it["prompt_id"]: i for i, it in enumerate(items)}
-        slots2 = [(index[pid], avoid(sentences(p)[0])) for pid, p in first.items()]
-        edited2, log2 = plant_errors(backend, system, held, strong, slots2, attempts, PARAPHRASE_REQUEST)
-        count(log2)
-        for p in _pairs(items, edited2, log2, slots2, "p2"):
-            if overlaps(p, first[p["prompt_id"]]):
-                dropped_same_sentence += 1
-                continue
-            pairs.append(p)
+        for _ in range(rounds):
+            todo = [(index[pid], avoid(sentences(p)[0])) for pid, p in first.items() if pid not in second]
+            if not todo:
+                break
+            for p in _round(backend, system, items, held, strong, todo, "p2", max_chars, outcomes):
+                if overlaps(p, first[p["prompt_id"]]):
+                    dropped_same_sentence += 1
+                    continue
+                second.setdefault(p["prompt_id"], p)
+        pairs += list(second.values())
+    attempts = sum(outcomes.values())
     return pairs, {
         "strong_answers": len(items),
         "planted": len(pairs),
+        "answers_with_a_pair": len(first),
+        "answers_with_no_pair": len(items) - len(first),
+        "answers_with_two_pairs": len(second),
         "dropped_second_on_same_sentence": dropped_same_sentence,
+        "size_gate_chars": max_chars,
+        "size_gate_rejection_rate": outcomes.get("over the size gate", 0) / attempts if attempts else 0.0,
         "attempt_outcomes": outcomes,
     }
 
@@ -228,6 +269,8 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon
 
     if args.stage == "plant":
         source = load_pairs(args.pairs)
+        # The size gate: at most twice the median edit of this file's error pairs (plan, addendum 2).
+        max_chars = 2 * edit_stats(source)["median_chars_changed"]
         if args.url:
             from lib import ServerBackend
 
@@ -236,7 +279,9 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon
                 args.model,
                 teacher_system_prompt(args.teacher),
             )
-            pairs, report = plant(backend, system, strong_items(source), per_answer=args.per_answer)
+            pairs, report = plant(
+                backend, system, strong_items(source), per_answer=args.per_answer, max_chars=max_chars
+            )
         else:
             refuse_cloud(args.model)
             backend = OllamaBackend(args.model)
@@ -247,6 +292,7 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon
                     teacher_system_prompt(args.model),
                     strong_items(source),
                     per_answer=args.per_answer,
+                    max_chars=max_chars,
                 )
             finally:
                 backend.unload()
