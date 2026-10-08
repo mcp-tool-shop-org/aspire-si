@@ -332,7 +332,48 @@ def score_set(
 
 def role_scores(role: str, strong: list[float], flawed: list[float]) -> tuple[list[float], list[float]]:
     """(score meant to be higher, score meant to be lower) per pair for the role."""
-    return (flawed, strong) if role == "auditor" else (strong, flawed)
+    return (flawed, strong) if role in ("auditor", "skeptic") else (strong, flawed)
+
+
+def balanced_flips(prompt_ids: Sequence, k: int) -> list[bool]:
+    """Permutation k of the balanced null (Auditor plan, addendum 2): within each prompt, half its
+    pairs are flipped. In a prompt with an odd number of pairs the spare pair is flipped in every
+    second odd prompt (taken in a k-seeded order), so the total flipped is half of all pairs, rounded
+    down, and neither labelling outnumbers the other. A shared edit direction then cancels instead of
+    taking a random sign."""
+    groups: dict = {}
+    for i, g in enumerate(prompt_ids):
+        groups.setdefault(g, []).append(i)
+    flips = [False] * len(prompt_ids)
+    odd = [g for g, members in groups.items() if len(members) % 2]
+    random.Random(f"odd:{k}").shuffle(odd)
+    flip_spare = {g: n % 2 == 0 for n, g in enumerate(odd)}
+    for g, members in groups.items():
+        order = members[:]
+        random.Random(f"{k}:{g}").shuffle(order)
+        half = len(order) // 2
+        for i in order[:half]:
+            flips[i] = True
+        if len(order) % 2 and flip_spare[g]:
+            flips[order[half]] = True
+    # The odd prompts alternate, so the totals differ by at most one pair.
+    return flips
+
+
+def permutation_p(observed: float, nulls: Sequence[float]) -> float:
+    """One-sided permutation p-value (Ojala & Garriga 2010): (1 + nulls at or above) / (n + 1)."""
+    return (1 + sum(n >= observed for n in nulls)) / (len(nulls) + 1)
+
+
+def skeptic_class(edit_ci: Sequence[float], margin_ci: Sequence[float]) -> str:
+    """The committed Skeptic reading for a form (mutually exclusive rows)."""
+    if edit_ci[0] <= 0.5 <= edit_ci[1]:
+        return "error-specific"
+    if edit_ci[1] < 0.5:
+        return "prefers the edited copy"
+    if margin_ci[0] > 0:
+        return "partly an edit detector"
+    return "an edit detector"
 
 
 def role_check(ci: Sequence[float], point: float) -> str:
@@ -381,6 +422,22 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     cmp.add_argument("--a", type=Path, required=True, help="scores from one feature source")
     cmp.add_argument("--b", type=Path, required=True, help="scores from the other")
     cmp.add_argument("--out", type=Path, required=True)
+    pm = sub.add_parser("perm", help="the balanced permutation null (addendum 2)")
+    pm.add_argument("--cache", type=Path, required=True)
+    pm.add_argument("--out", type=Path, required=True)
+    pm.add_argument("--n", type=int, default=20)
+    sk = sub.add_parser("skeptic", help="the Skeptic heads (addendum 2)")
+    sk.add_argument("--cache", type=Path, required=True)
+    sk.add_argument("--out", type=Path, required=True)
+    sr = sub.add_parser("skeptic-readout", help="addendum 2's committed reading")
+    sr.add_argument("--scores", type=Path, required=True, help="the retrained heads' scores")
+    sr.add_argument("--perm", type=Path, help="the balanced permutation scores")
+    sr.add_argument("--step4", type=Path, help="step 4's scores, for the retraining check")
+    sr.add_argument("--pairs", type=Path, required=True, help="the paraphrase pairs, in the order cached")
+    sr.add_argument("--verify", type=Path, required=True, help="skeptic_pairs.py verify output")
+    sr.add_argument("--error-set", default="confirm")
+    sr.add_argument("--para-set", default="pconfirm")
+    sr.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("readout", help="the plan's committed readout")
     r.add_argument("--scores", type=Path, required=True)
     r.add_argument(
@@ -399,6 +456,32 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
         from critic_heads_run import compare_sources, load_results
 
         result = compare_sources(load_results(args.a), load_results(args.b))
+        args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
+        print(json.dumps(result, indent=1))
+    elif args.cmd == "perm":
+        from critic_heads_run import train_perm
+
+        train_perm(args.cache, args.out, args.n)
+    elif args.cmd == "skeptic":
+        from critic_heads_run import train_skeptic
+
+        train_skeptic(args.cache, args.out)
+    elif args.cmd == "skeptic-readout":
+        from critic_heads_run import load_results, skeptic_readout
+
+        verified = json.loads(args.verify.read_text(encoding="utf-8"))
+        dropped = set(verified["flagged_changed_meaning"]) | set(verified["unparsed"])
+        ids = [p["pair_id"] for p in load_pairs(args.pairs)]
+        result = skeptic_readout(
+            load_results(args.scores),
+            args.error_set,
+            args.para_set,
+            dropped,
+            ids,
+            load_results(args.perm) if args.perm else None,
+            load_results(args.step4) if args.step4 else None,
+        )
+        result = {"dropped_by_meaning_check": sorted(dropped), "forms": result}
         args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
         print(json.dumps(result, indent=1))
     elif args.cmd == "train":

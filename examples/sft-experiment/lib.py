@@ -247,6 +247,24 @@ Reply with a JSON object only:
 {{"original": "<the sentence, copied exactly from the answer>",
   "edited": "<the same sentence with the error planted>"}}"""
 
+# The Skeptic control's edit (Auditor plan, addendum 2): the same shape as EDIT_REQUEST, but the
+# reworded sentence keeps its meaning exactly and introduces no error. {kind} says which sentence
+# may be chosen (any, or any but one already reworded).
+PARAPHRASE_REQUEST = """Here is a question and a strong answer to it.
+
+Question: {prompt}
+
+Strong answer: {answer}
+
+Reword a single sentence of this answer so that it says exactly the same thing in slightly different
+words. {kind} Change as few words of that sentence as you can (one to three words if possible). Keep every
+fact, number and step of reasoning exactly as it is: the answer must stay just as correct. Do not
+mark, hint at or explain the change.
+
+Reply with a JSON object only:
+{{"original": "<the sentence, copied exactly from the answer>",
+  "edited": "<the same sentence, reworded with the same meaning>"}}"""
+
 # JSON decodes \f, \b, \t and \r in a model's LaTeX (\frac, \beta, \times, \rho) as control
 # characters; put the backslash back before looking for the sentence in the answer.
 _UNESCAPE = {"\f": "\\f", "\b": "\\b", "\t": "\\t", "\r": "\\r"}

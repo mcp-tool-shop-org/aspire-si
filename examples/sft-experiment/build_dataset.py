@@ -76,8 +76,10 @@ def plant_errors(
     strong: list[str],
     slots: list[tuple[int, str]],
     attempts: int = 5,
+    request: str = EDIT_REQUEST,
 ) -> tuple[dict[tuple[int, str], str], dict[tuple[int, str], list[str]]]:
-    """Flawed answers for (prompt index, flaw kind) slots, and every attempt's outcome per slot."""
+    """Flawed answers for (prompt index, flaw kind) slots, and every attempt's outcome per slot.
+    `request` is the edit request (EDIT_REQUEST by default; PARAPHRASE_REQUEST for the Skeptic)."""
     flawed: dict[tuple[int, str], str] = {}
     log: dict[tuple[int, str], list[str]] = {slot: [] for slot in slots}
     pending = list(slots)
@@ -86,7 +88,7 @@ def plant_errors(
             break
         replies = backend.generate(
             [
-                Chat(system, [("user", EDIT_REQUEST.format(prompt=held[i][1], answer=strong[i], kind=kind))])
+                Chat(system, [("user", request.format(prompt=held[i][1], answer=strong[i], kind=kind))])
                 for i, kind in pending
             ],
             600,
