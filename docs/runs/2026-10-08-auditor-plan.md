@@ -697,6 +697,14 @@ From here, every planter, judge and checker step gets:
   - The margin is critic AUC minus baseline AUC, with a prompt-clustered bootstrap CI on the
     difference.
   - A critic that doesn't beat the baseline shows nothing that surprisal and size alone don't.
+- **Result (run 2026-10-08, CPU, from b73db68; PR #58):**
+  - P-confirm 0.860 [0.811, 0.902] (149 errors, 121 kept paraphrases, 78 prompts);
+  - P-second 0.969 [0.937, 0.993] (47 / 40);
+  - P-train 0.883 [0.863, 0.902] (603 / 520).
+  - Tail Δ alone: 0.85 / 0.98 / 0.87.
+  - **Readout headline:** tail Δ alone separates P-confirm's errors from its paraphrases at an AUC
+    of 0.86. A critic has to clear 0.86 there, not 0.5, before its Skeptic reading means anything.
+  - The baseline is rerun after the context-rich meaning re-check changes the kept sets.
 
 ### Step 2: a two-sided matched set, P-matched (new, kept beside P-confirm, never replacing it)
 
@@ -742,9 +750,13 @@ From here, every planter, judge and checker step gets:
   - Phi-3 chooses the kept candidates by Δ, so on P-matched, Phi-3's surprisal has been optimised by
     selection. Step 1's baseline read with it would be biased toward chance.
   - So on P-matched, the surprisal-only baseline uses a **second scorer not used for selection**.
-  - The preferred second scorer is **Llama-3.1-8B-Instruct**. Its weights aren't on the rig: about
-    16 GB to download, under the Llama 3.1 Community Licence (access accepted). **This needs the
-    maintainer's go, asked here.**
+  - The preferred second scorer is **Llama-3.1-8B-Instruct**, under the Llama 3.1 Community Licence
+    (access accepted).
+    - **The maintainer gave the go for the download on 2026-10-08,** directly to the Publisher
+      session, along with approving this addendum.
+    - Downloaded the same day to the E: model cache at revision 0e9e39f249a16976918f6564b8830bc894c89659:
+      4 safetensors shards, 16.06 GB, tensor bytes equal to the index's total_size, with the
+      `original/` weights excluded.
   - Without that go, the second scorer is **Llama-3.2-3B-Instruct**, already on disk ("Built with
     Llama"). It is the same family as one feature source, so the readout says so.
   - If neither is used, the report states that the P-matched baseline is selection-biased toward
