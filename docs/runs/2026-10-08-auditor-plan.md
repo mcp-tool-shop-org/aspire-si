@@ -765,6 +765,70 @@ From here, every planter, judge and checker step gets:
   like-with-like reading. Below 40, step 4's band reading is primary and P-matched is reported
   only.
 
+#### Step 2, as built (`matched_set.py`; reviewed by the R&D session; written before any candidate exists)
+
+- **Where it runs (the maintainer, 2026-10-08):** on the local 5090, staged, so the card can go to
+  other sessions between stages. Each stage is booked separately through the Publisher.
+- **Edit size, matched on both sides (R&D's review):**
+  - Both briefs target **2–8 changed words**. Errors may no longer be "up to a short clause", and
+    rewrites may no longer run to 12 words.
+  - Every candidate stores its edit characters and edited words.
+  - Pairing requires tail Δ within ±2 nats **and** edit sizes within a ratio of 1.5 (characters,
+    larger ÷ smaller).
+  - Both sides' size distributions are reported on the matched set. If the size rule starves the
+    matching, that is reported, never loosened silently.
+- **The proposal prompts:**
+  - The purpose is stated plainly.
+  - A brief per side, with five worked examples per side written on outside topics (boiling at
+    altitude, merge sort, the French Revolution, tides, compound interest, photosynthesis, blood
+    pressure, a bridge, interest rates, sorting).
+  - Later candidates for an answer are told which sentences (and, for errors, which kinds) the
+    earlier ones used.
+  - Code applies each candidate: the sentence must be found; the edit isn't a no-op; there's no
+    self-flagging; similarity ≥ 0.85.
+- **Error confirmation:**
+  - gemma4:31b (thinking) checks every candidate. muse-glimmer (thinking, plain text) checks every
+    candidate gemma calls "wrong", plus a **seed-0 random 15% of the rest**.
+  - Under the AND rule muse can only veto, so the kept set equals asking muse everything.
+  - The sample measures gemma's false negatives on errors, which affect yield, not purity. If muse
+    calls many of them "wrong", gemma is too strict on errors, and the report says so before yield
+    is read as a property of the material.
+  - gemma's 20/24 third-judge agreement was on the meaning task and doesn't vouch for it here.
+  - An error is kept only if both say "wrong" and both say grammatical.
+- **Rewrite check:**
+  - recheck.py's prompt goes to mistral-small:24b and gemma4:31b (thinking). gemma is also asked
+    whether the edited sentence is grammatical.
+  - A rewrite is kept only if both say "same" with no claim changed, and gemma says grammatical.
+- **The grammar pass on the existing kept word swaps (R&D's review):**
+  - A CPU rule pre-screen flags any newly introduced "result(s) [X] to", "comprise of", a doubled
+    word, or "a"/"an" against the next word's sound.
+  - gemma4 (thinking, grammar only) then checks every flagged pair and a seed-0 random 10% of the
+    unflagged ones.
+  - Ungrammatical pairs are dropped and counted.
+  - The pre-screen stands only if the sample shows no misses. The report gives the bound that
+    supports: zero misses in about 60 sampled pairs bounds the miss rate below about 5% (rule of
+    three), not below 1%. Any miss means gemma checks every pair.
+  - LanguageTool stays optional; installing it needs the Publisher's OK.
+- **Generator families, for the record:**
+  - The 78 strong answers were written by Qwen2.5-32B-Instruct (bf16), and the planter is the same
+    model at Q4_K_M. Its fingerprint is therefore balanced across both sides of P-matched.
+  - The same-generator, no-error case is controlled only within that family. P-second (gemma's
+    errors on Qwen answers) stays the cross-family check.
+- **Sensitivity rows for step 1's baseline and step 4's band:** AND (primary), union, and
+  gemma-alone (P-confirm 137 kept).
+  - The R&D session's blind third judge agreed with gemma on 20 of 24 meaning disagreements,
+    95% Wilson interval about [0.64, 0.93]. That was on disagreements only, chosen because the
+    judges differed. It makes gemma the better tie-breaker, not a calibrated judge overall, and is
+    no licence to change the AND rule later.
+- **Order:** each stage is finished and reviewed before the next.
+  1. the grammar pass on the word swaps;
+  2. proposals, both sides, on the Q4 32B;
+  3. error confirmation, gemma then muse;
+  4. the rewrite check, mistral then gemma;
+  5. Phi-3 scoring, then pairing; rounds 2–3 for unmatched answers only;
+  6. Llama-3.1-8B tail Δ for the P-matched baseline.
+- **Cost:** roughly 9–11 card hours for round 1, $0, in stages.
+
 ### Step 3: erase and retrain (a diagnostic, no rule)
 
 - Fit LEACE (Belrose et al. 2023; EleutherAI/concept-erasure, MIT) on the training caches. It removes the direction that linearly
