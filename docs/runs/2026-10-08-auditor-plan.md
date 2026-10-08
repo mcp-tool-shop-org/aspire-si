@@ -338,8 +338,18 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
   JSON `{original, edited}`, applied by code.
 - They pass the same filters as error edits: similarity at least 0.90, length change at most 5%, no
   self-flagging, not unchanged.
-- The planter is **gemma4:31b** (local Ollama 6316f0629137, `"think": false`, `refuse_cloud`), as
-  the maintainer asked.
+- **The planter matches each set's error planter**, so only one thing varies between the error pair and
+  the paraphrase pair: whether there is an error.
+  - P-train and P-confirm (Qwen-planted errors): **Qwen2.5-32B-Instruct Q4_K_M** on llama-server
+    (`--load-mode none`), as `fresh_pairs.py` used.
+  - P-second (gemma-planted errors): **gemma4:31b** (local Ollama 6316f0629137, `"think": false`,
+    `refuse_cloud`).
+  - The maintainer asked for gemma4:31b. The R&D session's review showed that gemma paraphrases
+    against Qwen errors would let a head that detects "a Qwen-made edit" pass as error-specific, the
+    exact failure this control exists to catch. So gemma plants only where gemma planted the errors.
+- **Two paraphrases per strong answer, on different sentences.** The second request names the first
+  rewording's sentence and asks for another. 78 strong answers then give about 156 pairs, and an
+  edit-rate interval of about ±0.08 instead of ±0.11.
 - Edit size is reported against the matched error edits, using R&D's difflib method. If the median
   paraphrase edit differs from its matched error edits by more than 2×, the reading carries that
   caveat.
@@ -354,7 +364,18 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
 
 - No head has trained on a confirmation or second-planter prompt. The P-train pairs train only the
   new Skeptic heads, never the step 4 heads.
-- One paraphrase is planted per strong answer.
+
+**Meaning check, a gate on each pair.**
+- A local judge of a third family, **mistral-small:24b** (`"think": false`, `refuse_cloud`), reads
+  only the two sentences: does the reworded one keep every fact, number, condition and step?
+- **Any pair it flags as changing the meaning is dropped**, and the drop rate is reported.
+- Unparsed verdicts count as flagged.
+
+**Whole-set check.**
+- Frozen Kev-4B reads P-confirm order-averaged, as in the Kev confirmation.
+- If it prefers the original above 0.65, with a CI excluding 0.5, the paraphrases are degrading the
+  answers. The set fails, and it is re-planted before anything is read.
+- Kev alone isn't the gate, because it may legitimately prefer smoother wording.
 
 ### Rule for the existing heads (committed now)
 
@@ -375,9 +396,15 @@ For each form and source, from seed-mean per-pair wins:
 | Result (on P-confirm, prompt-clustered 95% CI) | Reading |
 |---|---|
 | Edit rate CI includes 0.5 | **Error-specific:** it doesn't fire on meaning-preserving edits |
-| Edit rate CI above 0.5, error-margin CI includes 0 | **An edit detector:** it fires on any edit as much as on errors |
-| Edit rate CI above 0.5, error-margin CI above 0 | **Partly an edit detector:** it fires on edits, more on errors. The error margin is its error-specific part. |
-| Edit rate CI below 0.5 | **Prefers the edited copy:** reported, with no reading |
+| Edit rate CI entirely above 0.5, and error-margin CI includes 0 or lies below it | **An edit detector:** it fires on any edit as much as on errors |
+| Edit rate CI entirely above 0.5, and error-margin CI entirely above 0 | **Partly an edit detector:** it fires on edits, more on errors. The error margin is its error-specific part. |
+| Edit rate CI entirely below 0.5 | **Prefers the edited copy:** reported, with no reading |
+
+The rows are mutually exclusive. The error margin is error rate − edit rate per strong answer, from
+seed-mean wins, with a prompt-clustered interval.
+
+When R&D's reversed correction pairs are read later, an "error-specific" head that fails them is
+relabelled **"unexplained"**: it reads something else, such as wording quality.
 
 - P-second gets the same table, as the same-generator check, read once.
 - **A role reading for a form needs both:**
@@ -425,7 +452,11 @@ is read once with the same table, through an addendum of its own.
 ### Cost
 
 All of it is local on the RTX 5090, at $0, gated through the Publisher:
-1. gemma4:31b paraphrase planting: about 412 strong answers, about 40 minutes.
+1. Paraphrase planting: Qwen2.5-32B Q4 for P-train and P-confirm (about 776 requests, about 30
+   minutes); then gemma4:31b for P-second (about 48, a few minutes); then mistral-small:24b for the
+   meaning check. One model at a time.
+   Kev-4B reads P-confirm for the whole-set check (a few minutes).
 2. Cache passes for P-confirm, P-second and P-train: three sources, a few minutes each.
 3. Retraining the 162 heads, plus the Skeptic heads and the 20-permutation nulls: about 30 minutes.
+   **Every head's weights are saved** (state dict, config, seed), so later controls read the same heads.
 

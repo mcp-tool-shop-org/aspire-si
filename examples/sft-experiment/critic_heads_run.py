@@ -23,6 +23,7 @@ from critic_heads import (  # noqa: E402
     SEEDS,
     SOURCE_LICENSES,
     auc,
+    balanced_flips,
     boot,
     edit_spans,
     error_overlap,
@@ -32,10 +33,12 @@ from critic_heads import (  # noqa: E402
     pair_wins,
     paired_diff,
     pearson,
+    permutation_p,
     positive_gate,
     role_check,
     role_scores,
     score_set,
+    skeptic_class,
     span_tokens,
     standardise,
     train_head,
@@ -167,7 +170,19 @@ def _features(states: list, spans: list, pooling: str, mids: list | None = None)
     return pooled, [torch.ones(1, dtype=torch.long) for _ in pooled]
 
 
-def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: no cover - needs a GPU
+def _save_head(head, out: Path, tag: str, meta: dict) -> None:  # pragma: no cover - needs torch
+    import torch
+
+    (out / "weights").mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {"state_dict": head.state_dict(), "init_config": head.init_config(), **meta},
+        out / "weights" / f"{tag}.pt",
+    )
+
+
+def train_all(
+    cache: Path, out: Path, device: str = "cuda", extra: tuple[str, ...] = ("pconfirm", "psecond")
+) -> None:  # pragma: no cover - needs a GPU
     out.mkdir(parents=True, exist_ok=True)
     # Per-token states stay in CPU memory: on the widest source (Llama, 3072) every variant together
     # is about 27 GB, near the watchdog's ceiling on a 32 GB card. Pooled features are small, and
@@ -206,7 +221,7 @@ def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: 
                     "hparams": HPARAMS,
                     "sets": {},
                 }
-                targets = ["confirm"] + (["judge", "second"] if control == "none" else [])
+                targets = ["confirm"] + (["judge", "second", *extra] if control == "none" else [])
                 for name in targets:
                     data = get(name, variant if name == "confirm" else "plain")
                     if data is None:
@@ -223,8 +238,170 @@ def train_all(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: 
                     }
                 tag = f"{role}-{pooling}-{control}-s{seed}"
                 (out / f"{tag}.json").write_text(json.dumps(result), encoding="utf-8")
+                _save_head(
+                    head, out, tag, {k: result[k] for k in ("role", "pooling", "seed", "control", "hparams")}
+                )
                 print("trained", tag, flush=True)
     print("TRAIN-OK", out)
+
+
+def train_perm(cache: Path, out: Path, n: int = 20, device: str = "cuda") -> None:  # pragma: no cover
+    """The balanced permutation null: per form, n heads at seed 42 on exactly-balanced flips."""
+    out.mkdir(parents=True, exist_ok=True)
+    pairs, states, spans, mids = _load(cache, "train", "plain", "cpu")
+    p2, s2, sp2, mid2 = _load(cache, "confirm", "plain", "cpu")
+    index = [(2 * i, 2 * i + 1) for i in range(len(pairs))]
+    ids = [p["prompt_id"] for p in pairs]
+    for role, pooling in FORMS:
+        feats, masks = _features(states, spans, pooling, mids)
+        f2, m2 = _features(s2, sp2, pooling, mid2)
+        for k in range(n):
+            head = train_head(role, pooling, 42, feats, masks, index, balanced_flips(ids, k), device)
+            strong, flawed = score_set(head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device)
+            result = {
+                "role": role,
+                "pooling": pooling,
+                "seed": 42,
+                "control": f"perm{k}",
+                "sets": {
+                    "confirm": {
+                        "prompt_ids": [p["prompt_id"] for p in p2],
+                        "strong": strong,
+                        "flawed": flawed,
+                    }
+                },
+            }
+            (out / f"{role}-{pooling}-perm{k}.json").write_text(json.dumps(result), encoding="utf-8")
+        print("perm", role, pooling, flush=True)
+    print("PERM-OK", out)
+
+
+def train_skeptic(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: no cover
+    """Skeptic heads: pointwise "has this answer been edited?" on the training-prompt paraphrase pairs
+    (original 0, reworded 1), mean and attention pooling, three seeds; scored on P-confirm and on the
+    confirm error pairs."""
+    out.mkdir(parents=True, exist_ok=True)
+    pairs, states, spans, mids = _load(cache, "ptrain", "plain", "cpu")
+    index = [(2 * i, 2 * i + 1) for i in range(len(pairs))]
+    for pooling in ("mean", "attention"):
+        feats, masks = _features(states, spans, pooling, mids)
+        for seed in SEEDS:
+            head = train_head("auditor", pooling, seed, feats, masks, index, None, device)
+            result = {
+                "role": "skeptic",
+                "pooling": pooling,
+                "seed": seed,
+                "control": "none",
+                "hparams": HPARAMS,
+                "sets": {},
+            }
+            for name in ("pconfirm", "confirm", "psecond", "second"):
+                path = cache / f"{name}.plain.pt"
+                if not path.exists():
+                    continue
+                p2, s2, sp2, mid2 = _load(cache, name, "plain", "cpu")
+                f2, m2 = _features(s2, sp2, pooling, mid2)
+                strong, flawed = score_set(head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device)
+                result["sets"][name] = {
+                    "prompt_ids": [p["prompt_id"] for p in p2],
+                    "strong": strong,
+                    "flawed": flawed,
+                }
+            tag = f"skeptic-{pooling}-none-s{seed}"
+            (out / f"{tag}.json").write_text(json.dumps(result), encoding="utf-8")
+            _save_head(
+                head, out, tag, {k: result[k] for k in ("role", "pooling", "seed", "control", "hparams")}
+            )
+    print("SKEPTIC-OK", out)
+
+
+def _prompt_means(wins: list[float], ids: list, keep: set | None = None) -> dict:
+    by: dict = {}
+    for w, g in zip(wins, ids):
+        if keep is None or g in keep:
+            by.setdefault(g, []).append(w)
+    return {g: sum(v) / len(v) for g, v in by.items()}
+
+
+def skeptic_readout(
+    results: list[dict],
+    error_set: str,
+    para_set: str,
+    dropped_pairs: set,
+    para_pair_ids: list,
+    perm: list[dict] | None = None,
+    step4: list[dict] | None = None,
+) -> dict:
+    """Addendum 2's committed reading for every form: edit rate on the paraphrase set, the paired
+    error-minus-edit margin per strong answer, the reading, the balanced permutation p-value and the
+    retraining check. `para_pair_ids` are the paraphrase set's pair ids in scored order; pairs in
+    `dropped_pairs` (flagged or unparsed by the meaning check) are left out."""
+    by: dict = {}
+    for r in results:
+        if r["control"] == "none" and para_set in r["sets"] and error_set in r["sets"]:
+            by.setdefault((r["role"], r["pooling"]), []).append(r)
+    perm_by: dict = {}
+    for r in perm or []:
+        perm_by.setdefault((r["role"], r["pooling"]), []).append(r)
+    old = {(r["role"], r["pooling"], r["seed"]): r for r in step4 or [] if r["control"] == "none"}
+    out = {}
+    for (role, pooling), rs in by.items():
+        keep = [i for i, pid in enumerate(para_pair_ids) if pid not in dropped_pairs]
+        ew, eids = _seed_mean_wins(rs, para_set)
+        ew, eids = [ew[i] for i in keep], [eids[i] for i in keep]
+        rw, rids = _seed_mean_wins(rs, error_set)
+        edit_point, edit_ci = boot(ew, eids)
+        shared = set(eids) & set(rids)
+        em, rm = _prompt_means(ew, eids, shared), _prompt_means(rw, rids, shared)
+        prompts = sorted(shared, key=str)
+        margin = boot([rm[g] - em[g] for g in prompts], prompts) if prompts else (None, [None, None])
+        row = {
+            "edit_rate": edit_point,
+            "edit_ci": edit_ci,
+            "error_rate_same_answers": sum(rm[g] for g in prompts) / len(prompts) if prompts else None,
+            "error_margin": margin[0],
+            "margin_ci": margin[1],
+            "strong_answers": len(prompts),
+            "paraphrase_pairs": len(ew),
+            "reading": skeptic_class(edit_ci, margin[1]) if prompts else "no matched answers",
+        }
+        if (role, pooling) in perm_by:
+            observed = sum(_seed_mean_wins(rs, "confirm")[0]) / len(rs[0]["sets"]["confirm"]["strong"])
+            nulls = [
+                sum(_wins(p, "confirm")[0]) / len(p["sets"]["confirm"]["strong"])
+                for p in perm_by[(role, pooling)]
+            ]
+            p = permutation_p(observed, nulls)
+            row["permutation"] = {
+                "observed": observed,
+                "nulls": len(nulls),
+                "null_max": max(nulls),
+                "p": p,
+                "passes": p < 0.05,
+            }
+        if old:
+            diffs = []
+            for r in rs:
+                o = old.get((role, pooling, r["seed"]))
+                if o:
+                    a = sum(_wins(r, "confirm")[0]) / len(r["sets"]["confirm"]["strong"])
+                    b = sum(_wins(o, "confirm")[0]) / len(o["sets"]["confirm"]["strong"])
+                    diffs.append(abs(a - b))
+            row["retrain_max_validation_change"] = max(diffs) if diffs else None
+            row["retrain_reproduces"] = bool(diffs) and max(diffs) <= 0.02
+        out[f"{role}-{pooling}"] = row
+    return out
+
+
+def skeptic_role_readable(skeptic: dict, gate: dict) -> dict:
+    """Which forms addendum 2 lets the step 4 role rows be read for: Skeptic reading error-specific
+    or partly an edit detector, balanced permutation passed, and the positive gate passed."""
+    return {
+        form: row["reading"] in ("error-specific", "partly an edit detector")
+        and row.get("permutation", {}).get("passes", False)
+        and gate.get(form, {}).get("passes", False)
+        for form, row in skeptic.items()
+    }
 
 
 # ---------------------------------------------------------------- readout
@@ -243,7 +420,11 @@ def _seed_mean_wins(results: list[dict], name: str) -> tuple[list[float], list]:
 
 
 def readout(
-    results: list[dict], found_confirm: dict, confirm_pairs: list[dict], found_judge: dict | None = None
+    results: list[dict],
+    found_confirm: dict,
+    confirm_pairs: list[dict],
+    found_judge: dict | None = None,
+    readable_override: dict | None = None,
 ) -> dict:
     """The plan's committed readout, in its order. `found_confirm` is judge_eval.py's entry for
     the found Auditor on the confirmation pairs (strong/flawed score lists in pair order)."""
@@ -317,7 +498,11 @@ def readout(
                     zip(("accuracy", "ci"), boot(pair_wins(hi, lo, NOISE_BAND), rid))
                 ),
                 "role_check": role_check(ci, point),
-                "readable": roles_readable and gate.get(form, {}).get("passes", False),
+                "readable": (
+                    readable_override.get(form, False)
+                    if readable_override is not None
+                    else roles_readable and gate.get(form, {}).get("passes", False)
+                ),
             }
             if vs_found:
                 row["vs_found_auditor"] = {"diff": vs_found[0], "ci": vs_found[1]}
