@@ -54,6 +54,11 @@ class TestMatch:
         r = ty.match(errors, [-2.5, -2.0, -1.5])
         assert r["passes"] and r["error_quartiles"] == [-3.0, -2.0, -1.0] and r["paraphrase_median"] == -2.0
 
+    def test_borderline_is_within_a_tenth_of_the_iqr_of_an_edge(self):
+        errors = [-4.0, -3.0, -2.0, -1.0, 0.0]  # IQR [-3, -1], width 2, band 0.2
+        assert ty.match(errors, [-2.85])["borderline"] and ty.match(errors, [-3.15])["borderline"]
+        assert not ty.match(errors, [-2.0])["borderline"] and not ty.match(errors, [-3.5])["borderline"]
+
     def test_a_paraphrase_median_outside_fails(self):
         assert not ty.match([-4.0, -3.0, -2.0, -1.0, 0.0], [0.5, 0.6, 0.7])["passes"]
 
