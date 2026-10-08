@@ -333,6 +333,7 @@ def skeptic_readout(
     para_pair_ids: list,
     perm: list[dict] | None = None,
     step4: list[dict] | None = None,
+    para_rounds: list | None = None,
 ) -> dict:
     """Addendum 2's committed reading for every form: edit rate on the paraphrase set, the paired
     error-minus-edit margin per strong answer, the reading, the balanced permutation p-value and the
@@ -367,6 +368,12 @@ def skeptic_readout(
             "paraphrase_pairs": len(ew),
             "reading": skeptic_class(edit_ci, margin[1]) if prompts else "no matched answers",
         }
+        if para_rounds:
+            # Reported only: a planting tell if retried paraphrases read differently.
+            rounds = [para_rounds[i] for i in keep]
+            for label, test in (("first_round", lambda r: r == 1), ("later_rounds", lambda r: r > 1)):
+                sel = [w for w, r in zip(ew, rounds) if test(r)]
+                row[f"edit_rate_{label}"] = {"pairs": len(sel), "rate": sum(sel) / len(sel) if sel else None}
         if (role, pooling) in perm_by:
             # Like for like: each null is a single seed-42 head, so the test uses the seed-42 head;
             # the three-seed mean is reported beside it.

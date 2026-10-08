@@ -91,9 +91,13 @@ class TestSkepticReadout:
         ]
 
     def test_an_error_specific_head(self):
-        r = run.skeptic_readout(self.results(0.5), "confirm", "pconfirm", set(), self.PARA_PAIR_IDS)
+        rounds = [1 if i % 4 else 2 for i in range(80)]
+        r = run.skeptic_readout(
+            self.results(0.5), "confirm", "pconfirm", set(), self.PARA_PAIR_IDS, para_rounds=rounds
+        )
         row = r["auditor-mean"]
         assert row["reading"] == "error-specific" and row["strong_answers"] == 40
+        assert row["edit_rate_first_round"]["pairs"] == 60 and row["edit_rate_later_rounds"]["pairs"] == 20
         assert row["error_margin"] == pytest.approx(0.45, abs=0.03)
 
     def test_an_edit_detector(self):
@@ -124,6 +128,52 @@ class TestSkepticReadout:
         readable = run.skeptic_role_readable(r, {"auditor-mean": {"passes": True}})
         assert readable == {"auditor-mean": True}
         assert run.skeptic_role_readable(r, {"auditor-mean": {"passes": False}}) == {"auditor-mean": False}
+
+
+class TestLexicalGuard:
+    @pytest.mark.parametrize(
+        "before, after, why",
+        [
+            ("Most cells divide.", "All cells divide.", "quantifier"),
+            ("It can fail.", "It will fail.", "modal"),
+            ("It usually holds.", "It always holds.", "frequency"),
+            ("It does work.", "It doesn't work.", "negation"),
+            ("The tree is tall.", "The tree is taller.", "comparative"),
+            ("It weighs 5 kg here.", "It weighs 6 kg here.", "number"),
+            ("They met in the city.", "They met in Paris.", "named entity"),
+            ("It takes two hours.", "It takes three hours.", "number word"),
+        ],
+    )
+    def test_claim_flipping_swaps_are_stopped(self, before, after, why):
+        assert sk.lexical_guard({"strong": before, "flawed": after}) == why
+
+    def test_a_plain_synonym_passes(self):
+        pair = {"strong": "Ice is less dense, so it floats.", "flawed": "Ice is less dense, hence it floats."}
+        assert sk.lexical_guard(pair) is None
+        assert sk.lexical_guard({"strong": "The method is quick.", "flawed": "The method is fast."}) is None
+
+
+class TestSizeCap:
+    def test_the_cap_follows_each_answers_own_error_with_a_floor(self):
+        pairs = [
+            {
+                "prompt_id": "a",
+                "prompt": "q",
+                "strong": "The value is 7 today.",
+                "flawed": "The value is 9 today.",
+            },
+            {
+                "prompt_id": "b",
+                "prompt": "q",
+                "strong": "x" * 40 + " end.",
+                "flawed": "y" * 20 + "x" * 20 + " end.",
+            },
+        ]
+        items = sk.strong_items(pairs)
+        assert [sk.size_cap(it) for it in items] == [8, 40]
+
+    def test_quantiles(self):
+        assert sk.quantiles([1, 2, 3, 4, 5]) == [2, 3, 4] and sk.quantiles([]) is None
 
 
 class TestParaphrasePairs:
@@ -187,7 +237,7 @@ class TestParaphrasePairs:
             + sum(v for k, v in report["attempt_outcomes"].items() if k != "ok" and k != "over the size gate")
             >= 1
         )
-        assert report["size_gate_chars"] == 10
+        assert report["size_gate"] == 10
 
     def test_edit_chars_matches_the_difflib_measure(self):
         assert sk.edit_chars({"strong": "The value is 7 today.", "flawed": "The value is 9 today."}) == 1
@@ -203,7 +253,11 @@ class TestParaphrasePairs:
             for i in range(1, 4)
         ]
         replies = iter(
-            ['{"same_meaning": true, "reason": "ok"}', '{"same_meaning": false, "reason": "number"}', "?"]
+            [
+                '{"same_meaning": true, "claim_changed": false, "reason": "ok"}',
+                '{"same_meaning": true, "claim_changed": true, "reason": "number"}',
+                "?",
+            ]
         )
         result = sk.verify(lib.FakeBackend(lambda chat: next(replies)), "sys", pairs)
         assert result["kept_meaning"] == 1
