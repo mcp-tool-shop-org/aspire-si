@@ -140,6 +140,7 @@ class TestGrammar:
         s = ms.grammar_summary(rows)
         assert s["prescreen_stands"] and s["miss_rate_upper_bound_95"] == 0.05 and s["drop"] == ["f1"]
         assert s["not_idiomatic_recorded_only"] == 31  # recorded, never dropped
+        assert len(s["drop_if_idiom_gated"]) == 31 and "f1" in s["drop_if_idiom_gated"]
         rows["p0"]["gemma"] = v2 | {"grammatical": False, "idiomatic": True}
         s = ms.grammar_summary(rows)
         assert (

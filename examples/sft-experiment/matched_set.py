@@ -686,6 +686,13 @@ def grammar_summary(rows: dict) -> dict:
         "miss_rate_upper_bound_95": (3 / n if n else None) if misses == 0 else None,
         "prescreen_stands": misses == 0,
         "not_idiomatic_recorded_only": sum(1 for r in judged_rows if r["gemma"].get("idiomatic") is False),
+        # The sensitivity row (R&D review): what a grammar-AND-idiom gate would drop, so the stricter
+        # gate can be re-applied later and its effect on the conclusions seen.
+        "drop_if_idiom_gated": [
+            pid
+            for pid, r in rows.items()
+            if _v2(r).get("grammatical") is False or _v2(r).get("idiomatic") is False
+        ],
         "drop": drop,
         "unresolved": unresolved,
     }

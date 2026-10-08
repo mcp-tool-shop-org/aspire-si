@@ -826,6 +826,9 @@ From here, every planter, judge and checker step gets:
     `gemma_v1`, and the summary counts only the new ones.
   - The pre-screen rule then applies to the new verdicts: any miss in the 10% sample means gemma
     checks every pair, which the stage now does by itself.
+  - **A fourth sensitivity row (R&D's review):** step 1's baseline and step 4's band are also
+    reported with the stricter grammar-and-idiom gate (`drop_if_idiom_gated`), beside AND, union and
+    gemma-alone. Anyone can then see whether the conclusions move under the stricter gate.
 - **Generator families, for the record:**
   - The 78 strong answers were written by Qwen2.5-32B-Instruct (bf16), and the planter is the same
     model at Q4_K_M. Its fingerprint is therefore balanced across both sides of P-matched.
