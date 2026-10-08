@@ -9,8 +9,9 @@ fine-tune runs stay the comparison points. Nothing in this plan runs until the m
 - The headline result rests on one training run per condition. With the composite teacher, the
   critic trained after the fine-tune scored 0.646 at spotting planted errors, against the
   control's 0.866.
-- The 32B teacher ties 89 of the 127 judge pairs, so the teacher-detectable subset has only 31
-  pairs.
+- The 32B teacher ties 89 of the 127 judge pairs by its whole-number scores, so the
+  teacher-detectable subset has only 31 pairs. (Read order-averaged from its log-probabilities, it
+  separates 114 of them; see the [2026-10-08 correction](2026-10-08-kev-confirmation.md#corrections).)
 
 ## Costs: how to read them
 

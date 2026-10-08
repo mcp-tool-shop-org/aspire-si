@@ -14,6 +14,14 @@ order-averaged only.
 Every judge here looks poor and position-biased when its single choices are read, and every one
 clears the bar order-averaged.
 
+**This corrects earlier readings.** Read order-averaged, the judges reach 0.86 to 0.97 on fresh
+pairs and 0.80 to 0.98 on the judge set. Across 12 runs (three seeds of four conditions), the
+trained critics scored 0.425 to 0.866 on the judge set, with condition means of 0.63 to 0.70.
+Earlier reports said the critics beat the teacher, and that the teacher ties most pairs and always
+picks the first answer. That was true of the teacher's whole-number scores and its text choices,
+not of the teacher read order-averaged. Those reports now say which reading they mean (see
+[Corrections](#corrections)).
+
 ## Numbers
 
 Fresh pairs: 149 pairs from 78 of the 80 confirmation prompts, planted by Qwen2.5-32B-Instruct
@@ -55,12 +63,32 @@ Here the gap is p(A | strong answer first) − p(A | strong answer second).
   A 85% of the time against 95%); its preference is noisier.
 - **No self-preference.** The 32B at Q4 planted the fresh pairs and judges with the same weights.
   It scores the same on the judge set, planted at bf16 (0.898 against 0.886).
-- **Saturation.** The 32B's letter probabilities often saturate. On 36 of the 149 fresh pairs (29
-  of the 127 judge pairs), both orders gave p(A) above 0.999, so those pairs are decided by
-  probabilities below 0.001. Kev's probabilities do not saturate this way.
+- **Saturation.** The 32B's letter probabilities often saturate, and on many pairs its decision
+  rests on probabilities below 0.001. Kev's probabilities do not saturate this way.
+
+**Saturated pairs (both orders give p(A) above 0.999): 36 of 149 fresh pairs, and 29 of 127 judge
+pairs.**
+
 - **The pre-registered step 1 reading stands as written.** By single choices, Kev is not a useful
   judge. What changed is which reading to use: order-averaged, which this run tested on pairs fixed
   in advance.
+
+## The reference judge, pinned
+
+The reference judge is this exact model, read by this exact code:
+
+| Part | Pin |
+|---|---|
+| Kev-4B | `jaredpalmer/kev-4b`, tag v1.0, revision `6cfce5c2fa4b4bd64026336ab649c5ca78857d52` |
+| Its adapter | `adapter_model.safetensors`, sha256 `90e817356246e7f18bfa7ca3d31794cd4fbeb3332a66a84cb51d9ceae925f2b2` |
+| Its decision head | `head.pt`, sha256 `dd633435998ecc751ac538717a3742e32149500fabf7d7276287dbf0693f347c` |
+| Base model | `Qwen/Qwen3.5-4B-Base`, revision `1001bb4d826a52d1f399e183466143f4da7b741b` |
+| Reading code | `examples/sft-experiment/judge_kev.py` at commit `c94fc938f656cfef976e30d0f580553f2f1a2ca9` (`judge` and `order_averaged`) |
+| Serving | `kev.serve`, GPU memory capped at 82% |
+
+**A fine-tuned Kev is a different model.** The R&D session's planned Kev fine-tune, or any other,
+is never the reference judge, however it scores. It is reported under its own name, next to the
+pinned reference.
 
 ## What it changes
 
@@ -73,6 +101,18 @@ Here the gap is p(A | strong answer first) − p(A | strong answer second).
 - **The R&D session's Kev fine-tune** trains on the 603 pairs from the 320 training prompts.
   Order-averaged accuracy is already near the ceiling, so its useful target is the single-choice
   reading: an unbiased single call.
+
+## Corrections
+
+Each earlier statement is kept, with the reading it applies to:
+
+- [2026-10-07-sft-then-aspire.md](2026-10-07-sft-then-aspire.md): the teacher's 0.594 and "why the
+  critics beat the teacher" are its whole-number scores.
+- [2026-10-07-runs-2-3.md](2026-10-07-runs-2-3.md): "A for all 127 pairs" is its text choices.
+- [2026-10-07-next-runs-plan.md](2026-10-07-next-runs-plan.md): "ties 89 of the 127" is its
+  whole-number scores.
+- [2026-10-08-next-step-plan.md](2026-10-08-next-step-plan.md): step 1's "not a useful judge" and
+  "Kev is not a fixed bar" are its single choices.
 
 ## Method
 
