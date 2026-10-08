@@ -120,13 +120,35 @@ def projected_minutes(download_gb: float, nbytes: int, seconds: float) -> float:
     return download_gb * 1000 / max(rate, 1e-6) / 60
 
 
-def shard_rate(model: str, shard: str) -> tuple[int, float]:  # pragma: no cover - downloads
-    """Bytes and seconds for one shard fetched through huggingface_hub into the run's cache."""
-    from huggingface_hub import hf_hub_download
+def probe_timeout(shard_bytes: int, need_mbps: float) -> float:
+    """Seconds to wait for the shard: twice what the floor allows for it. A host that takes
+    longer is refused without waiting for the whole shard."""
+    return 2 * shard_bytes / 1e6 / need_mbps
 
+
+def shard_rate(model: str, shard: str, need_mbps: float) -> tuple[int, float]:  # pragma: no cover
+    """Bytes and seconds for one shard fetched through huggingface_hub into the run's cache.
+    Refuses the host (exit 2) if the shard takes longer than `probe_timeout`."""
+    import threading
+
+    from huggingface_hub import get_hf_file_metadata, hf_hub_download, hf_hub_url
+
+    size = get_hf_file_metadata(hf_hub_url(model, shard)).size or 0
+    limit = probe_timeout(size, need_mbps)
+    done: list[str] = []
     started = time.monotonic()
-    path = hf_hub_download(model, shard)
-    return Path(path).stat().st_size, time.monotonic() - started
+    worker = threading.Thread(target=lambda: done.append(hf_hub_download(model, shard)), daemon=True)
+    worker.start()
+    worker.join(limit)
+    seconds = time.monotonic() - started
+    if not done:
+        print(
+            f"HOST-REFUSED: {shard} of {model} ({size / 1e9:.2f} GB) did not arrive in {limit:.0f} s, "
+            f"twice what {need_mbps:.0f} MB/s allows",
+            flush=True,
+        )
+        os._exit(2)
+    return Path(done[0]).stat().st_size, seconds
 
 
 def check_speed(
@@ -138,8 +160,8 @@ def check_speed(
     print(f"write: {nbytes / 1e9:.2f} GB to {cache} in {seconds:.1f} s")
     found.append(rate_problem(f"writes to {cache}", nbytes, seconds, min_write_mbps))
     settings = {k: v for k, v in os.environ.items() if k.startswith(("HF_XET", "HF_HUB"))}
-    nbytes, seconds = shard_rate(model, shard)
     need = required_mbps(download_gb, download_minutes)
+    nbytes, seconds = shard_rate(model, shard, need)
     eta = projected_minutes(download_gb, nbytes, seconds)
     print(
         f"download: {shard} of {model}, {nbytes / 1e9:.2f} GB in {seconds:.0f} s; "

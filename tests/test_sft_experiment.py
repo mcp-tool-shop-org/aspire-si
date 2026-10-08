@@ -715,6 +715,12 @@ class TestHostCheck:
         # 66 GB in 45 minutes needs about 24 MB/s
         assert host_check.required_mbps(66, 45) == pytest.approx(24.44, abs=0.01)
 
+    def test_the_probe_gives_up_at_twice_the_floors_time(self):
+        # a 3.9 GB shard against 24.4 MB/s: the floor allows 160 s, the probe waits 319 s
+        assert host_check.probe_timeout(3_900_000_000, host_check.required_mbps(66, 45)) == pytest.approx(
+            319, abs=1
+        )
+
     def test_the_2026_10_08_pod_would_have_been_refused(self):
         # plan 17: the 32B arrived at about 11 MB/s; a 3.9 GB shard at that rate
         nbytes, seconds = 3_900_000_000, 355
