@@ -6,21 +6,25 @@ memory. A rented pod can land on a host that has neither (2026-10-07: an A100 80
 CUDA 12.8 driver failed after setup and a merge had already cost about $0.40). This check takes
 seconds and exits 2 with the reason.
 
-With --speed it checks something else, after the installs, in about 30 s: whether the host can
-fetch the ~130 GB of teachers in time (2026-10-07: a pod whose /workspace was a network
-filesystem took 31 minutes for 26 GB, so seed 43 could not finish inside its cap and was stopped
-after $1.65). It measures the two things that were slow there:
+With --speed it checks something else, after the installs: whether the host can fetch the
+teacher in the time the plan allows. It measures:
 
-  writes   512 MiB written to the Hugging Face cache directory and flushed, against
-           --min-write-mbps (100). That pod's network filesystem wrote 32 MB/s.
-  network  one plain HTTPS stream of a model file for up to --stream-seconds (20), against
-           --min-stream-mbps (20). That pod got 1.9 MB/s; a home connection gets about 46.
+  writes    512 MiB written to the Hugging Face cache directory and flushed, against
+            --min-write-mbps (100). (2026-10-07: a pod whose /workspace was a network filesystem
+            wrote 32 MB/s, and a seed run could not finish inside its cap.)
+  download  one shard of the teacher (--model, --shard), fetched through huggingface_hub into the
+            cache the run uses, exactly as the run's own download goes. The floor is not a fixed
+            number: it is --download-gb in --download-minutes, the time the plan's budget gives
+            the download. The shard stays in the cache, so the run does not fetch it again.
 
-The network probe is plain HTTP on purpose: the huggingface_hub download path measured 2 MB/s on
-a connection where one HTTP stream ran at 46 MB/s, so it would judge the library, not the host.
+The download probe used to be one plain HTTPS stream. On 2026-10-08 that stream measured 20 MB/s
+and passed, while the run's own hf download averaged about 11 MB/s, so the 32B teacher could not
+arrive in time and the run was stopped ($1.86). The probe now measures the path the run takes.
+Set HF_XET_HIGH_PERFORMANCE=1 (and any other download settings) before the probe, so it measures
+them too.
 
 Usage: python host_check.py [--min-cuda 13.0] [--min-memory-gb 90]
-       python host_check.py --speed [--url URL] [--min-write-mbps 100] [--min-stream-mbps 20]
+       python host_check.py --speed --download-gb 66 --download-minutes 45
 """
 
 from __future__ import annotations
@@ -101,35 +105,69 @@ def write_rate(directory: Path, megabytes: int = 1024) -> tuple[int, float]:
     return megabytes << 20, seconds
 
 
-DEFAULT_URL = "https://huggingface.co/Qwen/Qwen2.5-32B-Instruct/resolve/main/model-00001-of-00017.safetensors"
+DEFAULT_MODEL = "Qwen/Qwen2.5-32B-Instruct"
+DEFAULT_SHARD = "model-00001-of-00017.safetensors"
 
 
-def stream_rate(url: str, seconds: float, chunk: int = 1 << 20) -> tuple[int, float]:  # pragma: no cover
-    """Bytes read from one HTTPS stream of `url`, and the time taken, stopping after `seconds`."""
-    import urllib.request
+def required_mbps(download_gb: float, download_minutes: float) -> float:
+    """The download rate, in MB/s, that fetches `download_gb` in `download_minutes`."""
+    return download_gb * 1000 / (download_minutes * 60)
 
+
+def projected_minutes(download_gb: float, nbytes: int, seconds: float) -> float:
+    """How long `download_gb` takes at the rate measured on the shard."""
+    rate = nbytes / 1e6 / max(seconds, 1e-6)
+    return download_gb * 1000 / max(rate, 1e-6) / 60
+
+
+def probe_timeout(shard_bytes: int, need_mbps: float) -> float:
+    """Seconds to wait for the shard: twice what the floor allows for it. A host that takes
+    longer is refused without waiting for the whole shard."""
+    return 2 * shard_bytes / 1e6 / need_mbps
+
+
+def shard_rate(model: str, shard: str, need_mbps: float) -> tuple[int, float]:  # pragma: no cover
+    """Bytes and seconds for one shard fetched through huggingface_hub into the run's cache.
+    Refuses the host (exit 2) if the shard takes longer than `probe_timeout`."""
+    import threading
+
+    from huggingface_hub import get_hf_file_metadata, hf_hub_download, hf_hub_url
+
+    size = get_hf_file_metadata(hf_hub_url(model, shard)).size or 0
+    limit = probe_timeout(size, need_mbps)
+    done: list[str] = []
     started = time.monotonic()
-    nbytes = 0
-    with urllib.request.urlopen(url, timeout=30) as response:
-        while time.monotonic() - started < seconds:
-            data = response.read(chunk)
-            if not data:
-                break
-            nbytes += len(data)
-    return nbytes, time.monotonic() - started
+    worker = threading.Thread(target=lambda: done.append(hf_hub_download(model, shard)), daemon=True)
+    worker.start()
+    worker.join(limit)
+    seconds = time.monotonic() - started
+    if not done:
+        print(
+            f"HOST-REFUSED: {shard} of {model} ({size / 1e9:.2f} GB) did not arrive in {limit:.0f} s, "
+            f"twice what {need_mbps:.0f} MB/s allows",
+            flush=True,
+        )
+        os._exit(2)
+    return Path(done[0]).stat().st_size, seconds
 
 
 def check_speed(
-    url: str, min_write_mbps: float, min_stream_mbps: float, stream_seconds: float
+    model: str, shard: str, min_write_mbps: float, download_gb: float, download_minutes: float
 ) -> None:  # pragma: no cover
     cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"))
     found = []
     nbytes, seconds = write_rate(cache, 512)
     print(f"write: {nbytes / 1e9:.2f} GB to {cache} in {seconds:.1f} s")
     found.append(rate_problem(f"writes to {cache}", nbytes, seconds, min_write_mbps))
-    nbytes, seconds = stream_rate(url, stream_seconds)
-    print(f"network: {nbytes / 1e9:.2f} GB in {seconds:.1f} s from {url.split('/resolve/')[0]}")
-    found.append(rate_problem("one download stream", nbytes, seconds, min_stream_mbps))
+    settings = {k: v for k, v in os.environ.items() if k.startswith(("HF_XET", "HF_HUB"))}
+    need = required_mbps(download_gb, download_minutes)
+    nbytes, seconds = shard_rate(model, shard, need)
+    eta = projected_minutes(download_gb, nbytes, seconds)
+    print(
+        f"download: {shard} of {model}, {nbytes / 1e9:.2f} GB in {seconds:.0f} s; "
+        f"{download_gb:.0f} GB would take {eta:.0f} min (budget {download_minutes:.0f}); settings {settings}"
+    )
+    found.append(rate_problem(f"the {model} download", nbytes, seconds, need))
     found = [f for f in found if f]
     if found:
         print("HOST-REFUSED: " + "; ".join(found), flush=True)
@@ -142,13 +180,14 @@ def main() -> None:  # pragma: no cover - runs on the pod
     parser.add_argument("--min-cuda", default="13.0")
     parser.add_argument("--min-memory-gb", type=float, default=0.0)
     parser.add_argument("--speed", action="store_true", help="check write and download speed, not the GPU")
-    parser.add_argument("--url", default=DEFAULT_URL)
+    parser.add_argument("--model", default=DEFAULT_MODEL, help="the model the run downloads")
+    parser.add_argument("--shard", default=DEFAULT_SHARD, help="one of its files, timed")
     parser.add_argument("--min-write-mbps", type=float, default=100.0)
-    parser.add_argument("--min-stream-mbps", type=float, default=20.0)
-    parser.add_argument("--stream-seconds", type=float, default=20.0)
+    parser.add_argument("--download-gb", type=float, default=66.0, help="everything the run downloads")
+    parser.add_argument("--download-minutes", type=float, default=45.0, help="the plan's time for it")
     args = parser.parse_args()
     if args.speed:
-        check_speed(args.url, args.min_write_mbps, args.min_stream_mbps, args.stream_seconds)
+        check_speed(args.model, args.shard, args.min_write_mbps, args.download_gb, args.download_minutes)
         return
     major, minor = (int(x) for x in args.min_cuda.split("."))
     smi = subprocess.run(["nvidia-smi"], capture_output=True, text=True).stdout
