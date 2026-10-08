@@ -19,7 +19,9 @@ that seed, with its own output folder; the N prompts are passed to `aspire train
 
 With --critic-seed C (the 2026-10-08 critic-init test) it writes control-local-rSEED-cC: the
 32-prompt control-local config with the run's seed SEED and the critic's initial weights from their
-own seed C (`critic.init_seed`).
+own seed C (`critic.init_seed`). --tag T names a repeat of the same seeds
+control-local-rSEED-cC-T, with its own output folder, so it never reuses the first run's cached
+dialogues.
 
 Usage: python seed_configs.py --seed 43 --sft-student /workspace/job/sft-s43/merged --out configs-s43
        python seed_configs.py --seed 43 --prompts 128 --out configs-p128
@@ -77,11 +79,12 @@ def prompt_config(seed: int, prompts: int, out: Path, sft_student: str | None = 
     return path
 
 
-def split_config(run_seed: int, critic_seed: int, out: Path) -> Path:
-    """The 32-prompt control-local config with the critic's initial weights seeded on their own."""
+def split_config(run_seed: int, critic_seed: int, out: Path, tag: str = "") -> Path:
+    """The 32-prompt control-local config with the critic's initial weights seeded on their own.
+    A `tag` names a repeat of the same seeds, with its own output folder."""
     out.mkdir(parents=True, exist_ok=True)
     config = yaml.safe_load(SOURCES["control-local"].read_text(encoding="utf-8"))
-    name = f"control-local-r{run_seed}-c{critic_seed}"
+    name = f"control-local-r{run_seed}-c{critic_seed}" + (f"-{tag}" if tag else "")
     config["seed"] = run_seed
     config["experiment_name"] = name
     config["training"]["output_dir"] = f"outputs/{name}"
@@ -99,10 +102,11 @@ def main() -> None:
     parser.add_argument(
         "--critic-seed", type=int, help="control-local at 32 prompts, critic weights seeded apart"
     )
+    parser.add_argument("--tag", default="", help="with --critic-seed: names a repeat of the same seeds")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.critic_seed is not None:
-        print(split_config(args.seed, args.critic_seed, args.out))
+        print(split_config(args.seed, args.critic_seed, args.out, args.tag))
         return
     if args.prompts:
         print(prompt_config(args.seed, args.prompts, args.out, args.sft_student))

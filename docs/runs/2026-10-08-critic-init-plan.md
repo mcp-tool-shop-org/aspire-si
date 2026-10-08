@@ -44,14 +44,25 @@ Qwen2.5-32B-Instruct, three epochs, batch 1), as in run 1, written by `seed_conf
 | A | 42:42, 42:43, 42:44 | the critic's initial weights | everything else (R = 42) |
 | B | 42:42, 43:42, 44:42 | adapter init, data order, student and teacher sampling | the critic's initial weights (C = 42) |
 
-The two arms share the 42:42 run, so there are five runs: one pod, `pod/plan_g.sh`, in two
-batches.
+The two arms share the 42:42 run. A sixth run repeats it with identical seeds (42:42:b, with its
+own name and output folder, so it can't reuse the first run's cached dialogues). It measures how
+far two runs differ when nothing is changed: GPU sampling and kernels need not be deterministic.
+
+Six runs on one pod (`pod/plan_g.sh`), in two batches of three:
+- batch 1: 42:42, 42:43, 43:42;
+- batch 2: 42:44, 44:42, 42:42:b.
 
 ## Readout (fixed before any run)
 
 The measure is each run's pairwise accuracy on the 127 judge pairs (`judge_eval.py`, ties counting
-half). Each arm's **range** is its highest minus its lowest of three, compared with the 0.181 range
-of seeds 42 to 44 at 32 prompts.
+half).
+
+**First, the noise floor.** If the two identical runs differ by more than 0.09
+(|42:42 − 42:42:b| > 0.09), run-to-run noise alone is as large as the bar. The report says so, and
+no arm reading is made.
+
+**Otherwise, the arms.** Each arm's **range** is its highest minus its lowest of three, compared
+with the 0.181 range of seeds 42 to 44 at 32 prompts.
 
 | Arm A range | Arm B range | Reading |
 |---|---|---|
@@ -68,7 +79,9 @@ of seeds 42 to 44 at 32 prompts.
 
 Also reported, with no rule attached:
 - each run's prompt-clustered 95% interval;
-- the 42:42 run against run 1's seed-42 control (0.724);
+- the noise-floor difference itself, next to the arms' ranges;
+- the 42:42 run against run 1's seed-42 control (0.724), as a reproducibility check. `fork_rng`
+  changes the order of draws from the run's stream, so it isn't expected to match exactly;
 - arm A's identical-dialogue count;
 - the drift exports.
 
@@ -85,7 +98,7 @@ Priced from step 2's measured rates:
 |---|---|
 | Setup, tests, speed probe, downloads (refused below 66 GB in 30 min) | ≤ 0.6 h |
 | Batch 1: three runs, 32 dialogues each, plus epochs | about 1 h |
-| Batch 2: two runs | about 1 h |
+| Batch 2: three runs | about 1 h |
 | Probes, judge, pull | 0.3 h |
 | Margin | 0.6 h |
 | **max_hours** | **3.5** |
@@ -94,7 +107,7 @@ One RTX PRO 6000, no fallback, at most $2.19/hr: **worst case about $7.70**.
 
 **Stop rules:**
 - A refused host stops the run.
-- At 30 minutes into batch 1, the finish is projected from the progress line: batch 1's remaining
-  dialogues, batch 2 at the same rate, plus 0.5 h. If that lands past the deadline, the pod stops
-  at once.
+- At 30 minutes into each batch, the finish is projected from the progress line: the batch's
+  remaining dialogues, any later batch at the same rate, plus 0.5 h. If that lands past the
+  deadline, the pod stops at once.
 - Results are pulled and checked before the shutdown.

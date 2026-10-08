@@ -700,6 +700,18 @@ class TestNextRuns:
                 c.pop("critic")
         assert base == config  # the 32-prompt control otherwise
 
+    def test_a_tagged_repeat_has_its_own_name_and_folder_and_the_same_seeds(self, tmp_path):
+        first = seed_configs.split_config(42, 42, tmp_path)
+        repeat = seed_configs.split_config(42, 42, tmp_path, "b")
+        a, b = (yaml.safe_load(p.read_text(encoding="utf-8")) for p in (first, repeat))
+        assert repeat.name == "control-local-r42-c42-b.yaml" and first.exists()
+        assert b["training"]["output_dir"] == "outputs/control-local-r42-c42-b"
+        assert a["training"]["output_dir"] != b["training"]["output_dir"]
+        for c in (a, b):
+            c.pop("experiment_name")
+            c["training"].pop("output_dir")
+        assert a == b
+
     def test_prompts_are_drawn_from_training_questions_evenly_by_topic(self):
         kept = [(f"topic-{t}", f"question {t}-{i}") for t in range(4) for i in range(40)]
         train, held = lib.split_held_out(kept, 64, 400, 42)

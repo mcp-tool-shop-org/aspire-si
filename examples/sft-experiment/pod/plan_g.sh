@@ -5,7 +5,9 @@
 #   the run's seed R        student adapter initialisation, data order, student and teacher sampling
 #   the critic's seed C     the critic head's initial weights only (critic.init_seed)
 # Arm A varies C with R fixed; arm B varies R with C fixed. They share the run R=42, C=42.
-# Usage: HF_HOME=/root/hf bash plan_g.sh 42:42 42:43 42:44 43:42 44:42   (R:C pairs)
+# A repeat of 42:42 (R:C:TAG, here 42:42:b) measures the noise between runs with identical seeds.
+# Usage: HF_HOME=/root/hf bash plan_g.sh 42:42 42:43 43:42 42:44 44:42 42:42:b
+#        (R:C or R:C:TAG; a TAG gives a repeat its own name and output folder)
 # Runs go three at a time (about 23 GB each on one 96 GB GPU), in the order given.
 # Expects in /workspace/job:
 #   aspire-si.tar.gz   a `git archive` of this repository
@@ -23,8 +25,17 @@ R=$J/results-g
 O=$J/aspire-si/outputs
 BASE=Qwen/Qwen2.5-1.5B-Instruct
 N=32
+# R:C or R:C:TAG -> run seed, critic seed, run name
+run_seed() { echo "${1%%:*}"; }
+critic_seed() { local rest=${1#*:}; echo "${rest%%:*}"; }
+run_tag() { local rest=${1#*:}; [ "$rest" = "${rest#*:}" ] && echo "" || echo "${rest#*:}"; }
+run_name() {
+  local tag
+  tag=$(run_tag "$1")
+  echo "control-local-r$(run_seed "$1")-c$(critic_seed "$1")${tag:+-$tag}"
+}
 NAMES=()
-for p in "${PAIRS[@]}"; do NAMES+=("control-local-r${p%%:*}-c${p##*:}"); done
+for p in "${PAIRS[@]}"; do NAMES+=("$(run_name "$p")"); done
 mkdir -p $J/stages-g $R
 
 stage() {
@@ -58,7 +69,8 @@ setup() {
 
 configs() {
   for p in "${PAIRS[@]}"; do
-    python $E/seed_configs.py --seed "${p%%:*}" --critic-seed "${p##*:}" --out $J/configs-g
+    python $E/seed_configs.py --seed "$(run_seed "$p")" --critic-seed "$(critic_seed "$p")" \
+      --tag "$(run_tag "$p")" --out $J/configs-g
   done
 }
 
@@ -107,9 +119,10 @@ batch_2() { if [ ${#NAMES[@]} -gt 3 ]; then batch "${NAMES[@]:3}"; fi; }
 
 probes() {
   for p in "${PAIRS[@]}"; do
-    local name=control-local-r${p%%:*}-c${p##*:} o
+    local name o
+    name=$(run_name "$p")
     o=$O/$name
-    python $E/probe_models.py --seed "${p%%:*}" --pairs $J/control/real-local-teacher/dialogue_cache \
+    python $E/probe_models.py --seed "$(run_seed "$p")" --pairs $J/control/real-local-teacher/dialogue_cache \
       --out $R/probe-$name base=$BASE control-1=$BASE+$o/checkpoint-1/student \
       control-2=$BASE+$o/checkpoint-2/student control-3=$BASE+$o/checkpoint-3/student --drift-from base
   done
