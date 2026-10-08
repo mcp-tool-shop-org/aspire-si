@@ -425,6 +425,9 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
       of 47 second-planter error pairs.
   - If the size-matched margin differs from the headline in sign, or in whether its CI excludes 0,
     the row says **size is a residual cue**. That flag doesn't change the row's reading.
+  - The CI part of the rule applies only when at least 30 error pairs fall inside the band. Below
+    that the CI is too wide and would trip on noise, so only a sign flip raises the flag, and the
+    subset is still reported. This affects P-second (19 pairs), not P-confirm (63).
   - Everything above still applies: the filters, the per-answer size gate, the lexical guard, the
     meaning check with context, two swaps per answer on different sentences, and the retry tell.
   - The planter is unchanged per set: the Q4 32B for P-train and P-confirm, gemma4:31b for

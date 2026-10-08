@@ -336,6 +336,9 @@ def _percentile(values: list[float], q: float) -> float:
     return xs[lo] + (xs[min(lo + 1, len(xs) - 1)] - xs[lo]) * (k - lo)
 
 
+MIN_SIZE_MATCHED = 30
+
+
 def _size_matched(rw, rids, ew, eids, error_sizes, para_sizes, headline) -> dict:
     """The error-minus-edit margin on error pairs inside the paraphrase size band."""
     band = (_percentile(para_sizes, 5), _percentile(para_sizes, 95))
@@ -352,7 +355,10 @@ def _size_matched(rw, rids, ew, eids, error_sizes, para_sizes, headline) -> dict
     def excludes_zero(c):
         return c[0] is not None and (c[0] > 0 or c[1] < 0)
 
-    cue = (point > 0) != (headline[0] > 0) or excludes_zero(ci) != excludes_zero(headline[1])
+    # Below 30 pairs the CI is too wide for its rule, which would trip on noise: a sign flip only.
+    cue = (point > 0) != (headline[0] > 0) or (
+        len(inside) >= MIN_SIZE_MATCHED and excludes_zero(ci) != excludes_zero(headline[1])
+    )
     return out | {"margin": point, "margin_ci": ci, "size_residual_cue": cue}
 
 
@@ -380,7 +386,8 @@ def skeptic_readout(
     `sizes` is (error-pair edit sizes, paraphrase edit sizes), each in scored order. A size-matched
     margin is reported beside the headline: error pairs whose edit size falls inside the kept
     paraphrases' 5th-95th percentile band, prompt-clustered. Where it disagrees with the headline in
-    sign, or in whether its CI excludes 0, the row says size is a residual cue (R&D's review)."""
+    sign, or (with at least 30 pairs) in whether its CI excludes 0, the row says size is a residual
+    cue (R&D's review)."""
     by: dict = {}
     for r in results:
         if r["control"] == "none" and para_set in r["sets"] and error_set in r["sets"]:

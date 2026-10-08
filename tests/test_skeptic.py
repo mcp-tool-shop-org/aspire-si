@@ -159,13 +159,24 @@ class TestSkepticReadout:
         assert sm["error_pairs"] == 40 and sm["strong_answers"] == 40 and sm["size_residual_cue"] is False
 
     def test_a_size_matched_margin_that_vanishes_flags_a_residual_cue(self):
-        ids = [i // 2 for i in range(40)]
-        rw = [1.0 if i % 2 else 0.0 for i in range(40)]  # the large errors win, the small ones don't
-        ew = [0.0] * 40
-        sizes = [30 if i % 2 else 7 for i in range(40)]
+        ids = [i // 2 for i in range(80)]
+        rw = [1.0 if i % 2 else 0.0 for i in range(80)]  # the large errors win, the small ones don't
+        ew = [0.0] * 80
+        sizes = [30 if i % 2 else 7 for i in range(80)]
         headline = (0.5, [0.4, 0.6])
         sm = run._size_matched(rw, ids, ew, ids, sizes, [6, 7, 8] * 10, headline)
-        assert sm["error_pairs"] == 20 and sm["margin"] == 0 and sm["size_residual_cue"] is True
+        assert sm["error_pairs"] == 40 and sm["margin"] == 0 and sm["size_residual_cue"] is True
+
+    def test_below_30_pairs_only_a_sign_flip_flags_the_cue(self):
+        ids = [i // 2 for i in range(40)]
+        ew = [0.0] * 40
+        rw = [1.0 if i % 4 == 1 else (0.0 if i % 2 else 1.0) for i in range(40)]
+        sizes = [7 if i < 20 else 30 for i in range(40)]
+        headline = (0.5, [0.4, 0.6])
+        sm = run._size_matched(rw, ids, ew, ids, sizes, [6, 7, 8] * 10, headline)
+        assert sm["error_pairs"] == 20 and sm["margin"] > 0 and sm["size_residual_cue"] is False
+        flipped = run._size_matched([0.0] * 40, ids, [1.0] * 40, ids, sizes, [6, 7, 8] * 10, headline)
+        assert flipped["margin"] < 0 and flipped["size_residual_cue"] is True
 
     def test_flagged_paraphrases_are_left_out(self):
         dropped = {pid for pid in self.PARA_PAIR_IDS if pid.endswith("-p2")}
