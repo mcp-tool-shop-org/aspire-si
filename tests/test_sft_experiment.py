@@ -663,6 +663,19 @@ class TestNextRuns:
         assert config["teacher"]["default_teacher"] == "local"
         assert config["student"]["model_name_or_path"] == "Qwen/Qwen2.5-1.5B-Instruct"
 
+    def test_prompt_config_with_a_fine_tune_is_sft_local_and_differs_only_in_student(self, tmp_path):
+        ctl = yaml.safe_load(seed_configs.prompt_config(43, 128, tmp_path).read_text(encoding="utf-8"))
+        path = seed_configs.prompt_config(43, 128, tmp_path, "/workspace/job/sft-s43/merged")
+        sft = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert path.name == "sft-local-p128-s43.yaml" and sft["seed"] == 43
+        assert sft["training"]["output_dir"] == "outputs/sft-local-p128-s43"
+        assert sft["student"]["model_name_or_path"] == "/workspace/job/sft-s43/merged"
+        for config in (ctl, sft):
+            config.pop("experiment_name")
+            config["training"].pop("output_dir")
+            config["student"].pop("model_name_or_path")
+        assert ctl == sft  # teacher, schedule and everything else as in step 2
+
     def test_prompts_are_drawn_from_training_questions_evenly_by_topic(self):
         kept = [(f"topic-{t}", f"question {t}-{i}") for t in range(4) for i in range(40)]
         train, held = lib.split_held_out(kept, 64, 400, 42)
