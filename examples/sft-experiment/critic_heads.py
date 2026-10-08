@@ -221,6 +221,12 @@ def error_overlap(wins_a: Sequence[float], wins_b: Sequence[float]) -> dict:
     }
 
 
+def near_tie_share(strong: Sequence[float], flawed: Sequence[float], tolerance: float) -> float:
+    """The share of pairs whose score gap is smaller than `tolerance`: pairs a change of scoring
+    setup (batch shape, 4-bit kernels) of that size could flip."""
+    return sum(abs(s - f) < tolerance for s, f in zip(strong, flawed)) / len(strong)
+
+
 def standardise(values: Sequence[float], mean: float, sd: float) -> list[float]:
     return [(v - mean) / sd if sd else 0.0 for v in values]
 

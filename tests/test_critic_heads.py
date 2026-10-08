@@ -80,6 +80,9 @@ class TestStatistics:
         apart = ch.error_overlap([1, 0, 1, 0], [0, 1, 0, 1])
         assert apart["error_consistency"] == pytest.approx(-1.0) and apart["double_fault"] == 0.0
 
+    def test_near_tie_share(self):
+        assert ch.near_tie_share([5.0, 5.0, 5.0, 5.0], [5.001, 4.9, 6.0, 5.0005], 0.01) == 0.5
+
     def test_auc_and_pearson(self):
         assert ch.auc([3, 4], [1, 2]) == 1.0 and ch.auc([1, 2], [1, 2]) == 0.5
         assert ch.pearson([1, 2, 3], [3, 2, 1]) == pytest.approx(-1.0)
@@ -318,6 +321,13 @@ class TestSecondPlanter:
         assert report["planted"] == len(pairs) > 0 and report["slots"] == 6
         stats = sp.edit_stats(pairs)
         assert stats["median_chars_changed"] == 1 and 0 < stats["median_position"] < 1
+
+    def test_the_planter_turns_thinking_off_and_refuses_cloud(self):
+        body = lib.OllamaBackend("gemma4:31b").chat_body(lib.Chat("sys", [("user", "q")]), 600, 0.7)
+        assert body["think"] is False and body["stream"] is False
+        assert body["model"] == "gemma4:31b" and body["options"] == {"temperature": 0.7, "num_predict": 600}
+        with pytest.raises(ValueError):
+            lib.OllamaBackend("gemma4:31b-cloud")
 
     def test_cloud_models_are_refused(self):
         assert lib.refuse_cloud("gemma4:31b") == "gemma4:31b"

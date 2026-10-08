@@ -43,11 +43,23 @@ def prompt_groups(pairs: list[dict]) -> list:
     return [p.get("prompt_id", p["prompt"]) for p in pairs]
 
 
-def evaluate(scorer, pairs: list[dict]) -> dict:
-    """Pairwise accuracy of `scorer.score_many(prompts, responses)` on the judge pairs."""
+def evaluate(scorer, pairs: list[dict], batch_size: int | None = None) -> dict:
+    """Pairwise accuracy of `scorer.score_many(prompts, responses)` on the judge pairs.
+
+    `batch_size` scores that many answers per forward pass. Unset, every answer goes in one pass,
+    as on the 96 GB pod; a 32 GB card needs a few at a time."""
     prompts = [p["prompt"] for p in pairs]
-    strong = scorer.score_many(prompts, [p["strong"] for p in pairs])
-    flawed = scorer.score_many(prompts, [p["flawed"] for p in pairs])
+
+    def scores(responses: list[str]) -> list[float]:
+        if not batch_size:
+            return scorer.score_many(prompts, responses)
+        out: list[float] = []
+        for i in range(0, len(responses), batch_size):
+            out += scorer.score_many(prompts[i : i + batch_size], responses[i : i + batch_size])
+        return out
+
+    strong = scores([p["strong"] for p in pairs])
+    flawed = scores([p["flawed"] for p in pairs])
     return from_scores(strong, flawed, pairs)
 
 
@@ -110,6 +122,9 @@ def main() -> None:  # pragma: no cover - needs checkpoints and a GPU
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--device", default=None, help="cuda or cpu [default: cuda if available]")
     parser.add_argument(
+        "--batch-size", type=int, default=None, help="answers per forward pass [default: all at once]"
+    )
+    parser.add_argument(
         "--subset", type=Path, help="pairwise_teacher.py's output: also report its separable pairs"
     )
     parser.add_argument(
@@ -120,21 +135,23 @@ def main() -> None:  # pragma: no cover - needs checkpoints and a GPU
         parser.error("give name=checkpoint entries, or --reuse an earlier judge.json")
 
     pairs = json.loads(args.judge_set.read_text(encoding="utf-8"))
-    teacher_strong = [p["teacher_strong"] for p in pairs]
-    teacher_flawed = [p["teacher_flawed"] for p in pairs]
-    subset = subset_summary(teacher_strong, teacher_flawed, pairs)
     result = {
         "pairs": len(pairs),
         "prompts": len(set(prompt_groups(pairs))),
         "label": "the planted error: the strong answer is always the better one",
-        "teacher_reference": summarize(teacher_strong, teacher_flawed, pairs),
-        "teacher_detectable": {
+        "critics": {},
+    }
+    # Sets built without teacher scores (fresh_pairs.py, second_planter.py) have no teacher reference.
+    if all("teacher_strong" in p and "teacher_flawed" in p for p in pairs):
+        teacher_strong = [p["teacher_strong"] for p in pairs]
+        teacher_flawed = [p["teacher_flawed"] for p in pairs]
+        subset = subset_summary(teacher_strong, teacher_flawed, pairs)
+        result["teacher_reference"] = summarize(teacher_strong, teacher_flawed, pairs)
+        result["teacher_detectable"] = {
             "pairs": subset["pairs"] if subset else 0,
             "prompts": subset["prompts"] if subset else 0,
             "note": "pre-registered: the subset where a difference between conditions can show",
-        },
-        "critics": {},
-    }
+        }
     if args.reuse:
         earlier = json.loads(args.reuse.read_text(encoding="utf-8"))["critics"]
         for name, r in earlier.items():
@@ -144,7 +161,9 @@ def main() -> None:  # pragma: no cover - needs checkpoints and a GPU
 
         for text in args.checkpoints:
             name, _, path = text.partition("=")
-            result["critics"][name] = evaluate(Judge.from_checkpoint(path, device=args.device), pairs)
+            result["critics"][name] = evaluate(
+                Judge.from_checkpoint(path, device=args.device), pairs, args.batch_size
+            )
     if args.subset:
         add_separable(result, pairs, json.loads(args.subset.read_text(encoding="utf-8"))["separable_ids"])
     for name, r in result["critics"].items():

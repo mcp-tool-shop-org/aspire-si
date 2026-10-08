@@ -402,7 +402,11 @@ class OllamaBackend(Backend):  # pragma: no cover - needs the local Ollama daemo
     """The local Ollama daemon's chat API, one request at a time. Cloud models are refused.
 
     `unload()` asks the daemon to drop the model from GPU memory (keep_alive 0) without the
-    `ollama` CLI, which can hang automation on this rig."""
+    `ollama` CLI, which can hang automation on this rig.
+
+    Thinking is turned off ("think": false). gemma4:31b is a thinking model: with a capped
+    num_predict it spent the whole budget thinking and returned empty content on 83 of 95 calls
+    (measured by the R&D session, 2026-10-08)."""
 
     def __init__(self, model: str, url: str = "http://127.0.0.1:11434", timeout: float = 900):
         self.model = refuse_cloud(model)
@@ -431,18 +435,19 @@ class OllamaBackend(Backend):  # pragma: no cover - needs the local Ollama daemo
                 return m["digest"][:12]
         raise ValueError(f"{self.model!r} is not installed locally")
 
+    def chat_body(self, chat: Chat, max_tokens: int, temperature: float) -> dict:
+        return {
+            "model": self.model,
+            "messages": chat.messages(),
+            "stream": False,
+            "think": False,
+            "options": {"temperature": temperature, "num_predict": max_tokens},
+        }
+
     def generate(self, chats: Sequence[Chat], max_tokens: int, temperature: float) -> list[str]:
         out, cut = [], []
         for chat in chats:
-            reply = self._post(
-                "/api/chat",
-                {
-                    "model": self.model,
-                    "messages": chat.messages(),
-                    "stream": False,
-                    "options": {"temperature": temperature, "num_predict": max_tokens},
-                },
-            )
+            reply = self._post("/api/chat", self.chat_body(chat, max_tokens, temperature))
             out.append(reply["message"]["content"] or "")
             cut.append(reply.get("done_reason") == "length")
         self.last_truncated = cut
