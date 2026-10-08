@@ -322,6 +322,13 @@ class TestSecondPlanter:
         stats = sp.edit_stats(pairs)
         assert stats["median_chars_changed"] == 1 and 0 < stats["median_position"] < 1
 
+    def test_the_planter_turns_thinking_off_and_refuses_cloud(self):
+        body = lib.OllamaBackend("gemma4:31b").chat_body(lib.Chat("sys", [("user", "q")]), 600, 0.7)
+        assert body["think"] is False and body["stream"] is False
+        assert body["model"] == "gemma4:31b" and body["options"] == {"temperature": 0.7, "num_predict": 600}
+        with pytest.raises(ValueError):
+            lib.OllamaBackend("gemma4:31b-cloud")
+
     def test_cloud_models_are_refused(self):
         assert lib.refuse_cloud("gemma4:31b") == "gemma4:31b"
         for name in ("gemma4:31b-cloud", "gemma4:cloud", "x:Cloud"):
