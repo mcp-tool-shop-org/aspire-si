@@ -403,8 +403,16 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
     - the synonym is an inflection of the word ("find" to "finds"), which is a grammar edit, not a
       synonym;
     - the swap changes the word's form (plural or third person, past, progressive), which would
-      break agreement.
-  - Code keeps the word's capitalisation and fixes "a"/"an" before it.
+      break agreement;
+    - either word is a function word (an auxiliary or copula, pronoun, determiner, demonstrative,
+      preposition or conjunction). A synonym swap should hit a content word, and this closes the
+      irregular agreement changes ("is" to "are") that the suffix check can't see;
+    - the word sits inside inline code, a fenced block or `$…$` maths in the answer, where it is an
+      identifier or symbol, not wording.
+  - Code keeps the word's capitalisation and fixes "a"/"an" before it by sound, not by letter ("an
+    hour", "a unique"), so the edited copy carries no article slip as a tell.
+  - The report gives the yield of each arm (answers with two pairs, one, or none) and the full
+    rejection breakdown, so the two-per-answer target is shown, not assumed.
   - Everything above still applies: the filters, the per-answer size gate, the lexical guard, the
     meaning check with context, two swaps per answer on different sentences, and the retry tell.
   - The planter is unchanged per set: the Q4 32B for P-train and P-confirm, gemma4:31b for

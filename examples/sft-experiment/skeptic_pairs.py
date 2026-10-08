@@ -376,6 +376,37 @@ def plant(
 
 _SUFFIXES = ("ing", "ed", "es", "s", "er", "est", "ly")
 
+# Words a synonym swap must not touch (R&D's review): auxiliaries and copulas, pronouns, determiners
+# and demonstratives, prepositions and conjunctions. A swap among these changes agreement or the
+# claim's structure ("is" to "are"), not wording.
+FUNCTION_WORDS = {
+    *"is are was were be been being am has have had do does did".split(),
+    *"i you he she it we they me him her us them my your his its our their mine yours".split(),
+    *"this that these those a an the such what which who whom whose".split(),
+    *"of in on at by for with from to into onto over under about after before between".split(),
+    *"through during against among within upon via per across along around behind beyond".split(),
+    *"and or but so yet because although though while if unless since whereas than as".split(),
+}
+
+# The article before a swapped-in word goes by its sound, not its first letter.
+_AN_WORDS = ("hour", "honest", "honour", "honor", "heir")
+_A_PREFIXES = ("uni", "use", "usu", "eu", "one")
+
+
+def _article(word: str) -> str:
+    w = word.lower()
+    if w.startswith(_AN_WORDS):
+        return "an"
+    if w.startswith(_A_PREFIXES):
+        return "a"
+    return "an" if w[:1] in "aeiou" else "a"
+
+
+def _code_or_maths(answer: str) -> list[tuple[int, int]]:
+    """Character spans of fenced blocks, inline code and $...$ / $$...$$ maths in an answer."""
+    pattern = r"```.*?```|`[^`\n]*`|\$\$.*?\$\$|\$[^$\n]+\$"
+    return [m.span() for m in re.finditer(pattern, answer, flags=re.S)]
+
 
 def _stem(word: str) -> str:
     w = word.lower()
@@ -402,8 +433,9 @@ def apply_swap(reply: str, answer: str) -> tuple[str | None, str]:
 
     Rejected when: no usable JSON; the sentence isn't in the answer; the word isn't found exactly
     once as a whole word in that sentence; the synonym isn't a single different word; it is an
-    inflection of the word (a no-op or a grammar edit); or it changes the word's grammatical form
-    (agreement or number). Capitalisation is kept, and "a"/"an" before the word is fixed."""
+    inflection of the word (a no-op or a grammar edit); either word is a function word; the word
+    sits inside code or maths; or it changes the word's grammatical form (agreement or number).
+    Capitalisation is kept, and "a"/"an" before the word is fixed by sound."""
     data = extract_json_object(reply)
     if not data or not all(isinstance(data.get(k), str) for k in ("sentence", "word", "synonym")):
         return None, "no JSON swap"
@@ -419,6 +451,11 @@ def apply_swap(reply: str, answer: str) -> tuple[str | None, str]:
         return None, "word not found exactly once"
     if synonym.lower() == word.lower():
         return None, "synonym unchanged"
+    if word.lower() in FUNCTION_WORDS or synonym.lower() in FUNCTION_WORDS:
+        return None, "function word"
+    at = answer.index(sentence) + hits[0].start()
+    if any(a <= at < b for a, b in _code_or_maths(answer)):
+        return None, "inside code or maths"
     low, new = word.lower(), synonym.lower()
     if _stem(new) == _stem(low) or new.startswith(low) or low.startswith(new):
         return None, "synonym is an inflection"
@@ -429,7 +466,7 @@ def apply_swap(reply: str, answer: str) -> tuple[str | None, str]:
     before = sentence[:start]
     article = re.search(r"\b(a|an|A|An)\s+$", before)
     if article:
-        wanted = "an" if synonym[:1].lower() in "aeiou" else "a"
+        wanted = _article(synonym)
         if article.group(1)[:1].isupper():
             wanted = wanted.capitalize()
         before = before[: article.start(1)] + wanted + before[article.end(1) :]

@@ -223,6 +223,38 @@ class TestWordSwap:
     def test_each_rejection_says_why(self, reply, why):
         assert sk.apply_swap(reply, ANSWER) == (None, why)
 
+    def test_function_words_are_refused(self):
+        assert sk.apply_swap(swap(self.S, "is", "are"), ANSWER) == (None, "function word")
+        assert sk.apply_swap(swap(self.S, "because", "since"), ANSWER) == (None, "function word")
+
+    @pytest.mark.parametrize(
+        "answer, sentence, word, synonym",
+        [
+            ("Call `sort list` first. Done.", "Call `sort list` first.", "sort", "order"),
+            ("Here $x = speed t$ holds. Done.", "Here $x = speed t$ holds.", "speed", "rate"),
+            ("Run:\n```\nsort list\n```\nDone.", "sort list", "sort", "order"),
+        ],
+    )
+    def test_a_word_inside_code_or_maths_is_refused(self, answer, sentence, word, synonym):
+        assert sk.apply_swap(swap(sentence, word, synonym), answer) == (None, "inside code or maths")
+
+    @pytest.mark.parametrize(
+        "synonym, article",
+        [
+            ("hour", "an"),
+            ("honest", "an"),
+            ("unique", "a"),
+            ("useful", "a"),
+            ("usual", "a"),
+            ("euro", "a"),
+            ("ample", "an"),
+        ],
+    )
+    def test_the_article_goes_by_sound(self, synonym, article):
+        answer = "It took a long time."
+        edited, why = sk.apply_swap(swap(answer, "long", synonym), answer)
+        assert why == "ok" and edited == f"It took {article} {synonym} time."
+
     def test_a_word_twice_in_the_sentence_is_refused(self):
         answer = "It is what it is."
         assert sk.apply_swap(swap(answer, "is", "remains"), answer) == (None, "word not found exactly once")
