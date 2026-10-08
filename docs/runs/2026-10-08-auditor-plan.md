@@ -551,3 +551,58 @@ All of it is local on the RTX 5090, at $0, gated through the Publisher:
 3. Retraining the 162 heads, plus the Skeptic heads and the 20-permutation nulls: about 30 minutes.
    **Every head's weights are saved** (state dict, config, seed), so later controls read the same heads.
 
+
+## Addendum 3: the Kev gate becomes a report, and a typicality match replaces it (written 2026-10-08, after the Kev check failed and before any head read a paraphrase)
+
+**What happened.** The word-level P-confirm set passed the meaning check (121 of 149 pairs kept),
+then failed the whole-set check above. Frozen Kev-4B, order-averaged, preferred the original on
+0.781 of the kept pairs [0.700, 0.854], above the 0.65 line with a CI excluding 0.5 (0.762 [0.686,
+0.832] on all 149). Under that rule the set was not read. Nothing has been cached or read since.
+
+**Why the rule changes.**
+- Kev's preference is consistent in sign but small: the mean order-averaged gap is 0.018 on these
+  paraphrases, against 0.131 on the confirm error pairs.
+- The R&D session's review: that pattern is Kev reading **typicality**. Any edit replaces some of
+  the strong model's own wording, so the edited copy is a little less typical in context. Planted
+  errors carry the same cue.
+- The control needs the paraphrases to carry that cue as much as the errors do, so that a head
+  reading typicality fails it. A gate that rejects paraphrases for being less typical than the
+  original pushes the other way. A paraphrase set that passed it would make a typicality reader
+  look error-specific.
+- So the rule mixed up two things: meaning damage, which the per-pair meaning check already
+  catches, and the cue the control must keep. Neither re-planting option considered fixes that.
+  Matching paraphrases to the original's typicality removes the cue from one side only, and
+  swapping slots relabels without removing anything.
+- **The maintainer decided** to amend the rule, before any head read a paraphrase.
+
+**The amended rule.**
+1. The mistral-small:24b meaning check with context stays the per-pair gate.
+2. Kev's whole-set number is **reported, not gated**, with its gap beside the error pairs' gap. The
+   failed result above stays in the record.
+3. **A typicality match replaces it:**
+   - A third model measures each pair's typicality shift. It is outside every family already in the
+     pipeline: the student, the planter and Kev are Qwen; the feature sources are Qwen and Llama;
+     gemma plants P-second; mistral checks meaning.
+   - The model is **microsoft/Phi-3-mini-4k-instruct** at revision f39ac1d2 (MIT), in bf16. R&D
+     suggested llama3.1:8b; that model's weights aren't on the rig, and Phi-3 is the more
+     independent choice.
+   - **delta** = log p(the edited copy's changed tokens) − log p(the original's changed tokens),
+     each in context (the question, then the answer up to the change). It is summed over the tokens
+     between the two copies' common prefix and suffix. The exchange is formatted with the model's
+     chat template.
+   - It is measured for the error pairs and for the kept paraphrases of each set.
+   - Measured beforehand on the tokenizer alone, with no model loaded: the changed span is a median
+     of 1 token for the paraphrases and 1–2 for the errors, and the longest exchange is 1,218
+     tokens.
+4. **Pass rule, committed before computing:**
+   - On each read set (P-confirm against the confirm error pairs; P-second against the
+     second-planter error pairs), the kept paraphrases' **median delta lies inside the error pairs'
+     interquartile range of delta**.
+   - A two-sample Kolmogorov–Smirnov statistic and its p-value are reported beside it, not gated.
+   - P-train against the training error pairs is reported only.
+5. **On a fail**, the failing set is re-planted. The planter offers 3–5 candidate synonyms per
+   word, and the choice is made to match the **error pairs'** delta quantiles, never the
+   original's. The third model chooses; Kev never does, so its report stays independent.
+6. If both read sets pass, the plan continues from the cache step, unchanged.
+
+`typicality.py` implements the measure and the rule (`readout`, `match`).
