@@ -41,6 +41,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 STUDENT = "Qwen/Qwen2.5-1.5B-Instruct"
 STUDENT_REVISION = "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+# Where the frozen features come from (the plan's addendum): the Qwen student, and a non-Qwen model
+# of a different family, so a Qwen-planted edit can't be recognised by family resemblance alone.
+FEATURE_SOURCES = {
+    "qwen": (STUDENT, STUDENT_REVISION),
+    "llama": ("meta-llama/Llama-3.2-3B-Instruct", "0cb88a4f764b7a12671c53f0838cd831a0843b95"),
+}
 MAX_LENGTH = 1536
 END_MARKER = " [[AUDIT-MARKER]]"
 EDIT_MARKER = " ⁂"  # a rare symbol (asterism), inserted at the edit
@@ -336,10 +342,17 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     sub = parser.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("cache", help="the frozen student's last-layer hidden states for each set")
     c.add_argument("--set", action="append", required=True, help="name=pairs-file")
+    c.add_argument(
+        "--source", choices=sorted(FEATURE_SOURCES), default="qwen", help="the frozen feature model"
+    )
     c.add_argument("--out", type=Path, required=True)
     t = sub.add_parser("train", help="every form, seed and control; scores on every cached set")
     t.add_argument("--cache", type=Path, required=True)
     t.add_argument("--out", type=Path, required=True)
+    cmp = sub.add_parser("compare", help="the same forms on two feature sources (the addendum)")
+    cmp.add_argument("--a", type=Path, required=True, help="scores from one feature source")
+    cmp.add_argument("--b", type=Path, required=True, help="scores from the other")
+    cmp.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("readout", help="the plan's committed readout")
     r.add_argument("--scores", type=Path, required=True)
     r.add_argument(
@@ -353,7 +366,13 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     if args.cmd == "cache":
         from critic_heads_run import cache_sets
 
-        cache_sets(dict(s.split("=", 1) for s in args.set), args.out)
+        cache_sets(dict(s.split("=", 1) for s in args.set), args.out, args.source)
+    elif args.cmd == "compare":
+        from critic_heads_run import compare_sources, load_results
+
+        result = compare_sources(load_results(args.a), load_results(args.b))
+        args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
+        print(json.dumps(result, indent=1))
     elif args.cmd == "train":
         from critic_heads_run import train_all
 

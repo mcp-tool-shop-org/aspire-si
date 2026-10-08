@@ -216,6 +216,21 @@ class TestReadout:
         assert r["E_panel"]["members"] and "judge" in r["E_panel"]
         assert all(not m.startswith("advocate-span") for m in r["E_panel"]["members"])
 
+    def test_two_feature_sources_compare_form_by_form_on_the_same_pairs(self):
+        a, _, _ = self.build(auditor_good=0.9)
+        b, _, _ = self.build(auditor_good=0.6)
+        cmp = run.compare_sources(a, b)
+        assert set(cmp) == {"auditor-mean", "auditor-attention", "advocate-mean", "advocate-span"}
+        aud = cmp["auditor-mean"]["confirm"]
+        assert aud["a_minus_b"] == pytest.approx(0.3, abs=0.02) and aud["ci"][0] > 0
+        assert cmp["advocate-mean"]["judge"]["a_minus_b"] == pytest.approx(0.0)
+        assert set(cmp["auditor-mean"]) == {"confirm", "judge", "second"}
+
+    def test_feature_sources_are_pinned_and_non_qwen_is_a_different_family(self):
+        assert ch.FEATURE_SOURCES["qwen"] == (ch.STUDENT, ch.STUDENT_REVISION)
+        model, revision = ch.FEATURE_SOURCES["llama"]
+        assert model.startswith("meta-llama/") and len(revision) == 40
+
     def test_a_leaking_shuffled_control_stops_every_role_reading(self):
         results, found, pairs = self.build(shuffled_good=0.95)
         r = run.readout(results, found, pairs)

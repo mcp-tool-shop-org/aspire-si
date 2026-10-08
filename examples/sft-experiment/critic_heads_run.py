@@ -14,12 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from critic_heads import (  # noqa: E402
+    FEATURE_SOURCES,
     FORMS,
     HPARAMS,
     MAX_LENGTH,
     SEEDS,
-    STUDENT,
-    STUDENT_REVISION,
     auc,
     boot,
     edit_spans,
@@ -56,23 +55,24 @@ BASELINES = {
 # ---------------------------------------------------------------- cache
 
 
-def cache_sets(sets: dict[str, str], out: Path) -> None:  # pragma: no cover - needs a GPU
+def cache_sets(sets: dict[str, str], out: Path, source: str = "qwen") -> None:  # pragma: no cover - GPU
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
     from aspire.judge import format_exchange, uses_chat_template
 
     out.mkdir(parents=True, exist_ok=True)
-    tok = AutoTokenizer.from_pretrained(STUDENT, revision=STUDENT_REVISION)
+    model_id, revision = FEATURE_SOURCES[source]
+    tok = AutoTokenizer.from_pretrained(model_id, revision=revision)
     model = AutoModelForCausalLM.from_pretrained(
-        STUDENT,
-        revision=STUDENT_REVISION,
+        model_id,
+        revision=revision,
         quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16),
         device_map="cuda",
     )
     model.eval()
     special = not uses_chat_template(tok)
-    report = {"student": STUDENT, "revision": STUDENT_REVISION, "max_length": MAX_LENGTH, "sets": {}}
+    report = {"source": source, "model": model_id, "revision": revision, "max_length": MAX_LENGTH, "sets": {}}
     for name, path in sets.items():
         pairs = load_pairs(Path(path))
         variants = ["plain"] + (["marker-end", "marker-edit"] if name in ("train", "confirm") else [])
@@ -386,6 +386,37 @@ def _panel(members: list[dict]) -> dict:
             "beats_best": diff[1][0] > 0,
         }
     return result
+
+
+def compare_sources(
+    a: list[dict], b: list[dict], sets: tuple[str, ...] = ("confirm", "judge", "second")
+) -> dict:
+    """The same form trained on two feature sources: per set, the seed-mean accuracy of each and the
+    paired, prompt-clustered difference (a − b). Reported with no rule attached (the addendum)."""
+
+    def group(results):
+        by = {}
+        for r in results:
+            if r["control"] == "none":
+                by.setdefault((r["role"], r["pooling"]), []).append(r)
+        return by
+
+    ga, gb = group(a), group(b)
+    out = {}
+    for role, pooling in FORMS:
+        key = (role, pooling)
+        if key not in ga or key not in gb:
+            continue
+        form = {}
+        for name in sets:
+            if not all(name in r["sets"] for r in ga[key] + gb[key]):
+                continue
+            wa, ids = _seed_mean_wins(ga[key], name)
+            wb, _ = _seed_mean_wins(gb[key], name)
+            diff = paired_diff(wa, wb, ids)
+            form[name] = {"a": sum(wa) / len(wa), "b": sum(wb) / len(wb), "a_minus_b": diff[0], "ci": diff[1]}
+        out[f"{role}-{pooling}"] = form
+    return out
 
 
 def load_results(scores: Path) -> list[dict]:  # pragma: no cover - file glue

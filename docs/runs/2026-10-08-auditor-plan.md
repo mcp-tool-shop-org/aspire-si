@@ -239,3 +239,32 @@ case about $4.80) stays an option only if the maintainer asks for it.
    Each piece is tested.
 2. Step 1, the found Auditor on validation. Its reading is recorded before anything is trained.
 3. Steps 2 to 4, then the readout in the order of section 4, and a report PR.
+
+## Addendum: a second feature source, a non-Qwen model (written 2026-10-08, before anything ran)
+
+**Why.** Every critic here reads the hidden states of a Qwen model, and every planted error so far
+came from Qwen2.5-32B, except the second-planter set. A Qwen model may recognise its own family's
+editing style (self-recognition, Panickssery et al. 2024), so the Qwen-on-Qwen-planted cell is the
+most likely to flatter a critic. The maintainer has access to Meta's Llama 3.2 models.
+
+**What changes:**
+- Every form, seed and control above is also trained on the hidden states of
+  **`meta-llama/Llama-3.2-3B-Instruct`**, revision `0cb88a4f764b7a12671c53f0838cd831a0843b95`.
+  - It runs frozen, in 4-bit, with its own chat template, the last layer and the same truncation
+    check.
+  - It is already cached locally.
+- Nothing else changes: same sets, forms, training settings, controls and readout. Each feature
+  source gets its own full readout.
+
+**What is compared**, with no rule attached:
+- For each form, the seed-mean accuracy on Qwen features against Llama features.
+- On validation, the judge set and the second-planter set.
+- A paired, prompt-clustered interval of the difference (`critic_heads.py compare`).
+
+The pattern that would point to family recognition: Qwen features ahead of Llama features on the
+Qwen-planted sets, but not on the gemma-planted set. That is reported as a pattern, not a
+conclusion; the second-planter set is small.
+
+**Cost:** one more cache pass, about 7 GB of VRAM and about 25 minutes, booked with the Publisher
+like the rest. Training the heads twice adds minutes. Still $0.
+
