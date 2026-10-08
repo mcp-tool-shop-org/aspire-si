@@ -264,6 +264,24 @@ Reply with a JSON object only:
 {{"original": "<the sentence, copied exactly from the answer>",
   "edited": "<the same sentence, reworded with the same meaning>"}}"""
 
+# The Skeptic's word-level paraphrase (addendum 2, third planting): the planter names one word and
+# a synonym; code makes the swap. {kind} says which sentence may be chosen.
+WORD_SWAP_REQUEST = """Here is a question and a strong answer to it.
+
+Question: {prompt}
+
+Strong answer: {answer}
+
+Pick one sentence of this answer and one ordinary word in it that can be replaced by a synonym
+without changing what the sentence says. {kind} Don't pick a number, name, quantifier ("all",
+"most", "some"), frequency word ("always", "often"), modal ("can", "must"), negation or comparative.
+The synonym must be a single word of the same grammatical form (same tense, same number).
+
+Reply with a JSON object only:
+{{"sentence": "<the sentence, copied exactly from the answer>",
+  "word": "<the word, exactly as it appears in that sentence>",
+  "synonym": "<the replacement word>"}}"""
+
 # JSON decodes \f, \b, \t and \r in a model's LaTeX (\frac, \beta, \times, \rho) as control
 # characters; put the backslash back before looking for the sentence in the answer.
 _UNESCAPE = {"\f": "\\f", "\b": "\\b", "\t": "\\t", "\r": "\\r"}

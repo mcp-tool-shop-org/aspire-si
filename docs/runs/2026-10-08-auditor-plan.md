@@ -386,6 +386,45 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
     that's a sign of planting bias.
   - The report gives the gates' rejection rates, and how many answers end with no paraphrase pair or
     only one.
+- **A word-level format, added after the gated re-plant and before any head read a paraphrase:**
+  - The gated re-plant matched the size (median 13 against 10 characters on P-confirm, 16 against
+    10 on P-train) but kept too few: 38 pairs on 26 of 78 P-confirm answers, and 124 on 88 of 310
+    P-train answers. The size gate rejected about 41% of attempts; the model kept rewriting more
+    than it was asked to.
+  - **What the error edits look like, measured:** 82% of the confirm set's error edits change one or
+    two words (64% exactly one), as do 83% of the training pairs' and 77% of the judge set's. A
+    one-word swap is the matching paraphrase.
+  - **The new request** asks the same planter for a JSON `{sentence, word, synonym}`: one ordinary
+    word in one sentence, and a single-word synonym of the same grammatical form. Code makes the
+    swap. A reply is rejected, and each reason counted, when:
+    - the sentence isn't found in the answer;
+    - the word isn't found exactly once, as a whole word, in that sentence;
+    - the synonym isn't a single word, or is the same word;
+    - the synonym is an inflection of the word ("find" to "finds"), which is a grammar edit, not a
+      synonym;
+    - the swap changes the word's form (plural or third person, past, progressive), which would
+      break agreement;
+    - either word is a function word (an auxiliary or copula, pronoun, determiner, demonstrative,
+      preposition or conjunction). A synonym swap should hit a content word, and this closes the
+      irregular agreement changes ("is" to "are") that the suffix check can't see;
+    - the word sits inside inline code, a fenced block or `$…$` maths in the answer, where it is an
+      identifier or symbol, not wording.
+  - Code keeps the word's capitalisation and fixes "a"/"an" before it by sound, not by letter ("an
+    hour", "a unique"), so the edited copy carries no article slip as a tell.
+  - The report gives the yield of each arm (answers with two pairs, one, or none) and the full
+    rejection breakdown, so the two-per-answer target is shown, not assumed.
+  - Everything above still applies: the filters, the per-answer size gate, the lexical guard, the
+    meaning check with context, two swaps per answer on different sentences, and the retry tell.
+  - The planter is unchanged per set: the Q4 32B for P-train and P-confirm, gemma4:31b for
+    P-second.
+- **Two arms, and a rule for when they disagree (R&D's review, committed now):**
+  - **Primary: the word-level pairs.** They train the Skeptic heads (P-train) and give the main
+    reading (P-confirm, P-second).
+  - **Secondary: the 38 model-rewritten P-confirm pairs** from the gated re-plant, after the same
+    meaning check. Each head's edit rate is read on them too, with its own CI.
+  - If the two arms' edit-rate CIs **don't overlap** for a head, its reading is **"unresolved
+    (depends on paraphrase method)"**, whatever either arm says alone. Otherwise the primary arm's
+    reading stands, and the secondary is reported beside it.
 
 **On which answers:**
 

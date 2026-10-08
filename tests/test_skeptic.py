@@ -108,6 +108,31 @@ class TestSkepticReadout:
         r = run.skeptic_readout(self.results(0.7), "confirm", "pconfirm", set(), self.PARA_PAIR_IDS)
         assert r["auditor-mean"]["reading"] == "partly an edit detector"
 
+    def test_two_arms_that_disagree_leave_the_reading_unresolved(self):
+        ids2 = [f"{i // 2}-r{i % 2 + 1}" for i in range(80)]
+        results = self.results(0.5)
+        for r, s in zip(results, ch.SEEDS):
+            r["sets"]["prewritten"] = scores(80, 0.95, self.PARA_IDS)
+        r = run.skeptic_readout(
+            results, "confirm", "pconfirm", set(), self.PARA_PAIR_IDS, secondary=("prewritten", set(), ids2)
+        )
+        row = r["auditor-mean"]
+        assert row["arms_disagree"] and row["reading"] == "unresolved (depends on paraphrase method)"
+        assert row["reading_primary_arm"] == "error-specific" and row["secondary_arm"]["pairs"] == 80
+
+    def test_two_arms_that_agree_keep_the_primary_reading(self):
+        ids2 = [f"{i // 2}-r{i % 2 + 1}" for i in range(80)]
+        results = self.results(0.5)
+        for r in results:
+            r["sets"]["prewritten"] = scores(80, 0.5, self.PARA_IDS)
+        dropped = {pid for pid in ids2 if int(pid.split("-")[0]) >= 20}
+        r = run.skeptic_readout(
+            results, "confirm", "pconfirm", set(), self.PARA_PAIR_IDS, secondary=("prewritten", dropped, ids2)
+        )
+        row = r["auditor-mean"]
+        assert not row["arms_disagree"] and row["reading"] == "error-specific"
+        assert row["secondary_arm"]["pairs"] == 40
+
     def test_flagged_paraphrases_are_left_out(self):
         dropped = {pid for pid in self.PARA_PAIR_IDS if pid.endswith("-p2")}
         r = run.skeptic_readout(self.results(0.5), "confirm", "pconfirm", dropped, self.PARA_PAIR_IDS)
@@ -174,6 +199,114 @@ class TestSizeCap:
 
     def test_quantiles(self):
         assert sk.quantiles([1, 2, 3, 4, 5]) == [2, 3, 4] and sk.quantiles([]) is None
+
+
+def swap(sentence, word, synonym):
+    return json.dumps({"sentence": sentence, "word": word, "synonym": synonym})
+
+
+class TestWordSwap:
+    S = "Ice floats on water because it is less dense."
+
+    @pytest.mark.parametrize(
+        "reply, why",
+        [
+            ("no json", "no JSON swap"),
+            (swap("Ice sinks in oil.", "sinks", "drops"), "sentence not in the answer"),
+            (swap(S, "on water", "atop"), "not a single word"),
+            (swap(S, "melts", "thaws"), "word not found exactly once"),
+            (swap(S, "floats", "Floats"), "synonym unchanged"),
+            (swap(S, "floats", "floated"), "synonym is an inflection"),
+            (swap(S, "floats", "drift"), "synonym changes the form"),
+        ],
+    )
+    def test_each_rejection_says_why(self, reply, why):
+        assert sk.apply_swap(reply, ANSWER) == (None, why)
+
+    def test_function_words_are_refused(self):
+        assert sk.apply_swap(swap(self.S, "is", "are"), ANSWER) == (None, "function word")
+        assert sk.apply_swap(swap(self.S, "because", "since"), ANSWER) == (None, "function word")
+
+    @pytest.mark.parametrize(
+        "answer, sentence, word, synonym",
+        [
+            ("Call `sort list` first. Done.", "Call `sort list` first.", "sort", "order"),
+            ("Here $x = speed t$ holds. Done.", "Here $x = speed t$ holds.", "speed", "rate"),
+            ("Run:\n```\nsort list\n```\nDone.", "sort list", "sort", "order"),
+        ],
+    )
+    def test_a_word_inside_code_or_maths_is_refused(self, answer, sentence, word, synonym):
+        assert sk.apply_swap(swap(sentence, word, synonym), answer) == (None, "inside code or maths")
+
+    @pytest.mark.parametrize(
+        "synonym, article",
+        [
+            ("hour", "an"),
+            ("honest", "an"),
+            ("unique", "a"),
+            ("uniform", "a"),
+            ("unimportant", "an"),
+            ("uninformative", "an"),
+            ("useful", "a"),
+            ("usual", "a"),
+            ("euro", "a"),
+            ("ample", "an"),
+        ],
+    )
+    def test_the_article_goes_by_sound(self, synonym, article):
+        answer = "It took a long time."
+        edited, why = sk.apply_swap(swap(answer, "long", synonym), answer)
+        assert why == "ok" and edited == f"It took {article} {synonym} time."
+
+    def test_a_word_twice_in_the_sentence_is_refused(self):
+        answer = "It is what it is."
+        assert sk.apply_swap(swap(answer, "is", "remains"), answer) == (None, "word not found exactly once")
+
+    def test_the_swap_is_made_in_code_with_case_kept(self):
+        edited, why = sk.apply_swap(swap(self.S, "Ice", "frost"), ANSWER)
+        assert why == "ok" and edited == ANSWER.replace("Ice floats", "Frost floats")
+        edited, _ = sk.apply_swap(swap(self.S, "floats", "Drifts"), ANSWER)
+        assert edited == ANSWER.replace("floats", "drifts", 1)
+
+    def test_the_article_follows_the_synonym(self):
+        answer = "It is a large effect. Nothing else."
+        edited, why = sk.apply_swap(swap("It is a large effect.", "large", "immense"), answer)
+        assert why == "ok" and edited.startswith("It is an immense effect.")
+        answer = "It has an enormous effect."
+        edited, _ = sk.apply_swap(swap(answer, "enormous", "big"), answer)
+        assert edited == "It has a big effect."
+
+    def test_planting_two_swaps_on_different_sentences(self):
+        def pick(chat):
+            text = chat.turns[0][1]
+            if "different sentence" in text:
+                return swap("It freezes at 0 C under the same conditions.", "conditions", "circumstances")
+            return swap(self.S, "floats", "drifts")
+
+        items = sk.strong_items(
+            [
+                {
+                    "prompt_id": "t1",
+                    "topic": "x",
+                    "prompt": "Why?",
+                    "strong": ANSWER,
+                    "flawed": ANSWER.replace("less", "more"),
+                }
+            ]
+        )
+        items[0]["error_chars"] = 10
+        pairs, report = sk.plant_swaps(lib.FakeBackend(pick), "sys", items)
+        assert [p["pair_id"] for p in pairs] == ["t1-w1", "t1-w2"]
+        assert pairs[0]["flawed"] == ANSWER.replace("floats", "drifts")
+        assert report["planted"] == 2 and report["attempt_outcomes"] == {"ok": 2}
+
+    def test_planting_counts_the_guard_and_the_same_sentence(self):
+        def pick(chat):
+            return swap(self.S, "less", "fewer")
+
+        items = [{"prompt_id": "t1", "topic": "x", "prompt": "Why?", "strong": ANSWER, "error_chars": 10}]
+        pairs, report = sk.plant_swaps(lib.FakeBackend(pick), "sys", items, rounds=2)
+        assert pairs == [] and report["attempt_outcomes"] == {"lexical guard: comparative": 2}
 
 
 class TestParaphrasePairs:

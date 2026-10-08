@@ -437,6 +437,9 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
     sr.add_argument("--verify", type=Path, required=True, help="skeptic_pairs.py verify output")
     sr.add_argument("--error-set", default="confirm")
     sr.add_argument("--para-set", default="pconfirm")
+    sr.add_argument("--secondary-pairs", type=Path, help="the second paraphrase arm's pairs, in cached order")
+    sr.add_argument("--secondary-verify", type=Path, help="its skeptic_pairs.py verify output")
+    sr.add_argument("--secondary-set", default="prewritten")
     sr.add_argument("--out", type=Path, required=True)
     r = sub.add_parser("readout", help="the plan's committed readout")
     r.add_argument("--scores", type=Path, required=True)
@@ -473,6 +476,14 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
         dropped = set(verified["flagged_changed_meaning"]) | set(verified["unparsed"])
         para = load_pairs(args.pairs)
         ids = [p["pair_id"] for p in para]
+        secondary = None
+        if args.secondary_pairs:
+            v2 = json.loads(args.secondary_verify.read_text(encoding="utf-8"))
+            secondary = (
+                args.secondary_set,
+                set(v2["flagged_changed_meaning"]) | set(v2["unparsed"]),
+                [p["pair_id"] for p in load_pairs(args.secondary_pairs)],
+            )
         result = skeptic_readout(
             load_results(args.scores),
             args.error_set,
@@ -482,6 +493,7 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
             load_results(args.perm) if args.perm else None,
             load_results(args.step4) if args.step4 else None,
             [p.get("attempt_round", 1) for p in para],
+            secondary,
         )
         result = {"dropped_by_meaning_check": sorted(dropped), "forms": result}
         args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")

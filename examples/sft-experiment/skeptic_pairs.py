@@ -34,10 +34,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from build_dataset import plant_errors  # noqa: E402
+from build_dataset import EDIT_TEMPERATURES, plant_errors  # noqa: E402
 from critic_heads import load_pairs  # noqa: E402
 from fresh_pairs import changed_span  # noqa: E402
-from lib import PARAPHRASE_REQUEST, Backend, Chat, extract_json_object, refuse_cloud  # noqa: E402
+from lib import (  # noqa: E402
+    PARAPHRASE_REQUEST,
+    WORD_SWAP_REQUEST,
+    Backend,
+    Chat,
+    _restore_latex,
+    extract_json_object,
+    refuse_cloud,
+)
 from second_planter import edit_stats  # noqa: E402
 
 FIRST = "Choose any one sentence."
@@ -366,6 +374,192 @@ def plant(
     }
 
 
+_SUFFIXES = ("ing", "ed", "es", "s", "er", "est", "ly")
+
+# Words a synonym swap must not touch (R&D's review): auxiliaries and copulas, pronouns, determiners
+# and demonstratives, prepositions and conjunctions. A swap among these changes agreement or the
+# claim's structure ("is" to "are"), not wording.
+FUNCTION_WORDS = {
+    *"is are was were be been being am has have had do does did".split(),
+    *"i you he she it we they me him her us them my your his its our their mine yours".split(),
+    *"this that these those a an the such what which who whom whose".split(),
+    *"of in on at by for with from to into onto over under about after before between".split(),
+    *"through during against among within upon via per across along around behind beyond".split(),
+    *"and or but so yet because although though while if unless since whereas than as".split(),
+}
+
+# The article before a swapped-in word goes by its sound, not its first letter.
+_AN_WORDS = ("hour", "honest", "honour", "honor", "heir")
+_A_PREFIXES = ("unic", "unif", "unio", "uniq", "unit", "univ", "unis", "use", "usu", "eu", "one")
+
+
+def _article(word: str) -> str:
+    w = word.lower()
+    if w.startswith(_AN_WORDS):
+        return "an"
+    if w.startswith(_A_PREFIXES):
+        return "a"
+    return "an" if w[:1] in "aeiou" else "a"
+
+
+def _code_or_maths(answer: str) -> list[tuple[int, int]]:
+    """Character spans of fenced blocks, inline code and $...$ / $$...$$ maths in an answer."""
+    pattern = r"```.*?```|`[^`\n]*`|\$\$.*?\$\$|\$[^$\n]+\$"
+    return [m.span() for m in re.finditer(pattern, answer, flags=re.S)]
+
+
+def _stem(word: str) -> str:
+    w = word.lower()
+    for suffix in _SUFFIXES:
+        if len(w) > len(suffix) + 2 and w.endswith(suffix):
+            return w[: -len(suffix)]
+    return w
+
+
+def _form(word: str) -> str:
+    """A rough grammatical form: plural or third person ("s"), past ("ed"), progressive ("ing")."""
+    w = word.lower()
+    if w.endswith("ing") and len(w) > 4:
+        return "ing"
+    if w.endswith("ed") and len(w) > 3:
+        return "ed"
+    if w.endswith("s") and not w.endswith(("ss", "us", "is", "ous")) and len(w) > 3:
+        return "s"
+    return ""
+
+
+def apply_swap(reply: str, answer: str) -> tuple[str | None, str]:
+    """The answer with the planter's one-word synonym swapped in by code, or None and why not.
+
+    Rejected when: no usable JSON; the sentence isn't in the answer; the word isn't found exactly
+    once as a whole word in that sentence; the synonym isn't a single different word; it is an
+    inflection of the word (a no-op or a grammar edit); either word is a function word; the word
+    sits inside code or maths; or it changes the word's grammatical form (agreement or number).
+    Capitalisation is kept, and "a"/"an" before the word is fixed by sound."""
+    data = extract_json_object(reply)
+    if not data or not all(isinstance(data.get(k), str) for k in ("sentence", "word", "synonym")):
+        return None, "no JSON swap"
+    word, synonym = data["word"].strip(), data["synonym"].strip()
+    found = [x.strip() for x in (data["sentence"], _restore_latex(data["sentence"])) if x.strip() in answer]
+    if not found or not found[0]:
+        return None, "sentence not in the answer"
+    sentence = found[0]
+    if not all(re.fullmatch(r"[A-Za-z][A-Za-z'-]*", w) for w in (word, synonym)):
+        return None, "not a single word"
+    hits = list(re.finditer(rf"(?<![\w-]){re.escape(word)}(?![\w-])", sentence))
+    if len(hits) != 1:
+        return None, "word not found exactly once"
+    if synonym.lower() == word.lower():
+        return None, "synonym unchanged"
+    if word.lower() in FUNCTION_WORDS or synonym.lower() in FUNCTION_WORDS:
+        return None, "function word"
+    at = answer.index(sentence) + hits[0].start()
+    if any(a <= at < b for a, b in _code_or_maths(answer)):
+        return None, "inside code or maths"
+    low, new = word.lower(), synonym.lower()
+    if _stem(new) == _stem(low) or new.startswith(low) or low.startswith(new):
+        return None, "synonym is an inflection"
+    if _form(synonym) != _form(word):
+        return None, "synonym changes the form"
+    synonym = (synonym[:1].upper() if word[:1].isupper() else synonym[:1].lower()) + synonym[1:]
+    start, end = hits[0].span()
+    before = sentence[:start]
+    article = re.search(r"\b(a|an|A|An)\s+$", before)
+    if article:
+        wanted = _article(synonym)
+        if article.group(1)[:1].isupper():
+            wanted = wanted.capitalize()
+        before = before[: article.start(1)] + wanted + before[article.end(1) :]
+    new_sentence = before + synonym + sentence[end:]
+    return answer.replace(sentence, new_sentence, 1), "ok"
+
+
+def plant_swaps(
+    backend: Backend,
+    system: str,
+    items: list[dict],
+    rounds: int = 7,
+    per_answer: int = 2,
+) -> tuple[list[dict], dict]:
+    """Word-level paraphrase pairs: per strong answer, up to `per_answer` one-word synonym swaps on
+    different sentences, applied by code (apply_swap), within the per-answer size cap and past the
+    lexical guard and clean_dataset.py's filters. Each rejection reason is counted."""
+    from clean_dataset import pair_problems
+
+    outcomes: dict[str, int] = {}
+    done: dict[str, list[dict]] = {it["prompt_id"]: [] for it in items}
+
+    def count(reason: str) -> None:
+        key = reason.split(":")[0] if not reason.startswith("lexical guard") else reason
+        outcomes[key] = outcomes.get(key, 0) + 1
+
+    for slot in range(per_answer):
+        tag = f"w{slot + 1}"
+        for r in range(1, rounds + 1):
+            todo = [it for it in items if len(done[it["prompt_id"]]) == slot]
+            if not todo:
+                break
+            chats = []
+            for it in todo:
+                kind = FIRST if slot == 0 else avoid(sentences(done[it["prompt_id"]][0])[0])
+                request = WORD_SWAP_REQUEST.format(prompt=it["prompt"], answer=it["strong"], kind=kind)
+                chats.append(Chat(system, [("user", request)]))
+            replies = backend.generate(chats, 200, EDIT_TEMPERATURES[min(r - 1, len(EDIT_TEMPERATURES) - 1)])
+            for it, reply in zip(todo, replies):
+                edited, why = apply_swap(reply, it["strong"])
+                if edited is None:
+                    count(why)
+                    continue
+                pair = {
+                    "pair_id": f"{it['prompt_id']}-{tag}",
+                    "prompt_id": it["prompt_id"],
+                    "topic": it["topic"],
+                    "prompt": it["prompt"],
+                    "flaw_kind": "none (word swap)",
+                    "method": "word swap",
+                    "attempt_round": r,
+                    "strong": it["strong"],
+                    "flawed": edited,
+                    "strong_truncated": False,
+                    "flawed_truncated": False,
+                    "edit": changed_span(it["strong"], edited),
+                }
+                problems, _ = pair_problems(pair)
+                if problems:
+                    count(problems[0])
+                    continue
+                if edit_chars(pair) > size_cap(it):
+                    count("over the size gate")
+                    continue
+                guard = lexical_guard(pair)
+                if guard:
+                    count(f"lexical guard: {guard}")
+                    continue
+                if slot and overlaps(pair, done[it["prompt_id"]][0]):
+                    count("same sentence as the first swap")
+                    continue
+                count("ok")
+                done[it["prompt_id"]].append(pair)
+    pairs = [p for it in items for p in done[it["prompt_id"]]]
+    attempts = sum(outcomes.values())
+    guard = sum(v for k, v in outcomes.items() if k.startswith("lexical guard"))
+    return pairs, {
+        "format": "word swap: the planter names one word and a synonym; code makes the swap",
+        "strong_answers": len(items),
+        "planted": len(pairs),
+        "answers_with_a_pair": sum(1 for v in done.values() if v),
+        "answers_with_no_pair": sum(1 for v in done.values() if not v),
+        "answers_with_two_pairs": sum(1 for v in done.values() if len(v) >= 2),
+        "dropped_second_on_same_sentence": outcomes.get("same sentence as the first swap", 0),
+        "size_gate": "per answer: 2x its own error edit, at least 8 characters",
+        "rejection_rate": 1 - outcomes.get("ok", 0) / attempts if attempts else 0.0,
+        "size_gate_rejection_rate": outcomes.get("over the size gate", 0) / attempts if attempts else 0.0,
+        "lexical_guard_rejection_rate": guard / attempts if attempts else 0.0,
+        "kept_on_first_round": sum(p["attempt_round"] == 1 for p in pairs),
+        "attempt_outcomes": outcomes,
+    }
+
+
 def quantiles(values: list[float]) -> list[float] | None:
     """The 25th, 50th and 75th percentiles."""
     if not values:
@@ -478,6 +672,9 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon
     a.add_argument("--url", help="an OpenAI-compatible server (llama-server) instead of Ollama")
     a.add_argument("--teacher", default="Qwen/Qwen2.5-32B-Instruct", help="system prompt for --url")
     a.add_argument("--per-answer", type=int, default=2)
+    a.add_argument(
+        "--format", choices=("sentence", "word"), default="word", help="word: a synonym swap made in code"
+    )
     a.add_argument("--out", type=Path, required=True)
     b = sub.add_parser("verify")
     b.add_argument("--out", type=Path, required=True)
@@ -491,6 +688,12 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon
         source = load_pairs(args.pairs)
         # The size gate is per answer: twice that answer's own error edit, at least 8 characters.
         max_chars = None
+
+        def planter(backend, system, items):
+            if args.format == "word":
+                return plant_swaps(backend, system, items, per_answer=args.per_answer)
+            return plant(backend, system, items, per_answer=args.per_answer, max_chars=max_chars)
+
         if args.url:
             from lib import ServerBackend
 
@@ -499,21 +702,13 @@ def main() -> None:  # pragma: no cover - needs the local Ollama daemon
                 args.model,
                 teacher_system_prompt(args.teacher),
             )
-            pairs, report = plant(
-                backend, system, strong_items(source), per_answer=args.per_answer, max_chars=max_chars
-            )
+            pairs, report = planter(backend, system, strong_items(source))
         else:
             refuse_cloud(args.model)
             backend = OllamaBackend(args.model)
             model_id = backend.model_id()
             try:
-                pairs, report = plant(
-                    backend,
-                    teacher_system_prompt(args.model),
-                    strong_items(source),
-                    per_answer=args.per_answer,
-                    max_chars=max_chars,
-                )
+                pairs, report = planter(backend, teacher_system_prompt(args.model), strong_items(source))
             finally:
                 backend.unload()
         planted_ids = {p["prompt_id"] for p in pairs}
