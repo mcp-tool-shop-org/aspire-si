@@ -74,6 +74,12 @@ class TestStatistics:
         d2, _ = ch.two_sample_diff([1.0, 1.0], ["a", "b"], [0.0, 1.0], ["c", "d"])
         assert d2 == pytest.approx(0.5)
 
+    def test_error_overlap(self):
+        same = ch.error_overlap([1, 0, 1, 0], [1, 0, 1, 0])
+        assert same["error_consistency"] == pytest.approx(1.0) and same["double_fault"] == 0.5
+        apart = ch.error_overlap([1, 0, 1, 0], [0, 1, 0, 1])
+        assert apart["error_consistency"] == pytest.approx(-1.0) and apart["double_fault"] == 0.0
+
     def test_auc_and_pearson(self):
         assert ch.auc([3, 4], [1, 2]) == 1.0 and ch.auc([1, 2], [1, 2]) == 0.5
         assert ch.pearson([1, 2, 3], [3, 2, 1]) == pytest.approx(-1.0)
@@ -135,15 +141,13 @@ def fake_result(role, pooling, control, seed, sets):
     return {"role": role, "pooling": pooling, "seed": seed, "control": control, "sets": sets}
 
 
-def scored(n, good: float, ids, rng, role="advocate"):
-    """Strong/flawed scores where the role's preferred side wins with probability `good`."""
+def scored(n, good: float, ids, role="advocate"):
+    """Strong/flawed scores, deterministic: the role's preferred side wins on round(n * good) pairs,
+    spread evenly, with no ties (so the readout's gates never sit near a sampling edge)."""
     strong, flawed = [], []
-    for _ in range(n):
-        hi, lo = (
-            (5 + rng.random(), 4 + rng.random())
-            if rng.random() < good
-            else (4 + rng.random(), 5 + rng.random())
-        )
+    for i in range(n):
+        win = int((i + 1) * good) > int(i * good)
+        hi, lo = (5.5 + i / 1000, 4.5) if win else (4.5, 5.5 + i / 1000)
         s, f = (lo, hi) if role == "auditor" else (hi, lo)
         strong.append(s)
         flawed.append(f)
@@ -152,7 +156,6 @@ def scored(n, good: float, ids, rng, role="advocate"):
 
 class TestReadout:
     def build(self, auditor_good=0.9, shuffled_good=0.5, marker_good=1.0):
-        rng = random.Random(0)
         ids = [i // 2 for i in range(60)]
         jids = [f"j{i // 2}" for i in range(40)]
         sids = [f"s{i // 2}" for i in range(20)]
@@ -167,9 +170,9 @@ class TestReadout:
                         "none",
                         seed,
                         {
-                            "confirm": scored(60, good, ids, rng, role),
-                            "judge": scored(40, good, jids, rng, role),
-                            "second": scored(20, good, sids, rng, role),
+                            "confirm": scored(60, good, ids, role),
+                            "judge": scored(40, good, jids, role),
+                            "second": scored(20, good, sids, role),
                         },
                     )
                 )
@@ -179,20 +182,20 @@ class TestReadout:
                         pooling,
                         "shuffled",
                         seed,
-                        {"confirm": scored(60, shuffled_good, ids, rng, role)},
+                        {"confirm": scored(60, shuffled_good, ids, role)},
                     )
                 )
                 results.append(
                     fake_result(
-                        role, pooling, "marker", seed, {"confirm": scored(60, marker_good, ids, rng, role)}
+                        role, pooling, "marker", seed, {"confirm": scored(60, marker_good, ids, role)}
                     )
                 )
                 results.append(
                     fake_result(
-                        role, pooling, "marker-at-edit", seed, {"confirm": scored(60, 0.7, ids, rng, role)}
+                        role, pooling, "marker-at-edit", seed, {"confirm": scored(60, 0.7, ids, role)}
                     )
                 )
-        found = scored(60, 0.5, ids, rng, "auditor")
+        found = scored(60, 0.5, ids, "auditor")
         pairs = [{"prompt_id": i} for i in ids]
         return results, found, pairs
 
@@ -208,6 +211,8 @@ class TestReadout:
             "advocate-mean vs auditor-mean",
             "advocate-mean vs auditor-attention",
         }
+        overlap = r["D_correlation"]["advocate-mean vs auditor-mean"]
+        assert {"error_consistency", "double_fault"} <= set(overlap)
         assert r["E_panel"]["members"] and "judge" in r["E_panel"]
         assert all(not m.startswith("advocate-span") for m in r["E_panel"]["members"])
 

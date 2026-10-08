@@ -155,6 +155,12 @@ prompt-clustered bootstrap of their difference.
 - Before any panel claim: the correlation, over validation answers, between the Advocate's score and
   the Auditor's flaw score (each form's seed-mean).
 - **Beyond −0.9:** they are one critic counted twice, and the panel row is moot.
+- **Whether their mistakes coincide** is reported beside the correlation:
+  - the chance-adjusted error consistency (Geirhos et al. 2020, the hard-decision form of CAPA,
+    Goel et al. 2025), which is 1 when they miss the same pairs;
+  - the double-fault rate, the share of pairs both miss.
+
+  These are reported with no rule attached. A panel helps only where its members' errors differ.
 - The real difference between the roles should show in pointwise calibration across prompts, so
   both AUCs are compared too.
 

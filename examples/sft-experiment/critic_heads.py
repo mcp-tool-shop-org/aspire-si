@@ -180,6 +180,25 @@ def pearson(x: Sequence[float], y: Sequence[float]) -> float:
     return sum((a - mx) * (b - my) for a, b in zip(x, y)) / (sx * sy) if sx and sy else 0.0
 
 
+def error_overlap(wins_a: Sequence[float], wins_b: Sequence[float]) -> dict:
+    """How much two critics' mistakes coincide, on the same pairs (a win is 1, a tie 0.5, a miss 0).
+
+    error_consistency is the chance-adjusted agreement on right/wrong (Geirhos et al. 2020): the
+    hard-decision form of CAPA (Goel et al. 2025), 1 when they err on the same pairs, 0 when no more
+    than their accuracies predict. double_fault is the share of pairs both get wrong."""
+    right_a = [w > 0.5 for w in wins_a]
+    right_b = [w > 0.5 for w in wins_b]
+    n = len(right_a)
+    acc_a, acc_b = sum(right_a) / n, sum(right_b) / n
+    observed = sum(x == y for x, y in zip(right_a, right_b)) / n
+    expected = acc_a * acc_b + (1 - acc_a) * (1 - acc_b)
+    kappa = (observed - expected) / (1 - expected) if expected < 1 else 1.0
+    return {
+        "error_consistency": kappa,
+        "double_fault": sum((not x) and (not y) for x, y in zip(right_a, right_b)) / n,
+    }
+
+
 def standardise(values: Sequence[float], mean: float, sd: float) -> list[float]:
     return [(v - mean) / sd if sd else 0.0 for v in values]
 

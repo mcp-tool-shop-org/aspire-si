@@ -23,6 +23,7 @@ from critic_heads import (  # noqa: E402
     auc,
     boot,
     edit_spans,
+    error_overlap,
     found_auditor_reading,
     load_pairs,
     pair_wins,
@@ -332,7 +333,13 @@ def readout(
         aud = seed_mean_scores("auditor", pooling)
         if adv and aud:
             c = pearson(adv, aud)
-            corr[f"advocate-mean vs auditor-{pooling}"] = {"pearson": c, "one_critic_counted_twice": c < -0.9}
+            adv_w, _ = _seed_mean_wins(by[("advocate", "mean", "none")], "confirm")
+            aud_w, _ = _seed_mean_wins(by[("auditor", pooling, "none")], "confirm")
+            corr[f"advocate-mean vs auditor-{pooling}"] = {
+                "pearson": c,
+                "one_critic_counted_twice": c < -0.9,
+                **error_overlap(adv_w, aud_w),
+            }
     out["D_correlation"] = corr
 
     # E. Panel over readable, role-ok, non-span members.
