@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -66,3 +67,22 @@ def test_unusable_items_are_left_out_and_wilson_is_sane():
 def test_samples_are_seeded_and_order_free():
     ids = [f"i{k}" for k in range(100)]
     assert be.sample_ids(ids) == be.sample_ids(list(reversed(ids))) and len(be.sample_ids(ids)) == 30
+
+
+def test_identity_records_the_backend_hash(tmp_path):
+    dll = tmp_path / "ggml-cuda.dll"
+    dll.write_bytes(b"backend")
+    who = be.identity("http://127.0.0.1:11492", "0.35.1", "sandbox, CUDA 13.4.1", dll)
+    assert who["url"] == "http://127.0.0.1:11492" and who["build"] == "sandbox, CUDA 13.4.1"
+    assert who["backend_sha256"] == hashlib.sha256(b"backend").hexdigest()
+    assert who["backend_dll"].endswith("ggml-cuda.dll")
+
+
+def test_a_run_refuses_to_resume_on_a_different_server():
+    state = {}
+    a = {"url": "http://127.0.0.1:11434", "build": "13.0", "backend_sha256": "aa"}
+    be.check_server(state, a, "equivalence-13.0-a.json")
+    assert state["server"] == a
+    be.check_server(state, dict(a), "equivalence-13.0-a.json")  # the same server resumes
+    with pytest.raises(SystemExit):
+        be.check_server(state, a | {"backend_sha256": "bb"}, "equivalence-13.0-a.json")
