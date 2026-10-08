@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   30 times as far as ASPIRE does, always in the same direction, and ASPIRE's own drift opposes
   that direction in every seed, with or without the fine-tune.
 
+- Judges read order-averaged ([report](docs/runs/2026-10-08-kev-confirmation.md)): `fresh_pairs.py`
+  plants errors on new prompts, `judge_kev.order_averaged` averages a judge's probabilities over
+  both answer orders, and `judge_logprob.py` reads the teacher's A/B log-probabilities. By single
+  choices every judge tried is position-biased and below 0.75. Order-averaged, on 149 fresh pairs,
+  Kev-4B reaches 0.973 (CI 0.946 to 0.993), Kev-9B 0.859 and the 32B teacher 0.886. Kev-4B,
+  read this way, is the reference judge for later comparisons.
+
 ### Changed
 
 - `aspire.teachers.local`: the scoring request and its parser are module functions
