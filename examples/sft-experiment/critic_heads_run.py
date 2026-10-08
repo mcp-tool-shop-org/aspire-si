@@ -180,11 +180,65 @@ def _save_head(head, out: Path, tag: str, meta: dict) -> None:  # pragma: no cov
     )
 
 
+TRAINERS = ("eager", "fast", "graphs")
+_STACKS: dict = {}
+
+
+def _stacked(feats: list, masks: list, device: str):  # pragma: no cover - needs torch
+    """fast_heads.stack_features for one features list, kept until _free_stacks()."""
+    from fast_heads import stack_features
+
+    key = id(feats)
+    if key not in _STACKS:
+        _STACKS[key] = (feats, stack_features(feats, masks, device))  # hold feats so the id stays valid
+    return _STACKS[key][1]
+
+
+def _free_stacks() -> None:  # pragma: no cover - needs torch
+    """Drop the GPU stacks and return the memory, so the next form doesn't stack on top of it."""
+    import torch
+
+    _STACKS.clear()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+def _train(role, pooling, seed, feats, masks, index, flip, device, trainer):  # pragma: no cover
+    """One head. "eager" is critic_heads.train_head; "fast" and "graphs" are fast_heads (R&D's
+    GPU-resident features; "graphs" adds the CUDA-graph step, which uses AdamW(capturable=True))."""
+    if trainer == "eager":
+        return train_head(role, pooling, seed, feats, masks, index, flip, device)
+    from fast_heads import train_head_fast
+
+    x, m, lengths = _stacked(feats, masks, device)
+    head, _ = train_head_fast(
+        role, pooling, seed, x, m, lengths, index, flip, HPARAMS, graphs=trainer == "graphs"
+    )
+    return head
+
+
+def _score(head, feats, masks, index, device, trainer):  # pragma: no cover
+    if trainer == "eager":
+        return score_set(head, feats, masks, index, device)
+    from fast_heads import score_set_fast
+
+    x, m, lengths = _stacked(feats, masks, device)
+    return score_set_fast(head, x, m, lengths, index)
+
+
+def _trainer_meta(trainer: str) -> dict:
+    return {
+        "trainer": trainer,
+        "optimizer": "AdamW(capturable=True)" if trainer == "graphs" else "AdamW",
+    }
+
+
 def train_all(
     cache: Path,
     out: Path,
     device: str = "cuda",
     extra: tuple[str, ...] = ("pconfirm", "psecond", "prewritten"),
+    trainer: str = "eager",
 ) -> None:  # pragma: no cover - needs a GPU
     out.mkdir(parents=True, exist_ok=True)
     # Per-token states stay in CPU memory: on the widest source (Llama, 3072) every variant together
@@ -214,8 +268,9 @@ def train_all(
                 if control == "shuffled":
                     rng = random.Random(1000 + seed)
                     flip = [rng.random() < 0.5 for _ in pairs]
-                head = train_head(role, pooling, seed, feats, masks, index, flip, device)
+                head = _train(role, pooling, seed, feats, masks, index, flip, device, trainer)
                 result = {
+                    **_trainer_meta(trainer),
                     "head_parameters": sum(p.numel() for p in head.parameters()),
                     "role": role,
                     "pooling": pooling,
@@ -231,8 +286,8 @@ def train_all(
                         continue
                     p2, s2, sp2, mid2 = data
                     f2, m2 = _features(s2, sp2, pooling, mid2)
-                    strong, flawed = score_set(
-                        head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device
+                    strong, flawed = _score(
+                        head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device, trainer
                     )
                     result["sets"][name] = {
                         "prompt_ids": [p["prompt_id"] for p in p2],
@@ -245,10 +300,13 @@ def train_all(
                     head, out, tag, {k: result[k] for k in ("role", "pooling", "seed", "control", "hparams")}
                 )
                 print("trained", tag, flush=True)
+            _free_stacks()
     print("TRAIN-OK", out)
 
 
-def train_perm(cache: Path, out: Path, n: int = 20, device: str = "cuda") -> None:  # pragma: no cover
+def train_perm(
+    cache: Path, out: Path, n: int = 20, device: str = "cuda", trainer: str = "eager"
+) -> None:  # pragma: no cover
     """The balanced permutation null: per form, n heads at seed 42 on exactly-balanced flips."""
     out.mkdir(parents=True, exist_ok=True)
     pairs, states, spans, mids = _load(cache, "train", "plain", "cpu")
@@ -260,9 +318,12 @@ def train_perm(cache: Path, out: Path, n: int = 20, device: str = "cuda") -> Non
         f2, m2 = _features(s2, sp2, pooling, mid2)
         for k in range(n):
             flips = balanced_flips(ids, k)
-            head = train_head(role, pooling, 42, feats, masks, index, flips, device)
-            strong, flawed = score_set(head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device)
+            head = _train(role, pooling, 42, feats, masks, index, flips, device, trainer)
+            strong, flawed = _score(
+                head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device, trainer
+            )
             result = {
+                **_trainer_meta(trainer),
                 "role": role,
                 "pooling": pooling,
                 "seed": 42,
@@ -277,11 +338,14 @@ def train_perm(cache: Path, out: Path, n: int = 20, device: str = "cuda") -> Non
                 },
             }
             (out / f"{role}-{pooling}-perm{k}.json").write_text(json.dumps(result), encoding="utf-8")
+        _free_stacks()
         print("perm", role, pooling, flush=True)
     print("PERM-OK", out)
 
 
-def train_skeptic(cache: Path, out: Path, device: str = "cuda") -> None:  # pragma: no cover
+def train_skeptic(
+    cache: Path, out: Path, device: str = "cuda", trainer: str = "eager"
+) -> None:  # pragma: no cover
     """Skeptic heads: pointwise "has this answer been edited?" on the training-prompt paraphrase pairs
     (original 0, reworded 1), mean and attention pooling, three seeds; scored on P-confirm and on the
     confirm error pairs."""
@@ -291,8 +355,9 @@ def train_skeptic(cache: Path, out: Path, device: str = "cuda") -> None:  # prag
     for pooling in ("mean", "attention"):
         feats, masks = _features(states, spans, pooling, mids)
         for seed in SEEDS:
-            head = train_head("auditor", pooling, seed, feats, masks, index, None, device)
+            head = _train("auditor", pooling, seed, feats, masks, index, None, device, trainer)
             result = {
+                **_trainer_meta(trainer),
                 "role": "skeptic",
                 "pooling": pooling,
                 "seed": seed,
@@ -306,7 +371,9 @@ def train_skeptic(cache: Path, out: Path, device: str = "cuda") -> None:  # prag
                     continue
                 p2, s2, sp2, mid2 = _load(cache, name, "plain", "cpu")
                 f2, m2 = _features(s2, sp2, pooling, mid2)
-                strong, flawed = score_set(head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device)
+                strong, flawed = _score(
+                    head, f2, m2, [(2 * i, 2 * i + 1) for i in range(len(p2))], device, trainer
+                )
                 result["sets"][name] = {
                     "prompt_ids": [p["prompt_id"] for p in p2],
                     "strong": strong,
@@ -317,6 +384,7 @@ def train_skeptic(cache: Path, out: Path, device: str = "cuda") -> None:  # prag
             _save_head(
                 head, out, tag, {k: result[k] for k in ("role", "pooling", "seed", "control", "hparams")}
             )
+        _free_stacks()
     print("SKEPTIC-OK", out)
 
 

@@ -849,6 +849,25 @@ From here, every planter, judge and checker step gets:
   6. Llama-3.1-8B tail Δ for the P-matched baseline.
 - **Cost:** roughly 9–11 card hours for round 1, $0, in stages.
 
+#### Faster head training (from the R&D session's CUDA-graphs bench, rnd 1.1.4.1.5)
+
+- `fast_heads.py` is vendored from rnd (MIT, same author). The train, perm and skeptic commands take
+  `--trainer eager | fast | graphs`; the default stays `eager`.
+  - **fast:** features stacked once on the GPU in fp16, one form at a time, freed between forms,
+    plus batched scoring. Exact against `train_head` (within 1e-4 on CPU tests). Measured on the
+    Llama cache: attention heads about 11× faster, scoring 12–31×.
+  - **graphs:** fast, plus a CUDA-graph training step. Pooled heads are 7.2–7.7× faster and
+    attention 25×.
+    - The graphed step needs `AdamW(capturable=True)`, a slightly different optimizer: in R&D's
+      exact gate one of five forms drifted by 0.052 in score, with 0 decisions flipped. Its outcome
+      gate passed 5 of 5.
+    - So graphed results are labelled with their optimizer and never mixed with eager results in
+      one reading. Any bit-exact comparison uses capturable AdamW on both sides.
+- **Before step 3 uses `fast` or `graphs`, one GPU gate on this repo's caches:**
+  - with dropout 0 and seed 42, `fast` scores within 1e-3 of `eager` on confirm;
+  - with dropout 0.1, three seeds, the seed-mean confirm win rate inside eager's prompt-clustered CI.
+- Every result file records its trainer and optimizer.
+
 ### Step 3: erase and retrain (a diagnostic, no rule)
 
 - Fit LEACE (Belrose et al. 2023; EleutherAI/concept-erasure, MIT) on the training caches. It removes the direction that linearly
