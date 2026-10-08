@@ -315,3 +315,117 @@ attribution is added.
 **Cost:** two more cache passes (Qwen2.5-3B is about 6 GB to download), each about 7 GB of VRAM and
 about 25 minutes, booked with the Publisher like the rest. Training the heads per source adds
 minutes. Still $0.
+
+## Addendum 2: the Skeptic control (written 2026-10-08, after step 4 and before any of its data exists)
+
+**Why.** Step 4's shuffled-label control failed by design ([report](2026-10-08-auditor.md)), so no
+role reading was made. The numbers it left raise a sharper question. In every planted pair, the
+flawed answer is also the *edited* one. A head that learned "this copy was edited" would score near
+1.0 pairwise without knowing anything about errors. That fits the fostered heads' 0.89–0.97 pairwise
+accuracy alongside a pointwise AUC of only about 0.55. The maintainer approved this control. **Until
+it is on main, no role number from step 4 is re-read.**
+
+### The paraphrase pairs
+
+**What a pair is:** a strong answer, and the same answer with **one sentence reworded so that its
+meaning is unchanged** and it introduces no error. In the pair file the original takes the "strong"
+slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on error pairs. Here a
+"win" means ranking the *edited* copy as the worse (Advocate) or as flawed (Auditor).
+
+**How they are planted:**
+- The request mirrors the error edit: change as few words of one sentence as possible (aim for one
+  to three words), keep the meaning exactly, add no error, and don't mark the change. The reply is
+  JSON `{original, edited}`, applied by code.
+- They pass the same filters as error edits: similarity at least 0.90, length change at most 5%, no
+  self-flagging, not unchanged.
+- The planter is **gemma4:31b** (local Ollama 6316f0629137, `"think": false`, `refuse_cloud`), as
+  the maintainer asked.
+- Edit size is reported against the matched error edits, using R&D's difflib method. If the median
+  paraphrase edit differs from its matched error edits by more than 2×, the reading carries that
+  caveat.
+
+**On which answers:**
+
+| Set | Strong answers | Use |
+|---|---|---|
+| **P-train** | the 310 training prompts' strong answers | Training the Skeptic heads only |
+| **P-confirm** | the 78 confirmation prompts' strong answers | The main check: matched against the confirm set's error pairs on the same strong answers |
+| **P-second** | the 24 second-planter prompts' strong answers | The same-generator check: gemma's error edits against gemma's paraphrase edits on the same strong answers |
+
+- No head has trained on a confirmation or second-planter prompt. The P-train pairs train only the
+  new Skeptic heads, never the step 4 heads.
+- One paraphrase is planted per strong answer.
+
+### Rule for the existing heads (committed now)
+
+**Re-scoring.** Every step 4 head (162; the trainer kept no weights) is **retrained from the same
+cache, seed and settings**, and also scored on P-confirm and P-second.
+- Retraining reproduces step 4: each head's validation accuracy must come within 0.02 of its step 4
+  value.
+- Where it doesn't, the report says so, and that head's Skeptic reading uses the retrained head and
+  is labelled as such.
+
+For each form and source, from seed-mean per-pair wins:
+- **edit rate** = how often the head ranks the paraphrased copy as worse (Advocate) or as flawed
+  (Auditor), on P-confirm;
+- **error rate** = its accuracy on the confirm error pairs **built on the same strong answers**;
+- **error margin** = error rate − edit rate, as a paired, prompt-clustered interval over strong
+  answers that have both kinds of pair.
+
+| Result (on P-confirm, prompt-clustered 95% CI) | Reading |
+|---|---|
+| Edit rate CI includes 0.5 | **Error-specific:** it doesn't fire on meaning-preserving edits |
+| Edit rate CI above 0.5, error-margin CI includes 0 | **An edit detector:** it fires on any edit as much as on errors |
+| Edit rate CI above 0.5, error-margin CI above 0 | **Partly an edit detector:** it fires on edits, more on errors. The error margin is its error-specific part. |
+| Edit rate CI below 0.5 | **Prefers the edited copy:** reported, with no reading |
+
+- P-second gets the same table, as the same-generator check, read once.
+- **A role reading for a form needs both:**
+  - "error-specific" or "partly an edit detector" here;
+  - plus the balanced permutation control below.
+
+  Only then are the step 4 role rows (the claims, the panel, transfer) read for that form, and the
+  error margin is reported beside them.
+
+### The balanced permutation control (replaces the failed shuffled control, R&D's design)
+
+Step 4's shuffled control flipped about half the pairs at random. Any imbalance in the flips gave
+the learnable edit direction a sign, so the null came out bimodal. The replacement:
+- **Exactly half the pairs flipped within each prompt.** Prompts with an odd number of pairs leave
+  one pair unflipped, and which one rotates. The flips sum to zero, so a shared edit direction
+  cancels.
+- **20 such permutations per form and source**, each a head trained exactly like the true-label
+  heads (seed 42).
+- **Permutation test** (Ojala & Garriga 2010): p = (1 + number of nulls at or above the true-label
+  head's seed-mean validation accuracy) / 21.
+- **A form passes when p < 0.05.**
+- **Timing caveat:** this control's rule is set after step 4's role numbers were seen. The report
+  labels it so, and gives it no more weight than the Skeptic, which was set before its data.
+
+### The Skeptic heads
+
+- **Training:** pointwise, like the Auditor: "has this answer been edited?" (paraphrased copy = 1,
+  original = 0), on P-train. Mean and attention pooling, three init seeds, each feature source, and
+  the same training settings as every head.
+- **Read on:**
+  - **P-confirm:** pairwise and AUC. It should detect paraphrase edits; if it can't, edits aren't
+    visible to these features, and the Auditor result above needs that caveat.
+  - **The confirm error pairs:** how often it ranks the error copy as edited. If about as often as
+    paraphrases, error pairs carry the same edit signal.
+- **Exploratory, with no rule:** "Auditor flaw score minus Skeptic edit score", standardised on
+  validation, read on the confirm error pairs and P-confirm.
+
+### Later: R&D's correction pairs, a reversed check
+
+The R&D session is labelling natural-error answers and writing a correction for each error. In
+those pairs the *corrected* copy is the edited one, and the original holds the error. An edit
+detector picks the wrong copy systematically; an error detector doesn't. When the file is filed, it
+is read once with the same table, through an addendum of its own.
+
+### Cost
+
+All of it is local on the RTX 5090, at $0, gated through the Publisher:
+1. gemma4:31b paraphrase planting: about 412 strong answers, about 40 minutes.
+2. Cache passes for P-confirm, P-second and P-train: three sources, a few minutes each.
+3. Retraining the 162 heads, plus the Skeptic heads and the 20-permutation nulls: about 30 minutes.
+
