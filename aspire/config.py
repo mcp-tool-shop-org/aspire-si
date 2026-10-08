@@ -52,6 +52,13 @@ class CriticConfig(BaseModel):
     score_output_dim: int = 1  # Single score prediction
     reasoning_embedding_dim: int = 768  # For reasoning alignment
 
+    # Seed for the critic's initial weights only. None (the default) draws them from the run's
+    # seeded stream, as before. When set, the critic is built from its own seeded stream and the
+    # run's stream is left as if no critic had been built, so changing this seed changes the
+    # critic's starting weights and nothing else that the run's seed controls (student adapter
+    # initialisation, data order, student and teacher sampling).
+    init_seed: int | None = None
+
 
 class TeacherConfig(BaseModel):
     """Configuration for teacher model(s)."""

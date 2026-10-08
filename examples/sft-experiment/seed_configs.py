@@ -17,9 +17,14 @@ that seed, with its own output folder; the N prompts are passed to `aspire train
   - without --sft-student: control-local-pN-sSEED, from the base student (step 2);
   - with --sft-student: sft-local-pN-sSEED, from that seed's fine-tune (step 3).
 
+With --critic-seed C (the 2026-10-08 critic-init test) it writes control-local-rSEED-cC: the
+32-prompt control-local config with the run's seed SEED and the critic's initial weights from their
+own seed C (`critic.init_seed`).
+
 Usage: python seed_configs.py --seed 43 --sft-student /workspace/job/sft-s43/merged --out configs-s43
        python seed_configs.py --seed 43 --prompts 128 --out configs-p128
        python seed_configs.py --seed 43 --prompts 128 --sft-student sft-s43/merged --out configs-f
+       python seed_configs.py --seed 42 --critic-seed 43 --out configs-g
 """
 
 from __future__ import annotations
@@ -72,13 +77,33 @@ def prompt_config(seed: int, prompts: int, out: Path, sft_student: str | None = 
     return path
 
 
+def split_config(run_seed: int, critic_seed: int, out: Path) -> Path:
+    """The 32-prompt control-local config with the critic's initial weights seeded on their own."""
+    out.mkdir(parents=True, exist_ok=True)
+    config = yaml.safe_load(SOURCES["control-local"].read_text(encoding="utf-8"))
+    name = f"control-local-r{run_seed}-c{critic_seed}"
+    config["seed"] = run_seed
+    config["experiment_name"] = name
+    config["training"]["output_dir"] = f"outputs/{name}"
+    config.setdefault("critic", {})["init_seed"] = critic_seed
+    path = out / f"{name}.yaml"
+    path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8", newline="\n")
+    return path
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--sft-student", help="that seed's merged fine-tune (all four conditions)")
     parser.add_argument("--prompts", type=int, help="one local-teacher config, named for this prompt count")
+    parser.add_argument(
+        "--critic-seed", type=int, help="control-local at 32 prompts, critic weights seeded apart"
+    )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
+    if args.critic_seed is not None:
+        print(split_config(args.seed, args.critic_seed, args.out))
+        return
     if args.prompts:
         print(prompt_config(args.seed, args.prompts, args.out, args.sft_student))
         return

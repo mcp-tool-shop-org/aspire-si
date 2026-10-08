@@ -634,6 +634,13 @@ class TestSeparableSubset:
         assert result["critics"]["c"]["teacher_separable"] is None
 
 
+def lib_config_ok(config: dict) -> bool:
+    """The config loads as ASPIRE's own config, with the critic seed in place."""
+    from aspire.config import AspireConfig
+
+    return AspireConfig(**config).critic.init_seed == config["critic"]["init_seed"]
+
+
 class TestNextRuns:
     def test_seed_configs_differ_only_where_they_must(self, tmp_path):
         written = seed_configs.seed_configs(43, "/job/sft-s43/merged", tmp_path)
@@ -675,6 +682,23 @@ class TestNextRuns:
             config["training"].pop("output_dir")
             config["student"].pop("model_name_or_path")
         assert ctl == sft  # teacher, schedule and everything else as in step 2
+
+    def test_split_config_seeds_the_critic_apart_and_changes_nothing_else(self, tmp_path):
+        base = yaml.safe_load(seed_configs.SOURCES["control-local"].read_text(encoding="utf-8"))
+        path = seed_configs.split_config(42, 43, tmp_path)
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert path.name == "control-local-r42-c43.yaml"
+        assert config["seed"] == 42 and config["critic"]["init_seed"] == 43
+        assert config["training"]["output_dir"] == "outputs/control-local-r42-c43"
+        assert lib_config_ok(config)
+        for c in (base, config):
+            c.pop("experiment_name", None)
+            c.pop("seed", None)
+            c["training"].pop("output_dir")
+            c.get("critic", {}).pop("init_seed", None)
+            if c.get("critic") == {}:
+                c.pop("critic")
+        assert base == config  # the 32-prompt control otherwise
 
     def test_prompts_are_drawn_from_training_questions_evenly_by_topic(self):
         kept = [(f"topic-{t}", f"question {t}-{i}") for t in range(4) for i in range(40)]

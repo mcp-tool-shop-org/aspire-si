@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   differ between seeds exactly as much (a range of 0.181 at both). The fine-tune comparison waits
   for a critic setup that varies less.
 
+- `critic.init_seed` (config, default unset): seeds the critic's initial weights apart from the
+  run's seed, leaving the run's own random stream (student adapter, data order, sampling) as if no
+  critic had been built. Unset, nothing changes. Used by the critic-init test
+  ([plan](docs/runs/2026-10-08-critic-init-plan.md)).
+
 ### Changed
 
 - `aspire.teachers.local`: the scoring request and its parser are module functions
