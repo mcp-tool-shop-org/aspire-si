@@ -66,7 +66,8 @@ test doesn't separate those.
 Of the 15 critics trained before this test (run 1's 12 and step 2's 3), one has a point estimate
 below 0.5: run 1's seed-44 composite control, 0.425 [0.333, 0.516]. Its interval reaches just above
 0.5, so it is not clearly inverted. It is the one earlier result that could have been an inverted
-draw. All the others have intervals above 0.5 or touching it from above.
+draw. The other 14 have point estimates of 0.50 or more; three of their intervals still include
+0.5 (0.504, 0.512 and 0.543), so they are not clearly better than chance, but none leans the wrong way.
 
 ## What it means
 
