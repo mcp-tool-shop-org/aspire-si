@@ -52,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   critic had been built. Unset, nothing changes. Used by the critic-init test
   ([plan](docs/runs/2026-10-08-critic-init-plan.md)).
 
+- Critics with chosen attributes ([report](docs/runs/2026-10-08-auditor.md)): the critic found by
+  chance that prefers flawed answers reads as an auditor on fresh pairs (0.678 [0.582, 0.763]).
+  Fostered Auditor and Advocate heads on three feature sources trained, but the shuffled-label
+  control failed by design (a learnable edit takes a random sign), so no role reading is made. The
+  descriptive numbers show heads that separate a pair (up to 0.97) but barely flag a lone flawed
+  answer (AUC about 0.55).
+
 ### Changed
 
 - `aspire.teachers.local`: the scoring request and its parser are module functions
