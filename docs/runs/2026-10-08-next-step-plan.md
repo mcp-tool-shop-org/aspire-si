@@ -122,6 +122,11 @@ epochs, batch 1, the same critic.
   both lean heavily on option A, and both separable subsets are too small to re-read the critics on.
 - **So Kev is not a fixed bar.** The step 2 rules below stand on the critics' own numbers.
 
+*Corrected 2026-10-08:* both readings above are of Kev's single choices. Its probabilities averaged
+over the two orders were tested on fresh pairs under a rule committed first
+([report](2026-10-08-kev-confirmation.md)). Kev-4B read that way is confirmed (0.973), and it is
+the pinned reference judge. Step 2's rules are unchanged.
+
 **Step 2 has no fine-tune condition.** It trains only the control-local critic (base student,
 local teacher) at 128 prompts, seeds 42, 43 and 44. It measures how much the critic varies between
 training runs. It does not measure whether a fine-tune helps.

@@ -85,7 +85,7 @@ The bar for a difference was at least 0.10 between conditions, with non-overlapp
 
 | Critic | All 127 pairs (64 prompts) | Teacher-detectable 31 pairs (22 prompts) |
 |---|---|---|
-| Teacher (reference) | 0.594 [0.539, 0.650] | 1.0 by definition |
+| Teacher (reference, whole-number scores) | 0.594 [0.539, 0.650] | 1.0 by definition |
 | control, local teacher | 0.724 [0.633, 0.812] | 0.710 [0.516, 0.882] |
 | fine-tune + ASPIRE, local teacher | 0.638 [0.547, 0.724] | 0.677 [0.484, 0.848] |
 | control, composite teacher | **0.866** [0.787, 0.929] | 0.839 [0.690, 0.964] |
@@ -102,8 +102,11 @@ Checks on the result:
 
 - **Not an artifact of length.** Accuracy is the same whether the strong side is longer, shorter or
   the same length. It is also the same for both flaw kinds and both ways of making a pair.
-- **Why the critics beat the teacher.** The teacher scores in whole numbers and tied 89 of the 127
-  pairs. When it does pick a side, it is right 31 times out of 38 (0.82).
+- **Why the critics beat the teacher's scores.** The teacher scores in whole numbers and tied 89 of
+  the 127 pairs. When it does pick a side, it is right 31 times out of 38 (0.82).
+  *Corrected 2026-10-08:* These are the teacher's whole-number scores. Read from its A/B log-probabilities and averaged over
+  both answer orders, the same model (at Q4) favours the strong answer on 114 of the 127 pairs
+  (0.898), above every critic here. See the [correction](2026-10-08-kev-confirmation.md#corrections).
 - **The critic margins are small but consistent:**
   - each critic's score spreads about 0.6 across answers;
   - the gap between the two sides of a pair averages only 0.004 to 0.016;

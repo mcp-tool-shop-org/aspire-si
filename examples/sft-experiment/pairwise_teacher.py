@@ -6,6 +6,10 @@ question and asked which is better, once with the strong answer first and once w
 A pair is *teacher-separable* when the teacher picks the strong answer both times; asking in both
 orders cancels a preference for whichever answer comes first.
 
+This reads the teacher's text choice only. judge_logprob.py asks the same question and reads its
+A/B log-probabilities, which judge_kev.order_averaged averages over the two orders; read that way
+the teacher separates most pairs (2026-10-08 Kev confirmation report).
+
 Writes --out (pairwise.json): per pair, both picks and whether it is separable, the list of
 separable pair_ids, and counts (pairs, prompts, how often the first answer was picked).
 
