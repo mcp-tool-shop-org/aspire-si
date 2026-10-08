@@ -359,13 +359,33 @@ slot and the paraphrased copy the "flawed" slot, so a head is read exactly as on
     Only 4–7% of pairs kept the same length.
   - That batch is kept on disk as the record and is not used.
   - The re-plant asks for one or two words replaced with synonyms, and nothing else.
-  - A paraphrase whose edit exceeds **twice the median of its file's error edits** is rejected and
-    retried, like a failed filter, for up to 7 attempts per paraphrase.
-  - The report gives the gate's rejection rate, and how many answers end with no paraphrase pair or
+  - **Size gate, per answer:** a paraphrase whose edit exceeds **twice that answer's own error
+    edit** (difflib, with a floor of 8 characters) is rejected and retried, like a failed filter, for
+    up to 7 attempts per paraphrase. The report gives the size quantiles (25/50/75%) of the kept
+    paraphrases against their matched error edits, so the match is shown, not assumed.
+  - **Lexical guard, before any model check** (R&D's review): a swap is rejected if a changed token
+    on either side is any of these:
+    - a quantifier (all, every, each, most, many, some, few, several, none, no, any);
+    - a frequency word (always, usually, often, sometimes, rarely, never);
+    - a modal (can, could, may, might, must, should, will, would, shall);
+    - a negation (not, no, n't, without);
+    - a comparative or superlative;
+    - a digit, a number word or a unit;
+    - a named entity (a capitalised word mid-sentence).
+
+    These are the swaps that flip a claim. Guard rejections are counted separately from size-gate
+    rejections. Run over the first batch as a check, it would have stopped about a third (51 of 140
+    on P-confirm).
+  - **Meaning check with context:** mistral-small:24b sees the two sentences and one sentence of
+    context on each side. It answers two questions: same meaning, and whether any claim was added,
+    removed, strengthened or weakened. A pair is kept only on "same meaning: true" and "claim changed:
+    false"; anything else, unparsed included, is dropped. Its drop rate on the gated set is reported
+    beside the first batch's.
+  - **Retry tell:** each kept pair records the round that produced it. The edit rate is reported
+    separately for first-round and later-round paraphrases. If the later ones read differently,
+    that's a sign of planting bias.
+  - The report gives the gates' rejection rates, and how many answers end with no paraphrase pair or
     only one.
-  - The meaning check's flag rate on the gated set is reported beside the first batch's. One- or
-    two-word synonym swaps are the edits most likely to shift a meaning slightly (e.g. "most" →
-    "all").
 
 **On which answers:**
 

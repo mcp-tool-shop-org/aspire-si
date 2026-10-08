@@ -471,7 +471,8 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
 
         verified = json.loads(args.verify.read_text(encoding="utf-8"))
         dropped = set(verified["flagged_changed_meaning"]) | set(verified["unparsed"])
-        ids = [p["pair_id"] for p in load_pairs(args.pairs)]
+        para = load_pairs(args.pairs)
+        ids = [p["pair_id"] for p in para]
         result = skeptic_readout(
             load_results(args.scores),
             args.error_set,
@@ -480,6 +481,7 @@ def main() -> None:  # pragma: no cover - needs a GPU and the student model
             ids,
             load_results(args.perm) if args.perm else None,
             load_results(args.step4) if args.step4 else None,
+            [p.get("attempt_round", 1) for p in para],
         )
         result = {"dropped_by_meaning_check": sorted(dropped), "forms": result}
         args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
