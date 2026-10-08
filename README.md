@@ -305,7 +305,8 @@ training moved the student. The scalars repeat each epoch, because epochs after 
 cached teacher scores. To see what training changed, `examples/pod-run/probe.py` and `drift.py` send
 the same fixed exchanges through the base student and every epoch checkpoint and write a *drift*
 export with prompt identity removed. ScalarScope's real fixtures are both kinds, and all of them
-cover all three epochs.
+cover all three epochs. Per-step readings vary between seeds of the same condition, because each
+seed samples new dialogues and so new teacher scores; compare conditions on drift exports.
 
 Exports are schema 1.1. `run_metadata` says how to read the steps: `step_axis` is
 `training_step` (the trainer's export, in training order) or `checkpoint_by_item` (probe and drift
