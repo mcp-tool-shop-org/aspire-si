@@ -56,15 +56,23 @@ Qwen-32B at Q4 judges with the same weights that planted the confirmation pairs,
 its own edits, or its own originals. One line in the report says so. It is also read on the 127
 judge pairs (bf16-planted).
 
+The teacher's letter probabilities saturate: on a format check with one old judge pair, p(B) was
+about 2e-8. Where both orders give p(A) near 1, the order-averaged decision rests on very small
+probabilities. The report counts the pairs where both orders' p(A) is above 0.999.
+
 ## Decision rules
 
 | Result on the 80-prompt confirmation set | Reading |
 |---|---|
-| Kev-4B order-averaged accuracy at least 0.85 | Confirmed: Kev-4B, read order-averaged, is the reference judge for later comparisons. It is never read by single choices. |
-| Kev-4B below 0.85 | Not confirmed: step 1's 0.976 does not carry over to fresh pairs, and Kev stays unused as a judge |
-| Qwen-32B at least 0.85 as well | The finding is about reading judges order-averaged, not about Kev. Reported as such. |
+| Kev-4B order-averaged accuracy at least 0.85, and the lower end of its 95% interval at least 0.75 | Confirmed: Kev-4B, read order-averaged, is the reference judge for later comparisons. It is never read by single choices. |
+| Either condition missed | Not confirmed: step 1's 0.976 does not carry over to fresh pairs, and Kev stays unused as a judge |
+| Qwen-32B meets both conditions as well | The finding is about reading judges order-averaged, not about Kev. Reported as such. |
 
-Kev-9B gets the same bar, reported and with no decision attached.
+Kev-9B gets the same two conditions, reported and with no decision attached.
+
+With 80 prompts, a point estimate alone could clear 0.85 by luck, so the interval's lower end must
+also clear 0.75, step 1's bar. This condition was added at review, before any fresh pair was
+judged.
 
 ## Cost and order
 

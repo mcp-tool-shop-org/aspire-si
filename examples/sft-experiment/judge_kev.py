@@ -139,9 +139,10 @@ def order_averaged(rows: list[dict], resamples: int = 2000, seed: int = 0) -> di
     }
 
 
-def confirmation_reading(accuracy: float) -> str:
-    """The confirmation plan's rule: order-averaged accuracy of at least 0.85 on the fresh pairs."""
-    return "confirmed" if accuracy >= 0.85 else "not confirmed"
+def confirmation_reading(accuracy: float, ci_low: float) -> str:
+    """The confirmation plan's rule: order-averaged accuracy of at least 0.85 on the fresh pairs,
+    with the lower end of its prompt-clustered 95% interval at least 0.75."""
+    return "confirmed" if accuracy >= 0.85 and ci_low >= 0.75 else "not confirmed"
 
 
 def reading(result: dict) -> str:
@@ -175,7 +176,9 @@ def main() -> None:  # pragma: no cover - needs a Kev server
     result = judge(http_ask(args.url), pairs) | {"name": args.name}
     result["reading"] = reading(result)
     result["order_averaged"] = order_averaged(result["rows"])
-    result["order_averaged"]["reading"] = confirmation_reading(result["order_averaged"]["accuracy"])
+    result["order_averaged"]["reading"] = confirmation_reading(
+        result["order_averaged"]["accuracy"], result["order_averaged"]["ci"][0]
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
     keys = (

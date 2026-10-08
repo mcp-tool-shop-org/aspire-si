@@ -800,14 +800,15 @@ class TestOrderAveraged:
         assert result["accuracy"] == 1.0 and result["favoured_pairs"] == 6 and result["prompts"] == 3
         assert result["both_orders_strong"] == 0
         assert result["mean_abs_gap"] == pytest.approx(0.1)
-        assert judge_kev.confirmation_reading(result["accuracy"]) == "confirmed"
+        assert judge_kev.confirmation_reading(result["accuracy"], result["ci"][0]) == "confirmed"
 
     def test_ties_count_half_and_the_bar_is_085(self):
         rows = [self.row(0, 0.9, 0.9), self.row(1, 0.9, 0.7)]
         result = judge_kev.order_averaged(rows)
         assert result["accuracy"] == 0.75 and result["favoured_pairs"] == 1
-        assert judge_kev.confirmation_reading(0.85) == "confirmed"
-        assert judge_kev.confirmation_reading(0.849) == "not confirmed"
+        assert judge_kev.confirmation_reading(0.85, 0.75) == "confirmed"
+        assert judge_kev.confirmation_reading(0.849, 0.8) == "not confirmed"
+        assert judge_kev.confirmation_reading(0.9, 0.749) == "not confirmed"
 
     def test_probabilities_are_normalised_over_the_two_options(self):
         row = {

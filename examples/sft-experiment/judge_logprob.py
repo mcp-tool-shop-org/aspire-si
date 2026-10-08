@@ -78,7 +78,7 @@ def judge(ask: Callable[[dict], dict], pairs: list[dict], teacher: str = "Qwen/Q
     ]
     picks_a = [r[key]["choice"] == "A" for r in rows for key in ("strong_first", "strong_second")]
     averaged = order_averaged(rows)
-    averaged["reading"] = confirmation_reading(averaged["accuracy"])
+    averaged["reading"] = confirmation_reading(averaged["accuracy"], averaged["ci"][0])
     return {
         "pairs": len(rows),
         "accuracy": sum(right) / max(len(right), 1),
