@@ -390,7 +390,7 @@ FUNCTION_WORDS = {
 
 # The article before a swapped-in word goes by its sound, not its first letter.
 _AN_WORDS = ("hour", "honest", "honour", "honor", "heir")
-_A_PREFIXES = ("uni", "use", "usu", "eu", "one")
+_A_PREFIXES = ("unic", "unif", "unio", "uniq", "unit", "univ", "unis", "use", "usu", "eu", "one")
 
 
 def _article(word: str) -> str:
