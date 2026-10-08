@@ -72,7 +72,19 @@ def cache_sets(sets: dict[str, str], out: Path, source: str = "qwen") -> None:  
     )
     model.eval()
     special = not uses_chat_template(tok)
-    report = {"source": source, "model": model_id, "revision": revision, "max_length": MAX_LENGTH, "sets": {}}
+    report = {
+        "source": source,
+        "model": model_id,
+        "revision": revision,
+        "quantization": "4-bit (bitsandbytes), bf16 compute",
+        "layer": "last hidden layer",
+        "stored": "per-token states, fp16 (heads pool: mean, attention or edit span)",
+        "max_length": MAX_LENGTH,
+        "license": "Llama 3.2 Community License: internal use; unpublished unless checked and attributed"
+        if source == "llama"
+        else "Apache-2.0",
+        "sets": {},
+    }
     for name, path in sets.items():
         pairs = load_pairs(Path(path))
         variants = ["plain"] + (["marker-end", "marker-edit"] if name in ("train", "confirm") else [])

@@ -265,6 +265,14 @@ The pattern that would point to family recognition: Qwen features ahead of Llama
 Qwen-planted sets, but not on the gemma-planted set. That is reported as a pattern, not a
 conclusion; the second-planter set is small.
 
+**License.** Llama 3.2 is under Meta's Llama 3.2 Community License, not Apache-2.0. Using it here,
+internally, is fine. **Heads trained on its features, and their scores, stay unpublished** unless a
+license check is done first and the license's attribution ("Built with Llama") is carried. That
+covers weights, model cards and released data.
+
+**Recorded with the cache:** source, model, revision, 4-bit loading, layer (last) and pooling inputs
+(per-token states), as for the Qwen source.
+
 **Cost:** one more cache pass, about 7 GB of VRAM and about 25 minutes, booked with the Publisher
 like the rest. Training the heads twice adds minutes. Still $0.
 
