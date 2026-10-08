@@ -1,6 +1,7 @@
 """Tests for the fine-tune-then-ASPIRE experiment scripts (examples/sft-experiment)."""
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -15,9 +16,11 @@ sys.path.insert(0, str(EXPERIMENT))
 import build_dataset  # noqa: E402
 import clean_dataset  # noqa: E402
 import eval_heldout  # noqa: E402
+import fresh_pairs  # noqa: E402
 import host_check  # noqa: E402
 import judge_eval  # noqa: E402
 import judge_kev  # noqa: E402
+import judge_logprob  # noqa: E402
 import lib  # noqa: E402
 import make_prompts  # noqa: E402
 import pairwise_teacher  # noqa: E402
@@ -770,6 +773,153 @@ class TestKevJudge:
             judge_kev.reading({"accuracy": 0.8, "a_rate": 0.7})
             == "accurate but position-biased: report both orders"
         )
+
+
+class TestOrderAveraged:
+    @staticmethod
+    def row(prompt_id, a_strong_first, a_strong_second):
+        """A pair from p(A) in each order: strong first, then strong second."""
+        return {
+            "prompt_id": prompt_id,
+            "strong_first": {
+                "choice": "A" if a_strong_first >= 0.5 else "B",
+                "p_strong": a_strong_first,
+                "p_flawed": 1 - a_strong_first,
+            },
+            "strong_second": {
+                "choice": "A" if a_strong_second >= 0.5 else "B",
+                "p_strong": 1 - a_strong_second,
+                "p_flawed": a_strong_second,
+            },
+        }
+
+    def test_a_biased_judge_with_a_steady_preference_is_favoured_on_every_pair(self):
+        # Always says A, but leans further to A when the strong answer is A.
+        rows = [self.row(k // 2, 0.9, 0.8) for k in range(6)]
+        result = judge_kev.order_averaged(rows)
+        assert result["accuracy"] == 1.0 and result["favoured_pairs"] == 6 and result["prompts"] == 3
+        assert result["both_orders_strong"] == 0
+        assert result["mean_abs_gap"] == pytest.approx(0.1)
+        assert judge_kev.confirmation_reading(result["accuracy"]) == "confirmed"
+
+    def test_ties_count_half_and_the_bar_is_085(self):
+        rows = [self.row(0, 0.9, 0.9), self.row(1, 0.9, 0.7)]
+        result = judge_kev.order_averaged(rows)
+        assert result["accuracy"] == 0.75 and result["favoured_pairs"] == 1
+        assert judge_kev.confirmation_reading(0.85) == "confirmed"
+        assert judge_kev.confirmation_reading(0.849) == "not confirmed"
+
+    def test_probabilities_are_normalised_over_the_two_options(self):
+        row = {
+            "prompt_id": 0,
+            "strong_first": {"choice": "A", "p_strong": 0.375, "p_flawed": 0.125},
+            "strong_second": {"choice": "A", "p_strong": 0.125, "p_flawed": 0.375},
+        }
+        assert judge_kev.order_averaged([row])["accuracy"] == 0.5
+
+    def test_the_interval_resamples_whole_prompts(self):
+        rows = [self.row(0, 0.9, 0.8)] * 5 + [self.row(1, 0.8, 0.9)]
+        lo, hi = judge_kev.order_averaged(rows)["ci"]
+        assert lo < 0.2 and hi == 1.0
+
+
+class TestLogprobJudge:
+    PAIRS = TestKevJudge.PAIRS
+
+    @staticmethod
+    def server(lean):
+        """A fake llama-server: p(A) = lean(request text), returned as top log-probabilities."""
+
+        def ask(body):
+            p_a = lean(body["messages"][1]["content"])
+            top = [
+                {"token": "A", "logprob": math.log(p_a)},
+                {"token": " B", "logprob": math.log(1 - p_a)},
+                {"token": "The", "logprob": math.log(1e-4)},
+            ]
+            return {"choices": [{"logprobs": {"content": [{"top_logprobs": top}]}}]}
+
+        return ask
+
+    def test_reads_letters_from_the_top_logprobs(self):
+        response = self.server(lambda text: 0.7)({"messages": [{}, {"content": ""}]})
+        assert judge_logprob.letter_probs(response) == pytest.approx((0.7, 0.3))
+
+    def test_a_judge_that_always_says_a_can_still_prefer_the_strong_answer(self):
+        def lean(text):
+            return 0.95 if "Answer A:\ngood" in text else 0.85
+
+        result = judge_logprob.judge(self.server(lean), self.PAIRS)
+        assert (result["accuracy"], result["a_rate"]) == (0.5, 1.0)
+        assert result["order_averaged"]["accuracy"] == 1.0
+        assert result["order_averaged"]["reading"] == "confirmed"
+
+    def test_no_letter_in_the_top_logprobs_is_a_tie(self):
+        top = [{"token": "x", "logprob": 0.0}]
+        response = {"choices": [{"logprobs": {"content": [{"top_logprobs": top}]}}]}
+        assert judge_logprob.letter_probs(response) == (0.5, 0.5)
+
+
+class TestFreshPairs:
+    @staticmethod
+    def train_rows():
+        rows = []
+        for k in range(12):
+            topic = ["alpha", "beta", "gamma"][k % 3]
+            answer = f"Sentence one about {k}. The value is {k}. Sentence three closes {k}."
+            for kind in ("answer", "revision"):
+                rows.append(
+                    {
+                        "topic": topic,
+                        "kind": kind,
+                        "truncated": k == 11,
+                        "messages": [
+                            {"role": "system", "content": "s"},
+                            {"role": "user", "content": f"Question {k}?"},
+                            {"role": "assistant", "content": answer},
+                        ],
+                    }
+                )
+        return rows
+
+    def test_strong_answers_keep_untruncated_answer_rows(self):
+        items = fresh_pairs.strong_answers(self.train_rows())
+        assert len(items) == 11 and items[0]["prompt_id"] == "t0" and items[3]["prompt"] == "Question 3?"
+
+    def test_split_is_disjoint_and_balanced_by_topic(self):
+        items = fresh_pairs.strong_answers(self.train_rows())
+        confirm, train = fresh_pairs.split(items, 3)
+        assert len(confirm) == 3 and not set(confirm) & set(train)
+        assert sorted(confirm + train) == sorted(i["prompt_id"] for i in items)
+        topics = {i["prompt_id"]: i["topic"] for i in items}
+        assert sorted(topics[c] for c in confirm) == ["alpha", "beta", "gamma"]
+
+    def test_changed_span_is_the_edit(self):
+        span = fresh_pairs.changed_span("The value is 7. Done.", "The value is 9. Done.")
+        assert span == {"original": "7", "edited": "9"}
+
+    def test_build_plants_and_splits_pairs(self, tmp_path):
+        def answer(chat):
+            value = re.search(r"The value is (\d+)\.", chat.turns[0][1]).group(1)
+            return json.dumps(
+                {"original": f"The value is {value}.", "edited": f"The value is {int(value) + 1}."}
+            )
+
+        items = fresh_pairs.strong_answers(self.train_rows())
+        backend = lib.FakeBackend(answer)
+        result = fresh_pairs.build(backend, "Qwen/Qwen2.5-32B-Instruct", items, 3, planted_by="q4")
+        report = result["report"]
+        assert report["planted_by"] == "q4" and report["slots"] == 22
+        assert report["confirm"]["pairs"] + report["train"]["pairs"] == report["planted"] > 0
+        confirm_ids = set(result["split"]["confirm"])
+        assert all(p["prompt_id"] in confirm_ids for p in result["pairs"]["confirm"])
+        assert not any(p["prompt_id"] in confirm_ids for p in result["pairs"]["train"])
+        fresh_pairs.write(result, tmp_path)
+        train = lib.read_jsonl(tmp_path / "train_pairs.jsonl")
+        keys = {"pair_id", "prompt_id", "topic", "prompt", "strong", "flawed", "flaw_kind", "edit"}
+        assert train and set(train[0]) == keys
+        confirm = json.loads((tmp_path / "confirm_set.json").read_text(encoding="utf-8"))
+        assert all(c["strong"] != c["flawed"] for c in confirm)
 
 
 class TestProbe:
