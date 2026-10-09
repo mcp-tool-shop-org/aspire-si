@@ -159,3 +159,9 @@ class TestGrammar:
         v = ms.parse_muse("x\nVERDICT: wrong\nGRAMMATICAL: yes\nIDIOMATIC: no")
         assert v["grammatical"] is True and v["idiomatic"] is False
         assert ms.parse_muse("x\nVERDICT: wrong\nGRAMMATICAL: yes")["idiomatic"] is None
+
+
+def test_one_set_missing_escalates_every_set():
+    stands = {"prescreen_stands": True}
+    assert not ms.escalate({"pconfirm": stands, "psecond": stands})
+    assert ms.escalate({"pconfirm": {"prescreen_stands": False}, "psecond": stands})

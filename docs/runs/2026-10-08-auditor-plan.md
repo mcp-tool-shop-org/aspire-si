@@ -826,6 +826,10 @@ From here, every planter, judge and checker step gets:
     `gemma_v1`, and the summary counts only the new ones.
   - The pre-screen rule then applies to the new verdicts: any miss in the 10% sample means gemma
     checks every pair, which the stage now does by itself.
+  - The escalation is for the whole pass, not per set. The first full pass escalated per set, so
+    P-second, whose sample was only 4 pairs with no miss, wasn't escalated. A 4-pair sample bounds
+    nothing (3/4). Its other 37 pairs are checked on the same CUDA 13.0 build before the equivalence
+    sample is drawn.
   - **A fourth sensitivity row (R&D's review):** step 1's baseline and step 4's band are also
     reported with the stricter grammar-and-idiom gate (`drop_if_idiom_gated`), beside AND, union and
     gemma-alone. Anyone can then see whether the conclusions move under the stricter gate.
