@@ -572,17 +572,66 @@ class TestSftDistillMechanics:
             {"messages": [{"role": "user", "content": "Q" * n}, {"role": "assistant", "content": "a"}]}
             for n in (1, 2, 80)
         ]
-        examples, dropped = sft.prepare_examples(
+        examples, dropped, unlabelled = sft.prepare_examples(
             FakeTokenizer(), rows, 40, overlong="drop", max_dropped_fraction=0.5
         )
-        assert (len(examples), dropped) == (2, 1)
+        assert (len(examples), dropped, unlabelled) == (2, 1, 0)
         with pytest.raises(ValueError, match="1 of 3 items exceed 40 tokens"):
             sft.prepare_examples(FakeTokenizer(), rows, 40, overlong="drop", max_dropped_fraction=0.01)
 
     def test_truncation_never_counts_as_dropped(self):
         rows = [{"messages": [{"role": "user", "content": "Q" * 80}, {"role": "assistant", "content": "a"}]}]
-        examples, dropped = sft.prepare_examples(FakeTokenizer(), rows, 40, max_dropped_fraction=0.0)
-        assert (len(examples), dropped) == (1, 0)
+        examples, dropped, unlabelled = sft.prepare_examples(
+            FakeTokenizer(), rows, 40, max_dropped_fraction=0.0
+        )
+        assert (len(examples), dropped, unlabelled) == (1, 0, 0)
+
+    def test_examples_left_without_labels_are_counted(self):
+        # Truncating from the left can't strip the end, so a chat with no assistant turn stands in.
+        rows = [{"messages": [{"role": "user", "content": "Q"}]}, {"messages": self.CHAT}]
+        examples, dropped, unlabelled = sft.prepare_examples(FakeTokenizer(), rows, 10_000)
+        assert (len(examples), dropped, unlabelled) == (1, 0, 1)
+
+    def test_a_generation_prompt_that_is_not_a_prefix_raises_naming_the_item(self):
+        class Mismatched(FakeTokenizer):
+            def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=False):
+                out = super().apply_chat_template(messages, tokenize, add_generation_prompt)
+                if add_generation_prompt:  # the template's generation prompt differs from its turns
+                    out = {"input_ids": [*out["input_ids"], ord("!")]}
+                return out
+
+        rows = [{"id": "ladder-7", "messages": self.CHAT}]
+        with pytest.raises(
+            ValueError, match="item ladder-7: assistant turn 1: the generation prompt is not a prefix"
+        ):
+            sft.prepare_examples(Mismatched(), rows, 10_000)
+
+    def test_a_turn_rendered_differently_inside_the_chat_raises_naming_the_item(self):
+        # Qwen3 with thinking off: an earlier assistant turn loses its empty think block in the whole
+        # chat, so its labels would land a few tokens off.
+        chat = [*self.CHAT, {"role": "user", "content": "C"}, {"role": "assistant", "content": "A2"}]
+        rows = [{"messages": self.CHAT}, {"id": "ladder-8", "messages": chat}]
+        with pytest.raises(ValueError, match="item ladder-8: assistant turn 1: the turn renders differently"):
+            sft.prepare_examples(QwenLikeTokenizer(), rows, 10_000, {"enable_thinking": False})
+
+    def test_the_real_qwen3_template_starts_the_labels_at_the_answer(self):
+        transformers = pytest.importorskip("transformers")
+        try:
+            tok = transformers.AutoTokenizer.from_pretrained(
+                "Qwen/Qwen3-1.7B", revision="70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+            )
+        except Exception as err:  # offline, or no access: the fake tokenizer tests still hold
+            pytest.skip(f"Qwen3-1.7B tokenizer unavailable: {err}")
+        answer = '{"reasoning": "v - 19 = -3", "verdict": "unsupported"}'
+        chat = [
+            {"role": "user", "content": "Is the claim supported?"},
+            {"role": "assistant", "content": answer},
+        ]
+        example = sft.tokenize_example(tok, chat, 10_000, {"enable_thinking": False})
+        labelled = tok.decode(
+            [i for i, label in zip(example["input_ids"], example["labels"]) if label != sft.IGNORE]
+        )
+        assert labelled.startswith(answer) and "<think>" not in labelled
 
     def test_sha256_of_a_directory_hashes_its_safetensors_in_name_order(self, tmp_path):
         import hashlib

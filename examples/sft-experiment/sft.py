@@ -58,6 +58,11 @@ def tokenize_example(
     so the labels follow the tokenizer's own template. `template_kwargs` go to every render (with
     Qwen3's enable_thinking=False the empty think block lands in the prompt, not in the labels).
     An over-long chat is truncated from the left ("truncate") or returned as None ("drop").
+
+    The span assumes two token prefixes: the render up to the turn begins the render through it, and
+    that begins the whole chat's render. If a template (or a BPE merge across a boundary) breaks
+    either, the labels would shift silently, so it raises ValueError instead. (Qwen3 with thinking
+    off breaks the second on multi-turn chats: earlier turns lose their empty think block.)
     """
     kw = template_kwargs or {}
     ids = _chat_ids(tokenizer, messages, **kw)
@@ -67,6 +72,12 @@ def tokenize_example(
             continue
         before = _chat_ids(tokenizer, messages[:i], add_generation_prompt=True, **kw)
         through = _chat_ids(tokenizer, messages[: i + 1], **kw)
+        if through[: len(before)] != before:
+            raise ValueError(
+                f"assistant turn {i}: the generation prompt is not a prefix of the rendered turn"
+            )
+        if ids[: len(through)] != through:
+            raise ValueError(f"assistant turn {i}: the turn renders differently inside the whole chat")
         for j in range(len(before), min(len(through), len(ids))):
             labels[j] = ids[j]
     if len(ids) > max_length:
@@ -83,25 +94,31 @@ def prepare_examples(
     template_kwargs: dict[str, Any] | None = None,
     overlong: str = "truncate",
     max_dropped_fraction: float = 1.0,
-) -> tuple[list[dict[str, list[int]]], int]:
-    """Tokenized examples and the number dropped as over-long.
+) -> tuple[list[dict[str, list[int]]], int, int]:
+    """Tokenized examples, the number dropped as over-long, and the number left with no labels.
 
     Stops (ValueError) when the dropped share is above `max_dropped_fraction`: the limit is changed by
-    an amendment, not on the spot.
+    an amendment, not on the spot. With "drop" the no-label count should be 0; anything else points
+    at the template. A prefix failure names the item (its "id", else its index).
     """
-    out, dropped = [], 0
-    for r in rows:
-        e = tokenize_example(tokenizer, r["messages"], max_length, template_kwargs, overlong)
+    out, dropped, unlabelled = [], 0, 0
+    for n, r in enumerate(rows):
+        try:
+            e = tokenize_example(tokenizer, r["messages"], max_length, template_kwargs, overlong)
+        except ValueError as err:
+            raise ValueError(f"item {r.get('id', n)}: {err}") from err
         if e is None:
             dropped += 1
         elif any(label != IGNORE for label in e["labels"]):
             out.append(e)
+        else:
+            unlabelled += 1
     if rows and dropped / len(rows) > max_dropped_fraction:
         raise ValueError(
             f"{dropped} of {len(rows)} items exceed {max_length} tokens, "
             f"over the {max_dropped_fraction:.0%} stop"
         )
-    return out, dropped
+    return out, dropped, unlabelled
 
 
 def sha256_of(path: Path) -> str:
@@ -146,10 +163,13 @@ def train(args: argparse.Namespace) -> dict:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     rows = read_jsonl(args.data)
-    examples, dropped = prepare_examples(
+    examples, dropped, unlabelled = prepare_examples(
         tokenizer, rows, args.max_length, args.chat_template_kwargs, args.overlong, args.max_dropped_fraction
     )
-    print(f"examples {len(examples)} of {len(rows)}, dropped as over-long {dropped}", flush=True)
+    print(
+        f"examples {len(examples)} of {len(rows)}, dropped as over-long {dropped}, no labels {unlabelled}",
+        flush=True,
+    )
 
     quantized = args.device == "cuda" and not args.no_4bit
     model = AutoModelForCausalLM.from_pretrained(
@@ -224,6 +244,7 @@ def train(args: argparse.Namespace) -> dict:
         "examples": len(examples),
         "items": len(rows),
         "dropped_overlong": dropped,
+        "unlabelled": unlabelled,
         "max_length": args.max_length,
         "epochs": args.epochs,
         "steps": steps_per_epoch * args.epochs,
