@@ -890,6 +890,46 @@ From here, every planter, judge and checker step gets:
     95% Wilson interval about [0.64, 0.93]. That was on disagreements only, chosen because the
     judges differed. It makes gemma the better tie-breaker, not a calibrated judge overall, and is
     no licence to change the AND rule later.
+- **Stage 2 round 1 readout (2026-10-08, 22:18–22:34, from 8b95b9e, llama.cpp build 11433 with the
+  CUDA 13.4 runtime; 780 planter calls in 16 minutes):**
+
+  | | Applied | Sentence not found | Other rejects | Edit words (quartiles) | Edit chars (quartiles) | In the 2–8 word brief |
+  |---|---|---|---|---|---|---|
+  | Errors | 345 / 390 | 42 | 2 no JSON, 1 unchanged | 1 / 1 / 2 | 4 / 7 / 13 | 35% |
+  | Rewrites | 348 / 390 | 39 | 3 self-flagging | 3 / 5 / 8 | 20 / 34 / 50 | 68% |
+
+  - The planter wrote single-word errors despite the brief, so the two sides are about 5× apart in
+    characters at the median.
+  - Before any judge or the tail caliper, 58 of 78 answers have an error and a rewrite within the
+    1.5× size ratio. Nothing is loosened; the matched count is reported as it comes.
+  - **"Sentence not found"** (error side): 26 answers, at most 5 each, with no strong format cluster
+    (code in 15% of affected answers against 9% of all, maths 19% against 12%). The causes:
+    - 34 the planter re-typed the sentence rather than copying it (dropped `**`, capitalised list
+      fragments, changed " to ', merged across line breaks);
+    - 5 started right, then diverged;
+    - 3 had LaTeX backslashes that broke the JSON.
+  - Round 1 isn't rerun; the not-found candidates simply drop out.
+- **Round 2 changes, fixed now, before round 2 runs (the R&D session's review, with the
+  Publisher):**
+  - **Copy exactly:** both planter briefs say "copy the sentence character for character,
+    including `**`, quotes and capitals". This is the main cure.
+  - **A tolerant locator, as a guarded backstop:**
+    - (a) the normalised match (`**` removed, quotes unified, whitespace collapsed, first letter's
+      case ignored) must be unique in the answer, or the candidate is rejected;
+    - (b) the original span and the replacement are compared under the same normalisation. If they
+      differ only in what was normalised away, it's a no-op and is rejected;
+    - (c) the original span's markup (`**`, quote style, leading case) is carried into the
+      replacement. Any candidate whose raw diff still touches markup outside the edited words is
+      rejected, so markup can't become a cue;
+    - (d) every candidate is flagged `located: exact | tolerant`, both sides are treated
+      identically, and results are reported by that flag.
+  - **Sizes: rewrites are pulled smaller, errors are left as they are.** Single-word errors (a
+    number, a negation, a quantifier) are the realistic, hard ones, and forcing larger errors makes
+    them easier to spot. The round 2 rewrite brief asks for **1–3 words**, the same move as #51 made
+    for the word swaps. The error brief is unchanged. The size gate is unchanged; only the planting
+    brief moves.
+  - Reported: each side's size distribution before and after the caliper, and the pair survival
+    rate (58/78 before the judges in round 1), so any selection the caliper makes is visible.
 - **Order:** each stage is finished and reviewed before the next.
   1. the grammar pass on the word swaps;
   2. proposals, both sides, on the Q4 32B;
