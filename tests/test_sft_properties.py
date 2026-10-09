@@ -5,8 +5,11 @@ import sys
 from pathlib import Path
 
 import pytest
-from hypothesis import given
-from hypothesis import strategies as st
+
+pytest.importorskip("hypothesis")  # a dev dependency; without it these skip instead of erroring
+
+from hypothesis import given  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples" / "sft-experiment"))
 
