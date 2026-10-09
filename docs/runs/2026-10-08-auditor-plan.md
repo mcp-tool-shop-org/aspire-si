@@ -960,3 +960,103 @@ From here, every planter, judge and checker step gets:
 - The maintainer's decisions asked for here:
   - approve the addendum;
   - go or no-go on the 16 GB Llama-3.1-8B download for the second scorer.
+
+## Addendum 5: spending the faster judges on rigor (written 2026-10-09, during stage 3, before any extra verdict exists; R&D session's design; for the maintainer's sign-off)
+
+**Why now.** The step 2 stages measured the judges far faster on these narrow tasks than estimated.
+On the 5090 with CUDA 13.4:
+- gemma4 with thinking: 10–13 s per item (grammar, meaning, error confirmation);
+- muse-glimmer: about 13 s per item, not the 70 s measured on R&D's screens;
+- the Q4 32B planter: 780 proposals in 16 minutes.
+
+The maintainer asked that the freed budget go to more research, built out properly with R&D.
+
+**The principle:** cheaper runs must not mean more forking paths. Every extra analysis below has its
+decision rule written here before it runs, and is reported whatever it shows. Speed buys rigor, not
+looser gates.
+
+### A. Inside step 2, stage 3 (error confirmation)
+
+1. **Muse on all 345 error candidates.** Stage 3 ran muse only on gemma's "wrong" calls (306) plus
+   a seed-0 15% sample of gemma's 39 "not wrong". The remaining 33 calls (about 8 minutes) complete
+   the 2×2.
+   - **Rule, fixed before those verdicts exist:**
+     - both judges "wrong" (and grammatical) = **confirmed**;
+     - both "not wrong" = **rejected**;
+     - a split (one "wrong", one "not wrong" or "unsure") goes to B.
+   - **This changes a committed rule, so it needs the maintainer's sign-off.** Addendum 4's rule was
+     "kept only if both say wrong", so a split was always rejected. Under this rule a split can be
+     confirmed by a third judge.
+   - The report gives both: the AND rule's kept set (as committed) and this rule's. The AND set is
+     primary unless the maintainer approves the change. A matched set built under one rule is never
+     mixed with the other.
+   - Also reported: whether any decision already taken from the 15% sample would flip with the full
+     2×2. If one would, it's reported as a finding, not quietly patched.
+2. **Inventory of every cut made for time:**
+
+   | Cut | Undo | Would undoing change a decision already taken? |
+   |---|---|---|
+   | Muse cascade (gemma's "wrong" plus 15% of the rest) | yes, A1 | Under AND, no (a split was rejected either way). Under A1's rule, yes, for splits. Hence the sign-off |
+   | Grammar pre-screen with a 10% sample | already undone (gemma checked every pair) | no |
+   | Kev whole-set check on P-confirm only, not P-second or P-train | no | no: Kev is reported, not gated (addendum 3) |
+   | One typicality scorer (Phi-3) | yes, E1 | no for selection (Phi-3 stays the selector); it adds a reading |
+   | 30 items per task in the build equivalence | no | no: it passed 30/30 with a 30/30 noise floor |
+
+   Nothing else in addendum 4 was cut for time. The rewrite checks already run both judges on every
+   item.
+
+### B. A third judge, only on split cells
+
+- The judge must be of a family that is neither gemma nor muse. **mistral-small:24b** is chosen: it
+  already judges the rewrite side with the reasoning-first prompt, and it's Apache-2.0.
+  - qwen3:14b is the alternative, but it shares the planter's family, so it isn't used for the error
+    side.
+  - R&D's verifier calibration tonight measures both on grounded and reasoning claims. That's
+    context, not a substitute.
+- **Rule, fixed now:** on a split, the majority of the three decides. Anything still undecided
+  (the third says "unsure", or a reply is truncated or unparsed) is excluded and counted.
+- **Reported:** the split rate per 2×2 cell. A high split rate is itself a finding about the error
+  set.
+
+### C. The steps 1–2 review gate, as addendum 4 says
+
+Nothing reads a head before it.
+
+### D. Step 2 round 2, after its code review
+
+Guards (a)–(d) and the 1–3-word rewrite brief (see the round 2 changes above).
+
+### E. After the steps 1–2 review, in this order
+
+1. **The Llama-3.1-8B second scorer for the P-matched baseline.**
+   - **Pre-committed reading:** if the 8B scorer's surprisal-only baseline AUC on P-matched lies
+     within ±0.05 of Phi-3's, and both are near 0.5 (95% CI including 0.5), the matching held for
+     surprisal beyond the selector model.
+   - If the 8B's AUC is above 0.5 with a CI excluding it, the match is model-specific. The P-matched
+     reading then carries that caveat: a critic must beat the 8B baseline, not 0.5.
+2. **Step 3, LEACE erase-and-retrain, after its GPU gate on these caches.**
+   - **"Erased":** a linear probe for tail Δ on the erased features reaches R² ≤ 0.05 on held-out
+     answers (from its value before erasure).
+   - **"Load-bearing":** retrained heads lose more than 0.05 in confirm win rate (seed mean over
+     42–44), and the 95% CI on the difference excludes 0.
+   - Reported across seeds 42–44, never from one seed. It stays a diagnostic with no pass or fail on
+     the heads.
+3. **The reversed correction pairs** (R&D's natural errors, with the corrected copy as the edited
+   one).
+   - **Pre-committed prediction:** heads that detect *errors* score the corrected (edited) copy as
+     better; heads that detect *change* score the edited copy as worse.
+   - A head's direction counts as read when its win rate's 95% CI excludes 0.5. Otherwise the
+     result is "undecided".
+
+### F. Standing additions
+
+- Any head-level claim rests on at least three seeds.
+- A confirm set grows only where a CI is too wide to decide something. The needed CI width is
+  stated first, the size is computed from it, and no set is grown after seeing a result.
+
+### Scheduling
+
+R&D's verifier calibration has the card overnight, model by model with 15-minute rests. These runs
+queue through the Publisher after it. A1 (about 8 minutes) can go first if the Publisher fits it
+before R&D's smoke run, but only after the maintainer has signed the A1 rule change, or else it is
+run and reported under the AND rule only.
