@@ -14,6 +14,17 @@ import torch
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Property tests (Hypothesis): a fixed example budget, and every failure prints its reproduce blob.
+# Each run draws new examples, so a failure is replayed from the blob, not from luck. The local
+# example database (.hypothesis/) is gitignored.
+try:
+    from hypothesis import settings as _hypothesis_settings
+
+    _hypothesis_settings.register_profile("aspire", max_examples=200, print_blob=True, deadline=None)
+    _hypothesis_settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "aspire"))
+except ImportError:  # hypothesis is a dev dependency; property tests skip without it
+    pass
+
 
 # ============================================================================
 # Environment Setup
