@@ -961,7 +961,7 @@ From here, every planter, judge and checker step gets:
   - approve the addendum;
   - go or no-go on the 16 GB Llama-3.1-8B download for the second scorer.
 
-## Addendum 5: spending the faster judges on rigor (written 2026-10-09, during stage 3, before any extra verdict exists; R&D session's design; for the maintainer's sign-off)
+## Addendum 5: spending the faster judges on rigor (written 2026-10-09, during stage 3, before any extra verdict exists; the R&D session's design and review; for the maintainer's sign-off as a whole)
 
 **Why now.** The step 2 stages measured the judges far faster on these narrow tasks than estimated.
 On the 5090 with CUDA 13.4:
@@ -980,23 +980,18 @@ looser gates.
 1. **Muse on all 345 error candidates.** Stage 3 ran muse only on gemma's "wrong" calls (306) plus
    a seed-0 15% sample of gemma's 39 "not wrong". The remaining 33 calls (about 8 minutes) complete
    the 2×2.
-   - **Rule, fixed before those verdicts exist:**
-     - both judges "wrong" (and grammatical) = **confirmed**;
-     - both "not wrong" = **rejected**;
-     - a split (one "wrong", one "not wrong" or "unsure") goes to B.
-   - **This changes a committed rule, so it needs the maintainer's sign-off.** Addendum 4's rule was
-     "kept only if both say wrong", so a split was always rejected. Under this rule a split can be
-     confirmed by a third judge.
-   - The report gives both: the AND rule's kept set (as committed) and this rule's. The AND set is
-     primary unless the maintainer approves the change. A matched set built under one rule is never
-     mixed with the other.
-   - Also reported: whether any decision already taken from the 15% sample would flip with the full
-     2×2. If one would, it's reported as a finding, not quietly patched.
+   - **The gate doesn't change:** an error is kept only if both judges say "wrong" and
+     grammatical, as addendum 4 committed. A split (one "wrong", one "not wrong" or "unsure") is
+     rejected.
+   - Under that rule a gemma "not wrong" is rejected whatever muse says, so the extra muse verdicts
+     can't move any decision. They only complete the 2×2.
+   - Also reported: whether any decision taken from the 15% sample would flip with the full 2×2. If
+     one would, it's reported as a finding, not quietly patched.
 2. **Inventory of every cut made for time:**
 
    | Cut | Undo | Would undoing change a decision already taken? |
    |---|---|---|
-   | Muse cascade (gemma's "wrong" plus 15% of the rest) | yes, A1 | Under AND, no (a split was rejected either way). Under A1's rule, yes, for splits. Hence the sign-off |
+   | Muse cascade (gemma's "wrong" plus 15% of the rest) | yes, A1 | no: under AND a split is rejected either way |
    | Grammar pre-screen with a 10% sample | already undone (gemma checked every pair) | no |
    | Kev whole-set check on P-confirm only, not P-second or P-train | no | no: Kev is reported, not gated (addendum 3) |
    | One typicality scorer (Phi-3) | yes, E1 | no for selection (Phi-3 stays the selector); it adds a reading |
@@ -1005,7 +1000,7 @@ looser gates.
    Nothing else in addendum 4 was cut for time. The rewrite checks already run both judges on every
    item.
 
-### B. A third judge, only on split cells
+### B. A third judge on split cells (a measurement, not a gate)
 
 - The judge must be of a family that is neither gemma nor muse. **mistral-small:24b** is chosen: it
   already judges the rewrite side with the reasoning-first prompt, and it's Apache-2.0.
@@ -1013,10 +1008,12 @@ looser gates.
     side.
   - R&D's verifier calibration tonight measures both on grounded and reasoning claims. That's
     context, not a substitute.
-- **Rule, fixed now:** on a split, the majority of the three decides. Anything still undecided
-  (the third says "unsure", or a reply is truncated or unparsed) is excluded and counted.
-- **Reported:** the split rate per 2×2 cell. A high split rate is itself a finding about the error
-  set.
+- **Reported, per 2×2 cell:**
+  - the split rate;
+  - how many splits a majority of three would admit;
+  - how many stay undecided (the third says "unsure", or a reply is truncated or unparsed).
+  A high split rate is itself a finding about the error set.
+- No matched set is built from the majority-of-three reading. The kept set stays AND.
 
 ### C. The steps 1–2 review gate, as addendum 4 says
 
@@ -1034,11 +1031,18 @@ Guards (a)–(d) and the 1–3-word rewrite brief (see the round 2 changes above
      surprisal beyond the selector model.
    - If the 8B's AUC is above 0.5 with a CI excluding it, the match is model-specific. The P-matched
      reading then carries that caveat: a critic must beat the 8B baseline, not 0.5.
+   - **Otherwise** (one CI includes 0.5 and the other doesn't, or the two differ by more than 0.05
+     with both near 0.5): both AUCs are reported and no reading is made.
+   - CIs here are bootstrap over prompts (2000 resamples), as in the clustered AUC of step 1.
 2. **Step 3, LEACE erase-and-retrain, after its GPU gate on these caches.**
    - **"Erased":** a linear probe for tail Δ on the erased features reaches R² ≤ 0.05 on held-out
-     answers (from its value before erasure).
+     answers. The probe's R² before erasure is reported beside it, so the drop is visible.
    - **"Load-bearing":** retrained heads lose more than 0.05 in confirm win rate (seed mean over
      42–44), and the 95% CI on the difference excludes 0.
+   - **"Not load-bearing":** the 95% CI on the win-rate difference lies inside ±0.05.
+   - **Otherwise: "undecided".**
+   - The CI is a paired bootstrap over confirm prompts (2000 resamples), with the three seeds pooled
+     per prompt.
    - Reported across seeds 42–44, never from one seed. It stays a diagnostic with no pass or fail on
      the heads.
 3. **The reversed correction pairs** (R&D's natural errors, with the corrected copy as the edited
@@ -1047,6 +1051,14 @@ Guards (a)–(d) and the 1–3-word rewrite brief (see the round 2 changes above
      better; heads that detect *change* score the edited copy as worse.
    - A head's direction counts as read when its win rate's 95% CI excludes 0.5. Otherwise the
      result is "undecided".
+   - **Sample size, fixed now:** the R&D session's file has **31 reversed pairs**.
+     - With n = 31, a 95% interval on a win rate has a half-width of about ±0.18 (more if pairs
+       cluster by prompt).
+     - So a direction is decidable only for an effect of about 0.68 or above, or 0.32 or below.
+       Smaller effects will read "undecided", and that's the expected outcome unless the effect is
+       large.
+     - The set is not grown after seeing a result. A larger set needs its own addendum, sized from
+       a stated CI width.
 
 ### F. Standing additions
 
@@ -1057,6 +1069,5 @@ Guards (a)–(d) and the 1–3-word rewrite brief (see the round 2 changes above
 ### Scheduling
 
 R&D's verifier calibration has the card overnight, model by model with 15-minute rests. These runs
-queue through the Publisher after it. A1 (about 8 minutes) can go first if the Publisher fits it
-before R&D's smoke run, but only after the maintainer has signed the A1 rule change, or else it is
-run and reported under the AND rule only.
+queue through the Publisher after it. A1 (about 8 minutes) and B are measurements under an unchanged
+gate, so they queue through the Publisher like anything else.
