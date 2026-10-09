@@ -132,6 +132,22 @@ def sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
+def public_out(out: Path) -> str:
+    """`out` as it may appear in a committed receipt: relative to the cwd when inside it, else only
+    its last component. Never an absolute path."""
+    try:
+        return Path(out).resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return Path(out).name
+
+
+def public_student(student: str) -> str:
+    """The student as a Hugging Face repo id; a local directory is reduced to its last component."""
+    if Path(student).is_absolute() or Path(student).exists() or student.startswith((".", "~")):
+        return Path(student).name
+    return student
+
+
 def append_ledger(ledger: Path, row: dict) -> None:
     """Append one run's row to the ledger (jsonl)."""
     ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -239,7 +255,7 @@ def train(args: argparse.Namespace) -> dict:
     peak_mib = round(torch.cuda.max_memory_allocated() / 2**20) if args.device == "cuda" else None
     merge(args.student, out / f"epoch-{args.epochs}", out / "merged", args.device, args.revision)
     summary = {
-        "student": args.student,
+        "student": public_student(args.student),
         "revision": args.revision,
         "examples": len(examples),
         "items": len(rows),
@@ -266,7 +282,7 @@ def train(args: argparse.Namespace) -> dict:
             summary
             | {
                 "arm": args.arm,
-                "out": str(out),
+                "out": public_out(out),
                 "adapter_sha256": sha256_of(out / f"epoch-{args.epochs}"),
                 "merged_sha256": sha256_of(out / "merged"),
             },
@@ -276,7 +292,11 @@ def train(args: argparse.Namespace) -> dict:
 
 
 def merge(student: str, adapter: Path, merged: Path, device: str, revision: str | None = None) -> Path:
-    """Merge a saved adapter into a bf16 (or fp32 on CPU) copy of the student, at `merged`."""
+    """Merge a saved adapter into a bf16 (or fp32 on CPU) copy of the student, at `merged`.
+
+    The tokenizer is taken from the adapter's directory, where train() saved the pinned one. A
+    --merge-only on an older adapter therefore carries that adapter's tokenizer, not `revision`'s.
+    """
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
 

@@ -649,6 +649,23 @@ class TestSftDistillMechanics:
         rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
         assert [(r["arm"], r["seed"]) for r in rows] == [("B-full", 42), ("C", 43)]
 
+    def test_receipts_never_carry_an_absolute_path(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        absolute = tmp_path.parent / "elsewhere" / "run-s42"
+        assert sft.public_out(absolute) == "run-s42"
+        assert sft.public_out(tmp_path / "runs" / "c-s43") == "runs/c-s43"
+        assert sft.public_out(Path("runs") / "a") == "runs/a"
+        local = tmp_path / "models" / "Qwen3-1.7B"
+        local.mkdir(parents=True)
+        assert sft.public_student(str(local)) == "Qwen3-1.7B"
+        assert sft.public_student("Qwen/Qwen3-1.7B") == "Qwen/Qwen3-1.7B"
+        ledger = tmp_path / "runs.jsonl"
+        sft.append_ledger(
+            ledger, {"out": sft.public_out(absolute), "student": sft.public_student(str(local))}
+        )
+        text = ledger.read_text(encoding="utf-8")
+        assert str(tmp_path.parent) not in text and str(tmp_path.parent).replace("\\", "\\\\") not in text
+
     def test_distill_flags_parse(self):
         args = sft.parse_args(
             [
