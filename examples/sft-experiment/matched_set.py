@@ -605,58 +605,55 @@ def stage_score(items, out: Path) -> None:  # pragma: no cover
     _save(out / "tail-phi3.json", score(sets))
 
 
+def escalate(summaries: dict) -> bool:
+    """The committed rule is for the whole pass: a miss in any set's sample sends every pair of
+    every set to gemma. A per-set reading would let a tiny sample (P-second's 4) pass on nothing."""
+    return any(not s["prescreen_stands"] for s in summaries.values())
+
+
 def stage_grammar(sets: dict[str, list[dict]], kept: dict[str, set], out: Path) -> None:  # pragma: no cover
     """The word swaps' grammar pass: the CPU pre-screen on every kept pair, then gemma4 (thinking) on
-    every flagged pair plus a seed-0 random 10% of the unflagged ones (the pre-screen's miss rate)."""
+    every flagged pair plus a seed-0 random 10% of the unflagged ones (the pre-screen's miss rate).
+    If any set's sample shows a miss, gemma then checks every pair of every set."""
     from skeptic_pairs import sentences
 
     path = out / "grammar-wordswaps.json"
     state = _load_state(path)
     judge = "gemma4:31b"
+    plan = {}
+    for name, pairs in sets.items():
+        rows = state.setdefault(name, {})
+        mine = [p for p in pairs if p["pair_id"] in kept[name]]
+        for p in mine:
+            rows.setdefault(p["pair_id"], {"flags": prescreen(*sentences(p))})
+        unflagged = [pid for pid, r in rows.items() if not r["flags"]]
+        plan[name] = (rows, mine, seeded_sample(unflagged, GRAMMAR_SAMPLE))
+
+    def ask(r: dict, p: dict, sample: set) -> None:
+        original, edited = sentences(p)
+        user = GRAMMAR_CHECK.format(prompt=p["prompt"], flawed=p["flawed"], original=original, edited=edited)
+        if "gemma" in r:
+            r["gemma_v1"] = r.pop("gemma")  # the v1 ("and idiomatic") verdict, kept for the record
+        r["gemma"] = judged(
+            ollama_chat(judge, JUDGE_SYSTEM, user, GRAMMAR_SCHEMA, True, **THINKING),
+            ("grammatical", "idiomatic"),
+        ) | {"question": GRAMMAR_QUESTION}
+        r["sampled_unflagged"] = p["pair_id"] in sample
+        _save(path, state)
+
     try:
-        for name, pairs in sets.items():
-            rows = state.setdefault(name, {})
-            mine = [p for p in pairs if p["pair_id"] in kept[name]]
-            for p in mine:
-                rows.setdefault(p["pair_id"], {"flags": prescreen(*sentences(p))})
-            unflagged = [pid for pid, r in rows.items() if not r["flags"]]
-            sample = seeded_sample(unflagged, GRAMMAR_SAMPLE)
+        for name, (rows, mine, sample) in plan.items():
             for p in mine:
                 r = rows[p["pair_id"]]
-                done = r.get("gemma", {}).get("question") == GRAMMAR_QUESTION
-                if done or not (r["flags"] or p["pair_id"] in sample):
-                    continue
-                original, edited = sentences(p)
-                user = GRAMMAR_CHECK.format(
-                    prompt=p["prompt"], flawed=p["flawed"], original=original, edited=edited
-                )
-                if "gemma" in r:
-                    r["gemma_v1"] = r.pop("gemma")  # the v1 ("and idiomatic") verdict, kept for the record
-                r["gemma"] = judged(
-                    ollama_chat(judge, JUDGE_SYSTEM, user, GRAMMAR_SCHEMA, True, **THINKING),
-                    ("grammatical", "idiomatic"),
-                ) | {"question": GRAMMAR_QUESTION}
-                r["sampled_unflagged"] = p["pair_id"] in sample
-                _save(path, state)
-            # The committed rule: any miss in the sample means gemma checks every pair.
-            if not grammar_summary(rows)["prescreen_stands"]:
+                if not _v2(r) and (r["flags"] or p["pair_id"] in sample):
+                    ask(r, p, sample)
+            print("grammar sample", name, flush=True)
+        if escalate({name: grammar_summary(rows) for name, (rows, _, _) in plan.items()}):
+            for name, (rows, mine, sample) in plan.items():
                 for p in mine:
-                    r = rows[p["pair_id"]]
-                    if _v2(r):
-                        continue
-                    original, edited = sentences(p)
-                    user = GRAMMAR_CHECK.format(
-                        prompt=p["prompt"], flawed=p["flawed"], original=original, edited=edited
-                    )
-                    if "gemma" in r:
-                        r["gemma_v1"] = r.pop("gemma")
-                    r["gemma"] = judged(
-                        ollama_chat(judge, JUDGE_SYSTEM, user, GRAMMAR_SCHEMA, True, **THINKING),
-                        ("grammatical", "idiomatic"),
-                    ) | {"question": GRAMMAR_QUESTION}
-                    r["sampled_unflagged"] = p["pair_id"] in sample
-                    _save(path, state)
-            print("grammar", name, len(rows), flush=True)
+                    if not _v2(rows[p["pair_id"]]):
+                        ask(rows[p["pair_id"]], p, sample)
+                print("grammar all", name, len(rows), flush=True)
     finally:
         unload(judge)
 
