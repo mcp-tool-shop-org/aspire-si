@@ -875,7 +875,7 @@ From here, every planter, judge and checker step gets:
         inference is measured on the slot's final call (62.60 tokens/s, from the maintainer's
         terminal, matching the run file's last item).
       - **13.4 side:** the sandbox on 11492. Its log reads "loaded CUDA backend from
-        E:\AI\ollama-cu134un\lib\ollama\cuda_v13\ggml-cuda.dll" (sha256 6d3128e9…, matching
+        E:/AI/ollama-cu134/run/lib/ollama/cuda_v13/ggml-cuda.dll" (sha256 6d3128e9…, matching
         BUILD.md), with gemma4 fully resident (size_vram 20.9 GB).
       - Records: `equivalence-readout.json`, `servers-13.0-record.md` and `residency-13.4.log` in
         the run folder. The two builds' verdicts are treated as one judge from here.
