@@ -1209,3 +1209,87 @@ It shows noise in both directions, not a one-sided lean:
 
 As the amendment says, passing the control would only have shown agreement on the easy cases.
 Failing it shows that even there, mistral doesn't match the consensus on the not-wrong side.
+
+## Addendum 5, amendment 2: choosing stage 3b's second rewrite judge (written 2026-10-09, before any verdict on this control; the R&D session reviewed it and checked the frozen set)
+
+### Why
+
+- **B's control** showed that mistral-small:24b, 3b's committed second rewrite judge, is noisy. The R&D
+  session's gold calibration agrees: its false-reject rate is about 3–10× that of gemma and the qwens.
+- **Under AND,** a noisy second judge costs matched pairs, not validity, because gemma must pass every
+  pair too.
+- **None of the calibration data measures 3b's task,** which is whether a rewrite keeps the meaning. So
+  three candidates are compared on 3b's own task first.
+
+### The control (built by construction, frozen before any verdict)
+
+**The file:** `judge-control-selection.json` in the matched run directory, sha256
+`4a68cb7606b39641e1649e9d622f87008e7c561ed41e6d9309cbe6c8382a687c`. It has 61 items. Seeds: harmless
+0, harmful 1, identity 2, order 3. The builder (`judge_control_build.py`) is kept beside it.
+- **Harmless, 28.** Each item is one meaning-preserving edit by rule:
+  - number words two–ten before a noun ⇄ digits, never "one": 9;
+  - "for example" ⇄ "for instance": 9;
+  - contractions from an explicit pair list: 10.
+- **Harmful, 28.** Each item is one meaning-changing edit by rule, always grammatical:
+  - a hedge strengthened, e.g. "often" → "always", "may" → "must": 9;
+  - an antonym, e.g. "increases" → "decreases", "before" → "after": 9;
+  - a negation, e.g. "is" → "is not", "can" → "cannot": 10.
+- **Identity, 5.** Unedited copies.
+- **How items were drawn:** stratified quotas, scarcest types drawn first, at most one item per answer,
+  distinct sentence texts, nothing inside code or maths.
+- **What judges see:** each edited sentence sits back inside its full strong answer, so judges see full
+  answers, as in 3b.
+- **Dropped after counting:**
+  - "in order to" occurs 0 times;
+  - a ×10 change fits only 2 items;
+  - "however" ⇄ "but" and the Oxford comma were dropped as risky.
+- **Field naming:** in the file, `flawed` holds the edited full answer on every item, including harmless
+  and identity items. It is not a label.
+
+### The candidates, as 3b would deploy them
+
+All three use 3b's exact REQUEST prompt and SCHEMA, one model at a time, unloaded in between.
+
+| Judge | Digest | Thinking | num_predict / num_ctx |
+|---|---|---|---|
+| mistral-small:24b (committed) | `8039dd90c113` | none | 2048 / 8192 |
+| granite4.1:30b | `3f3e5df8a021` | none | 2048 / 8192 |
+| qwen3:14b | `bdbd181c33f2` | on | 16000 / 24576 |
+
+The budgets differ. A qwen win is partly a thinking win, at several times the cost per call. Both are
+printed with the result.
+
+### Scoring and the choice rule (fixed now)
+
+**Scoring.** SCHEMA has no grammatical field; gemma covers grammar.
+- **Harmless agreement:** "same" with claim_changed false.
+- **Harmful agreement:** "changed".
+- "Unsure" and unusable replies count against, on both sides.
+
+**The choice rule:**
+1. **Disqualified:** a judge that calls more than 1 of the 5 identity copies "changed".
+2. **Eligible:** at least 25/28 harmful agreement.
+3. **Choice:** among the eligible, the highest harmless agreement wins.
+4. **Tie-break:** if mistral is eligible and within 2 items of the best, mistral stays, as committed.
+5. **Fallback:** if no judge is eligible, mistral stays, as committed, and that is reported.
+
+**Also reported:** harmful agreement per type, beside the 25/28 rule, because strengthening is subtler
+than negation. Also per-type harmless agreement, Wilson intervals, unsure and unusable counts, and
+seconds.
+
+### Caveats, printed with the result
+
+- Constructed edits are easier than the planter's rewrites. This ranks the judges on obvious cases; it
+  doesn't validate them on 3b's subtle ones.
+- Self-preference can't be measured here, because the edits aren't Qwen-written. If qwen3:14b is chosen,
+  the planter-family caveat (a Qwen judge on Qwen-planted rewrites) stands beside it in 3b's readout.
+
+### The run
+
+- **Calls:** 183 (61 × 3), about 25–40 minutes, mostly qwen's thinking.
+- **VRAM:** at most about 20 GB, one model at a time.
+- **Grant:** one Publisher grant.
+- **Rehearsal:** with a stub judge and no model loaded, the rehearsal exercised the sha and digest checks
+  and every branch of the choice rule: a winner, a tie to mistral, disqualification, and no eligible
+  judge.
+- **After the run:** 3b then runs with the chosen judge beside gemma, under AND, with its own grant.
