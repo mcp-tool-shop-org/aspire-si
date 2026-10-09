@@ -859,6 +859,26 @@ From here, every planter, judge and checker step gets:
         build difference, and with n = 30 a lone 90% line could trip on noise.
       - Otherwise the two builds' verdicts are treated as one judge, and the report says so.
     - `build_equivalence.py` implements the sample, the readout and the rule.
+    - **Result (2026-10-08, from 65303f2): PASS.**
+
+      | Task | 13.0 repeat (a vs b) | 13.0 vs 13.4 |
+      |---|---|---|
+      | Grammar | 30/30 [0.89, 1.00] | 30/30 [0.89, 1.00] |
+      | Meaning | 30/30 [0.89, 1.00] | 30/30 [0.89, 1.00] |
+
+      - 0 disagreements and 0 unusable items.
+      - On the matched final item (1632 prompt tokens, 431 generated on both builds), 13.4 ran
+        prompts at 2195 tokens/s against 2141, and generation at 64.27 tokens/s against 62.60.
+        Thinking length is identical (median 1573.5 characters) on all three runs.
+      - **13.0 side:** the system Ollama 0.35.1 on 11434, ggml-cuda.dll sha256 9ac8bdbd…. Its
+        loaded-backend line isn't visible (the server logs to the maintainer's terminal). GPU
+        inference is measured on the slot's final call (62.60 tokens/s, from the maintainer's
+        terminal, matching the run file's last item).
+      - **13.4 side:** the sandbox on 11492. Its log reads "loaded CUDA backend from
+        E:\AI\ollama-cu134un\lib\ollama\cuda_v13\ggml-cuda.dll" (sha256 6d3128e9…, matching
+        BUILD.md), with gemma4 fully resident (size_vram 20.9 GB).
+      - Records: `equivalence-readout.json`, `servers-13.0-record.md` and `residency-13.4.log` in
+        the run folder. The two builds' verdicts are treated as one judge from here.
 - **Generator families, for the record:**
   - The 78 strong answers were written by Qwen2.5-32B-Instruct (bf16), and the planter is the same
     model at Q4_K_M. Its fingerprint is therefore balanced across both sides of P-matched.
