@@ -1,0 +1,76 @@
+{
+ "overall": {
+  "candidates": 345,
+  "splits": 14,
+  "split_rate": 0.041,
+  "wilson95": [
+   0.024,
+   0.067
+  ]
+ },
+ "splits": {
+  "not wrong / wrong": {
+   "cell": 9,
+   "splits": 9,
+   "majority_would_admit": 5,
+   "majority_would_reject": 4,
+   "undecided": 0,
+   "third": {
+    "not wrong": 4,
+    "wrong": 5
+   }
+  },
+  "wrong / not wrong": {
+   "cell": 5,
+   "splits": 5,
+   "majority_would_admit": 2,
+   "majority_would_reject": 1,
+   "undecided": 2,
+   "third": {
+    "unsure": 2,
+    "not wrong": 1,
+    "wrong": 2
+   }
+  }
+ },
+ "control": {
+  "both not wrong": {
+   "n": 28,
+   "agrees": 14,
+   "rate": 0.5,
+   "wilson95": [
+    0.326,
+    0.674
+   ],
+   "unsure": 2,
+   "unusable": 0,
+   "third": {
+    "not wrong": 14,
+    "wrong": 12,
+    "unsure": 2
+   }
+  },
+  "both wrong": {
+   "n": 28,
+   "agrees": 27,
+   "rate": 0.964,
+   "wilson95": [
+    0.823,
+    0.994
+   ],
+   "unsure": 0,
+   "unusable": 0,
+   "third": {
+    "wrong": 27,
+    "not wrong": 1
+   }
+  }
+ },
+ "reading": {
+  "control_passed": false,
+  "rule": "split reading only if mistral agrees on >= 25/28 on each control side (strict scoring)",
+  "verdict": "the third judge doesn't agree with consensus well enough to break ties; split counts are descriptive only",
+  "caveat": "consensus items are the ones two judges found easy: passing the control shows mistral agrees on easy cases, not that its tie-breaks on the hard splits are right",
+  "kept_set": "unchanged: AND (299); no set is built from the majority reading"
+ }
+}

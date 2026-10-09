@@ -1,2 +1,5 @@
 # Shell scripts run on Linux pods: always LF, whatever the checkout platform.
 *.sh text eol=lf
+
+# Run receipts are committed byte for byte, so their recorded sha256s hold in every checkout.
+docs/runs/receipts/** -text
