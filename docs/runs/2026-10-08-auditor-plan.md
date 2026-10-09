@@ -1071,3 +1071,70 @@ Guards (a)–(d) and the 1–3-word rewrite brief (see the round 2 changes above
 R&D's verifier calibration has the card overnight, model by model with 15-minute rests. These runs
 queue through the Publisher after it. A1 (about 8 minutes) and B are measurements under an unchanged
 gate, so they queue through the Publisher like anything else.
+
+## Addendum 5, amendment 1: B's rules, fixed before any third-judge verdict exists (written 2026-10-09; the R&D session signed it, the Publisher reviewed the selection)
+
+### What stage 3 and A1 gave
+
+Gemma4:31b and muse-glimmer judged all 345 error candidates (A1 completed the 2×2). No reply was
+truncated or unparsed.
+
+| gemma ↓ / muse → | wrong | not wrong | unsure |
+|---|---|---|---|
+| wrong, grammatical | 299 | 5 | 0 |
+| wrong, ungrammatical | 2 | 0 | 0 |
+| not wrong | 9 | 28 | 2 |
+
+- **Kept (AND): 299.** Not one decision differs between the 15%-sample cascade and the full 2×2.
+- **Reported as a finding:** on gemma's 39 "not wrong" calls, muse said "wrong" on 0 of the 6 sampled,
+  but on 9 of all 39 (23%). The sample understated that cell's disagreement, which is why the full 2×2
+  is the record.
+
+### Correction: 14 splits, not 16
+
+By section B's definition (one judge says "wrong", the other "not wrong" or "unsure"), there are
+**14** splits: gemma not-wrong / muse wrong, 9; gemma wrong / muse not-wrong, 5. The 2 gemma
+not-wrong / muse unsure items are not splits, because neither judge says wrong and no third vote
+could admit them. The split rate is 14/345 = 0.041 (Wilson 95% [0.024, 0.067]).
+
+### The rules
+
+1. **A reading, not an admission.** "A majority of three **would admit**" a split only if mistral
+   says "wrong" with grammatical true, the same test as the AND gate. The kept set stays AND (299),
+   and no set is built from this reading.
+2. **A consensus control.** Mistral also judges, blind and interleaved with the splits:
+   - all 28 items both judges called "not wrong";
+   - 28 of the 299 both-wrong items, a seed-0 sample.
+
+   That's 70 calls in all. The selection and the order were frozen in `B-selection.json` (sha256
+   `9ef063a78593490fecadd77c093944570f03179f392ccd7224a8f42c4ca179a2`) before any mistral verdict
+   existed. The run recomputes them and stops if they differ.
+3. **Strict control scoring.**
+   - On both-wrong items, agreement means "wrong" and grammatical true. On both-not-wrong items, it
+     means "not wrong".
+   - "Unsure" counts as disagreement on either side.
+   - An unusable reply (truncated or unparsed) counts as disagreement, and the count is reported.
+4. **When the splits are read.**
+   - The majority reading is made only if mistral agrees on at least 25 of 28 on **each** control
+     side (Wilson lower bound 0.728).
+   - Otherwise B reports that the third judge doesn't agree with consensus well enough to break
+     ties, and the split counts are descriptive only.
+5. **The caveat, printed beside the result even when the control passes.** Consensus items are the
+   ones two judges found easy. Passing the control shows mistral agrees on easy cases. It doesn't
+   prove its tie-breaks on the 14 hard splits are right.
+
+### Why the control
+
+On the meaning re-check, the R&D session's blind third judge agreed with mistral on only 4 of 24
+disagreements. A tie-break from a judge that disagrees with consensus can't be read. The control
+costs about 5 minutes of card.
+
+### How it runs
+
+- **Model:** mistral-small:24b, digest `8039dd90c113` (Q4_K_M). The run refuses any other digest.
+- **Settings:** no thinking; the same error-check prompt and schema as the other error judges.
+- **Manifest:** the run writes the digest, the prompt's and schema's sha256, the options, and the
+  ids and order.
+- **Rehearsed:** a dry run with a stub judge and no model loaded exercised the frozen-selection
+  check, the strict scoring and rule 4's not-readable outcome.
+- **Slot:** one Publisher grant, about 6–8 minutes, ~16 GB, after the R&D session's math ladder.
