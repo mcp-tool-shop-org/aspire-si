@@ -518,6 +518,179 @@ class TestSftTokenizing:
         args = sft.parse_args(["--data", "d.jsonl", "--out", "o"])
         assert (args.lora_r, args.lora_alpha, args.lora_dropout, args.seed) == (16, 32, 0.05, 42)
         assert args.student == "Qwen/Qwen2.5-1.5B-Instruct"
+        assert (args.overlong, args.max_dropped_fraction, args.chat_template_kwargs) == (
+            "truncate",
+            1.0,
+            None,
+        )
+        assert not args.gradient_checkpointing and args.ledger is None and args.revision is None
+
+
+class QwenLikeTokenizer:
+    """Qwen3's shape: the last assistant turn always renders an empty think block, and with thinking off
+    the generation prompt carries that block too. One token per character."""
+
+    def apply_chat_template(
+        self, messages, tokenize=False, add_generation_prompt=False, enable_thinking=True
+    ):
+        text = ""
+        for i, m in enumerate(messages):
+            if m["role"] == "assistant" and i == len(messages) - 1:
+                text += f"<assistant><think></think>{m['content']}</assistant>"
+            else:
+                text += f"<{m['role']}>{m['content']}</{m['role']}>"
+        if add_generation_prompt:
+            text += "<assistant>" if enable_thinking else "<assistant><think></think>"
+        return {"input_ids": [ord(c) for c in text]} if tokenize else text
+
+
+def _labelled(example):
+    return "".join(chr(i) for i, label in zip(example["input_ids"], example["labels"]) if label != sft.IGNORE)
+
+
+class TestSftDistillMechanics:
+    CHAT = [{"role": "user", "content": "Q"}, {"role": "assistant", "content": '{"verdict":"supported"}'}]
+
+    def test_without_template_kwargs_the_empty_think_block_is_trained(self):
+        # The trap: serving with thinking off puts the block in the prompt, but training would teach it.
+        assert _labelled(sft.tokenize_example(QwenLikeTokenizer(), self.CHAT, 10_000)).startswith(
+            "<think></think>"
+        )
+
+    def test_thinking_off_starts_the_labels_after_the_empty_think_block(self):
+        example = sft.tokenize_example(QwenLikeTokenizer(), self.CHAT, 10_000, {"enable_thinking": False})
+        assert _labelled(example) == '{"verdict":"supported"}</assistant>'
+
+    def test_drop_returns_none_and_truncate_keeps_the_end(self):
+        long = [{"role": "user", "content": "Q" * 50}, {"role": "assistant", "content": "answer"}]
+        assert sft.tokenize_example(FakeTokenizer(), long, 20, overlong="drop") is None
+        kept = sft.tokenize_example(FakeTokenizer(), long, 20, overlong="truncate")
+        assert len(kept["input_ids"]) == 20
+
+    def test_prepare_counts_drops_and_stops_over_the_limit(self):
+        rows = [
+            {"messages": [{"role": "user", "content": "Q" * n}, {"role": "assistant", "content": "a"}]}
+            for n in (1, 2, 80)
+        ]
+        examples, dropped, unlabelled = sft.prepare_examples(
+            FakeTokenizer(), rows, 40, overlong="drop", max_dropped_fraction=0.5
+        )
+        assert (len(examples), dropped, unlabelled) == (2, 1, 0)
+        with pytest.raises(ValueError, match="1 of 3 items exceed 40 tokens"):
+            sft.prepare_examples(FakeTokenizer(), rows, 40, overlong="drop", max_dropped_fraction=0.01)
+
+    def test_truncation_never_counts_as_dropped(self):
+        rows = [{"messages": [{"role": "user", "content": "Q" * 80}, {"role": "assistant", "content": "a"}]}]
+        examples, dropped, unlabelled = sft.prepare_examples(
+            FakeTokenizer(), rows, 40, max_dropped_fraction=0.0
+        )
+        assert (len(examples), dropped, unlabelled) == (1, 0, 0)
+
+    def test_examples_left_without_labels_are_counted(self):
+        # Truncating from the left can't strip the end, so a chat with no assistant turn stands in.
+        rows = [{"messages": [{"role": "user", "content": "Q"}]}, {"messages": self.CHAT}]
+        examples, dropped, unlabelled = sft.prepare_examples(FakeTokenizer(), rows, 10_000)
+        assert (len(examples), dropped, unlabelled) == (1, 0, 1)
+
+    def test_a_generation_prompt_that_is_not_a_prefix_raises_naming_the_item(self):
+        class Mismatched(FakeTokenizer):
+            def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=False):
+                out = super().apply_chat_template(messages, tokenize, add_generation_prompt)
+                if add_generation_prompt:  # the template's generation prompt differs from its turns
+                    out = {"input_ids": [*out["input_ids"], ord("!")]}
+                return out
+
+        rows = [{"id": "ladder-7", "messages": self.CHAT}]
+        with pytest.raises(
+            ValueError, match="item ladder-7: assistant turn 1: the generation prompt is not a prefix"
+        ):
+            sft.prepare_examples(Mismatched(), rows, 10_000)
+
+    def test_a_turn_rendered_differently_inside_the_chat_raises_naming_the_item(self):
+        # Qwen3 with thinking off: an earlier assistant turn loses its empty think block in the whole
+        # chat, so its labels would land a few tokens off.
+        chat = [*self.CHAT, {"role": "user", "content": "C"}, {"role": "assistant", "content": "A2"}]
+        rows = [{"messages": self.CHAT}, {"id": "ladder-8", "messages": chat}]
+        with pytest.raises(ValueError, match="item ladder-8: assistant turn 1: the turn renders differently"):
+            sft.prepare_examples(QwenLikeTokenizer(), rows, 10_000, {"enable_thinking": False})
+
+    def test_the_real_qwen3_template_starts_the_labels_at_the_answer(self):
+        transformers = pytest.importorskip("transformers")
+        try:
+            tok = transformers.AutoTokenizer.from_pretrained(
+                "Qwen/Qwen3-1.7B", revision="70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+            )
+        except Exception as err:  # offline, or no access: the fake tokenizer tests still hold
+            pytest.skip(f"Qwen3-1.7B tokenizer unavailable: {err}")
+        answer = '{"reasoning": "v - 19 = -3", "verdict": "unsupported"}'
+        chat = [
+            {"role": "user", "content": "Is the claim supported?"},
+            {"role": "assistant", "content": answer},
+        ]
+        example = sft.tokenize_example(tok, chat, 10_000, {"enable_thinking": False})
+        labelled = tok.decode(
+            [i for i, label in zip(example["input_ids"], example["labels"]) if label != sft.IGNORE]
+        )
+        assert labelled.startswith(answer) and "<think>" not in labelled
+
+    def test_sha256_of_a_directory_hashes_its_safetensors_in_name_order(self, tmp_path):
+        import hashlib
+
+        (tmp_path / "b.safetensors").write_bytes(b"B")
+        (tmp_path / "a.safetensors").write_bytes(b"A")
+        (tmp_path / "config.json").write_text("{}")
+        assert sft.sha256_of(tmp_path) == hashlib.sha256(b"AB").hexdigest()
+        assert sft.sha256_of(tmp_path / "a.safetensors") == hashlib.sha256(b"A").hexdigest()
+
+    def test_ledger_appends_one_row_per_run(self, tmp_path):
+        ledger = tmp_path / "sub" / "runs.jsonl"
+        sft.append_ledger(ledger, {"arm": "B-full", "seed": 42})
+        sft.append_ledger(ledger, {"arm": "C", "seed": 43})
+        rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        assert [(r["arm"], r["seed"]) for r in rows] == [("B-full", 42), ("C", 43)]
+
+    def test_receipts_never_carry_an_absolute_path(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        absolute = tmp_path.parent / "elsewhere" / "run-s42"
+        assert sft.public_out(absolute) == "run-s42"
+        assert sft.public_out(tmp_path / "runs" / "c-s43") == "runs/c-s43"
+        assert sft.public_out(Path("runs") / "a") == "runs/a"
+        local = tmp_path / "models" / "Qwen3-1.7B"
+        local.mkdir(parents=True)
+        assert sft.public_student(str(local)) == "Qwen3-1.7B"
+        assert sft.public_student("Qwen/Qwen3-1.7B") == "Qwen/Qwen3-1.7B"
+        ledger = tmp_path / "runs.jsonl"
+        sft.append_ledger(
+            ledger, {"out": sft.public_out(absolute), "student": sft.public_student(str(local))}
+        )
+        text = ledger.read_text(encoding="utf-8")
+        assert str(tmp_path.parent) not in text and str(tmp_path.parent).replace("\\", "\\\\") not in text
+
+    def test_distill_flags_parse(self):
+        args = sft.parse_args(
+            [
+                "--data",
+                "d.jsonl",
+                "--out",
+                "o",
+                "--chat-template-kwargs",
+                '{"enable_thinking": false}',
+                "--overlong",
+                "drop",
+                "--max-dropped-fraction",
+                "0.01",
+                "--gradient-checkpointing",
+                "--ledger",
+                "runs.jsonl",
+                "--arm",
+                "C",
+                "--revision",
+                "abc123",
+            ]
+        )
+        assert args.chat_template_kwargs == {"enable_thinking": False}
+        assert (args.overlong, args.max_dropped_fraction, args.gradient_checkpointing) == ("drop", 0.01, True)
+        assert (str(args.ledger), args.arm, args.revision) == ("runs.jsonl", "C", "abc123")
 
 
 class TestStatistics:
