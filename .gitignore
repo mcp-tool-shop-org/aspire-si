@@ -65,3 +65,6 @@ site/node_modules/
 
 # offrig project store (rented-GPU sessions)
 .offrig/
+
+# Hypothesis example database
+.hypothesis/
