@@ -1138,3 +1138,74 @@ costs about 5 minutes of card.
 - **Rehearsed:** a dry run with a stub judge and no model loaded exercised the frozen-selection
   check, the strict scoring and rule 4's not-readable outcome.
 - **Slot:** one Publisher grant, about 6–8 minutes, ~16 GB, after the R&D session's math ladder.
+
+## B's readout (run 2026-10-09, 14:06–14:10, under amendment 1's rules)
+
+- **Run:** mistral-small:24b (digest `8039dd90c113`), no thinking. All 70 calls completed, with no
+  failures, retries, or truncated or unparsed replies.
+- **Selection:** the frozen `B-selection.json` (sha256 `9ef063a7…`); the run's recomputation matched.
+- **Records in the run directory:** `B-readout.json`, `B-manifest.json`,
+  `verdicts-error-B-mistral-small_24b.json`.
+
+### The control fails, so there's no tie-break reading
+
+| Consensus side | n | mistral agrees | Rate (Wilson 95%) | Line |
+|---|---|---|---|---|
+| both "wrong" (wrong and grammatical) | 28 | 27 | 0.96 [0.82, 0.99] | 25 |
+| both "not wrong" | 28 | **14** | **0.50 [0.33, 0.67]** | 25 |
+
+On the both-not-wrong side, mistral said "wrong" 12 times and "unsure" twice. No reply was unusable.
+Under rule 4, the third judge doesn't agree with consensus well enough to break ties. The split counts
+below are descriptive only. The kept set stays **AND, 299**.
+
+### Split counts (descriptive only)
+
+| Cell (gemma / muse) | Splits | mistral "wrong" (grammatical) | "not wrong" | "unsure" |
+|---|---|---|---|---|
+| not wrong / wrong | 9 | 5 | 4 | 0 |
+| wrong / not wrong | 5 | 2 | 1 | 2 |
+
+The overall split rate is 14/345 = 0.041 (Wilson 95% [0.024, 0.067]).
+
+### Finding: mistral is a noisy judge, and here the noise falls on "wrong"
+
+On this task, mistral says "wrong":
+- on 96% of the items both other judges call wrong;
+- on 7 of the 14 splits;
+- on 43% of the items both other judges clear.
+
+So its "wrong" carries little information about items the others clear. This fits the meaning
+re-check, where the R&D session's blind third judge sided with gemma over mistral on 20 of 24
+disagreements.
+
+**A second line of evidence:** the R&D session's verifier calibration on the gold tune split (same
+model and digest, think off; receipts in rnd `experiments/verifier-gold/calibration/results/2026-10-09-chain/`).
+It shows noise in both directions, not a one-sided lean:
+- **False rejects** (a true claim called unsupported):
+
+  | | grounded | reasoning |
+  |---|---|---|
+  | mistral | 9/126 (0.07) | 12/102 (0.12) |
+  | gemma4:31b | 2/126 | 0/101 |
+  | qwen3:14b | 1/127 | 4/102 |
+  | qwen3:8b | 3/126 | 1/101 |
+
+  That's about 3–10× as often as the others. B's failure on the both-not-wrong side is the same kind
+  of error.
+- **False accepts:** mistral has 25/128 grounded and 20/102 reasoning (0.20 each), against gemma's
+  0/128 and 1/101.
+
+**What it doesn't change:**
+- the error-side kept set (AND, 299);
+- any decision already taken.
+
+**What it's flagged for:** mistral is the first rewrite-side judge in stage 3b, beside gemma.
+- Its false rejects would reject harmless rewrites more often. Under AND, that costs matched pairs,
+  not validity.
+- Its false accepts matter less there, because gemma must pass every pair too.
+- Whether 3b keeps mistral or replaces it is decided, and written down, before 3b runs. The gold
+  points to qwen3:14b: a family other than gemma's, with false rejects of 0.01 and 0.04, but it
+  abstains more (0.26 grounded).
+
+As the amendment says, passing the control would only have shown agreement on the easy cases.
+Failing it shows that even there, mistral doesn't match the consensus on the not-wrong side.
