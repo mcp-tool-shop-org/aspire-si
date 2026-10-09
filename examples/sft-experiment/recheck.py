@@ -182,6 +182,7 @@ def combine(verdicts: dict[str, dict[str, dict]], pair_ids: list[str], old_dropp
     counts = {j: {} for j in verdicts}
     kept = []
     not_asked = {"outcome": "not asked (the other judge dropped it)"}
+    disagreements: list[dict] = []
     for pid in pair_ids:
         va, vb = verdicts[a].get(pid, not_asked), verdicts[b].get(pid, not_asked)
         ka, kb = keeps(va), keeps(vb)
@@ -190,6 +191,18 @@ def combine(verdicts: dict[str, dict[str, dict]], pair_ids: list[str], old_dropp
             counts[j][o] = counts[j].get(o, 0) + 1
         key = "both_keep" if ka and kb else f"only_{a}" if ka else f"only_{b}" if kb else "neither"
         table[key] += 1
+        if ka != kb:
+            # Item by item, so a lenient judge's pattern is on record (R&D's review).
+            disagreements.append(
+                {
+                    "pair_id": pid,
+                    "kept_by": a if ka else b,
+                    **{
+                        j: {k: v.get(k) for k in ("outcome", "claim_changed", "reasoning")}
+                        for j, v in ((a, va), (b, vb))
+                    },
+                }
+            )
         if ka and kb:
             kept.append(pid)
     kept_set = set(kept)
@@ -200,6 +213,7 @@ def combine(verdicts: dict[str, dict[str, dict]], pair_ids: list[str], old_dropp
         "kept_ids": kept,
         "dropped_ids": [p for p in pair_ids if p not in kept_set],
         "judges_disagree": table[f"only_{a}"] + table[f"only_{b}"],
+        "disagreements": disagreements,
         "agreement": table,
         "outcomes": counts,
         "against_first_check": {
