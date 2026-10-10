@@ -398,18 +398,18 @@ Did they get it right? Say so, then answer the statement yourself in the three l
 
 **Thinking:**
 ```text
-Their refusal rests on glyph-versus-word. But ≥ is the standard notation for at-least; the table row and the claim are one relation wearing two spellings. A reader at either side does the same comparison against N. Verification compares meanings — and here the meaning is identical down to the bound's direction.
+Their refusal rests on glyph-versus-word. But ≥ is the standard notation for at-least; the quote is the whole `--at-least N` row, first cell to last, and that row and the claim are one relation wearing two spellings. A reader at either side does the same comparison against N. Verification compares meanings — and here the meaning is identical down to the bound's direction.
 ```
 
 **Reply:**
 ```text
-The refusal is the miss here: they nitpicked notation. P(result ≥ N) is "probability of at least N" in mathematics' own spelling, and the row's gloss is the claim restated; doubt about typography isn't doubt about evidence.
+The refusal is the miss here: they nitpicked notation. P(result ≥ N) is "probability of at least N" in mathematics' own spelling, and the whole row, flag cell and answer cell, is the claim restated; doubt about typography isn't doubt about evidence.
 VERDICT: supported
-DECIDING: `--at-least N` | P(result ≥ N)
+DECIDING: | `--at-least N` | P(result ≥ N) |
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: nitpick · right answer: supported / `--at-least N` | P(result ≥ N) / no
+**Key:** planted_flaw: nitpick · right answer: supported / | `--at-least N` | P(result ≥ N) | / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L79-L86 (MIT (first line of LICENSE: 'MIT License')); invented: the other checker's reasoning and verdict*
 
@@ -649,18 +649,18 @@ Statement: `2d6ro=1` means: roll 2d6, then reroll any 1s once.
 ```text
 Long table, one target row. Scan the Notation column for the token: 4d6kh3 keep-highest, 4d6dl1 drop-lowest, 1d6! exploding, 1d6!! compounding, 1d6!p penetrating, 2d6r<2 unlimited reroll — there: 2d6ro=1, gloss "Reroll 1s once".
 Test the claim's parts against the gloss: reroll 1s ✓; once ✓ — and "once" is exactly what separates the ro row from the r row above it, glossed unlimited. The claim is the gloss spoken aloud, nothing appended.
-My habit here: if the gloss covers every part of the claim, then the claim passes with the row as its quote — a one-line row isn't under-evidenced for being short.
+My habit here: if the gloss covers every part of the claim, then the claim passes with the whole row as its quote, first cell to last — notation and gloss together.
 ```
 
 **Reply:**
 ```text
-The table glosses `2d6ro=1` as rerolling 1s once — both parts of the claim, with the `ro` row distinguished from unlimited `r` directly beside it.
+The quote is the whole `2d6ro=1` row: notation cell and gloss cell. It rerolls 1s once — both parts of the claim, with the `ro` row distinguished from unlimited `r` directly beside it.
 VERDICT: supported
-DECIDING: `2d6ro=1` | Reroll 1s once
+DECIDING: | `2d6ro=1` | Reroll 1s once |
 ESCALATE: no
 ```
 
-**Key:** key: supported / `2d6ro=1` | Reroll 1s once / no
+**Key:** key: supported / | `2d6ro=1` | Reroll 1s once | / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L32-L52 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -699,18 +699,18 @@ Statement: At 3.3.0, test coverage stood at 63.53% for branches, 75.77% for stat
 ```text
 The entry is long; the numbers sit at the end of it. Walk top to bottom: intro paragraph (provenance hardening, no numbers) — Added bullets (pinning, verifier fields, triage) — Changed (schema stamp) — Tests & coverage: there the figures live: statements 63.53%, branches 75.77%, functions 69.04%.
 Now compare the claim's pairings slowly, because they're the whole game: claim has branches 63.53 — print has statements 63.53; claim has statements 75.77 — print has branches 75.77; functions 69.04 matches both sides. Two of the three pairings swap subjects. Same three numbers, wrong owners.
-The rule that earns its keep here: if a claim quotes the right numbers with the wrong labels, then the numbers' being right is the trap — exact figures borrowed from the right neighbourhood read as checked until you check the ownership. That's the difference that decides.
+The claim says at 3.3.0, so the version heading is its own deciding line beside the coverage sentence. If a claim quotes the right numbers with the wrong labels, then the numbers' being right is the trap — exact figures borrowed from the right neighbourhood read as checked until you check the ownership. That's the difference that decides.
 ```
 
 **Reply:**
 ```text
 The final block prints statements 63.53 / branches 75.77 / functions 69.04 — the claim assigns the first two percentages to each other's subjects. Correct numbers, wrong owners; that swap is the fact.
 VERDICT: unsupported
-DECIDING: Coverage: statements **63.53%** / branches **75.77%** / functions **69.04%**.
+DECIDING: ## [3.3.0] - 2026-07-06 | Coverage: statements **63.53%** / branches **75.77%** / functions **69.04%**.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / Coverage: statements **63.53%** / branches **75.77%** / functions **69.04%**. / no
+**Key:** key: unsupported / ## [3.3.0] - 2026-07-06 | Coverage: statements **63.53%** / branches **75.77%** / functions **69.04%**. / no
 
 *mcp-tool-shop-org/style-dataset-lab@9d91b77432a9:CHANGELOG.md#L40-L62 (MIT (first line of LICENSE: 'MIT License'))*
 

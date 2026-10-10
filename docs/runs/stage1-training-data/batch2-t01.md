@@ -165,16 +165,16 @@ This sounds like the kind of improvement a release would boast about. Run falsif
 ```text
 The claim flatters the release — a clean sweep to exact arithmetic. Show me the sweep.
 Falsifier hunt: what would kill "every probability is exact"? Any surviving Monte-Carlo path.
-├─ the bullet introduces a method field with two values, "exact" or "monte-carlo", and a CLI label for Monte-Carlo results
+├─ the deciding span is the CLI sentence, kept whole: Monte-Carlo results are labelled "~ estimated via Monte Carlo (N samples) — not exact"
 └─ you don't label a thing that no longer exists — and the label's wording rubs it in: "not exact"
 The boast shape tempted a skim; two phrases in the bullet contradicted it. A welcome improvement and a false claim about it sit one line apart.
 ```
 
 **Reply:**
 ```text
-The bullet itself falsifies the sweep: results can be "exact" or "monte-carlo", and Monte-Carlo output is explicitly labelled not exact. Every probability exact is not what this release did.
+The bullet itself falsifies the sweep: the CLI labels Monte-Carlo results as not exact. Every probability exact is not what this release did.
 VERDICT: unsupported
-DECIDING: `method: "exact" | "monte-carlo"` (+ `samples`), so callers can tell exact probabilities from sampled estimates. The CLI labels Monte-Carlo results (`~ estimated via Monte Carlo (N samples) — not exact`)
+DECIDING: The CLI labels Monte-Carlo results (`~ estimated via Monte Carlo (N samples) — not exact`).
 ESCALATE: no
 ```
 
@@ -585,18 +585,18 @@ Did they get it right? Say so, then answer the statement yourself in the three l
 
 **Thinking:**
 ```text
-Their evidence was a convention CLIs often follow. The table in front of them is even titled a two-code contract: 0 success, 1 any error — and the row for 1 names missing loot file in its list. The convention they reached for is the one this tool deliberately doesn't follow. The claim names a code the table assigns to no situation at all.
+Their evidence was a convention CLIs often follow. The prose above the table states a deliberate two-code contract. The quote is the whole error row, first cell to last: code 1, and the meaning cell names a missing loot file among any error. The convention they reached for is the one this tool deliberately doesn't follow. The claim names a code the table assigns to no situation at all.
 ```
 
 **Reply:**
 ```text
-The trace loses the thread. They rubber-stamped the familiar convention: exit 2 for a missing file is how many CLIs behave — and this section promises exactly two codes, with missing loot file filed under code 1. The table already contradicted the claim by name.
+They rubber-stamped a convention this table refuses. Exit 2 for a missing file is how many CLIs behave — and this section promises exactly two codes, with the whole error row filing a missing loot file under code 1. The table already contradicted the claim by name.
 VERDICT: unsupported
-DECIDING: Roll follows a deliberate two-code contract — a stability promise scripts can rely on: | `1` | Any error — bad expression, validation failure, missing loot file, or a cap exceeded
+DECIDING: Roll follows a deliberate two-code contract — a stability promise scripts can rely on: | | `1` | Any error — bad expression, validation failure, missing loot file, or a cap exceeded |
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Roll follows a deliberate two-code contract — a stability promise scripts can rely on: | `1` | Any error — bad expression, validation failure, missing loot file, or a cap exceeded / no
+**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Roll follows a deliberate two-code contract — a stability promise scripts can rely on: | | `1` | Any error — bad expression, validation failure, missing loot file, or a cap exceeded | / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L109-L118 (MIT (first line of LICENSE: 'MIT License')); invented: the other checker's reasoning and verdict*
 
@@ -788,8 +788,8 @@ Statement: When tier and model are both given, the tier takes precedence.
 **Thinking:**
 ```text
 ├─ the claim, unpacked: tier outranks model when both are set
-├─ the tier row: ignored when model is set — tier LOSES when both are present
-└─ the model row: overrides tier — stated twice, in two rows, the same way down
+├─ the tier row, quoted whole, first cell to last: the description says tier is ignored when model is set
+└─ the model row, quoted whole, first cell to last: the description says model overrides tier
 The claim has the precedence exactly backwards, and the table says so in both rows — agreeing with each other and disagreeing with the claim. If two rows of a small table both name the same priority, then no squint at defaults or doc conventions gets a vote; I answer off the rows as printed.
 ```
 
@@ -797,11 +797,11 @@ The claim has the precedence exactly backwards, and the table says so in both ro
 ```text
 The table states the opposite precedence twice: tier is ignored when model is set, and model overrides tier. The claim inverts the documented order.
 VERDICT: unsupported
-DECIDING: ignored when `model` is set | Explicit Ollama model; overrides `tier`
+DECIDING: | `tier`        | no       | `quality` (`translategemma:27b`, default), `bulk` (`12b`), or `draft` (`2b`); ignored when `model` is set | | | `model`       | no       | Explicit Ollama model; overrides `tier` |
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / ignored when `model` is set | Explicit Ollama model; overrides `tier` / no
+**Key:** key: unsupported / | `tier`        | no       | `quality` (`translategemma:27b`, default), `bulk` (`12b`), or `draft` (`2b`); ignored when `model` is set | | | `model`       | no       | Explicit Ollama model; overrides `tier` | / no
 
 *mcp-tool-shop-org/polyglot-mcp@25e970d9d598:README.md#L126-L130 (MIT (first line of LICENSE: 'MIT License'))*
 

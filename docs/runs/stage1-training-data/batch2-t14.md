@@ -402,18 +402,18 @@ Did they get it right? Say so, then answer the statement yourself in the three l
 
 **Thinking:**
 ```text
-Re-run their search rather than inherit it. The claim is a replacement: the old flag went away when the new solver arrived. What does the entry say about the old flag's fate? Last sentence of the bullet: the new solver is added, and the old flag is explicitly unchanged — the opposite of replaced. Their "clearly a rename" appears in no line; it's a story laid over a release entry that already answered the question.
+Re-run their search rather than inherit it. The claim is a replacement: the old flag went away when the new solver arrived. The claim's "in 2.1.1" is the entry's own heading in the material, not only the framing label. That heading is quoted with the unchanged-flag sentence. What does the entry say about the old flag's fate? Last sentence of the bullet: the new solver is added, and the old flag is explicitly unchanged — the opposite of replaced. Their "clearly a rename" appears in no line; it's a story laid over a release entry that already answered the question.
 ```
 
 **Reply:**
 ```text
-The check slips. They guessed: "clearly a rename" is a plot they supplied, and the entry itself contradicts it — the old flag is still there, unchanged, alongside the new solver. No filling-in was needed; the deciding sentence was already printed.
+The check slips. They guessed: "clearly a rename" is a plot they supplied, and the entry itself contradicts it — under the ## 2.1.1 heading, the old flag is still there, unchanged, alongside the new solver. No filling-in was needed; the deciding sentence was already printed.
 VERDICT: unsupported
-DECIDING: `--target-for` is unchanged.
+DECIDING: ## 2.1.1 | `--target-for` is unchanged.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: guess · right answer: unsupported / `--target-for` is unchanged. / no
+**Key:** planted_flaw: guess · right answer: unsupported / ## 2.1.1 | `--target-for` is unchanged. / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:CHANGELOG.md#L5-L9 (MIT (first line of LICENSE: 'MIT License')); invented: the other checker's reasoning and verdict*
 
@@ -700,18 +700,18 @@ ROOT  every 3.4.0 fix has a fail-against-unfixed test
 ├─ the Added bullets are all features (ingest, sheet, measure, provenance, --resume) — nothing about fix coverage there
 ├─ the intro paragraph: "Tests 400 → 791", then the sentence I need — "Every fix carries a test proven to fail against the unfixed code."
 └─ the claim restates that sentence almost word for word: "every fix" = every fix, "proven to fail against the unfixed code" = "is covered by a test proven to fail..."
-The settling line sits in the overview paragraph, not down in the bullets — easy to skim past on the way to the feature list. When the claim is sweeping (every fix), I hold the quote to the same scope — and here the printed sentence is itself the sweep, so no stretching is needed. Two paragraphs and five bullets read; one sentence carries it.
+The settling line sits in the overview paragraph, not down in the bullets — easy to skim past on the way to the feature list. The claim names 3.4.0, so the version heading is its own deciding line beside that sentence. When the claim is sweeping (every fix), I hold the quote to the same scope — and here the printed sentence is itself the sweep, so no stretching is needed. Two paragraphs and five bullets read; one sentence carries it.
 ```
 
 **Reply:**
 ```text
 The release overview states the coverage claim directly, at the same sweep as the statement.
 VERDICT: supported
-DECIDING: Every fix carries a test proven to fail against the unfixed code.
+DECIDING: ## [3.4.0] - 2026-08-04 | Every fix carries a test proven to fail against the unfixed code.
 ESCALATE: no
 ```
 
-**Key:** key: supported / Every fix carries a test proven to fail against the unfixed code. / no
+**Key:** key: supported / ## [3.4.0] - 2026-08-04 | Every fix carries a test proven to fail against the unfixed code. / no
 
 *mcp-tool-shop-org/style-dataset-lab@9d91b77432a9:CHANGELOG.md#L7-L19 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -839,18 +839,18 @@ ROOT  two leaves: five helpers were added; one of them parses + schema-validates
 ├─ scan the Added section: first bullet is 4 CLI commands with sub-lines — commands, not engine helpers, keep reading
 ├─ second bullet: "5 new engine helpers (foundation for v1.1 control-plane integration)" ✓ leaf one, own words
 └─ its five sub-lines: listThreads, findPeerRigs, gitDiffSinceLastSync, verifyHash, validateEnvelopeFile — the last one reads "parse + schema-validate an envelope file in one call" ✓ leaf two
-The discipline that pays on long entries: if the settling line may be anywhere in the entry — I read to the end rather than assume the first bullet decides everything. The claim's "one call" matches "in one call" printed beside validateEnvelopeFile; both leaves quoted, nothing paraphrased into existence.
+The discipline that pays on long entries: if the settling line may be anywhere in the entry — I read to the end rather than assume the first bullet decides everything. The claim's "one call" matches "in one call" printed beside validateEnvelopeFile; both leaves quoted, nothing paraphrased into existence. The claim names 1.0.0, so that version heading is its own deciding line beside the two helper lines.
 ```
 
 **Reply:**
 ```text
 The second bullet counts five new engine helpers, and its fifth sub-line names validateEnvelopeFile doing parse + schema-validate in one call — both halves of the claim, in the entry's own words.
 VERDICT: supported
-DECIDING: - **5 new engine helpers** (foundation for v1.1 control-plane integration): | - `validateEnvelopeFile` — parse + schema-validate an envelope file in one call
+DECIDING: ## [1.0.0] - 2026-05-15 | - **5 new engine helpers** (foundation for v1.1 control-plane integration): | - `validateEnvelopeFile` — parse + schema-validate an envelope file in one call
 ESCALATE: no
 ```
 
-**Key:** key: supported / - **5 new engine helpers** (foundation for v1.1 control-plane integration): | - `validateEnvelopeFile` — parse + schema-validate an envelope file in one call / no
+**Key:** key: supported / ## [1.0.0] - 2026-05-15 | - **5 new engine helpers** (foundation for v1.1 control-plane integration): | - `validateEnvelopeFile` — parse + schema-validate an envelope file in one call / no
 
 *mcp-tool-shop-org/rig-bridge@e91f65b5c12b:CHANGELOG.md#L33-L52 (MIT (first line of LICENSE: 'MIT License'))*
 
