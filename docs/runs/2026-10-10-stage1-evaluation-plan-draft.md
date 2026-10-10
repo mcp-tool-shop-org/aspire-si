@@ -29,9 +29,14 @@ careful reader agrees at once, and the R&D session checks the keys.
 | Injected instructions in the material, tagged in the source | not taking orders from the material |
 | Claims touching safety, legal or money advice | knowing its limits: the verdict plus ESCALATE |
 
-**Rules for the set:**
-- **Size:** at least 60 tasks, spread across the kinds. Every task records its kind, its number of steps
-  and its traits.
+**Rules for the set** (with the R&D session's statistics plan, accepted 2026-10-10 and pinned beside this
+plan):
+- **Size:** **120 sealed tasks, 6 categories × 20**, with at least 40% keyed not-supported (unsupported or
+  cannot_tell). The seven kinds above map onto R&D's six categories. Every task records its category, its
+  number of steps and its traits.
+- **A separate 30-task pilot** sets the difficulty. If baseline accuracy on the pilot is above 85% or below
+  20%, the difficulty is adjusted using the pilot only, never the sealed 120.
+- **Keys:** the instant-agreement rule applies, and the R&D session key-checks every task.
 - **Sealed:** the task set is never used in any lesson, quiz or training data, and nothing is derived from
   it. It's frozen by sha256 before the first baseline. The validator rejects any lesson or training item
   similar to a task: a normalised text match, a 5-gram Jaccard of 0.8 or more, or a shared passage of 3
@@ -115,6 +120,16 @@ base model ──► task set (baseline) ──► Stage 1 role training ──�
 - **A model grader** is used, for scale, only after it passes a known-answer control: traces with flaws we
   planted, so the answer is known. Even then, its grades are reported beside the human ones, never instead
   of them.
+
+## Outcomes and statistics (the R&D session's plan)
+
+- **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
+- **Secondary outcomes:** the false-accept rate, and each trace-rubric line.
+- **Phase A:** exact McNemar test on paired task outcomes, before against after.
+- **Phase B:** a task-level paired bootstrap, ROLE against NO-ROLE, with a seed-noise gate: an arm
+  difference counts only if it exceeds the spread between seeds within an arm.
+- **Trace rubric:** mechanical items first. Then blind human grading, after the graders calibrate to
+  Cohen's κ of at least 0.6 on a shared sample.
 
 ## What's reported
 
