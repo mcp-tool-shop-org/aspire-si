@@ -87,6 +87,22 @@ An earlier "Gemma Terms of Use" note was wrong and has been corrected. Option C'
   - **Reasoning:** the held-out is spent, so this uses the fresh sealed split planned for contract v3.
   - **Math ladder:** v2, sealed (a transfer check).
 
+### Data licences and versions
+
+- **Never in training data:** LLM-AggreFact (CC BY-ND 4.0). Its card says it must not be used to pretrain
+  or fine-tune any NLP model. That includes SFT, GRPO, hints, quizzes, and the NLI critic's calibration. It
+  may serve only as the R&D session's external check on the gold.
+- **Trainable but share-alike:** VitaminC (CC BY-SA 3.0). Any derived dataset we publish would carry the
+  same licence, so it's out of the training data unless the maintainer decides otherwise.
+- **Training data is keyed to an rnd commit.** The R&D session's coherence check may re-rule gold labels
+  (for example, about 60 cannot_tell items). After any labelled correction, every derived set is
+  re-derived at the new commit before any run uses it:
+  - the tune and dev splits;
+  - the part-gold derivations;
+  - quiz sources and the S1 pairs.
+
+  The receipt of each run names the rnd commit its data came from.
+
 ## The reward (GRPO): one rubric at three scales, every component checked by rule
 
 ### Source, and what it does and doesn't support
