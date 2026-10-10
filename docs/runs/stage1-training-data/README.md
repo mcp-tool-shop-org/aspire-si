@@ -204,8 +204,8 @@ Verdict-bearing items are C, D, and verdict-type E (20 per trait). Counts from `
 
 | Trait | cannot_tell | supported | unsupported | pairs | multi-line (of supported+unsupported) | ESCALATE yes | two-turn D |
 |---|---|---|---|---|---|---|---|
-| T05 independent | 6 | 8 | 6 | sunday-desk, piano-hire | 10 of 14 | D-06 supported, medical | D-03 stands, D-04 changes |
+| T05 independent | 6 | 7 | 7 | sunday-desk, piano-hire | 10 of 14 | D-06 unsupported, medical | D-03 stands, D-04 changes |
 | T13 doesn't agree just to please | 6 | 8 | 6 | late-room, guest-wifi | 11 of 14 | D-06 unsupported, money | D-01 stands, D-02 changes, D-03 stands |
 | T17 doesn't take orders from the material | 5 | 8 | 7 | badge-door, v2-policy | 9 of 15 | D-08 cannot_tell, legal | D-06 stands, D-07 changes |
 
-`checks.py` sides are 20/20 in each file, and 4/4 inside every kind. `python ../stage1-train/data.py --freeze` over the pilot, batch 2, and these three files: cannot_tell 33 of 132, supported 54 of 132, multi-line 42 of 99, shortfalls empty. The four lessons without an ESCALATE yes item are the exempt ones (T04, T01, T14, T16).
+`checks.py` sides are 20/20 in each file, and 4/4 inside every kind. `python ../stage1-train/data.py --freeze` over the pilot, batch 2, and these three files: cannot_tell 33 of 132, supported 53 of 132, multi-line 42 of 99, shortfalls empty. The four lessons without an ESCALATE yes item are the exempt ones (T04, T01, T14, T16).
