@@ -278,3 +278,44 @@ The sealed-set leakage leg is ASPIRE's, run with the sealed file. Don't ask for 
 | DECOMPOSE_BY_SECRETS | 2 | Data (Grok), the validator and trainer (ASPIRE), key checks (R&D) and merges (the Publisher) are separate owners and files. |
 | UNCERTAINTY_GATED_HUMANS | 2 | A contested item is cut, not ruled on; an unworkable rule stops and asks; the maintainer samples each batch. |
 | EXTERNAL_VERIFIER | 2 | R&D (Claude, a different family from the Grok generator) checks every item line by line against the material. |
+
+
+## Amendment 1 (2026-10-10): quoting the deciding lines
+
+*From the Dataset Specialist. Binding from batch 3 onward. Batch 2 (#82) isn't reopened for this.*
+
+**Why.** The untrained model usually gets the verdict right but rarely quotes the deciding lines exactly.
+The misses fall into a few habits:
+- paraphrasing;
+- dropping backticks or other marks;
+- quoting part of a table row;
+- leaving out the version heading the evidence sits under;
+- writing NONE beside real lines;
+- quoting the statement instead of the material.
+
+Exact quoting is part of being precise (T03) and of going to the source (T02), so every trait's items should
+model it. This comes from aggregate counts only. No test item, test wording or test repo is behind it, and
+the exclusion list in §4 rule 13 is unchanged.
+
+**Rules for the three lines (kinds C and D, and kind-E verdict items):**
+1. **Copy the material exactly, marks and all:** backticks, `**`, quotes, case and punctuation. Make sure
+   plenty of items have code-formatted material (flags, file names, function names, config keys), so the
+   model practises keeping the backticks.
+2. **A table row is quoted whole,** from its first cell to its last, never as one or two cells.
+3. **When a version or date heading is part of the evidence, it's its own DECIDING line,** e.g.
+   `## v2.3.0 (2026-04-02) | - The dry run no longer writes the lock file.`
+4. **Use multi-line keys where the evidence really spans lines.** In every trait, at least a quarter of the
+   verdict-bearing items (supported or unsupported) need two to four DECIDING lines. Separate them with
+   " | ", and never end with a trailing separator.
+5. **NONE stands alone and only for cannot_tell.** Never NONE beside lines, and never lines for a cannot_tell
+   key.
+6. **Quote the material, never the statement.**
+7. **Show the habit in the self-talk (kind D) and the quizzes (kind E):** "copy the line exactly, marks and
+   all", "the row, not the cell", "the heading belongs with the bullet". Vary the wording per the no-stamping
+   rule.
+
+**Long material.** Lines over 100 characters are fine and should appear. Keep within the length limits in §4
+rule 15.
+
+**Gates.** ASPIRE is adding validator drift checks for rules 2, 4 and 5 and the trailing separator. Until they
+land, check them with a script before every push, and report the multi-line share per trait in the PR.
