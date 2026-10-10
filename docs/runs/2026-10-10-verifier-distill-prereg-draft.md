@@ -39,7 +39,7 @@ from. GRPO needs no teacher in any of them.
 |---|---|---|---|
 | **A: self-distillation (STaR-style)** | The student itself: k samples per tune claim (k = 8, temperature 0.7, thinking on), keeping only gold-correct ones | Apache-2.0 throughout | Ready to specify. Sidesteps the licence question |
 | **B: a larger Apache-2.0 teacher** | Gold-filtered traces from a teacher that first passes the teacher bar (FA upper ≤ 0.07 on tune and on held-out) | Candidates below, all Apache-2.0 per their cards | Needs teacher calibration first |
-| **C: gemma4:31b with the think-before-accepting policy as teacher** | That policy's traces, gold-filtered | **The licence record conflicts; see below** | The maintainer's ruling |
+| **C: gemma4:31b with the think-before-accepting policy as teacher** | That policy's traces, gold-filtered | Apache-2.0: **licence-eligible** (see below) | Needs the teacher bar cleared by the policy, confirmed |
 
 **Option B candidates** (licences read from the Hugging Face cards, 2026-10-10, all apache-2.0, none gated):
 - Qwen3-32B: local on the 5090;
@@ -53,16 +53,18 @@ from. GRPO needs no teacher in any of them.
 None has been calibrated yet. qwen3:8b and qwen3:14b miss the bar: qwen3:14b with thinking on has an FA
 upper of 0.089 grounded and 0.204 reasoning.
 
-**The licence record for option C conflicts.** The working rule tonight treats gemma4 as Gemma Terms of
-Use. But on 2026-10-10:
-- the Hugging Face card for google/gemma-4-31B-it says `apache-2.0`, with a link to
-  ai.google.dev/gemma/docs/gemma_4_license;
-- the licence text shipped inside the local gemma4:31b (Ollama `api/show`) is the Apache License 2.0.
+**Option C is licence-eligible.** Gemma 4 is Apache-2.0, checked on 2026-10-10 against three sources:
+- the Hugging Face card for google/gemma-4-31B-it (`apache-2.0`, linking
+  ai.google.dev/gemma/docs/gemma_4_license);
+- the licence text shipped inside the local gemma4:31b (Ollama `api/show`);
+- the Publisher's independent check of that text.
 
-That's evidence for the maintainer's ruling, not a decision here.
-- Even if gemma4 is ruled Apache-2.0, gemma4:31b **alone** misses the teacher bar.
-- Only gemma4:31b **with the policy** would clear it, and only once the policy is confirmed on grounded
-  held-out.
+An earlier "Gemma Terms of Use" note was wrong and has been corrected. Option C's open question is the
+**teacher bar**, not the licence:
+- gemma4:31b with thinking on alone misses it (FA upper 0.0704, against 0.07);
+- with the think-before-accepting policy it may clear it, but only once offrig serves the policy natively
+  and it's confirmed on grounded held-out.
+
 - Nemotron (NVIDIA Open Model License) stays out under any reading.
 
 ## The data
