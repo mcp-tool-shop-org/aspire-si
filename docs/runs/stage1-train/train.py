@@ -34,6 +34,7 @@ import student  # noqa: E402
 
 LORA = {"r": 64, "lora_alpha": 128, "lora_dropout": 0.05,
         "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]}
+VRAM_CAP_GB = 28  # self-stop line; jobs are planned at or below about 26 GB
 OPT = {"lr": 1e-4, "warmup_frac": 0.03, "weight_decay": 0.0, "effective_batch": 16, "max_len": 4096,
        "max_target": 3000, "epochs": 1, "seed": 0}
 
@@ -112,6 +113,10 @@ def main(argv=None):
     from peft import LoraConfig, PeftModel, get_peft_model
 
     print(json.dumps(student.verify_weights()), flush=True)
+    # The trainer stops itself at 28 GB (the maintainer's policy): past this limit an allocation fails with a
+    # clean out-of-memory error, well before the rig's watchdog line at 31.2 GB.
+    total = torch.cuda.get_device_properties(0).total_memory
+    torch.cuda.set_per_process_memory_fraction(min(1.0, VRAM_CAP_GB * 2**30 / total))
     random.seed(OPT["seed"])
     torch.manual_seed(OPT["seed"])
     model = student.load_student()
