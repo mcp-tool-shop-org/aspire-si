@@ -448,6 +448,50 @@ what the baseline missed.
    amendment here first, and it may draw on DEV (pilot-30) results only. The round-1 sealed scores stay
    unopened until round F, as already registered.
 
+## Amendment, 2026-10-10: the self-learning generator's store and DEV
+
+**The setup.** The role-set generator weights future training slots toward questions the model gets stuck on,
+read from a store that the training runner writes. Sealed and pre-interview results are firewalled out in code.
+
+**Ruling: no DEV data in the store during a stage (option b), and DEV aggregates only between stages, with a
+fresh DEV after (option c, conditioned).**
+- **Why aggregates aren't coarse enough.** DEV (pilot-30) is this stage's learning curve and its stop rule.
+  Thirty tasks across lesson × kind × tier makes most cells hold one to three tasks. So a cell's stuck rate is
+  effectively an item's result, and steering on it trains toward DEV. That inflates g_r, delays the plateau,
+  and makes the curve measure the curriculum's targeting rather than learning.
+- **During a stage:** the store holds training-time observations only (the quiz ledger and rehearsals: id,
+  trace, timings, answer). No DEV ids, text, traces or aggregates.
+- **Between stages:** once this stage's stop rule has fired, F is fixed and the sealed set is scored at F,
+  DEV aggregates may inform the next stage's generator, by a dated amendment. DEV is then spent for steering,
+  so the next stage's stop rule runs on a fresh DEV set built to the same rules and key-checked.
+- **Sealed and pre-interview:** nothing, ever, as designed.
+
+**The stuck thresholds.** They're frozen once from the untrained pilot-30 baseline (p95 thinking tokens per
+tier, over its 3 samples) before round 1. That's a property of the untrained model and doesn't track DEV
+afterwards, so it's allowed. Two rules:
+- a tier with fewer than 20 DEV samples pools with its neighbour tier;
+- tiers that DEV doesn't cover (tier 1, the A and written-E items) use the pooled p95 of all tiers.
+
+The thresholds and their sha256 are pinned in the run note.
+
+**The steering rule itself is pre-registered, not tuned in flight.** It's written down before round 1:
+- the weighting formula;
+- the floor-preserving constraint (every amendment-2 floor and share holds in every round's data);
+- the maximum share any one weakness can take.
+
+Changing it later needs a dated amendment.
+
+**Both arms and the seeds.**
+- **The arms:** NO-ROLE items are derived one for one from ROLE items, so steering on the ROLE model alone
+  would hand the NO-ROLE arm a curriculum aimed at the other model's weak spots. The steering signal is
+  therefore **pooled**: the mean stuck rate from both arms' runners, per lesson, kind and tier. One item stream
+  serves both arms, and composition stays matched by construction.
+- **The seeds:** each training seed runs its own steering stream, so the between-seed spread includes
+  curriculum divergence, which is the honest variance for the stop rule's band.
+
+**Reporting.** Round-by-round gains are reported as the effect of the steered curriculum, and the
+amendment-of-2026-10-10 disclosure for targeted behaviours applies.
+
 ## The pre-interview (descriptive, plus one tested measure)
 
 The pre-interview's 12 questions are given at every sitting: the baseline, after Stage 1, and after domain
