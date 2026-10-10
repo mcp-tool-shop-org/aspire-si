@@ -651,7 +651,7 @@
           ]
         },
         {
-          "hash": "abf5be27c0a59bf5faa578cdf97fed96c5fde70b1e4007b974981f3bfd0a1a9f",
+          "hash": "39b65222ef9405b2b16fcd5d3f1d26e7b29d80fa02cbe797941118688adb2d68",
           "path": "aspire/config.py"
         },
         {
@@ -1635,27 +1635,27 @@
               "line": 107
             },
             {
-              "in": "_init_critic",
+              "in": "_build_critic",
               "kind": "raise",
-              "line": 297
+              "line": 309
             },
             {
               "in": "_init_optimizers",
               "kind": "raise",
-              "line": 339
+              "line": 349
             },
             {
               "in": "_init_optimizers",
               "kind": "raise",
-              "line": 347
+              "line": 357
             },
             {
               "in": "_write_geometry",
               "kind": "except",
-              "line": 464
+              "line": 474
             }
           ],
-          "hash": "0dc85cca7b4904627b884b6c9c36357aae9a0040524e6f7fb201789892b0a608",
+          "hash": "4c3c6d8813d2bb1e358490b3baf228374001975beea0a6d6aaee4803a8f46505",
           "importsFiles": [
             "aspire/config.py",
             "aspire/critic/__init__.py",
@@ -1758,7 +1758,7 @@
             {
               "calls": [
                 {
-                  "line": 655,
+                  "line": 665,
                   "name": "AspireConfig",
                   "target": {
                     "file": "aspire/config.py"
@@ -1801,7 +1801,7 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 43,
+      "testedBy": 49,
       "unresolvedNamed": [
         {
           "path": "aspire/cli.py",
@@ -1812,10 +1812,10 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 0,
+      "dynamicReads": 11,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
-      "dynamicWrites": 0,
+      "dynamicWrites": 2,
       "entryPoints": [],
       "externals": 0,
       "files": [
@@ -1828,6 +1828,1357 @@
           "path": "docs/runs/2026-10-06-pod-run.md"
         },
         {
+          "hash": "cebe4327c0ca581d4e21d6a362aeb816e9b73bbf7493244d21c6a400ae3014ef",
+          "path": "docs/runs/2026-10-07-next-runs-plan.md"
+        },
+        {
+          "hash": "766c4481a6d783beb53d22304777fd5440f7a6bb0052727ac06263158338164e",
+          "path": "docs/runs/2026-10-07-run-1-seeds.md"
+        },
+        {
+          "hash": "c7cb5c43622d95f466422ec3566106342287827045a429141ca440bb40d934bd",
+          "path": "docs/runs/2026-10-07-runs-2-3.md"
+        },
+        {
+          "hash": "f77b1703536182f935155e44743e67258e90ba3b4ab60d08f0f6567cdf808d1d",
+          "path": "docs/runs/2026-10-07-sft-then-aspire.md"
+        },
+        {
+          "hash": "ae68a66eb9b522061f8db4a94eb200896b4704693c3a3cb7dfa9dbd49f89609e",
+          "path": "docs/runs/2026-10-08-auditor-plan.md"
+        },
+        {
+          "hash": "6b95d6674e2a40e2bc4c041c89c87591419fab63cf93644d1086462addce9186",
+          "path": "docs/runs/2026-10-08-auditor.md"
+        },
+        {
+          "hash": "dbdf1c44844633aa30554fb4dea8d60e51a661187bf01e49516f0e9307761b74",
+          "path": "docs/runs/2026-10-08-critic-init-plan.md"
+        },
+        {
+          "hash": "ab0f4339149220f85deb0491a507885cabb830461ca4820ed375658cb7807132",
+          "path": "docs/runs/2026-10-08-critic-init.md"
+        },
+        {
+          "hash": "0be0fda33a4cbdd142bf511d24a4936da741cb0feb25cfbb32843c6f563b62d9",
+          "path": "docs/runs/2026-10-08-kev-confirmation-plan.md"
+        },
+        {
+          "hash": "428e60286fe5d4387c7c27eb4245923e5b144185252420752f360c38323eb7fe",
+          "path": "docs/runs/2026-10-08-kev-confirmation.md"
+        },
+        {
+          "hash": "28ea6a60504a2c9bf5e39915e4029fee4ff4e420ab9a8d14daa1436b72f825ac",
+          "path": "docs/runs/2026-10-08-next-step-plan.md"
+        },
+        {
+          "hash": "73803fd1d4d3562e056123eabceb6f3f827db54da86485d5f3bbb4b901f9a687",
+          "path": "docs/runs/2026-10-08-step-2.md"
+        },
+        {
+          "hash": "f3297e68f9ec1f7460974e61d5e1137d888c77ce1d87af98cae9fcef0722f45b",
+          "path": "docs/runs/2026-10-08-step-3-plan.md"
+        },
+        {
+          "hash": "1772718ec6260c222b326cf76103534e1871694ec952fd05383de923764b9555",
+          "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
+        },
+        {
+          "hash": "d188fc6901e3c21a55837cc6db414aada2a77d1afc8306eab09554fdc1aabe32",
+          "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
+        },
+        {
+          "hash": "8943f65c6265302b4ffa62d9ff7f215931503b9fa11e2a8d13bfe02ab3a15012",
+          "path": "docs/runs/2026-10-10-stage1-lesson-1-the-verifier-role-draft.md"
+        },
+        {
+          "hash": "a3a4d5a727e66f7d4e756bed1a67333a88e3c21ec0b6953fdbc82f273da2ef2f",
+          "path": "docs/runs/2026-10-10-stage1-lesson-2-how-a-verifier-thinks-draft.md"
+        },
+        {
+          "hash": "4f2641de569f3c1516bc45d473599fae5ab6db87036a880f593c7f26a2af2235",
+          "path": "docs/runs/2026-10-10-stage1-lesson-3-what-is-expected-of-a-verifier-draft.md"
+        },
+        {
+          "hash": "9698a74ab9e9209e3877b922222de11356da8469a1a41b4e3364252ae865c00d",
+          "path": "docs/runs/2026-10-10-stage1-pre-interview-draft.md"
+        },
+        {
+          "hash": "ac0cc020ee4aad435655f54c2f4fdbd8345ffb88e56d1c6939bbb24ef76d557e",
+          "path": "docs/runs/2026-10-10-stage1-score-v2-note.md"
+        },
+        {
+          "hash": "d3c30b42fd0c9c1fecdd36c5d69c404299c4c72994316aaf9060df225dcceb71",
+          "path": "docs/runs/2026-10-10-stage1-sealed-freeze.md"
+        },
+        {
+          "hash": "c6cb60bb11a83be86c9505ce742c3f5fd54db665b74c272d13273fd438c69fb6",
+          "path": "docs/runs/2026-10-10-stage1-training-data-grok-handoff.md"
+        },
+        {
+          "hash": "29682c5668a6484e5fbe069b8d42f2dc887a56f965d55e7dcb4969d156675e42",
+          "path": "docs/runs/2026-10-10-stage1-training-data-kimi-handoff.md"
+        },
+        {
+          "hash": "b247f8e5e144a032b7b40c433c7bfd4562bebb76185dff37fd4817c679fc4eda",
+          "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
+        },
+        {
+          "hash": "6fb8c70cd7f4f4ae0c7b5391a59a6c6837d3a4ff4d1a6217fa1caab09cfa03fe",
+          "path": "docs/runs/2026-10-10-stage1-verifier-qualities-lessons-draft.md"
+        },
+        {
+          "hash": "6ca4430f525dd252af75a54335c948263c7113ffbd7833133413a646567178eb",
+          "path": "docs/runs/2026-10-10-stage1-verifier-trait-lessons-draft.md"
+        },
+        {
+          "hash": "00e4cf45b9c7bf51dc00a1e0ca484842983ffc6e73b3643e4adc53c133f763e3",
+          "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
+        },
+        {
+          "hash": "a1efe68ff8f0de27d46f0352e67b694a74b7e8b24480b69fd987b07e4a2b8a02",
+          "path": "docs/runs/receipts/2026-10-08-auditor/B-manifest.json"
+        },
+        {
+          "hash": "d61915ebf4106c3067b6ea08d83c3aace9555113afb8193fe480c7013cb47eb5",
+          "path": "docs/runs/receipts/2026-10-08-auditor/B-readout.json"
+        },
+        {
+          "hash": "9ef063a78593490fecadd77c093944570f03179f392ccd7224a8f42c4ca179a2",
+          "path": "docs/runs/receipts/2026-10-08-auditor/B-selection.json"
+        },
+        {
+          "hash": "49dd0893ed4ce809b326ecec33a3e1b886f9b1b92db8925ae2fa79eda54d0de7",
+          "path": "docs/runs/receipts/2026-10-08-auditor/README.md"
+        },
+        {
+          "hash": "4a68cb7606b39641e1649e9d622f87008e7c561ed41e6d9309cbe6c8382a687c",
+          "path": "docs/runs/receipts/2026-10-08-auditor/judge-control-selection.json"
+        },
+        {
+          "hash": "a1c984b29c3e3631f150019899c704b75e268b356ebec786e186c7b27fde7711",
+          "path": "docs/runs/receipts/2026-10-08-auditor/verdicts-error-B-mistral-small_24b.json"
+        },
+        {
+          "exports": [
+            "generate",
+            "grade",
+            "harness_hash",
+            "main",
+            "parse_answer",
+            "run_task",
+            "settings",
+            "split_thinking"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 144
+            }
+          ],
+          "hash": "4fa52448a1be79230eb8fa13118853abd9615c150fec7f270b1e58082741c0c7",
+          "importOrder": [
+            "docs/runs/stage1-eval/student.py",
+            "docs/runs/stage1-eval/mapper.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-eval/mapper.py",
+            "docs/runs/stage1-eval/student.py"
+          ],
+          "path": "docs/runs/stage1-eval/harness.py"
+        },
+        {
+          "exports": [
+            "config",
+            "main",
+            "prompt"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 68
+            }
+          ],
+          "hash": "57d2d6eadbf2492e3c99efb88f385a007f85f3aba129f4ca5d06d91e4db6a9cf",
+          "importsFiles": [
+            "docs/runs/stage1-eval/harness.py",
+            "docs/runs/stage1-eval/student.py"
+          ],
+          "path": "docs/runs/stage1-eval/interview.py"
+        },
+        {
+          "exports": [
+            "map_run",
+            "map_trace",
+            "match_line",
+            "material_lines",
+            "part_for"
+          ],
+          "hash": "cbe3630b770f67f774dd11cb7a4835fcfdac1c0090dd94558b5c2b8dda20b67a",
+          "path": "docs/runs/stage1-eval/mapper.py"
+        },
+        {
+          "exports": [
+            "core",
+            "deciding_ok",
+            "ident",
+            "lines_of",
+            "main",
+            "norm",
+            "score"
+          ],
+          "hash": "fd59cb5074d0858af2864bcadd68443ddea26c325beef3afe6f5cdadd624ab7d",
+          "importsFiles": [
+            "docs/runs/stage1-eval/harness.py"
+          ],
+          "path": "docs/runs/stage1-eval/score.py"
+        },
+        {
+          "exports": [
+            "bucket",
+            "cov",
+            "found_lines",
+            "found_ok",
+            "found_ok_turn",
+            "is_heading",
+            "lenient",
+            "main"
+          ],
+          "hash": "55b4d0eaadbf29d3f40a66ce83c163b2ce742a1213dc4804a0a25774e49eae22",
+          "importsFiles": [
+            "docs/runs/stage1-eval/harness.py",
+            "docs/runs/stage1-eval/score.py",
+            "docs/runs/stage1-eval/score_v2.py"
+          ],
+          "path": "docs/runs/stage1-eval/score_found.py"
+        },
+        {
+          "exports": [
+            "deciding_ok_v2",
+            "main",
+            "repaired",
+            "score_v2"
+          ],
+          "hash": "64f52f6fe60d077a37db6d043476ac9e37d38043d756f203bb8d802b90e3cb44",
+          "importsFiles": [
+            "docs/runs/stage1-eval/harness.py",
+            "docs/runs/stage1-eval/score.py"
+          ],
+          "path": "docs/runs/stage1-eval/score_v2.py"
+        },
+        {
+          "exports": [
+            "identity",
+            "load_student",
+            "load_tokenizer",
+            "snapshot_dir",
+            "verify_weights"
+          ],
+          "failurePaths": [
+            {
+              "in": "snapshot_dir",
+              "kind": "raise",
+              "line": 35
+            },
+            {
+              "in": "verify_weights",
+              "kind": "raise",
+              "line": 52
+            }
+          ],
+          "hash": "3fc4e32c7278a5c5e8a4dea02bdc01960c4994c346b2b1a2c7afa1cc6284c70d",
+          "path": "docs/runs/stage1-eval/student.py"
+        },
+        {
+          "exports": [
+            "correct",
+            "load",
+            "main",
+            "norm",
+            "verbatim_norm"
+          ],
+          "hash": "37626688d807cfc41e913f579f0bb8d2b653ba99b4db8a704a5fd9030e869dad",
+          "importsFiles": [
+            "docs/runs/stage1-eval/harness.py"
+          ],
+          "path": "docs/runs/stage1-eval/summarize.py"
+        },
+        {
+          "exports": [
+            "ok",
+            "test_also_sufficient_set",
+            "test_cannot_tell_needs_none",
+            "test_correction_new_material_counts_only_in_the_final_turn",
+            "test_exact_and_edge_trims",
+            "test_given_not_in_material_fails_even_if_it_covers",
+            "test_no_case_folding_and_backticks_count",
+            "test_quoting_a_pressure_turn_fails",
+            "test_short_fragment_covers_nothing",
+            "test_table_row_through_joined_string"
+          ],
+          "hash": "a7bbaff47078f8de4dc0944943b5589f8c8322cd4e38410ba44ec14934364516",
+          "importsFiles": [
+            "docs/runs/stage1-eval/score.py"
+          ],
+          "path": "docs/runs/stage1-eval/test_score.py"
+        },
+        {
+          "exports": [
+            "ok",
+            "test_bucket_none_where_lines_are_needed",
+            "test_bucket_partial_needs_a_real_fragment",
+            "test_cell_fragment_fails_whole_row_passes",
+            "test_dropped_backticks_markup_and_case_pass",
+            "test_half_coverage_inside_a_key_line",
+            "test_heading_optional_except_in_the_version_category",
+            "test_paraphrase_and_cannot_tell_still_fail",
+            "test_v2_parsing_repair_applies"
+          ],
+          "hash": "53864c6faf3b59aba4d92e5340d4478f0f2caa510004bb12d3533162122a7a8e",
+          "importsFiles": [
+            "docs/runs/stage1-eval/score_found.py"
+          ],
+          "path": "docs/runs/stage1-eval/test_score_found.py"
+        },
+        {
+          "exports": [
+            "both",
+            "test_dropped_backticks_still_fail",
+            "test_lone_edge_separator_repaired",
+            "test_none_element_dropped_beside_real_lines",
+            "test_quoted_table_row_unchanged",
+            "test_v2_never_fails_what_pinned_passes"
+          ],
+          "hash": "1b044ccda601b2fa6de2ebcdcbe667b79c672a022e81ee1916e751bc014c9841",
+          "importsFiles": [
+            "docs/runs/stage1-eval/score.py",
+            "docs/runs/stage1-eval/score_v2.py"
+          ],
+          "path": "docs/runs/stage1-eval/test_score_v2.py"
+        },
+        {
+          "hash": "efffbfdb5458a9f083e5aaab04fefb19cb4f84f62a8cfe5e90fbbde85e79e96a",
+          "path": "docs/runs/stage1-student-weights.md"
+        },
+        {
+          "hash": "6db74657a50d59be229f7ea81e5a55170b5a76d8856eb23797540822996b967b",
+          "path": "docs/runs/stage1-taskset/taskset-pilot-20.jsonl"
+        },
+        {
+          "hash": "801387fcb5f74cd086d7534c8af060d80312684b200902106df9a94744cd7ea6",
+          "path": "docs/runs/stage1-taskset/taskset-pilot-20.md"
+        },
+        {
+          "hash": "b97652353deb1d674d1542dbf4b5fe582c8934297153c87cbfada71760ea7771",
+          "path": "docs/runs/stage1-taskset/taskset-review-10.jsonl"
+        },
+        {
+          "hash": "87353b55ccf1d265982a4efd7120edf0941e54572afe9a5af863d1877376497f",
+          "path": "docs/runs/stage1-taskset/taskset-review-10.md"
+        },
+        {
+          "hash": "454947e6a3ac8c623ce0b5e30048504f285f76ce4d8d213ff147ca4cb2cceffb",
+          "path": "docs/runs/stage1-train/_evaldir.py"
+        },
+        {
+          "exports": [
+            "batch_report",
+            "check_floors",
+            "check_formulas",
+            "check_frames",
+            "check_framing_fits",
+            "check_material_reuse",
+            "check_multi_line_share",
+            "check_pairs",
+            "check_phrases",
+            "check_puzzles",
+            "check_spans",
+            "check_stamps",
+            "formulas",
+            "framing_mismatch",
+            "framing_of",
+            "framing_repeats",
+            "freeze_report",
+            "frequent_phrases",
+            "leakage",
+            "load",
+            "norm",
+            "puzzle_repeats",
+            "puzzle_signature",
+            "reused_material",
+            "role_words_in_prompt",
+            "sequences",
+            "shared_spans",
+            "validate",
+            "ws"
+          ],
+          "failurePaths": [
+            {
+              "in": "_check_quoting",
+              "kind": "raise",
+              "line": 136
+            },
+            {
+              "in": "_check_quoting",
+              "kind": "raise",
+              "line": 146
+            },
+            {
+              "in": "check_multi_line_share",
+              "kind": "raise",
+              "line": 165
+            },
+            {
+              "in": "_turn_verdicts",
+              "kind": "raise",
+              "line": 187
+            },
+            {
+              "in": "check_floors",
+              "kind": "raise",
+              "line": 223
+            },
+            {
+              "in": "check_floors",
+              "kind": "raise",
+              "line": 226
+            },
+            {
+              "in": "check_floors",
+              "kind": "raise",
+              "line": 228
+            },
+            {
+              "in": "check_floors",
+              "kind": "raise",
+              "line": 231
+            },
+            {
+              "in": "check_pairs",
+              "kind": "raise",
+              "line": 244
+            },
+            {
+              "in": "check_pairs",
+              "kind": "raise",
+              "line": 247
+            },
+            {
+              "in": "check_pairs",
+              "kind": "raise",
+              "line": 252
+            },
+            {
+              "in": "check_pairs",
+              "kind": "raise",
+              "line": 258
+            },
+            {
+              "in": "check_spans",
+              "kind": "raise",
+              "line": 308
+            },
+            {
+              "in": "check_framing_fits",
+              "kind": "raise",
+              "line": 348
+            },
+            {
+              "in": "check_material_reuse",
+              "kind": "raise",
+              "line": 374
+            },
+            {
+              "in": "check_puzzles",
+              "kind": "raise",
+              "line": 437
+            },
+            {
+              "in": "check_puzzles",
+              "kind": "raise",
+              "line": 440
+            },
+            {
+              "in": "check_phrases",
+              "kind": "raise",
+              "line": 528
+            },
+            {
+              "in": "check_formulas",
+              "kind": "raise",
+              "line": 581
+            },
+            {
+              "in": "freeze_report",
+              "kind": "raise",
+              "line": 633
+            },
+            {
+              "in": "_check_keys",
+              "kind": "raise",
+              "line": 671
+            },
+            {
+              "in": "_check_keys",
+              "kind": "raise",
+              "line": 674
+            },
+            {
+              "in": "_check_keys",
+              "kind": "raise",
+              "line": 676
+            },
+            {
+              "in": "_check_keys",
+              "kind": "raise",
+              "line": 679
+            },
+            {
+              "in": "_check_keys",
+              "kind": "raise",
+              "line": 681
+            },
+            {
+              "in": "_reply_matches",
+              "kind": "raise",
+              "line": 687
+            },
+            {
+              "in": "_reply_matches",
+              "kind": "raise",
+              "line": 691
+            },
+            {
+              "in": "_reply_matches",
+              "kind": "raise",
+              "line": 694
+            },
+            {
+              "in": "_reply_matches",
+              "kind": "raise",
+              "line": 697
+            },
+            {
+              "in": "_reply_matches",
+              "kind": "raise",
+              "line": 699
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 708
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 710
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 713
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 715
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 721
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 723
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 726
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 734
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 737
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 741
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 746
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 749
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 751
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 753
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 757
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 760
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 762
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 764
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 766
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 768
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 772
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 774
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 788
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 795
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 797
+            },
+            {
+              "in": "validate",
+              "kind": "raise",
+              "line": 801
+            },
+            {
+              "in": "check_frames",
+              "kind": "raise",
+              "line": 828
+            },
+            {
+              "in": "check_stamps",
+              "kind": "raise",
+              "line": 843
+            },
+            {
+              "kind": "raise",
+              "line": 924
+            },
+            {
+              "kind": "except",
+              "line": 926
+            },
+            {
+              "kind": "except",
+              "line": 936
+            }
+          ],
+          "hash": "5da77ef5a0be5fb5b6cdd5f99355af3f151e189914f8a04a00a6ba69dcc5691b",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py"
+          ],
+          "path": "docs/runs/stage1-train/data.py"
+        },
+        {
+          "exports": [
+            "main",
+            "sha256_file"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 53
+            }
+          ],
+          "hash": "eb03bb2d400b9ec620205684a4ce7df477d3ec39669e6d1fc5f8ead221c86b6d",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py"
+          ],
+          "path": "docs/runs/stage1-train/eval_adapter.py"
+        },
+        {
+          "exports": [
+            "b_material",
+            "blocks",
+            "build",
+            "checker_verdict",
+            "closing",
+            "compare",
+            "composition",
+            "fit",
+            "fit_recall",
+            "is_verification",
+            "main",
+            "puzzle_turns",
+            "recall_turns",
+            "statement_of",
+            "strip_patterns",
+            "target_text",
+            "three_lines",
+            "verdict_turns"
+          ],
+          "failurePaths": [
+            {
+              "in": "checker_verdict",
+              "kind": "raise",
+              "line": 115
+            },
+            {
+              "in": "b_material",
+              "kind": "raise",
+              "line": 128
+            },
+            {
+              "in": "verdict_turns",
+              "kind": "raise",
+              "line": 156
+            },
+            {
+              "in": "verdict_turns",
+              "kind": "raise",
+              "line": 175
+            },
+            {
+              "in": "puzzle_turns",
+              "kind": "raise",
+              "line": 194
+            },
+            {
+              "in": "puzzle_turns",
+              "kind": "raise",
+              "line": 198
+            },
+            {
+              "in": "build",
+              "kind": "raise",
+              "line": 257
+            },
+            {
+              "in": "build",
+              "kind": "raise",
+              "line": 262
+            },
+            {
+              "in": "build",
+              "kind": "raise",
+              "line": 272
+            },
+            {
+              "in": "compare",
+              "kind": "raise",
+              "line": 312
+            }
+          ],
+          "hash": "63162cf42270b34e160d60e22559cca2072085bb71a83d8c6d9dbf8a08d16ee8",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-train/no_role.py"
+        },
+        {
+          "exports": [
+            "item",
+            "test_bad_d_items_refused",
+            "test_c_needs_a_known_flaw_and_e_a_reworded_variant",
+            "test_cannot_tell_and_supported_shares",
+            "test_checker_verdict_given_as_a_value_counts",
+            "test_contrast_pairs",
+            "test_deciding_keeps_markup",
+            "test_escalation_floors",
+            "test_every_item_needs_sources",
+            "test_floors_met",
+            "test_floors_skip_pre_amendment_lessons",
+            "test_formula_in_over_25_percent_of_b_items_refused",
+            "test_framing_lines_unique_across_files_at_freeze",
+            "test_framing_must_fit_the_content_kind",
+            "test_freeze_report_over_all_files",
+            "test_good_items_pass",
+            "test_kind_a_needs_passage_trait_name_and_first_person",
+            "test_kind_b_needs_a_drawn_pattern_and_no_stamps",
+            "test_kind_c_needs_checker_verdict_and_real_source_when_cited",
+            "test_kind_e_variant_must_share_a_key_point",
+            "test_leakage_held_out_claim_and_shared_lines",
+            "test_leakage_interview_bar_for_kinds_a_and_e",
+            "test_material_reused_only_as_a_pair",
+            "test_multi_line_share_per_lesson",
+            "test_no_undated_time_words_in_statements",
+            "test_phrase_in_over_40_percent_of_turns_refused",
+            "test_prompts_are_role_neutral_outside_material_and_statement",
+            "test_puzzle_structure_signature",
+            "test_shared_span_in_three_items_refused",
+            "test_stamped_frames_refused",
+            "test_table_row_quoted_whole",
+            "test_trailing_separator_and_none_beside_lines_refused",
+            "test_two_turn_d_floor",
+            "test_two_turn_d_needs_three_lines_in_each_turn",
+            "test_verdict_variant_is_a_prompt_too",
+            "test_version_heading_quoted_in_a_changelog",
+            "test_wrapped_deciding_line_with_markup_passes"
+          ],
+          "hash": "738061c72545244e85e2ba55b419052805ab1c0c45d51365f4bff81e881a4bdc",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-train/test_data.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "by_id",
+            "count",
+            "rows",
+            "test_b_split_puzzle_verification_and_refusal",
+            "test_c_reply_names_the_other_checker_and_the_answer",
+            "test_cannot_tell_closing_is_always_true",
+            "test_compare_refuses_a_differing_count",
+            "test_composition_matches_and_targets_are_plain",
+            "test_cuts_fall_on_bullet_or_paragraph_boundaries",
+            "test_d_item_read_through_closing_and_three_lines",
+            "test_fit_stops_near_the_target_and_never_pads",
+            "test_multi_line_closing",
+            "test_read_through_reaches_the_settling_line",
+            "test_recall_counterparts_spread_exposure_evenly",
+            "test_recall_skips_an_oversized_unit_for_one_that_fits",
+            "test_recall_takes_the_only_content_unit_even_when_oversized",
+            "test_two_turn_d_reads_new_material_or_says_none"
+          ],
+          "hash": "d43afcf285d17df8772e0bc38708bbb086993878ae5fc3445fe70a4db8338ffb",
+          "importsFiles": [
+            "docs/runs/stage1-train/no_role.py",
+            "docs/runs/stage1-train/test_data.py"
+          ],
+          "path": "docs/runs/stage1-train/test_no_role.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "build",
+            "code_hash",
+            "machine",
+            "main",
+            "sha256_file"
+          ],
+          "failurePaths": [
+            {
+              "in": "build",
+              "kind": "raise",
+              "line": 76
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 97
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 155
+            }
+          ],
+          "hash": "9964a5a80767bb7e200ad394ae81cffaa8bec9b38fe6af66f5e504625c950b16",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-train/train.py"
+        },
+        {
+          "hash": "7eda5b5bd9a2117d522a69db0a569970c374c3ccef9a15cd1e0e9af5008a016c",
+          "path": "docs/runs/stage1-training-data-schema.md"
+        },
+        {
+          "hash": "75ed1c2596ca80a844348deca875258e9c810258e60adc1780a076d242bddc51",
+          "path": "docs/runs/stage1-training-data/README.md"
+        },
+        {
+          "exports": [
+            "ws"
+          ],
+          "failurePaths": [
+            {
+              "kind": "except",
+              "line": 68
+            }
+          ],
+          "hash": "d28416dba0bfe35c3610103114b4c88a0a511bcab5576027d9cd3e828aeed7ae",
+          "path": "docs/runs/stage1-training-data/_audit_drift.py"
+        },
+        {
+          "exports": [
+            "base",
+            "c_item",
+            "d_item",
+            "e_verdict",
+            "e_written",
+            "span",
+            "src",
+            "with_invented_note"
+          ],
+          "hash": "51387bd387cb52e43a707f7823af5bd0f84380d6abcfa3e0ad20f0e139828df8",
+          "path": "docs/runs/stage1-training-data/_build_t16.py"
+        },
+        {
+          "exports": [
+            "fix"
+          ],
+          "hash": "207997fa969cdad72aec1e520e8b229e1d9b5954d793e89a8aa68c0959e09a55",
+          "path": "docs/runs/stage1-training-data/_fix_batch2.py"
+        },
+        {
+          "exports": [
+            "full",
+            "main",
+            "rep"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 311
+            }
+          ],
+          "hash": "4b48a5e2942cd39743c196fc77d6f4f328fc6712a134abc078c60ef8ff897f9e",
+          "path": "docs/runs/stage1-training-data/_fix_batch2_r2.py"
+        },
+        {
+          "exports": [
+            "fix",
+            "invented_desc"
+          ],
+          "hash": "091eaf044d51f86c9bbdccd14d63ae4d744cd45dad939510430b81595fdfb207",
+          "path": "docs/runs/stage1-training-data/_fix_batch2_r3.py"
+        },
+        {
+          "hash": "91143e24c02a5dacaa51c5e7c17761036f17c2b09a2206171d81efaa726029e6",
+          "path": "docs/runs/stage1-training-data/_fix_batch2_r4.py"
+        },
+        {
+          "exports": [
+            "main"
+          ],
+          "hash": "184ecfc792440a2527c73680e2ed78e2d9bb60bd58ccf82ecf9f600af3d594df",
+          "path": "docs/runs/stage1-training-data/_fix_batch2_r5.py"
+        },
+        {
+          "exports": [
+            "dump_line",
+            "fix_t01",
+            "fix_t14",
+            "fix_t16",
+            "load",
+            "main",
+            "quote_balance",
+            "require_in",
+            "sub_once",
+            "ws"
+          ],
+          "failurePaths": [
+            {
+              "in": "sub_once",
+              "kind": "raise",
+              "line": 24
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 39
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 41
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 44
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 46
+            },
+            {
+              "in": "require_in",
+              "kind": "raise",
+              "line": 51
+            },
+            {
+              "in": "fix_t01",
+              "kind": "raise",
+              "line": 65
+            },
+            {
+              "in": "fix_t01",
+              "kind": "raise",
+              "line": 75
+            },
+            {
+              "in": "fix_t01",
+              "kind": "raise",
+              "line": 91
+            },
+            {
+              "in": "fix_t14",
+              "kind": "raise",
+              "line": 112
+            },
+            {
+              "in": "fix_t14",
+              "kind": "raise",
+              "line": 135
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 168
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 185
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 216
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 243
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 294
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 302
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 315
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 330
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 368
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 372
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 385
+            },
+            {
+              "in": "fix_t16",
+              "kind": "raise",
+              "line": 395
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 419
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 434
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 442
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 451
+            }
+          ],
+          "hash": "df2ebf91fb014f47ba19a42df808c92bcb13e45f6aa9e3c28eb8aa47ed17aa15",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-training-data/_fix_batch2_r6.py"
+        },
+        {
+          "exports": [
+            "dump_line",
+            "fix_t01",
+            "fix_t14",
+            "fix_t16",
+            "heading_line",
+            "load",
+            "main",
+            "pipe_free",
+            "quote_balance",
+            "row_containing",
+            "set_deciding_line",
+            "sub_once",
+            "ws"
+          ],
+          "failurePaths": [
+            {
+              "in": "sub_once",
+              "kind": "raise",
+              "line": 24
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 39
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 41
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 44
+            },
+            {
+              "in": "quote_balance",
+              "kind": "raise",
+              "line": 46
+            },
+            {
+              "in": "row_containing",
+              "kind": "raise",
+              "line": 52
+            },
+            {
+              "in": "heading_line",
+              "kind": "raise",
+              "line": 60
+            },
+            {
+              "in": "set_deciding_line",
+              "kind": "raise",
+              "line": 72
+            },
+            {
+              "in": "set_deciding_line",
+              "kind": "raise",
+              "line": 78
+            },
+            {
+              "in": "pipe_free",
+              "kind": "raise",
+              "line": 84
+            },
+            {
+              "in": "fix_t01",
+              "kind": "raise",
+              "line": 102
+            },
+            {
+              "in": "fix_t01",
+              "kind": "raise",
+              "line": 106
+            },
+            {
+              "in": "fix_t01",
+              "kind": "raise",
+              "line": 122
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 276
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 289
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 297
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 300
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 306
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 311
+            },
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 319
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 322
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 329
+            }
+          ],
+          "hash": "a8f6722f22fa8eaa27d8f0406adadb980fa48b322571e6e02876be652f292051",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-training-data/_fix_batch2_r7.py"
+        },
+        {
+          "hash": "afc439f0b8d31e860cc2d73258e05522ddc12d55bc0206139d0c4cef7fd6c4b0",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-training-data/_fix_pilot_sources.py"
+        },
+        {
+          "exports": [
+            "expect",
+            "restamp"
+          ],
+          "hash": "08fc7b602571c1b4189153720b7a5e0e7e14afbda6bf51fdf591856f0ca4b86e",
+          "path": "docs/runs/stage1-training-data/_pilot_fixes.py"
+        },
+        {
+          "hash": "480bbb5ae2e839ac433a1eab1e3783c24d904a46ea83e5021cecf5b543b5ff2b",
+          "path": "docs/runs/stage1-training-data/_pilot_fixes_r2.py"
+        },
+        {
+          "exports": [
+            "cited_text",
+            "is_real",
+            "main",
+            "ws"
+          ],
+          "hash": "3ac67ac2aa92688e870bdaa0618103d4fb71dd95dcdbb635d46b83c9aadfc2d5",
+          "path": "docs/runs/stage1-training-data/_verify_sources.py"
+        },
+        {
+          "hash": "91596935ddf3f52a51a3290d5a27067a2fd4cb7021371eab53f761bdee56ecf5",
+          "path": "docs/runs/stage1-training-data/batch2-t01.jsonl"
+        },
+        {
+          "hash": "8b4188a553b69de8a039f049f13ecc294e444312d8be22c2ce60bd29a9d29524",
+          "path": "docs/runs/stage1-training-data/batch2-t01.md"
+        },
+        {
+          "hash": "94d78ea08f50eab463671f95965d1610dba2f29f48b6fbe206cd8b0829f19d0f",
+          "path": "docs/runs/stage1-training-data/batch2-t14.jsonl"
+        },
+        {
+          "hash": "a81c78d88fcf0dc7f92a257acea0142ba02733c9585d938879e94d67eb97efa8",
+          "path": "docs/runs/stage1-training-data/batch2-t14.md"
+        },
+        {
+          "hash": "6750c23b8b73bc349e6e3a3f892929fc4e3db7d9147b2c3f067c343890d1b38e",
+          "path": "docs/runs/stage1-training-data/batch2-t16.jsonl"
+        },
+        {
+          "hash": "4f74a6af76845a6670d3bdffcd959cb9b54c222002647596d0d5d023aedd5daf",
+          "path": "docs/runs/stage1-training-data/batch2-t16.md"
+        },
+        {
+          "exports": [
+            "estimate_tokens",
+            "interview_questions",
+            "load",
+            "main",
+            "render",
+            "report"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 167
+            }
+          ],
+          "hash": "2441ade6112daf7c6b9825e7f5a7a5dc56139e4757d646b58332490725a4fd28",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
+          "path": "docs/runs/stage1-training-data/checks.py"
+        },
+        {
+          "hash": "df29c3a10b0d884283e7880ca3fb660a192e3ee9c58fb86cddb1d26a42fa813c",
+          "path": "docs/runs/stage1-training-data/pilot-t04.jsonl"
+        },
+        {
+          "hash": "a95e9e01c47175e0a0b05380a49cac531387c5b10be83602f5a80d4fb51375d8",
+          "path": "docs/runs/stage1-training-data/pilot-t04.md"
+        },
+        {
           "hash": "168412b204d82fab976ee0eea3e0c27a64394acadd5a2cc6cb8a042a2cc21a7a",
           "path": "docs/spec-feature-enhancements.md"
         }
@@ -1837,13 +3188,41 @@
       ],
       "importConfidence": "full",
       "name": "docs",
-      "origin": "authored",
+      "origin": "mixed",
+      "outsidePlaces": [
+        {
+          "reads": 5,
+          "where": [
+            "caller"
+          ],
+          "writes": 2
+        }
+      ],
+      "outsideReads": 5,
+      "outsideWrites": 2,
       "role": "docs",
-      "testedBy": 0,
-      "unresolvedSites": 0
+      "testedBy": 5,
+      "unresolvedNamed": [
+        {
+          "path": "docs/runs/stage1-train/data.py",
+          "specifier": "harness",
+          "why": "unplaced"
+        },
+        {
+          "path": "docs/runs/stage1-train/eval_adapter.py",
+          "specifier": "harness",
+          "why": "unplaced"
+        },
+        {
+          "path": "docs/runs/stage1-train/eval_adapter.py",
+          "specifier": "mapper",
+          "why": "unplaced"
+        }
+      ],
+      "unresolvedSites": 9
     },
     {
-      "dynamicReads": 5,
+      "dynamicReads": 14,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 0,
@@ -2018,13 +3397,66 @@
         {
           "exports": [
             "build",
-            "main"
+            "judge_only",
+            "judge_report",
+            "main",
+            "plant_errors"
           ],
-          "hash": "064712df27cf1a75f4fc22d3ba2b0e52f5783482d62a742f678e142fe24a919e",
+          "failurePaths": [
+            {
+              "in": "judge_only",
+              "kind": "raise",
+              "line": 374
+            }
+          ],
+          "hash": "562aebb541b4c2ccffa505b33f2002b3a3e185ec576c446d98f4cde4a0f16a21",
           "importsFiles": [
+            "examples/sft-experiment/clean_dataset.py",
             "examples/sft-experiment/lib.py"
           ],
           "path": "examples/sft-experiment/build_dataset.py"
+        },
+        {
+          "exports": [
+            "agreement",
+            "ask",
+            "check_server",
+            "file_sha256",
+            "identity",
+            "main",
+            "ollama_version",
+            "readout",
+            "sample_ids",
+            "stop",
+            "verdict",
+            "wilson"
+          ],
+          "failurePaths": [
+            {
+              "in": "check_server",
+              "kind": "raise",
+              "line": 135
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 209
+            }
+          ],
+          "hash": "8a3610868c247ad2e4c2713eedfc66f9b90596350a8c00f4116aebd1e98106e7",
+          "importOrder": [
+            "examples/sft-experiment/matched_set.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/matched_set.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "examples/sft-experiment/build_equivalence.py"
         },
         {
           "exports": [
@@ -2052,11 +3484,83 @@
         },
         {
           "exports": [
+            "auc",
+            "balanced_flips",
+            "boot",
+            "clusters",
+            "edit_spans",
+            "error_overlap",
+            "found_auditor_reading",
+            "load_pairs",
+            "main",
+            "mid_layer",
+            "near_tie_share",
+            "pair_wins",
+            "paired_diff",
+            "pearson",
+            "permutation_p",
+            "positive_gate",
+            "role_check",
+            "role_scores",
+            "score_answers",
+            "score_set",
+            "skeptic_class",
+            "span_tokens",
+            "standardise",
+            "train_head",
+            "transfer_reading",
+            "two_sample_diff",
+            "with_marker"
+          ],
+          "hash": "4e9baf1a2cb7984a755edf74ae4e656972b64c45fe413562aaad87174adef010",
+          "importsFiles": [
+            "aspire/critic/__init__.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "examples/sft-experiment/critic_heads.py"
+        },
+        {
+          "exports": [
+            "cache_sets",
+            "compare_sources",
+            "family_contrast",
+            "load_results",
+            "readout",
+            "skeptic_readout",
+            "skeptic_role_readable",
+            "train_all",
+            "train_perm",
+            "train_skeptic"
+          ],
+          "failurePaths": [
+            {
+              "in": "cache_sets",
+              "kind": "raise",
+              "line": 114
+            }
+          ],
+          "hash": "84fda58e9189658a48be8c7c3ee8c0681a114871212a70bd5d21bdbe6f482321",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "aspire/judge.py",
+            "examples/sft-experiment/fast_heads.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fast_heads.py"
+          ],
+          "path": "examples/sft-experiment/critic_heads_run.py"
+        },
+        {
+          "exports": [
             "answer",
+            "ended",
             "main",
             "score_answers"
           ],
-          "hash": "7894f8200ebb818218d28862b8f75a8cb1822f1d0e51740a6187b07d7ace3e0d",
+          "hash": "510bebf704db8f2eacbc258a4ff345fd46dac317b6624b376436fbf83cd73ead",
           "importsFiles": [
             "examples/sft-experiment/lib.py",
             "examples/sft-experiment/probe_models.py"
@@ -2065,11 +3569,80 @@
         },
         {
           "exports": [
-            "evaluate",
-            "main",
-            "prompt_groups"
+            "batch_plan",
+            "pair_loss",
+            "score_set_fast",
+            "stack_features",
+            "train_head_fast"
           ],
-          "hash": "f49d26c2f1eb2089d832cef7b2009ef92c897000a0f2a50c994a03400015407d",
+          "failurePaths": [
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 131
+            },
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 133
+            }
+          ],
+          "hash": "05fe6302d55563f17e057d7e37acda096eb494fb865d5270e464d730fb2cc987",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "aspire/critic/__init__.py"
+          ],
+          "importsFiles": [
+            "aspire/critic/__init__.py",
+            "examples/sft-experiment/critic_heads.py"
+          ],
+          "path": "examples/sft-experiment/fast_heads.py"
+        },
+        {
+          "exports": [
+            "build",
+            "changed_span",
+            "main",
+            "split",
+            "strong_answers",
+            "write"
+          ],
+          "hash": "d0316469c53b58d847baa679754298c131ab65c6342b5d38e76e0fb3c5b6171a",
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/fresh_pairs.py"
+        },
+        {
+          "exports": [
+            "check_speed",
+            "driver_cuda",
+            "gpus",
+            "main",
+            "probe_timeout",
+            "problems",
+            "projected_minutes",
+            "rate_problem",
+            "required_mbps",
+            "shard_rate",
+            "write_rate"
+          ],
+          "hash": "a8074f7cae0dce245665081413ace89ea97afcd7a17cddd9fdc9a0b726d841bb",
+          "path": "examples/sft-experiment/host_check.py"
+        },
+        {
+          "exports": [
+            "add_separable",
+            "evaluate",
+            "from_scores",
+            "main",
+            "prompt_groups",
+            "subset_summary",
+            "summarize",
+            "teacher_detects"
+          ],
+          "hash": "1c9b8050e8b531d920a71d10be83f60bed0c6bcd0da1068e1af6d3adc1905247",
           "importOrder": [
             "examples/sft-experiment/lib.py",
             "aspire/judge.py"
@@ -2082,6 +3655,37 @@
         },
         {
           "exports": [
+            "confirmation_reading",
+            "http_ask",
+            "judge",
+            "main",
+            "order_averaged",
+            "read_choice",
+            "reading",
+            "request"
+          ],
+          "hash": "1a40a592fd7ba3ee1b737be35a6cc848b5a7a425c87917df0086593ddddeb7e4",
+          "path": "examples/sft-experiment/judge_kev.py"
+        },
+        {
+          "exports": [
+            "body",
+            "http_ask",
+            "judge",
+            "letter_probs",
+            "main"
+          ],
+          "hash": "39836589a074f5c0cc159f40066e2246addf0e543d58b159189ac16c209c4519",
+          "importsFiles": [
+            "examples/sft-experiment/judge_kev.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/pairwise_teacher.py"
+          ],
+          "path": "examples/sft-experiment/judge_logprob.py"
+        },
+        {
+          "exports": [
+            "apply_edit",
             "bootstrap_ci",
             "challenge_request",
             "challenge_types",
@@ -2092,6 +3696,7 @@
             "parse_question_list",
             "question_request",
             "read_jsonl",
+            "refuse_cloud",
             "score_of",
             "scoring_request",
             "similarity",
@@ -2109,15 +3714,92 @@
             {
               "in": "generate",
               "kind": "raise",
-              "line": 285
+              "line": 355
+            },
+            {
+              "in": "refuse_cloud",
+              "kind": "raise",
+              "line": 432
+            },
+            {
+              "in": "model_id",
+              "kind": "raise",
+              "line": 471
             }
           ],
-          "hash": "8c11db3320b741a43c6563798d2c89e56d047d68f5666ddf5d48c7e8d311d456",
+          "hash": "9b51522c672faa68050b22b50fd7d549e2cac3e669472f4ef39351ddbb09e4da",
           "importsFiles": [
             "aspire/teachers/base.py",
             "aspire/teachers/local.py"
           ],
           "path": "examples/sft-experiment/lib.py"
+        },
+        {
+          "exports": [
+            "draw",
+            "main"
+          ],
+          "hash": "0aa3d2b7c6ded6d67b7a88757730b62a078ae5d51fc3d30125fdffb5c1a426d5",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/make_prompts.py"
+        },
+        {
+          "exports": [
+            "apply_candidate",
+            "choose_pair",
+            "edit_size",
+            "error_kept",
+            "escalate",
+            "grammar_summary",
+            "judged",
+            "kept_candidates",
+            "main",
+            "ollama_chat",
+            "parse_muse",
+            "planter_request",
+            "prescreen",
+            "rewrite_kept",
+            "schema",
+            "seeded_sample",
+            "stage_confirm",
+            "stage_grammar",
+            "stage_propose",
+            "stage_score",
+            "strong_answers",
+            "unload"
+          ],
+          "hash": "6811eaad7d7bef0addaedd56605dc3eb61f7000726da23fe7e3290231732a1e0",
+          "importOrder": [
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/typicality.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/skeptic_pairs.py",
+            "examples/sft-experiment/typicality.py"
+          ],
+          "path": "examples/sft-experiment/matched_set.py"
+        },
+        {
+          "exports": [
+            "compare",
+            "main",
+            "parse_choice"
+          ],
+          "hash": "03cfed2bb81f9e3123f1628bf08d03b0303ccfc2001db2ba92e3de260c4310e3",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/pairwise_teacher.py"
         },
         {
           "hash": "5408dcc64188568afec924b6b077baead125f4df8a6c3f2b2d3d4fecd18aa378",
@@ -2128,8 +3810,32 @@
           "path": "examples/sft-experiment/pod/plan_a2.sh"
         },
         {
-          "hash": "49e09beb84acf93b477e05cbef5987bf53f47c56c1b226759ebb2028df9fec4b",
+          "hash": "88ff8cc25f7758aa40eb7747824486c8dcb9655a307f6588d3c5f1796563c6a5",
+          "path": "examples/sft-experiment/pod/plan_a3.sh"
+        },
+        {
+          "hash": "d2c54a37b64dc201201a63745504f85a31c800e72dfc42ea020da56030b987fa",
           "path": "examples/sft-experiment/pod/plan_b.sh"
+        },
+        {
+          "hash": "925e4c2f1052e9afe3ff5582a22cb629197ac91f2588ae4e35d03abfd9fa2a5b",
+          "path": "examples/sft-experiment/pod/plan_c.sh"
+        },
+        {
+          "hash": "9258ba393349122fc286a6f0b260dd6c384ea3f3b70b35572ae8be55fa9100a8",
+          "path": "examples/sft-experiment/pod/plan_d.sh"
+        },
+        {
+          "hash": "f371e18f7fb3413500701f72f1eb26d6cc52bfcac1f0c86c02d4d394d4658383",
+          "path": "examples/sft-experiment/pod/plan_e.sh"
+        },
+        {
+          "hash": "36302c18722f0a2fe76cffb91f7e488b30748cff8e5419fbe394b82c8c65e8e4",
+          "path": "examples/sft-experiment/pod/plan_f.sh"
+        },
+        {
+          "hash": "9d04efa30fd9dcc11477060de01b4a794a575d42e2a984c93d3d211dfaa15f10",
+          "path": "examples/sft-experiment/pod/plan_g.sh"
         },
         {
           "exports": [
@@ -2137,7 +3843,8 @@
             "drift_summary",
             "load_pairs",
             "main",
-            "parse_entry"
+            "parse_entry",
+            "write_exports"
           ],
           "failurePaths": [
             {
@@ -2146,7 +3853,7 @@
               "line": 52
             }
           ],
-          "hash": "89e628be06dccb86cb38c633741ba2eee5a49e255813cc89c715879f3b035bd6",
+          "hash": "a1edee1eb19fc09fb0083ea67884b44308db77117f080b4ff81ac32660e3b21b",
           "importsFiles": [
             "aspire/geometry.py",
             "aspire/judge.py"
@@ -2154,17 +3861,209 @@
           "path": "examples/sft-experiment/probe_models.py"
         },
         {
+          "hash": "0647761b3d0b385f9cbad7a57fd3e58e03048da994d27e3f5450612d803cff30",
+          "path": "examples/sft-experiment/prompts-128.json"
+        },
+        {
           "exports": [
+            "combine",
+            "judge_all",
+            "keeps",
+            "main",
+            "parse",
+            "post_get",
+            "request_body"
+          ],
+          "failurePaths": [
+            {
+              "in": "judge_all",
+              "kind": "raise",
+              "line": 234
+            }
+          ],
+          "hash": "757dd1d7812aee584b410f9d8d2fabe61552d973e00eab478e5eaf2b2e570fbd",
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "examples/sft-experiment/recheck.py"
+        },
+        {
+          "exports": [
+            "edit_stats",
+            "main",
+            "plant",
+            "spare_prompts",
+            "write_answers"
+          ],
+          "hash": "24d03b31d14ca45a821991ebfd7039d6fb6b4b5cf43280daaf81d96ddf3c1807",
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/second_planter.py"
+        },
+        {
+          "exports": [
+            "main",
+            "prompt_config",
+            "seed_configs",
+            "split_config"
+          ],
+          "hash": "fe1555068d3d87f1aaba49355bd74af9b0038ad1da34063f7610f864cc4e6ac1",
+          "path": "examples/sft-experiment/seed_configs.py"
+        },
+        {
+          "exports": [
+            "append_ledger",
             "collate",
+            "merge",
             "parse_args",
+            "prepare_examples",
+            "public_out",
+            "public_student",
+            "sha256_of",
             "tokenize_example",
             "train"
           ],
-          "hash": "2b6176fa5077224b49978182623a2342cd8d5322142d85bf4ba6ec49244cf360",
+          "failurePaths": [
+            {
+              "in": "tokenize_example",
+              "kind": "raise",
+              "line": 76
+            },
+            {
+              "in": "tokenize_example",
+              "kind": "raise",
+              "line": 80
+            },
+            {
+              "in": "prepare_examples",
+              "kind": "except",
+              "line": 108
+            },
+            {
+              "in": "prepare_examples",
+              "kind": "raise",
+              "line": 109
+            },
+            {
+              "in": "prepare_examples",
+              "kind": "raise",
+              "line": 117
+            },
+            {
+              "in": "public_out",
+              "kind": "except",
+              "line": 140
+            }
+          ],
+          "hash": "d67e916b6f4d2b5690fae469c3a4ff1992101930039ceba2ba3863c4e9184ba7",
           "importsFiles": [
             "examples/sft-experiment/lib.py"
           ],
           "path": "examples/sft-experiment/sft.py"
+        },
+        {
+          "exports": [
+            "apply_swap",
+            "avoid",
+            "context",
+            "edit_chars",
+            "lexical_guard",
+            "main",
+            "overlaps",
+            "plant",
+            "plant_swaps",
+            "quantiles",
+            "sentence_of",
+            "sentences",
+            "size_cap",
+            "strong_items",
+            "verify"
+          ],
+          "hash": "decf4efb249eceb895e34f96c2ee3c3a9daba0f7c666259acc81553203ec19dc",
+          "importOrder": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py",
+            "examples/sft-experiment/clean_dataset.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py"
+          ],
+          "path": "examples/sft-experiment/skeptic_pairs.py"
+        },
+        {
+          "exports": [
+            "baseline",
+            "clustered_auc",
+            "fit_logistic",
+            "folds",
+            "main",
+            "out_of_fold",
+            "predict"
+          ],
+          "hash": "60234cb3b9ee43a76a1dbd153d38d7b9a95da1b50a981c658d3e62ee40fba0f7",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/skeptic_pairs.py",
+            "examples/sft-experiment/typicality.py",
+            "aspire/judge.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/skeptic_pairs.py",
+            "examples/sft-experiment/typicality.py"
+          ],
+          "path": "examples/sft-experiment/surprisal_baseline.py"
+        },
+        {
+          "exports": [
+            "answer_end",
+            "changed_span",
+            "delta",
+            "delta_tail",
+            "ks_two_sample",
+            "main",
+            "match",
+            "quartiles",
+            "readout",
+            "score",
+            "span_logprob"
+          ],
+          "failurePaths": [
+            {
+              "in": "answer_end",
+              "kind": "raise",
+              "line": 98
+            },
+            {
+              "in": "logprobs",
+              "kind": "raise",
+              "line": 186
+            }
+          ],
+          "hash": "f14589271a5ac90d88abdb85da427c9dcd647a3354f3f57862b5956b993eee92",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "aspire/judge.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/critic_heads.py"
+          ],
+          "path": "examples/sft-experiment/typicality.py"
         }
       ],
       "globs": [
@@ -2175,20 +4074,20 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 14,
+          "reads": 45,
           "where": [
             "caller"
           ],
-          "writes": 15
+          "writes": 52
         }
       ],
-      "outsideReads": 14,
-      "outsideWrites": 15,
+      "outsideReads": 45,
+      "outsideWrites": 52,
       "role": "code",
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 1,
+      "testedBy": 10,
       "unresolvedSites": 0
     },
     {
@@ -2780,11 +4679,11 @@
       "externals": 0,
       "files": [
         {
-          "hash": "cb5244869256b8222a44c497561363b94fdb447f30c2924b1b8763fbbccee5f7",
+          "hash": "f02465a66dd46fe00203ec6b66dea5abbd7f0c582d14aa839f7455a426a48b8e",
           "path": ".gitattributes"
         },
         {
-          "hash": "12fa1869829452ce6725155d741a5196f6ab65e542dc7283242b2cdecd912de9",
+          "hash": "8b4ba133a91df8ebef01d7ce6f81752b51732e85e0e510ad1e2f0034295d872d",
           "path": ".gitignore"
         },
         {
@@ -2792,7 +4691,7 @@
           "path": "ASPIRE-SPEC.md"
         },
         {
-          "hash": "251f146d6410c970fa3ed8a001a7762bf28aa311034b77962fdc65cd7fdfede4",
+          "hash": "fd2b96512442e944c3a75159e73ba5c1ec0da27162b986488bae3c9531e1303d",
           "path": "CHANGELOG.md"
         },
         {
@@ -2840,7 +4739,7 @@
           "path": "README.ja.md"
         },
         {
-          "hash": "048eeb38d1761ea5b2a22dca1ca0c8b8e7da534709f57b7edd254d4af3816dfd",
+          "hash": "a60ec11248336cd8a33345d2c3b65544c390df4b86b20569faf3f20cbe23538f",
           "path": "README.md"
         },
         {
@@ -2880,7 +4779,7 @@
           "path": "passport.json"
         },
         {
-          "hash": "98412532bea043680fd1ec295165952b35dc8f8fc7559c9f99fb361fb58c6ddb",
+          "hash": "4aebe9e507da81ab0fe28e7157c3f4e948720bf1fe0b4ff1f7274c9b5e920cf6",
           "path": "pyproject.toml"
         },
         {
@@ -3040,7 +4939,7 @@
             "sample_student_response",
             "setup_test_environment"
           ],
-          "hash": "a8e0bd02183052ea36e8e331c77d1f1c55745b4b1da83f110b1c4ccd96823704",
+          "hash": "9f5665eb38f9d2bde784aa73d2bd7d174e9c83891b6d16656cc48f9f4c36aa47",
           "importsFiles": [
             "aspire/teachers/base.py"
           ],
@@ -3457,6 +5356,24 @@
         },
         {
           "exports": [
+            "runs",
+            "test_a_real_build_difference_stops",
+            "test_a_run_refuses_to_resume_on_a_different_server",
+            "test_a_shortfall_within_the_builds_own_noise_does_not_stop",
+            "test_identical_builds_do_not_stop",
+            "test_identity_records_the_backend_hash",
+            "test_samples_are_seeded_and_order_free",
+            "test_unusable_items_are_left_out_and_wilson_is_sane"
+          ],
+          "hash": "c56259ea040b1ca7919dc3dee53b73a168ef1d0f08dcb491518daf826b072b97",
+          "importsFiles": [
+            "examples/sft-experiment/build_equivalence.py"
+          ],
+          "path": "tests/test_build_equivalence.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "test_crafted_critic_checkpoint_is_refused_without_running",
             "test_critic_checkpoint_round_trips_under_weights_only",
             "test_every_torch_load_passes_weights_only"
@@ -3611,6 +5528,37 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "accuracy",
+            "fake_result",
+            "scored",
+            "synthetic"
+          ],
+          "hash": "d28a6cb622aa1c4fc0cda2afb393dee3f626b784441b717060757c83fe3bd47e",
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py"
+          ],
+          "path": "tests/test_critic_heads.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "build",
+            "head",
+            "same"
+          ],
+          "hash": "59c4c460433791d2d3f7e892b1e16fd140126b18755d63114218c4282c17ba18",
+          "importsFiles": [
+            "aspire/config.py",
+            "aspire/trainer.py"
+          ],
+          "path": "tests/test_critic_init_seed.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "e072cfebb6fa80c40408d02bea08b280d0622ce90482b155b46f999d91b37a94",
           "importsFiles": [
             "aspire/critic/base.py",
@@ -3653,6 +5601,26 @@
             "aspire/teachers/base.py"
           ],
           "path": "tests/test_dialogue_edge_cases.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "fake_cache",
+            "test_a_head_does_not_depend_on_heads_trained_before_it",
+            "test_batch_plan_matches_the_original_loop",
+            "test_stack_pads_with_a_zero_mask_in_the_stored_dtype",
+            "test_the_fast_eager_path_reproduces_train_head"
+          ],
+          "hash": "65a32cbd871514f4f979e9277f5657273dd6b6c27b3305e2f7b4b16e49e9cea7",
+          "importOrder": [
+            "examples/sft-experiment/fast_heads.py",
+            "examples/sft-experiment/critic_heads.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fast_heads.py"
+          ],
+          "path": "tests/test_fast_heads.py",
           "testFramework": "pytest"
         },
         {
@@ -3732,6 +5700,17 @@
         },
         {
           "exports": [
+            "cand",
+            "test_one_set_missing_escalates_every_set"
+          ],
+          "hash": "b2fc2cd99b79638d259b7d2121139f22514401d0ce5ec7d3bcbdc73af0c85bf2",
+          "importsFiles": [
+            "examples/sft-experiment/matched_set.py"
+          ],
+          "path": "tests/test_matched_set.py"
+        },
+        {
+          "exports": [
             "make_local",
             "manager"
           ],
@@ -3771,20 +5750,101 @@
         },
         {
           "exports": [
-            "fake_teacher",
-            "judge_pair"
+            "reply"
           ],
-          "hash": "45bf4409284edaa2bb1e71fdaa90c4d5fc843c9c3e2d5de19157467951bd40b4",
+          "hash": "6e22760ca3657f5d71b87adc56fdf2630fb02a2259e32f2e8917a8008330247f",
           "importsFiles": [
+            "examples/sft-experiment/recheck.py"
+          ],
+          "path": "tests/test_recheck.py"
+        },
+        {
+          "exports": [
+            "fake_teacher",
+            "judge_pair",
+            "lib_config_ok"
+          ],
+          "hash": "ebb808db129c007af9f2ead4a6070d91e138957e2099da7d23610c804171fb37",
+          "importOrder": [
             "examples/sft-experiment/build_dataset.py",
             "examples/sft-experiment/clean_dataset.py",
             "examples/sft-experiment/eval_heldout.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/host_check.py",
             "examples/sft-experiment/judge_eval.py",
+            "examples/sft-experiment/judge_kev.py",
+            "examples/sft-experiment/judge_logprob.py",
             "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/make_prompts.py",
+            "examples/sft-experiment/pairwise_teacher.py",
             "examples/sft-experiment/probe_models.py",
+            "examples/sft-experiment/seed_configs.py",
+            "examples/sft-experiment/sft.py",
+            "aspire/config.py"
+          ],
+          "importsFiles": [
+            "aspire/config.py",
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/eval_heldout.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/host_check.py",
+            "examples/sft-experiment/judge_eval.py",
+            "examples/sft-experiment/judge_kev.py",
+            "examples/sft-experiment/judge_logprob.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/make_prompts.py",
+            "examples/sft-experiment/pairwise_teacher.py",
+            "examples/sft-experiment/probe_models.py",
+            "examples/sft-experiment/seed_configs.py",
             "examples/sft-experiment/sft.py"
           ],
           "path": "tests/test_sft_experiment.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "labelled",
+            "multi_turn",
+            "single_turn",
+            "test_drop_and_truncate_never_mix",
+            "test_multi_turn_labels_on_a_consistent_template_are_every_answer",
+            "test_multi_turn_with_thinking_off_raises_rather_than_mislabelling",
+            "test_prepare_accounts_for_every_item",
+            "test_single_turn_labels_are_exactly_the_answer_and_never_the_prompt"
+          ],
+          "hash": "3c55011b3091f30a6de349338171e14eab3fc654791c29e8ccf53b436a4af376",
+          "importsFiles": [
+            "examples/sft-experiment/sft.py"
+          ],
+          "path": "tests/test_sft_properties.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "head",
+            "scores",
+            "swap"
+          ],
+          "hash": "b53f5e61ab597c7becbf415e8dc69b791006d4bd2c694d6264e3b55a9db67908",
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "tests/test_skeptic.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "rows"
+          ],
+          "hash": "2e96fb724cd835728bf33b3b3456cb89a1cf1d9a08634dff62bc99fe7e449211",
+          "importsFiles": [
+            "examples/sft-experiment/surprisal_baseline.py"
+          ],
+          "path": "tests/test_surprisal_baseline.py",
           "testFramework": "pytest"
         },
         {
@@ -3855,6 +5915,14 @@
             "aspire/trainer.py"
           ],
           "path": "tests/test_trainer_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "544d62ce0ad6b37354dc150f31f8c7e147f631a06238f0bf9402beacefc50c27",
+          "importsFiles": [
+            "examples/sft-experiment/typicality.py"
+          ],
+          "path": "tests/test_typicality.py",
           "testFramework": "pytest"
         },
         {
@@ -4066,7 +6134,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 8
+          "files": 25
         },
         {
           "boundary": "integrations",
@@ -4076,7 +6144,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 68
+          "files": 78
         }
       ],
       "readers": [],
@@ -4123,7 +6191,7 @@
         {
           "config": "pyproject.toml",
           "coverage": true,
-          "files": 68,
+          "files": 78,
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
@@ -4548,10 +6616,21 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "5c5346d7cb37d1430f93eafab5e3a5cabad4f123",
-    "tracked": 211
+    "commit": "63792e8b6bcd2081676528833edf7e4d214caca1",
+    "tracked": 325
   },
   "landings": [
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/_build_t16.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "CHANGELOG.md",
+      "writers": []
+    },
     {
       "readers": [
         {
@@ -4566,6 +6645,11 @@
     },
     {
       "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/_build_t16.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
         {
           "by": "pyproject.toml",
           "call": "configuration",
@@ -4595,6 +6679,262 @@
       ],
       "target": "aspire",
       "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "read_text",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/2026-10-10-stage1-pre-interview-draft.md",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-eval/harness.py",
+          "call": "read_bytes",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-train/_evaldir.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r6.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r7.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-eval",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-eval/interview.py",
+          "call": "read_bytes",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-eval/interview.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "read_text",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-taskset/taskset-pilot-20.jsonl",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "read_text",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-taskset/taskset-review-10.jsonl",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/train.py",
+          "call": "read_bytes",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r6.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r7.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_pilot_sources.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/checks.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-train",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/_fix_pilot_sources.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-train/data.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/eval_adapter.py",
+          "call": "read_bytes",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-train/eval_adapter.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r2.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r3.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r4.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r5.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r6.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r7.py",
+          "call": "read_text",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-training-data",
+      "writers": [
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2.py",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r2.py",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r3.py",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r4.py",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r5.py",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r6.py",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_fix_batch2_r7.py",
+          "confidence": "ast"
+        }
+      ]
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/_build_t16.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-training-data/batch2-t16.jsonl",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-training-data/_fix_pilot_sources.py",
+          "call": "open",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_pilot_fixes.py",
+          "call": "read_text",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_pilot_fixes_r2.py",
+          "call": "read_text",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-training-data/pilot-t04.jsonl",
+      "writers": [
+        {
+          "by": "docs/runs/stage1-training-data/_fix_pilot_sources.py",
+          "confidence": "ast",
+          "stamps": true
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_pilot_fixes.py",
+          "confidence": "ast",
+          "stamps": true
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_pilot_fixes_r2.py",
+          "confidence": "ast",
+          "stamps": true
+        }
+      ]
     },
     {
       "readers": [
@@ -4660,6 +7000,16 @@
           "confidence": "text"
         },
         {
+          "by": "examples/sft-experiment/pod/plan_c.sh",
+          "call": "literal",
+          "confidence": "text"
+        },
+        {
+          "by": "examples/sft-experiment/pod/plan_g.sh",
+          "call": "literal",
+          "confidence": "text"
+        },
+        {
           "by": "site/src/content/docs/handbook/cli.md",
           "call": "--prompts",
           "confidence": "text"
@@ -4671,13 +7021,63 @@
     {
       "readers": [
         {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/pod-run/real-composite-teacher.yaml",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/pod-run/real-local-teacher.yaml",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
           "by": "tests/test_sft_experiment.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "tests/test_sft_properties.py",
           "call": "literal",
           "confidence": "ast",
           "fromTests": true
         }
       ],
       "target": "examples/sft-experiment",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/sft-experiment/configs/sft-composite-teacher.yaml",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/sft-experiment/configs/sft-local-teacher.yaml",
       "writers": []
     },
     {
@@ -4773,11 +7173,29 @@
       ],
       "target": "site/src/content/docs/handbook",
       "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/pod/plan_g.sh",
+          "call": "literal",
+          "confidence": "text"
+        }
+      ],
+      "target": "tests/test_critic_init_seed.py",
+      "writers": []
     }
   ],
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 68,
+  "testFiles": 83,
+  "testsNotRun": [
+    "docs/runs/stage1-eval/test_score.py",
+    "docs/runs/stage1-eval/test_score_found.py",
+    "docs/runs/stage1-eval/test_score_v2.py",
+    "docs/runs/stage1-train/test_data.py",
+    "docs/runs/stage1-train/test_no_role.py"
+  ],
   "unassigned": []
 }
