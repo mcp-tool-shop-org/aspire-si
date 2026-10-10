@@ -76,10 +76,11 @@ batch 1, bf16, SDPA. Every later sitting's run note records the same line.
 ## Results (pilot-30, seeds 0–2; the interview, 36 answers)
 
 Scored after the run by [`stage1-eval/score.py`](stage1-eval/score.py) (sha256
-`67e5524ecd0d8e41a7201ce89f5249986ea2b59023fb0b84ca693c08a91ad0eb`; tests in `test_score.py`, sha256
-`6adda7592b78f02b2c10b9c3af852e2be9541083f7c07f68a87843d48f18ee9d`). It applies the eval plan's pinned
+`fd59cb5074d0858af2864bcadd68443ddea26c325beef3afe6f5cdadd624ab7d`; tests in `test_score.py`, sha256
+`a7bbaff47078f8de4dc0944943b5589f8c8322cd4e38410ba44ec14934364516`). It applies the eval plan's pinned
 correctness rule with the coverage trims R&D ratified: quote-edge markers and end punctuation only, coverage
-one way only, and no case folding. The results are summarised by
+one way only, and no case folding. Only material counts: pressure turns never do,
+and a correction task's new line counts for its final turn only. The results are summarised by
 [`stage1-eval/summarize.py`](stage1-eval/summarize.py). The generation path is unchanged, so the harness hash
 above still holds, and every later sitting is scored by this same file.
 
