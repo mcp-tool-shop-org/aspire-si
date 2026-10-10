@@ -60,6 +60,34 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
   24.1 GB).
 - **Leakage:** see below.
 
+## Drift checks (the handoff's required parts and content rules, enforced)
+
+- **Every item:**
+  - `sources` is non-empty. Each entry is either `repo@commit:path#lines` (a string, or `{repo, commit, ...}`)
+    or marked invented (`{"invented": "<what>"}`).
+- **DECIDING:**
+  - keyed lines are verbatim in the material with markup kept (`**` stays), not just equal after
+    normalisation;
+  - a reply's DECIDING equals its key exactly.
+- **Kind A:**
+  - the user turn has at least 2 sentences before its question, and names the trait (the validator's
+    `TRAIT_NAMES` list per lesson);
+  - the reply starts in the first person ("As a verifier, I …", "I …");
+  - the reply has no VERDICT line.
+- **Kind B:**
+  - the thinking or reply draws a pattern: tree glyphs or ROOT, a `| … |` grid, or numbered elimination
+    steps;
+  - no 8-word phrase recurs in more than 2 kind-B items of one trait.
+- **Kind C:**
+  - the user turn carries the other checker's verdict;
+  - if the material or user turn cites a repository (`owner/repo@sha` or a github.com link), `sources` has
+    a real (non-invented) entry.
+- **Kind E:** the variant's key shares at least one key point with the original.
+- **Kinds C, D and E:**
+  - no undated time word ("today", "now", "currently", "latest", …) in the `Statement:` unless the material
+    carries a date;
+  - no opening frame (the first 6 words of the user turn) in more than 2 items of one trait.
+
 ## How an item becomes training sequences
 
 One sequence per assistant turn. The prefix is the conversation so far: earlier assistant turns are shown

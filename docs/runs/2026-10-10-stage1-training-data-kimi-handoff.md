@@ -83,6 +83,31 @@ Short retrieval questions on the trait, plus one applied mini-case, each with a 
 These drive the repeat-until-correct ledger, and missed ones come back as fresh variants. Write each with
 one variant already, so the ledger can re-ask it in new words.
 
+**Required parts, per kind.** This is binding. The validator refuses any item missing a part.
+
+| Kind | The user turn must contain | The assistant reply must contain |
+|---|---|---|
+| A | A teaching passage of 2–4 sentences in fresh words that **names the trait** ("As a verifier, you are honest about uncertainty …") and says why it matters to the people relying on the verifier. Then a question asking for it in the model's own words, from a new angle each time. | First person ("As a verifier, I …"); the trait's main point **and** its reason; no verdict lines. |
+| B | A problem with the thinking pattern named (tree, falsifier first, elimination, grid, when to stop). At least 3 of 8 per trait are non-verification puzzles. | The pattern drawn as text; the moment the trait decides a step, in ordinary words that vary item to item (no stamped label); the answer. |
+| C | Material (real cited text where possible), a statement, and **another checker's reasoning and verdict**: either a planted flaw, or correct reasoning. | Whether they got it right; the flaw named in the keyed flaw's own terms (or confirmation that it was right); the trait involved; the three lines. |
+| D | Material and a statement (plus turns, for pressure or correction). | Thinking with first-person if–then self-talk carrying the trait; the three lines. |
+| E | A retrieval question or mini-case, plus `variant.user`, which re-asks **the same point** in new words. | A short answer that hits every key point. |
+
+**Content rules learned from batch 2's key check (binding):**
+- **DECIDING:** check it against every clause of the statement; it must settle all of it on its own. Keep markup such as `**` exactly as printed.
+- **"Accepts the equivalent" items** may change only notation, units, synonyms or numerals. They must never add a fact ("per die", "so use the stairs", "12 pm" for a time the material doesn't give).
+- **Count and state differences mechanically** (digits, letters, edits); don't eyeball them.
+- **No time words** ("today", "now", "currently") in a statement unless the material dates it.
+- **Kind C replies judge only the material shown.** No borrowing from outside it, and never repeat the flawed checker's claim as fact.
+- **No scope-limited material against a universal claim** (e.g. an npm-only note against "any kind"). Drop that structure in every trait.
+- **Puzzles must be closed:** fully determined, or determined only up to an explicit, enumerable set. No probabilistic "evidence" puzzles.
+- **Vary the framing sentences in C, D and E;** no stamped frames.
+
+**Provenance on every item:**
+- **Real material:** list it in `sources` (repo@commit:path#lines, plus the LICENSE first line).
+- **Invented parts:** mark them separately (an invented checker trace in C, invented pressure turns).
+- **No empty `sources`.**
+
 **Balance in every trait:**
 - both sides of its counterweight: skepticism that rejects *and* that rightly accepts; holding firm under
   pressure *and* changing when genuinely new material arrives; quick *and* careful;
@@ -117,7 +142,10 @@ one variant already, so the ledger can re-ask it in new words.
    must not appear, be paraphrased, or be answered in Kind A or Kind E items. The interview measures whether
    the trained model *does* what it *says*; training on its questions would destroy that. R&D's leakage
    check runs against it.
-9. **No identity leaks:** no local paths, usernames, emails or personal names. Run the identity scan on a
+9. **Length limits, set by the trainer's memory budget.** The assistant reply is at most about 3,000
+   tokens, and the whole item (user turn plus reply) at most 4,096 tokens. The validator refuses longer
+   items; it doesn't truncate them. Split a long kind B or C item into two, or tighten it.
+10. **No identity leaks:** no local paths, usernames, emails or personal names. Run the identity scan on a
    `git archive` of your branch before pushing, gated on its exit code.
 
 ## 4. How to work
