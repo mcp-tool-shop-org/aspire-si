@@ -53,6 +53,55 @@ def estimate_tokens(r):
     return int(best_prompt), int(best_target)
 
 
+def _outside_code(text: str) -> str:
+    """Drop inline code spans. A glob `` ** `` inside backticks is not a bold marker."""
+    out = []
+    i = 0
+    while i < len(text):
+        if text[i] == "`":
+            j = text.find("`", i + 1)
+            if j < 0:
+                out.append(text[i:])
+                break
+            i = j + 1
+            continue
+        out.append(text[i])
+        i += 1
+    return "".join(out)
+
+
+def quote_balance_errors(text: str) -> list[str]:
+    """Unbalanced backticks, straight double quotes, curly quotes, or **. Apostrophes are not counted.
+    `` ** `` inside a backtick span is a glob, not bold, and is not counted."""
+    errs = []
+    if text.count("`") % 2:
+        errs.append("unbalanced backtick")
+    if text.count('"') % 2:
+        errs.append("unbalanced straight double quote")
+    for ch in "“”‘’":
+        if text.count(ch) % 2:
+            errs.append(f"unbalanced curly quote {ch}")
+    if _outside_code(text).count("**") % 2:
+        errs.append("unbalanced **")
+    return errs
+
+
+def quote_balance(rows) -> list[str]:
+    """Gate 4: every user, thinking, reply and variant prompt balances its quotes."""
+    fails = []
+    for r in rows:
+        blobs = []
+        for i, t in enumerate(r["turns"], 1):
+            for field in ("user", "thinking", "reply"):
+                blobs.append((f"{r['id']} turn {i} {field}", t.get(field) or ""))
+        if isinstance(r.get("variant"), dict):
+            blobs.append((f"{r['id']} variant", r["variant"].get("user") or ""))
+        for where, text in blobs:
+            for err in quote_balance_errors(text):
+                fails.append(f"{where}: {err}")
+    return fails
+
+
 def report(rows):
     by_kind = Counter(r["kind"] for r in rows)
     sides = Counter(r["side"] for r in rows)
@@ -173,6 +222,10 @@ def main(argv):
     for h in hits:
         failures.append(f"leakage: {h}")
     print(f"leakage vs pilot/review task sets + pre-interview: {len(hits)} hit(s)")
+
+    for err in quote_balance(rows):
+        failures.append(f"quote-balance: {err}")
+    print(f"quote-balance: {sum(1 for f in failures if f.startswith('quote-balance:'))} problem(s)")
 
     print(f"{path.name}: {len(rows)} rows")
     warns = report(rows)
