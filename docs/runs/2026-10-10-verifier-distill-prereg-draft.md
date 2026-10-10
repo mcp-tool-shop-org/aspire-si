@@ -1,5 +1,9 @@
 # DRAFT pre-registration: an 8B verifier, taught, applied and checked for retention (TEACH → APPLY → RETAIN)
 
+> **Order superseded (2026-10-10, the maintainer):** the role's qualities are taught first, in Stage 1
+> (`2026-10-10-stage1-verifier-qualities-lessons-draft.md`). Domain data (the code gold and public sets),
+> and the TEACH, APPLY and RETAIN design below, become Stage 2, which starts only after Stage 1 is mastered.
+
 **Status: draft for review, 2026-10-10. Nothing runs, and no card or pod time is booked.**
 - ASPIRE (this repo) owns the training mechanics.
 - The R&D session owns the gold set, the splits and calibration.
