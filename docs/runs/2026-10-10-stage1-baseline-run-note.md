@@ -47,3 +47,23 @@ The trainer uses the same loader. Before loading, the harness checks the sha256 
 
 **Card terms (the Publisher's grant):** one holder; cap 120 min; stop on a watchdog trip or error; stop and
 report if most turns hit the token cap.
+
+## The pre-interview (same grant, right after the pilot-30 baseline)
+
+The questions are the Publisher's ([2026-10-10-stage1-pre-interview-draft.md](2026-10-10-stage1-pre-interview-draft.md),
+copied verbatim) and are **sealed**: they never appear in any lesson, quiz or training data. The interview runs
+before any training touches the weights. It repeats with identical wording after Stage 1 and after domain
+training, in both arms.
+
+- **Runner:** [`stage1-eval/interview.py`](stage1-eval/interview.py). Same student, loader and decoding as the
+  harness (`harness.generate`, the card's sampled settings, re-seeded before every generation). Each question is
+  asked in its own call, with the frame in front of it.
+- **Size:** 12 questions × seeds 0, 1, 2 = 36 generations. Thinking and answer are recorded per question and
+  seed in `outputs/stage1-baseline/interview/interview.jsonl`.
+
+| Pinned | sha256 |
+|---|---|
+| interview.py | `57d2d6eadbf2492e3c99efb88f385a007f85f3aba129f4ca5d06d91e4db6a9cf` |
+| frame (`stage1-pre-interview-v1`) | `8e790237e1d212212a26876a3e9d79eefb2538eab12918d0782d6615cd116a45` |
+| the 12 questions (JSON list) | `b59927e18ff7ecbaafad346fb85499afb39125dfd66d8d5e05886afe5fc57ed8` |
+| harness (as above) | `8d63a541aea1891222f9728391503c4344253ffc2df1b13c22666f7af7b4fe11` |
