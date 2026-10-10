@@ -148,7 +148,7 @@ interviews on DEV aren't needed.
 | Arm | Before domain training | Domain training |
 |---|---|---|
 | **ROLE** | Stage 1 role training | identical in both arms |
-| **NO-ROLE (compute-matched)** | the same number of training steps on **neutral material**: the same answer format and item kinds, with no role framing, no trait teaching and no thinking-pattern lessons | identical in both arms |
+| **NO-ROLE (compute-matched)** | the same number of training steps on **neutral material**: the same answer format, item kinds and **composition** (every floor and share of the 2026-10-10 composition amendment), with no role framing, no trait teaching and no thinking-pattern lessons | identical in both arms |
 
 - **Compute-matched control.** The no-role arm gets the same extra training steps, so any difference comes
   from the role and the thinking, not from more training.
@@ -404,6 +404,49 @@ the reported numbers.
   difference counts only if it exceeds the spread between seeds within an arm.
 - **Trace rubric:** mechanical items first. Then blind human grading, after the graders calibrate to
   Cohen's κ of at least 0.6 on a shared 30-trace calibration batch.
+
+## Amendment, 2026-10-10: training composition shaped by the sealed baseline
+
+**What happened.** After the sealed baseline was scored, the Stage 1 training data's composition was changed
+using that baseline's **aggregate** results:
+- ASPIRE 57ad661: exact quoting, whole table rows, version headings, a multi-line share of at least 25%, and
+  NONE alone.
+- Amendment 2: cannot_tell at least 25% and supported at least 25% per trait; silent-vs-contradicted contrast
+  pairs; ESCALATE as advice only, with an escalate-yes item and an everyday cannot_tell / escalate-no item per
+  trait; and two two-turn correction items per trait.
+
+No sealed item, wording or source repo reached the data lane. Leakage is checked mechanically on every batch
+against the sealed file.
+
+**Why it matters.** Shaping training after seeing a test set's weak spots, even only by category, makes the
+before/after gains on those behaviours optimistic as evidence of the *role*. The training now drills exactly
+what the baseline missed.
+
+**What the analysis does about it, fixed now before any trained model is scored:**
+1. **Targeted behaviours are reported as targeted.** These are:
+   - cannot_tell accuracy;
+   - ESCALATE on the escalation-keyed tasks;
+   - correction tasks;
+   - DECIDING exactness, i.e. the pinned score against "found the evidence", and the miss buckets.
+
+   Their Phase A gains carry this amendment's disclosure, beside the untargeted ones (supported and
+   unsupported verdict accuracy, false accepts, and the trace-rubric lines not named above). Phase A's primary
+   test is unchanged. Its write-up states that composition was shaped by the baseline.
+2. **The role claim rests on Phase B.** The NO-ROLE arm's neutral material is built to the **same
+   composition**:
+   - every floor and share in both amendments;
+   - the same verdict mix, item kinds, two-turn correction items and escalate items;
+   - the same multi-line and NONE shares.
+
+   Only the role framing, trait teaching and thinking-pattern lessons differ. So a ROLE vs NO-ROLE difference
+   isn't explained by drilling the baseline's weak spots. If the NO-ROLE data does not match, the arm
+   comparison is confounded, and the report says so instead of claiming a role effect.
+3. **A composition check before any training run.** The trainer prints both arms' composition tables (verdict
+   mix, kinds, correction and escalate counts, multi-line share, NONE share). R&D checks they match within one
+   item per trait before Phase B starts.
+4. **No further composition changes from sealed results.** Any later change to the data mix needs a dated
+   amendment here first, and it may draw on DEV (pilot-30) results only. The round-1 sealed scores stay
+   unopened until round F, as already registered.
 
 ## The pre-interview (descriptive, plus one tested measure)
 
