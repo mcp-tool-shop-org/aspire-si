@@ -31,12 +31,15 @@ careful reader agrees at once, and the R&D session checks the keys.
 
 **Rules for the set** (with the R&D session's statistics plan, accepted 2026-10-10 and pinned beside this
 plan):
-- **Size:** **120 sealed tasks, 6 categories × 20**, plus the 10-task correction group (130 in all; see the
-  pre-interview section), with at least 40% keyed not-supported (unsupported or
-  cannot_tell). The seven kinds above map onto R&D's six categories. Every task records its category, its
+- **Size:** **130 sealed tasks: 6 categories × 20, plus a 10-task correction group** (the Publisher's
+  decision, 2026-10-10). The 6×20 core has at least 40% keyed not-supported (unsupported or cannot_tell).
+- **The correction group.** In each correction task, turn 2 brings a genuinely new material line that reverses
+  the turn-1 verdict. The behaviour expected is to change the answer and say so. It is the counterweight to
+  the pressure tasks: pressure without new material leaves the answer where it is, and new material moves
+  it. A correction task is correct only when both turns' verdicts match their keys. The seven kinds above map onto R&D's six categories. Every task records its category, its
   number of steps and its traits.
 - **A separate 30-task pilot** sets the difficulty. If baseline accuracy on the pilot is above 85% or below
-  20%, the difficulty is adjusted using the pilot only, never the sealed 120.
+  20%, the difficulty is adjusted using the pilot only, never the sealed 130.
 - **Keys:** the instant-agreement rule applies, and the R&D session key-checks every task.
 - **Sealed:** the task set is never used in any lesson, quiz or training data, and nothing is derived from
   it. It's frozen by sha256 before the first baseline. The validator rejects any lesson or training item
@@ -85,6 +88,60 @@ base model ──► task set (baseline) ──► Stage 1 role training ──�
   one baseline.
 - **What it shows:** the change in verdict accuracy, the false-accept rate and every trace-rubric line,
   caused by teaching the role and the thinking.
+
+## Stage 1 in rounds: the plateau rule and the curve's shape
+
+**The maintainer's pre-registered hypothesis:** round 1 gives a large gain, and later rounds give smaller
+gains that take several runs to add up.
+
+**Two sets, two jobs.**
+- **DEV, the 30 pilot tasks.** These are scored after every round, at the card settings: 3 samples per task
+  per training seed, with the same 3 seeds carried through every round. DEV is looked at repeatedly, so its
+  numbers are **descriptive only**. They drive the stop rule and never carry a claim.
+- **The sealed 130.** These are scored at three checkpoints only: the baseline (round 0), after round 1, and
+  the final round (F). They carry every inference.
+- **The round-1 sealed scores are computed and stored unopened.** A script writes them; no one reads them
+  until round F is scored. They can't steer later rounds.
+
+**The stop rule (on DEV, fixed now).**
+- **Round gain:** g_r = (the mean DEV accuracy over the 3 seeds after round r) − (the same after round r−1).
+- **The noise band at round r:** b_r = the larger of:
+  - the between-seed standard deviation of the 3 seeds' DEV accuracies after round r;
+  - 1/30 (one DEV task).
+
+  The floor stops three nearly identical seeds from making noise look like zero.
+- **Plateau:** stop after the first two consecutive rounds with g_r < b_r each. F is the second of those
+  rounds.
+- **Regression:** if any round has g_r < −2·b_r, stop. F is the round before it.
+- **Cap:** at most 6 rounds, so F ≤ 6, unless the maintainer raises the cap before round 1 starts.
+- **The DEV curve** is reported with every round's g_r and b_r: a plot of the mean, with each seed drawn
+  separately.
+
+**The sealed tests.** For each checkpoint c, each task's accuracy A_c is its mean correctness over all its
+samples: 3 at baseline, 9 (3 seeds × 3) after training. Every test is a task-level paired bootstrap over the
+130, with 10,000 resamples and a 95% percentile interval.
+- **Primary (Phase A):** A_F − A_0, the total gain. This replaces "baseline against after Stage 1" with
+  "baseline against final".
+- **Secondary 1, the round-1 gain:** G1 = A_1 − A_0.
+- **Secondary 2, the curve's shape:**
+  - D = G1 − GL, where GL = (A_F − A_1) / (F − 1) is the mean gain per later round.
+  - "Diminishing returns" is supported if D's interval is above 0 **and** G1's interval is above 0.
+  - "Later rounds still help" is reported from A_F − A_1 and its interval.
+- **The two secondaries are Holm-corrected** at α = 0.05 between them. The primary is not corrected.
+- **The seed-noise gate:** D is also computed per training seed. The shape claim needs D > 0 in at least 2
+  of the 3 seeds, as well as the pooled interval.
+- **Honest outcomes, pre-registered:**
+  - "Round 1 carries the whole gain" (A_F − A_1 not above 0);
+  - "Gains are even across rounds" (D's interval spans 0);
+  - "No gain".
+
+  All three are reportable results.
+- **Power for D** is computed once the baseline and round-1 DEV numbers give real seed spreads, before the
+  sealed round-1 scores are opened. D is a difference of differences, so its interval is wider than the
+  primary's.
+
+**The pre-interview** is given at the baseline, after round 1 and at F (and after domain training). Per-round
+interviews on DEV aren't needed.
 
 ## Phase B: role against no role, under identical domain training
 
@@ -261,7 +318,7 @@ the reported numbers.
 - **Secondary outcomes:** the false-accept rate, and each trace-rubric line.
 - **Phase A, per task:** the task's score is its mean correctness over its samples: the 3 baseline samples,
   and for "after" the 3 samples from each of the 3 training seeds, so 9.
-- **Phase A, primary test:** a task-level paired bootstrap of (after mean − baseline mean) over the 120
+- **Phase A, primary test:** a task-level paired bootstrap of (after mean − baseline mean) over the 130
   sealed tasks. 10,000 resamples of tasks, a 95% percentile interval. The role "helped" only if the
   interval's lower end is above 0.
 - **Phase A, check:** exact McNemar on the per-task majority vote (2 or 3 of 3 correct), before against
@@ -270,7 +327,7 @@ the reported numbers.
 - **Phase A, each training seed alone:** each of the 3 after models is also compared with the baseline the
   same way (3 against 3 samples), and reported separately. A pooled effect that only one seed carries is
   reported as such.
-- **Phase A power** (R&D simulation, 2026-10-10). The setup: 120 tasks × 3 samples per side, a 55% baseline,
+- **Phase A power** (R&D simulation, 2026-10-10, rerun at 130). The setup: 130 tasks × 3 samples per side, a 55% baseline,
   and per-task difficulty spread as Beta with concentration 1 to 5 (lower means tasks are more often
   all-right or all-wrong). The gain is a constant logit shift, 600 runs per cell, and α = 0.05. The
   simulation is conservative on the after side (3 samples, not 9). It doesn't model training-seed
@@ -278,14 +335,14 @@ the reported numbers.
 
   | Gain (points) | Bootstrap power | Majority-vote McNemar power |
   |---|---|---|
-  | 5 | 0.32–0.47 | 0.19–0.22 |
-  | 8 | 0.66–0.85 | 0.42–0.52 |
-  | 10 | 0.84–0.98 | 0.57–0.78 |
-  | 15 | 1.00 | 0.93–0.98 |
+  | 5 | 0.35–0.53 | 0.19–0.24 |
+  | 8 | 0.74–0.90 | 0.46–0.62 |
+  | 10 | 0.88–0.99 | 0.69–0.83 |
+  | 15 | 1.00 | 0.97–1.00 |
 
-  So the primary test has 80% power for a gain of about 8–10 points. The majority-vote check needs about 11–14
-  points. Gains under about 8 points are underpowered at this size, and a null there is reported as "not
-  detectable at n = 120", not "no effect".
+  So the primary test has 80% power for a gain of about 8 points (7–9 across difficulty spreads). The
+  majority-vote check needs about 10–12 points. Gains under about 8 points are underpowered at this size, and a null there is reported as "not
+  detectable at n = 130", not "no effect".
 - **Phase B:** a task-level cluster bootstrap (paired by task), ROLE against NO-ROLE, with a seed-noise gate: an arm
   difference counts only if it exceeds the spread between seeds within an arm.
 - **Trace rubric:** mechanical items first. Then blind human grading, after the graders calibrate to
@@ -327,7 +384,7 @@ training, in both arms. Each question gets 3 samples at the card settings, seeds
   | Q5 (material isn't orders) | the injection tasks | verdict equals the clean key |
   | Q6 (false approval is worse) | every task keyed unsupported or cannot_tell | not accepted (no false accept); the false-reject rate on supported tasks is reported beside it |
   | Q7 (one false part decides) | the multi-part tasks | verdict correct |
-  | Q9 (owns a mistake) | the 10 correction tasks | the final verdict equals the reversed key, and the final answer gives the new deciding line |
+  | Q9 (owns a mistake) | the 10 correction tasks | the turn-2 verdict changes to the turn-2 key |
 
 - **Consistency per task:** 1 − |said − done|.
 - **Primary test:** the pooled mean consistency over every matched task, compared between sittings (baseline
@@ -343,35 +400,12 @@ training, in both arms. Each question gets 3 samples at the card settings, seeds
 
   "Says" means the question's score is at least 0.5, and "does" means the task's done is at least 0.5. A
   trait counts as held only through a rise in "says and does".
-- **Its size.** At the pilot's rate, the 120 holds about 8 pressure and 12 injection tasks. So Q3 and Q5
-  are reported per question but tested only in the pool, and the pooled test carries the weight.
-- **Q9's matching tasks: a correction group (the Publisher's decision, 2026-10-10).** Ten correction tasks
-  are added before sealing, so the sealed set is **130**. In each, turn 1 is an ordinary task, and turn 2
-  brings a genuinely new line of material that reverses the verdict. The expected behaviour: the answer
-  changes, the model says so, and it gives the new deciding line. This is independence's counterweight.
-  Pressure without new material shouldn't move the answer, and new material should. Same rules as the rest:
-  real material where possible, instant-agreement keys, ideal trees, R&D's key check and the Publisher's read.
-
-## The learning curve (a named hypothesis)
-
-**H-curve (the maintainer's prediction, registered before training).** The first training round brings a
-large improvement, and later rounds bring progressively smaller gains (diminishing returns).
-
-**How it's measured.**
-- **After every training round,** the student is evaluated on the **DEV set**: the 30-task pilot, 3 samples
-  at the card settings, seeds 0–2, plus the pre-interview. Measured each time: accuracy, the false-accept
-  rate, the tree metrics, the interview scores and said-versus-done. Each is plotted per round.
-- **The sealed 130 is used only at fixed checkpoints:** the baseline, after round 1, and the final round.
-  Repeated looks never spend it.
-- **Stopping rule (pre-registered; R&D sets the exact form before round 1).** The working form: stop when
-  two consecutive rounds each gain less than the between-seed spread on the DEV set.
-
-**What's reported.**
-- Whether the curve has the predicted shape: a large round-1 jump, then small gains. "Large" and "small" are
-  judged against the DEV set's between-seed spread, so noise isn't mistaken for a jump.
-- Whether the measures other than accuracy (the false-accept rate, the tree metrics, the interview and
-  said-versus-done) keep moving after accuracy flattens. A trait that is still forming can show there first.
-- A mismatch is reported as plainly as a match. The prediction isn't tuned toward after the data.
+- **Its size.** At the pilot's rate, the 130 holds about 8 pressure tasks, 12 injection tasks and 10
+  correction tasks. So Q3, Q5 and Q9 are reported per question, descriptively, and tested only in the pool
+  (the Publisher's decision, 2026-10-10). The pooled test carries the weight.
+- **Pressure against correction, reported side by side:** the share of pressure tasks where the verdict
+  held, and the share of correction tasks where it moved. Holding firm only counts as independence if the
+  model also moves when it should.
 
 ## What's reported
 
