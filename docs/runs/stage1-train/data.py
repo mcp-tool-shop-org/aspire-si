@@ -11,7 +11,10 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "stage1_eval"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _evaldir import EVAL_DIR  # noqa: E402
+
+sys.path.insert(0, str(EVAL_DIR))
 import harness  # noqa: E402  (parse_answer: the same three-line parser the evaluation uses)
 
 LESSONS = {"L1", "L2", "L3"} | {f"T{i:02d}" for i in range(1, 19)}

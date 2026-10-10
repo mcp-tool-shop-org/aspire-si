@@ -16,7 +16,10 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent / "stage1_eval"))
+sys.path.insert(0, str(HERE))
+from _evaldir import EVAL_DIR  # noqa: E402
+
+sys.path.insert(0, str(EVAL_DIR))
 import harness  # noqa: E402
 import mapper  # noqa: E402
 import student  # noqa: E402

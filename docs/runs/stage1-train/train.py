@@ -3,7 +3,7 @@
     python train.py --data <items.jsonl> --out <round dir>
                     [--init-adapter <dir>] [--held-out a.jsonl b.jsonl ...] [--max-steps N] [--dry-run]
 
-- Loads the student through stage1_eval/student.py (the same loader and weights check as the evaluation).
+- Loads the student through stage1-eval/student.py (the same loader and weights check as the evaluation).
 - LoRA rank 64, alpha 128, dropout 0.05 on every linear layer; AdamW lr 1e-4, cosine with 3% warm-up,
   effective batch 16 sequences, max length 4096, gradient checkpointing, bf16.
 - Loss on the assistant target only. One sequence per assistant turn (see data.py).
@@ -25,7 +25,10 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent / "stage1_eval"))
+sys.path.insert(0, str(HERE))
+from _evaldir import EVAL_DIR  # noqa: E402
+
+sys.path.insert(0, str(EVAL_DIR))
 import data  # noqa: E402
 import student  # noqa: E402
 
@@ -45,9 +48,9 @@ def sha256_file(p: Path) -> str:
 
 def code_hash() -> str:
     h = hashlib.sha256()
-    for f in ("train.py", "data.py"):
+    for f in ("train.py", "data.py", "_evaldir.py"):
         h.update((HERE / f).read_bytes())
-    h.update((HERE.parent / "stage1_eval" / "student.py").read_bytes())
+    h.update((EVAL_DIR / "student.py").read_bytes())
     return h.hexdigest()
 
 
