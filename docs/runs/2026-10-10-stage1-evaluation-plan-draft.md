@@ -314,7 +314,23 @@ the reported numbers.
 
 ## Outcomes and statistics (the R&D session's plan)
 
-- **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
+- **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task. It's pinned
+  mechanically before the sealed set runs:
+  - **The verdict** matches the key. For a correction task, both turns must match.
+  - **DECIDING.** For a cannot_tell key, DECIDING is NONE. Otherwise, after normalising, each " | "-separated
+    line of DECIDING is a substring of the material, and together they cover the key's DECIDING lines or
+    one of its also-sufficient sets.
+  - **Normalising** is applied identically to DECIDING and the material: whitespace runs collapse to one
+    space, `**` and `__` are removed, and leading and trailing spaces are trimmed. Nothing else is
+    normalised.
+  - **Strict verbatim** (no normalising) is reported beside it, as is verdict-only accuracy.
+
+  The pilot baseline is why this is pinned: verdict accuracy was 83%, but DECIDING was verbatim in about
+  30% of answers strictly and about 65% normalised. So verdict-only accuracy sits near its ceiling, while
+  full correctness doesn't.
+- **The seed spread at baseline is sampling noise only.** At baseline, the 3 seeds are 3 samplings of one
+  model (SD ≈ 3.5 points on the pilot). After round 1, they're 3 trained models, and the spread can grow.
+  The stop rule's band uses each round's own spread, never the baseline's.
 - **Secondary outcomes:** the false-accept rate, and each trace-rubric line.
 - **Phase A, per task:** the task's score is its mean correctness over its samples: the 3 baseline samples,
   and for "after" the 3 samples from each of the 3 training seeds, so 9.
