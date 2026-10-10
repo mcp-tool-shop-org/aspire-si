@@ -174,7 +174,7 @@ The boast shape tempted a skim; two phrases in the bullet contradicted it. A wel
 ```text
 The bullet itself falsifies the sweep: results can be "exact" or "monte-carlo", and Monte-Carlo output is explicitly labelled not exact. Every probability exact is not what this release did.
 VERDICT: unsupported
-DECIDING: (`~ estimated via Monte Carlo (N samples) — not exact`)
+DECIDING: `method: "exact" | "monte-carlo"` (+ `samples`), so callers can tell exact probabilities from sampled estimates. The CLI labels Monte-Carlo results (`~ estimated via Monte Carlo (N samples) — not exact`)
 ESCALATE: no
 ```
 
@@ -590,13 +590,13 @@ Their evidence was a convention CLIs often follow. The table in front of them is
 
 **Reply:**
 ```text
-The trace loses the thread. They rubber-stamped the familiar convention: exit 2 for a missing file is how many CLIs behave — and this section promises exactly two codes, with missing loot file filed under code 1. The table they glanced at already contradicted the claim by name.
+The trace loses the thread. They rubber-stamped the familiar convention: exit 2 for a missing file is how many CLIs behave — and this section promises exactly two codes, with missing loot file filed under code 1. The table already contradicted the claim by name.
 VERDICT: unsupported
-DECIDING: Any error — bad expression, validation failure, missing loot file, or a cap exceeded
+DECIDING: Roll follows a deliberate two-code contract — a stability promise scripts can rely on: | `1` | Any error — bad expression, validation failure, missing loot file, or a cap exceeded
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Any error — bad expression, validation failure, missing loot file, or a cap exceeded / no
+**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Roll follows a deliberate two-code contract — a stability promise scripts can rely on: | `1` | Any error — bad expression, validation failure, missing loot file, or a cap exceeded / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L109-L118 (MIT (first line of LICENSE: 'MIT License')); invented: the other checker's reasoning and verdict*
 

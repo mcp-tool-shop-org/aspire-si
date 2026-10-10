@@ -503,7 +503,7 @@ Verify their reading of both pieces. The bullet names the old behavior — failu
 
 **Reply:**
 ```text
-Read correctly. A Fixed bullet describes behavior the release removed; "still exits 0" asserts the opposite of that. They read the heading and the bullet together instead of skimming past the heading — nothing about the answer was inferred.
+Read correctly. A Fixed bullet describes behavior the release removed; "still exits 0" asserts the opposite of that. They read the heading and the bullet together instead of skimming past the heading — the heading and the past-tense bullet together settle it.
 VERDICT: unsupported
 DECIDING: ### Fixed | - **`sdlab project doctor` printed a failure and exited 0** on a missing project — and `npm run verify` and the CI smoke step both gate on that exit code.
 ESCALATE: no
@@ -610,18 +610,18 @@ Material given to another checker (polyglot-mcp README.md, the translate_readme 
 
 Translate a README.md **file** into the same 7 languages and write the `README.<lang>.md` files next to it, refreshing the language nav bar in the source README and in each translation. Returns a per-language status summary (ok/fail, timings, files written) rather than the translated text; use `translate_markdown` when you want the content back."
 Statement: "translate_readme translates inline code spans word for word."
-The checker's thinking read: "The entry says what the tool translates (a README file, into 7 languages), what it writes, and what it returns. About inline code spans — how they're handled inside the translation — this entry never says a word; that's documented under a different tool I wasn't given. cannot_tell, DECIDING NONE."
+The checker's thinking read: "The entry says what the tool translates (a README file, into 7 languages), what it writes, and what it returns. About inline code spans — how they're handled inside the translation — this entry never mentions inline code spans. cannot_tell, DECIDING NONE."
 Did they get it right? Say so, then answer the statement yourself in the three lines.
 ```
 
 **Thinking:**
 ```text
-Re-run the search with them. The entry covers: input (a README file), languages (7), outputs (README.<lang>.md files, refreshed nav bar), return value (status summary, not content). Inline code spans — the claim's subject — are never mentioned in this entry, in either direction: nothing says they're kept literal, nothing says they're translated. A different entry handles that topic, and it isn't part of the material here. Their verdict matches the silence exactly.
+Re-run the search with them. The entry covers: input (a README file), languages (7), outputs (README.<lang>.md files, refreshed nav bar), return value (status summary, not content). This entry never mentions inline code spans, in either direction: nothing says they're kept literal, nothing says they're translated. Their verdict matches the silence exactly.
 ```
 
 **Reply:**
 ```text
-Properly checked. The entry specifies inputs, outputs and the return value, and is silent — in both directions — on how inline code spans are treated. Ending at cannot_tell instead of borrowing behavior from a sibling tool is exactly the discipline the statement was testing.
+Properly checked. The entry specifies inputs, outputs and the return value, and is silent — in both directions — on how inline code spans are treated. Ending at cannot_tell, because this entry never mentions inline code spans, is exactly the discipline the statement was testing.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -866,7 +866,7 @@ Statement: The library opens at 09:30 on Saturdays.
 **Thinking:**
 ```text
 ├─ the claim, named: Saturday's opening time is 09:30
-├─ what the timetable prints: the timetable prices three day-groups — weekdays 09:00–19:00, Saturday 10:00–16:00, Sundays closed
+├─ what the timetable prints: the timetable lists three day-groups — weekdays 09:00–19:00, Saturday 10:00–16:00, Sundays closed
 └─ the Saturday line says 10:00; the claim says 09:30. Contradiction, not silence
 If a line contradicts the claim, then unsupported is a quote-backed answer, not a hedge — I don't blur the 10:00 into the claim's 09:30 to soften the disagreement. The weekday 09:00 is no help to the claim either: it's a different day-group.
 ```

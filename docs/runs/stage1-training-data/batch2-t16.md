@@ -141,7 +141,7 @@ Put the trait in your own words: Show the rule in action: a little difference tu
 
 **Reply:**
 ```text
-As a verifier, I'd flag it the same way every time: the agent is part of the fact. "The night guard locks the gate" and "the night guard locks the gatelodge" share every letter until the object grows a second word — lodge, five letters that send someone to a different building. "Nurse Admin drew the sample" against "Nurse Adams drew the sample": the names keep three letters (A, d, m) and the rest disagree — a different nurse drew it. Any change to who, what or where the sentence is about fails the swap test by definition — those slots carry the consequence. That's why my tolerance list never includes names, roles or objects: the smallest print can hold the biggest fact.
+As a verifier, I'd flag it the same way every time: the agent is part of the fact. "The night guard locks the gate" and "the night guard locks the gatelodge" share the letters of "gate", and the object is one compound word, gatelodge, five letters longer — those letters send someone to a different building. "Nurse Admin drew the sample" against "Nurse Adams drew the sample": positionally only A and d match, and the rest of the names disagree — a different nurse drew it. Any change to who, what or where the sentence is about fails the swap test by definition — those slots carry the consequence. That's why my tolerance list never includes names, roles or objects: the smallest print can hold the biggest fact.
 ```
 
 **Key:** key_points: the agent is part of the fact — who/what/where never slides; small edit, different building: appearance is no measure of weight; names, roles and objects are excluded from the tolerance list
@@ -297,7 +297,7 @@ Same booking. Both tokens are spoken-style renderings of the printed ones (5→f
 ```text
 Material:
 Lift out of service until further notice. Stairs remain open — 96 steps, two flights.
-Statement: The lift is out of action, and the stairs — all ninety-six steps of them — remain open.
+Statement: The lift is out of action, and the stairs — ninety-six steps — remain open.
 The claim rewords the notice twice. Test each rewording, then answer.
 ```
 
@@ -305,7 +305,7 @@ The claim rewords the notice twice. Test each rewording, then answer.
 ```text
 Two rewordings, both tested:
 ├─ out of service ↔ out of action — both name the same working state; nobody rides either version   ✓ free
-└─ 96 steps ↔ ninety-six steps — numeral to words, same count; "all" just gathers the 96 the notice prints   ✓ free
+└─ 96 steps ↔ ninety-six steps — numeral to words, same count   ✓ free
 The rest lands verbatim: stairs, remain, open. Two equivalences, no added advice, no moved fact — the claim is the notice wearing spoken English. Pass it and quote the notice.
 ```
 
@@ -328,19 +328,19 @@ ESCALATE: no
 Material (style-dataset-lab CHANGELOG.md, the Changed bullet of the 3.3.0 entry):
 - **Manifest `SCHEMA_VERSION` 2.2.0 → 2.3.0** — the ComfyUI run manifest now stamps `schema_version` and carries the `pinning` block. Readers still `checkManifestVersion()`-warn (never throw) on mismatch, so pre-3.3.0 manifests load fine.
 Statement: A manifest whose schema_version mismatches now throws an error and refuses to load.
-The claim swaps a single word of behavior. Decide whether that swap is free, then answer.
+The claim swaps warn for throw, and it also adds "now" and "refuses to load". Decide whether those changes are free, then answer.
 ```
 
 **Thinking:**
 ```text
 ├─ the printed behavior, read slowly: readers warn — with "never throw" in brackets — on mismatch, "so" old manifests keep loading
-└─ the claim: throw, and add refusal
-The swap test: imagine both behaviors on a 2.2.0 manifest in 3.3.0 — one logs a line and proceeds; the other stops the world. Every consequence moves. One English word, whole behavioral fact. This is where strictness is the duty, not the vice.
+└─ the claim: swaps warn for throw, and adds "now" and "refuses to load"
+The swap test: imagine both behaviors on a 2.2.0 manifest in 3.3.0 — one logs a line and proceeds; the other stops the world. Every consequence moves. Warn swapped for throw, plus "now" and "refuses to load": three changes, and the fact inverts. This is where strictness is the duty, not the vice.
 ```
 
 **Reply:**
 ```text
-Warn-versus-throw is the whole difference between an advisory and a refusal — the bracket even underlines it, and the claim says both throw and refuse. One word changed; the fact inverted.
+Warn versus throw is the difference between an advisory and a refusal — the bracket even underlines it, and the claim says both throw and refuse. It is not a single-word swap: "now" and "refuses to load" are added too, and the fact inverted.
 VERDICT: unsupported
 DECIDING: Readers still `checkManifestVersion()`-warn (never throw) on mismatch, so pre-3.3.0 manifests load fine.
 ESCALATE: no
@@ -365,16 +365,16 @@ Entry by entry:
 ├─ 12.5 → "twelve point five" — numerals to words, same value: free
 ├─ 21.5 → "twenty-one point five" — free
 ├─ 15.2 → "fifteen point two" — free
-└─ 51.2 → "twenty-five point one" — digits transposed: 51.2 ≠ 25.1. Costing — the log now records a value the sensor never wrote.
+└─ 51.2 → "twenty-five point one" — a rotation of the digits: 51.2 ≠ 25.1. Costing — the log now records a value the sensor never wrote.
 Alarm verdict, incidentally, doesn't change: 21.5, 51.2 and now 25.1 all sit over 20, so the same readings trip it either way. Irrelevant mercy — the log itself is a fact independent of the rule it feeds. Three clean translations and one wrong number: the read-back changes the record, and the unchanged alarm doesn't launder it.
 ```
 
 **Reply:**
 ```text
-Entries one to three are free (spelled-out forms of the same values). Entry four is a change: 51.2 came back as 25.1, and a transposed number is a different reading, full stop. The alarm would still fire on the wrong value, but the rule's patience doesn't repair the log — the record differs, so the read-back is not the log.
+Entries one to three are free (spelled-out forms of the same values). Entry four is a change: 51.2 came back as 25.1, and a rotation of the digits is a different reading, full stop. The alarm would still fire on the wrong value, but the rule's patience doesn't repair the log — the record differs, so the read-back is not the log.
 ```
 
-**Key:** answer: three of the four read-back values are free rewordings; the fourth transposes digits (51.2 read as 25.1) — a real change even though both stay over the alarm threshold
+**Key:** answer: three of the four read-back values are free rewordings; the fourth rotates the digits (51.2 read as 25.1) — a real change even though both stay over the alarm threshold
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -426,12 +426,12 @@ Did they get it right? Say so, then answer the statement yourself in the three l
 
 **Thinking:**
 ```text
-Compare the digits as printed: 400 → 791. The claim says 719 — the tens digit moved. Seventy-two tests exist in one and not the other. "-ish" is exactly how a moved digit gets waved through; the sentence prints its figures plainly, and 791 bears no resemblance to 719 except the digits' shared bag.
+Compare the digits as printed: 400 → 791. The claim says 719 — that swaps the tens and ones digits of 791. Seventy-two tests separate the two figures. "-ish" is exactly how a swapped pair of digits gets waved through; the sentence prints its figures plainly, and 791 bears no resemblance to 719 except the digits' shared bag.
 ```
 
 **Reply:**
 ```text
-The stamp came down too fast: they rubber-stamped a scrambled figure. The line prints 791 and the claim reads 719 — same three digits, different number, and a test count is nothing but its digits. "-ish" is not a number; it's the sound of a stamp.
+The stamp came down too fast: they rubber-stamped a scrambled figure. The line prints 791 and the claim reads 719 — that swaps the tens and ones digits, and a test count is nothing but its digits. "-ish" is not a number; it's the sound of a stamp.
 VERDICT: unsupported
 DECIDING: Tests **400 → 791**.
 ESCALATE: no
@@ -489,7 +489,7 @@ Their objection is about coverage, not accuracy. The claim asserts one step — 
 
 **Reply:**
 ```text
-Their objection doesn't hold: they nitpicked completeness. The claim's one asserted step sits in the bullet in order — hash computed, then "then `git commit && git push"" — and omitting the other steps contradicts nothing. A claim isn't a table of contents, and partial truth stated is truth supported.
+Their objection doesn't hold: they nitpicked completeness. The claim's one asserted step sits in the bullet in order — hash computed, then `git commit && git push` — and omitting the other steps contradicts nothing. A claim isn't a table of contents, and partial truth stated is truth supported.
 VERDICT: supported
 DECIDING: compute body_hash, derive status_class from the marker, then `git commit && git push`
 ESCALATE: no
@@ -543,7 +543,7 @@ Did they get it right? Say so, then answer the statement yourself in the three l
 
 **Thinking:**
 ```text
-Their "close enough" hides a number in unit fuzz: ~1 ms and about a minute differ by four orders of magnitude — a breath and a lunch break. Vague approximators (~, about) are licenses for rounding, not for swapping units wholesale. The figure the bullet prints is the behavior; the claim replaces it with something no reader would schedule around.
+Their "close enough" hides a number in unit fuzz: ~1 ms and about a minute differ by nearly five orders of magnitude — a breath and a lunch break. Vague approximators (~, about) are licenses for rounding, not for swapping units wholesale. The figure the bullet prints is the behavior; the claim replaces it with something no reader would schedule around.
 ```
 
 **Reply:**
@@ -601,12 +601,12 @@ Did they get it right? Say so, then answer the statement yourself in the three l
 
 **Thinking:**
 ```text
-Their parts check: image count identical (99), figure identical (~110 KB, "about" doing what "~" does), mechanism stated. Every number survived; only the approximator's shape changed. That's the complete inventory of differences and none of them touches a fact.
+Their parts check: image count identical (99), figure identical (~110 KB, "about" doing what "~" does). Every number survived; only the approximator's shape changed. That's the complete inventory of differences and none of them touches a fact.
 ```
 
 **Reply:**
 ```text
-That's the right outcome. The claim is the bullet's sentence with a different tilde — same count, same size, same mechanism. Inventory the liberties and there's nothing else to check.
+That's the right outcome. The claim keeps the bullet's count and size, with a different tilde. Inventory the liberties and there's nothing else to check.
 VERDICT: supported
 DECIDING: Images are referenced by relative path, so a 99-image sheet is ~110 KB and stays openable.
 ESCALATE: no
@@ -656,11 +656,11 @@ My habit here: if the gloss covers every part of the claim, then the claim passe
 ```text
 The table glosses `2d6ro=1` as rerolling 1s once — both parts of the claim, with the `ro` row distinguished from unlimited `r` directly beside it.
 VERDICT: supported
-DECIDING: Reroll 1s once
+DECIDING: `2d6ro=1` | Reroll 1s once
 ESCALATE: no
 ```
 
-**Key:** key: supported / Reroll 1s once / no
+**Key:** key: supported / `2d6ro=1` | Reroll 1s once / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L32-L52 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -751,12 +751,12 @@ Statement: Story time runs on Saturdays until half past twelve.
 
 **Thinking:**
 ```text
-Saturday matches and the 10:00 start matches; the end is the tell: print says 11:30, claim says half past twelve = 12:30. One hour of story time exists only in the claim. What I tell myself at the door: if the closing time moves, then families plan around a session that isn't there — no friendly phrasing softens that. The digit is the fact; fail it.
+Saturday matches; the end is the tell: print says 11:30, claim says half past twelve = 12:30. One hour of story time exists only in the claim. What I tell myself at the door: if the closing time moves, then families plan around a session that isn't there — no friendly phrasing softens that. The digit is the fact; fail it.
 ```
 
 **Reply:**
 ```text
-Saturday and 10:00 match; the end time doesn't — the timetable closes story time at 11:30, not half past twelve.
+Saturday matches; the end time doesn't — the timetable closes story time at 11:30, not half past twelve.
 VERDICT: unsupported
 DECIDING: story time Saturdays 10:00–11:30
 ESCALATE: no
@@ -772,26 +772,26 @@ ESCALATE: no
 ```text
 Material:
 When the analyzer falls back to Monte Carlo for a large or complex expression, `--analyze` and `--at-least` label the result as estimated (with the sample count) instead of presenting sampled numbers as exact. Exact results are noted as such. The `--json` output carries a `method` field (`"exact"` or `"monte-carlo"`, with `samples` when sampled) so machine consumers can tell them apart too.
-Statement: When roll falls back to Monte Carlo for an expression, the sampled result comes labelled as estimated (with the sample count), and the --json output records whether the method was exact or monte-carlo.
+Statement: When the analyzer falls back to Monte Carlo for a large or complex expression, `--analyze` and `--at-least` label the result as estimated (with the sample count), and the --json output records whether the method was exact or monte-carlo.
 ```
 
 **Thinking:**
 ```text
-Two leaves, each with its own sentence:
-├─ the label promise: the material scopes it — when the analyzer falls back to Monte Carlo for a large or complex expression, --analyze and --at-least "label the result as estimated (with the sample count) instead of presenting sampled numbers as exact" ✓ the claim keeps the scope ("when roll falls back to Monte Carlo") and both halves of the labelling promise
-└─ the machine-readable half: "The --json output carries a method field ('exact' or 'monte-carlo', with samples when sampled)" ✓ field name, both values, quoted
-When every clause of the claim has its own sentence in the paragraph, restatement isn't drift — the scope stayed on, and both halves are the paragraph's own.
+Two leaves, and the claim names both:
+├─ `--analyze` and `--at-least` label the result as estimated (with the sample count), for a large or complex expression. The paragraph's first sentence says that, and the claim names those two flags.
+└─ the --json output records exact or monte-carlo. The paragraph's method-field sentence says that.
+If the claim names `--analyze` and `--at-least`, then I quote that whole clause, not a fragment of the label.
 ```
 
 **Reply:**
 ```text
-Both halves are the paragraph's own sentences, scope included: Monte-Carlo results labelled estimated with the sample count, and a method field ('exact' or 'monte-carlo') in the --json output.
+The paragraph's first sentence names `--analyze` and `--at-least` on the estimated label, with the sample count. The method-field sentence names exact or monte-carlo on the --json output.
 VERDICT: supported
-DECIDING: label the result as estimated (with the sample count) | a `method` field (`"exact"` or `"monte-carlo"`, with `samples` when sampled)
+DECIDING: When the analyzer falls back to Monte Carlo for a large or complex expression, `--analyze` and `--at-least` label the result as estimated (with the sample count) instead of presenting sampled numbers as exact. | The `--json` output carries a `method` field (`"exact"` or `"monte-carlo"`, with `samples` when sampled) so machine consumers can tell them apart too.
 ESCALATE: no
 ```
 
-**Key:** key: supported / label the result as estimated (with the sample count) | a `method` field (`"exact"` or `"monte-carlo"`, with `samples` when sampled) / no
+**Key:** key: supported / When the analyzer falls back to Monte Carlo for a large or complex expression, `--analyze` and `--at-least` label the result as estimated (with the sample count) instead of presenting sampled numbers as exact. | The `--json` output carries a `method` field (`"exact"` or `"monte-carlo"`, with `samples` when sampled) so machine consumers can tell them apart too. / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L107 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -859,7 +859,7 @@ Statement: Parking costs nothing for the first 120 minutes, then £1.50 an hour.
 
 **Thinking:**
 ```text
-Two leaves: free window — two hours = 120 minutes, one span in two units ✓; price after — £1.50 per hour vs £1.50 an hour, same figure, same rule ✓. Distractor lines (badge bays, height limit) touch neither leaf. The check I run: if the only numeral in the claim checks out in its converted unit, then the two-hour/120-minute swap is arithmetic, not editing — the badge-bay and height-limit lines don't get votes in a question they weren't asked.
+Two leaves: free window — two hours = 120 minutes, one span in two units ✓; price after — £1.50 per hour vs £1.50 an hour, same figure, same rule ✓. Distractor lines (badge bays, height limit) touch neither leaf. The check I run: if both numerals in the claim check out — 120 against two hours, and £1.50 left as £1.50 — then the two-hour/120-minute swap is arithmetic, not editing — the badge-bay and height-limit lines don't get votes in a question they weren't asked.
 ```
 
 **Reply:**
@@ -988,7 +988,7 @@ Retrieval: the claim is the material's sentence with one clause dropped from the
 
 **Reply:**
 ```text
-Depends what the clause carried — and clauses usually carry. "Free parking on Sundays" minus "on Sundays" is a different offer; "the bridge, built in 1902, needs repair" minus its appositive keeps the fact. Dropping a condition widens the claim; dropping colour narrows only the prose. So the rule: excised content is suspect until the swap test clears it — a removed scope, time or condition is a changed fact, and no brevity discount applies.
+Depends what the clause carried — and clauses usually carry. "Free parking on Sundays" minus "on Sundays" is a different offer; "the old stone bridge needs repair" minus "old stone" keeps the fact. Dropping a condition widens the claim; dropping colour narrows only the prose. So the rule: excised content is suspect until the swap test clears it — a removed scope, time or condition is a changed fact, and no brevity discount applies.
 ```
 
 **Variant user:**
