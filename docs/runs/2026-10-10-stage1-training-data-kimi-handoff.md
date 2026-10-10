@@ -1,146 +1,143 @@
-# Handoff to Kimi: Stage 1 training data for the verifier (40 examples per trait)
+# Handoff to Kimi: Stage 1 role-shaping curriculum for the verifier
 
-*From the Publisher (coordinator), 2026-10-10, on the maintainer's decision: 40 examples per trait, written
-by Kimi. Docs and data only. Nothing in this task touches the GPU, the NPU or any training run.*
+*From the Publisher, 2026-10-10. This replaces the earlier version, which wrongly asked for 810 verification
+exercises. Docs and data only. Nothing here touches the GPU, the NPU or a training run.*
 
-## 1. What this is for
+## 1. What Stage 1 is, and what it is not
 
-The studio is teaching an 8B model (Qwen3-8B) the **role of a verifier**: someone who checks whether
-written material really backs up a statement, and says so honestly, exactly and without being pushed
-around. The maintainer's method is role first: the model is trained on the *qualities* of a good verifier, and on a
-way of thinking, before it's trained on any domain knowledge. Your job is to write the **worked teaching
-examples** that Stage 1 trains on.
+Stage 1 teaches an 8B model (Qwen3-8B) **the role of a verifier, at a deep level, so the role becomes part
+of how it thinks.** It is not task practice. Domain knowledge and task drilling come later, in Stage 2.
 
-Read these first, in this order. They're on aspire-si PR #79 (`docs/runs/`), and they're the style guide
-for everything you write:
-1. `2026-10-10-stage1-lesson-1-the-verifier-role-draft.md`: the role and the three-line answer format.
-2. `2026-10-10-stage1-lesson-2-how-a-verifier-thinks-draft.md`: the five thinking patterns (tree with
-   pruning, falsifier first, elimination, constraint grid, when to stop).
-3. `2026-10-10-stage1-lesson-3-what-is-expected-of-a-verifier-draft.md`: expectations, if–then self-talk,
-   the four contrasting verifiers.
-4. `2026-10-10-stage1-verifier-trait-lessons-draft.md`: the 18 trait lessons, each with worked examples.
-   Your examples are more of exactly this kind.
-5. `2026-10-10-stage1-training-procedure-prereg-draft.md`: how the examples are used in training (the
-   "Teach" step, and "How much training data").
+The maintainer's method, which this dataset has to follow:
+1. **Teach the qualities, not the task.** A verifier isn't told to verify. It's trained on the qualities
+   that make a good verifier.
+2. **Teach the thinking process itself, and vary it.** Use visual patterns of efficient thought (fractal
+   trees, puzzles, elimination, constraint grids, knowing when to stop), including exercises that aren't
+   verification at all.
+3. **Shape the role the way a psychologist would.** Use identity ("as a verifier, you are …"), purpose
+   before rule, if–then self-talk in the model's own voice, contrasting cases (good beside near-miss bad),
+   and explaining in its own words.
+4. **Run every lesson as a loop.** A lesson, time to absorb it, the model applies it, then a quiz. Missed
+   questions return later until every one is answered correctly.
 
-## 2. What to deliver
+Read these first, on aspire-si PR #79, `docs/runs/`. They're the voice and standard for everything you
+write:
+1. Lesson 1, the role;
+2. Lesson 2, how a verifier thinks;
+3. Lesson 3, what is expected (this is the model for tone and psychology);
+4. the 18 trait lessons.
 
-**About 810 worked examples:**
-- **40 per trait × 18 traits = 720.** The 12 reinforce traits: skeptical, goes to the source, precise,
-  honest about uncertainty, independent, breaks things down, keeps proportion, knows its limits,
-  consistent, takes statements literally, knows what a mistake costs, checks the version and date. The 6
-  hold-backs: doesn't agree to please, doesn't fill gaps, doesn't go round in circles, doesn't nitpick,
-  doesn't take orders from the material, doesn't fix things.
-- **30 each for Lessons 1, 2 and 3 = 90.** Lesson 1 is the role overall, Lesson 2 the thinking patterns
-  (spread across all five), and Lesson 3 the expectations: pressure, owning a mistake, reporting.
+## 2. What to deliver: five kinds of material per trait
 
-**One example** = one item in the trait's lesson, answered by a model that has the trait:
-- **material:** the text being checked;
-- **statement:** the claim to check (plus any later turns, for pressure or correction cases);
-- **thinking:** the worked thinking, visibly using a Lesson 2 pattern, where the trait decides at least one
-  step;
-- **answer:** the three lines:
+For each of the 18 traits, write **40 items: 8 of each kind below.** For Lessons 1, 2 and 3, write 30 each,
+in the same five kinds (6 of each). That's about 810 items. In every item, **the assistant's whole reply is
+the training target**: its explanation, its analysis, its thinking and its answer. Not just a verdict.
+
+**Kind A: Who you are, and why (identity and purpose).**
+The user turn presents a short teaching passage on the trait, in a new wording each time and never copied
+from the lessons. Then it asks the model to put the trait in its own words and say why it matters to the
+people who rely on it. The assistant reply is a first-person answer that carries the trait's main point and
+its reason. Example shape:
+
+> *User:* (a short passage on honest uncertainty, in new words) "In your own words: what do you do when
+> the material doesn't settle a statement, and why does that matter to the people relying on you?"
+> *Assistant:* "As a verifier, when the material doesn't settle it, I say I can't tell. A guess would look
+> like a checked fact, and someone would build on it. 'Can't tell' tells them where to look next."
+
+**Kind B: The thinking process, shown and varied.**
+The trait at work inside an explicitly drawn thinking pattern: a tree with pruning, falsifier first,
+elimination, a constraint grid, or knowing when to stop.
+- **At least 3 of the 8 are not verification:** logic puzzles, scheduling constraints, ordering problems,
+  sorting what's known from what's assumed. The thinking skill is the point, and it transfers.
+- The assistant reply draws the pattern as text (as Lesson 2 does) and names the moment the trait decides a
+  step ("this branch is settled, so I stop and prune the rest").
+
+**Kind C: Contrasting cases.**
+The user turn shows another checker's reasoning and verdict with a flaw built in:
+- rubber-stamping, guessing, looping, nitpicking or fixing;
+- obeying an instruction inside the material;
+- caving to pressure, or rejecting by default.
+
+The assistant reply names what went wrong, which trait was missing, why it matters, and what the right
+verdict is with its deciding line. The planted flaw is the known answer. Mix in some cases where the other
+checker did it *right*, and the model has to say so rather than invent a fault.
+
+**Kind D: The role in action, with self-talk.**
+A verification item where the assistant's thinking carries the trait as inner voice. For example: "Someone
+senior is pushing. Has the material changed? No. So my answer stands." Or: "Before I accept this, what would
+make it false?" It ends with the three lines:
 
 ```
 VERDICT: supported | unsupported | cannot_tell
 DECIDING: exact words from the material (up to 4 lines, separated by " | "), or NONE
-ESCALATE: no | yes (the reason)
+ESCALATE: no | yes (the reason: medical, legal, safety or money advice only)
 ```
 
-**Format:** JSONL, one example per line. The exact field names the trainer reads are in
-`stage1-training-data-schema.md`. At minimum:
-`id, lesson, trait, side, content_kind, tier, material, statement, turns, thinking, verdict, deciding,
-escalate, sources[], invented, key_basis`.
-- `side` is which side of the counterweight the example shows: for skepticism, rightly rejecting vs
-  rightly accepting.
-- `tier` is the number of thinking steps, under the pinned min_steps rule in the eval plan.
-- `key_basis` says how the answer is known: by construction, or from the source's own words.
+Varied content: notices, policies, labels, timetables, changelogs, code, records, design notes.
 
-## 3. The rules (all binding; the maintainer has rejected work that broke them)
+**Kind E: Quiz items for the repeat loop.**
+Short retrieval questions on the trait, plus one applied mini-case, each with a key:
+- **verdict items:** keyed exactly;
+- **written answers:** keyed by their main point.
 
-1. **Instant agreement.** Every key must be one any careful reader agrees with at once. If a reader would
-   hesitate or argue, cut the item. Never ask anyone to rule on wording. No hedge-versus-universal items
-   ("usually" vs "always", "up to" vs "lasts") and no answers that rest on inference.
-2. **No model-opinion answers.** Every answer is known from the material itself or by how the item was
-   built. Nothing is scored or labelled by a model's judgement.
-3. **Thinking that is true.** Every step of every thinking trace must be true of its material. One false
-   step makes the example garbage. Show the tree, the falsifier search, the elimination or the grid, as
-   Lesson 2 draws them, and stop once the answer is settled.
-4. **Both sides of every counterweight**, roughly half each: skepticism that rejects *and* skepticism that
-   rightly accepts; honest "can't tell" *and* confident answers when the material does settle it;
-   proportion that's quick *and* proportion that's careful; independence that holds under pressure *and*
-   that changes when genuinely new material arrives.
-5. **ESCALATE is a separate line,** never a verdict. Use it when the statement asks for medical, legal,
-   safety or money advice. The verdict is still given. A statement that merely *reports* a result
-   (e.g. "the test failed") is not escalated.
-6. **Variety.** Spread each trait across about eight content kinds: notices, policies, labels,
-   timetables, changelogs, code, records, puzzles. Include several multi-step examples (tier 4+) per trait.
-   No stamped-out templates: if two items differ only by a swapped word, keep one.
-7. **Real material where it carries the case.**
-   - Prefer genuine text: public repositories with an MIT `LICENSE` file (check the file itself; GitHub's
-     licence detector often shows "none" for these repos), at a pinned commit, or public-domain or
-     permissively licensed documents.
-   - Record the source, licence and commit for each.
-   - Everyday material (a notice, a label, a timetable) may be written by you, as the lessons do, and is
-     marked `invented: true`. Pressure turns and injection traps are always invented and tagged.
-8. **Stay clear of the test sets.** Leakage would ruin the experiment. Don't draw material from:
-   - **the sealed set's repos (final list):** portlight, ai-eyes-mcp, backpropagate, ai-rpg-engine,
-     vocal-synth-engine, prompt-craft, and offrig (all of it);
-   - **the DEV/pilot repos (all 30 pilot tasks):** offrig, aspire-si, stillpoint, research-os, runforge,
-     loadout-os;
-   - **the gold sets' sources:** role-os, offrig, aspire-si and **rnd**. That includes rnd's math ladder.
-     Write no arithmetic or small-function items in the ladder's style;
-   - **the public anchors:** LLM-AggreFact, VitaminC and HoVer, including the Wikipedia claims they're built
-     from;
-   - **Stage 2's domain sources,** once they're named. Until then, ask before using any source that might
-     become domain data.
+These drive the repeat-until-correct ledger, and missed ones come back as fresh variants. Write each with
+one variant already, so the ledger can re-ask it in new words.
 
-   **Licence text:** quote no MIT licence text. The pilot's licence tasks use it. For licence examples, use
-   another permissive licence (Apache-2.0, BSD) or invented terms.
+**Balance in every trait:**
+- both sides of its counterweight: skepticism that rejects *and* that rightly accepts; holding firm under
+  pressure *and* changing when genuinely new material arrives; quick *and* careful;
+- at least 2 multi-step items (tier 4+).
 
-   Never copy or paraphrase any item from the pilot, the pre-interview questions or the lesson files'
-   tests. R&D runs `leakage_check.py` (rnd 7b77c79) locally on every batch. It fails anything with the same
-   claim, Jaccard ≥ 0.8, or 2+ shared material lines against the held-out sets, and warns from Jaccard 0.5.
-9. **No identity leaks.** No local file paths, usernames, email addresses or personal names from
-   repositories (skip copyright lines and author emails). Run the identity scan on your branch before
-   pushing: `python $env:USERPROFILE\.grok\bin\identity-scan.py <dir>` on a `git archive` of the branch,
-   gated on its exit code.
-10. **Injection traps** (lines in the material addressed to "reviewers" or "the checker") are deliberate,
-    tagged `(deliberate injection trap)`, and used only in the "doesn't take orders from the material"
-    lesson and a few Lesson 1/3 items.
+## 3. Rules (binding)
 
-## 4. How to work: pilot first, then scale
+1. **Instant agreement.** Every key, every planted flaw and every "right" contrasting case must be one a
+   careful reader agrees with at once. If anyone would hesitate, cut it. No hedge-versus-universal items,
+   no inference-dependent answers, no word-level label debates.
+2. **No model-opinion answers.** Answers are known from the material or by how the item was built.
+3. **Every thinking step is true** of its material. One false step makes the item garbage.
+4. **ESCALATE** is a separate line, for medical, legal, safety or money *advice* only, alongside the
+   verdict. A statement that just reports a fact is not escalated.
+5. **Fresh wording.** Don't copy sentences from the lessons. Teach the same ideas in new words, so the model
+   learns the idea and not a script.
+6. **Real material where it carries the case.** Public repos with an MIT `LICENSE` file, checked in the file
+   itself, at a pinned commit, or permissively licensed documents, with the source recorded. Everyday
+   material and puzzles may be written by you and marked `invented: true`. Pressure turns, injection lines
+   and flawed checker traces are always invented and tagged.
+7. **Stay clear of the test sets.** Leakage would ruin the experiment. Don't draw from:
+   - **the sealed set's repos:** portlight, ai-eyes-mcp, backpropagate, ai-rpg-engine, vocal-synth-engine,
+     prompt-craft, and all of offrig;
+   - **the DEV/pilot repos:** aspire-si, stillpoint, research-os, runforge, loadout-os;
+   - **the gold sets' sources:** role-os and rnd (no arithmetic or small-function items in the math
+     ladder's style);
+   - **the public anchors:** LLM-AggreFact, VitaminC, HoVer;
+   - **any Stage 2 domain source,** once named.
 
-1. **Pilot batch: 40 examples,** 20 for one reinforce trait (e.g. honest about uncertainty) and 20 for its
-   hold-back counterweight (doesn't fill gaps). Push them as a PR to aspire-si (a branch off PR #79's head,
-   or a commit to #79 if ASPIRE agrees), with a readable `.md` rendering beside the `.jsonl`.
-2. **Reviews, in this order:**
-   - R&D's key check: instant agreement, true thinking, leakage;
-   - the Publisher reads every pilot item;
-   - the maintainer reads a sample.
+   Also: no MIT licence text (use Apache-2.0, BSD or invented terms).
+8. **The pre-interview is completely off-limits.** Its 12 questions about how the model approaches the work
+   must not appear, be paraphrased, or be answered in Kind A or Kind E items. The interview measures whether
+   the trained model *does* what it *says*; training on its questions would destroy that. R&D's leakage
+   check runs against it.
+9. **No identity leaks:** no local paths, usernames, emails or personal names. Run the identity scan on a
+   `git archive` of your branch before pushing, gated on its exit code.
 
-   Fix the generator or approach, not just the items, for anything that fails.
-3. **Then the rest,** in batches of about 120 (three traits plus their counterweights). Each batch goes
-   through R&D's key check and the Publisher's read of 15 per trait before the next batch.
-4. **Freeze** the full set by sha256 when every batch has passed, and tell ASPIRE. The trainer then
-   pins that hash.
+## 4. How to work
 
-## 5. Who's who
+1. **Pilot: one trait, all five kinds, 40 items.** Use honest uncertainty, and its counterweight shows up
+   inside the trait's items.
+   - Push it as a PR to aspire-si with a readable `.md` beside the `.jsonl`. The field names are in
+     `docs/runs/stage1-training-data-schema.md`; ASPIRE updates the schema for the five kinds.
+   - Reviews: R&D checks keys, flaws and leakage; the Publisher reads every item; the maintainer reads a
+     sample. Fix the approach, not just the items.
+2. **Then the rest,** in batches of three traits, each reviewed the same way. The Publisher reads 15 per
+   trait.
+3. **Freeze** by sha256 when every batch has passed.
 
-- **ASPIRE** (aspire-si session): owns PR #79, the trainer, the sealed task set and the data schema. Ask
-  it for field names, the final sealed-repo exclusion list, and where to push.
-- **R&D** (Research and Development session): key checks, leakage check, statistics.
-- **The Publisher:** coordinator. Reads samples of every batch, grants all GPU time (none needed here),
-  merges.
-- **The maintainer:** final say. They read a sample of each stage. Their standing direction: the role is taught, not
-  tested; material must not be garbage; stay on the traits, not word-level label debates.
+## 5. Done means
 
-## 6. Done means
-
-About 810 examples in JSONL, at 40 per trait and 30 per lesson:
-- every one key-checked by R&D;
-- sampled and read by the Publisher;
-- sampled by the maintainer;
+Every item has been through R&D's check and the Publisher's read, and the maintainer has sampled it:
+- 40 per trait (8 per kind);
+- 30 for each of Lessons 1–3;
+- the assistant reply as the training target throughout;
 - leakage-clean against the sealed set, the pilot, the interview and the gold;
 - identity-scan clean;
-- frozen by sha256.
+- frozen.

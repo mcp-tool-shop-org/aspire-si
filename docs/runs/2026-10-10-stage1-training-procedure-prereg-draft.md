@@ -31,13 +31,19 @@ differ, this one says so and why.
 
 A session is one pass through the loop for the whole curriculum. Each lesson goes through four steps.
 
-1. **Teach.** SFT on the lesson's examples. Each example is one chat turn:
-   - the user turn is the lesson's framing ("As a verifier, you are …" and its paragraph on why) followed
-     by the item, asked in the three-line format;
-   - the assistant turn is the worked thinking, then the three lines.
+1. **Teach.** SFT on the lesson's curriculum: five kinds of item per trait, as the Kimi handoff and the
+   [schema](stage1-training-data-schema.md) set out.
+   - **A:** identity and purpose, in the model's own words;
+   - **B:** thinking patterns, varied, some not verification at all;
+   - **C:** contrasting cases;
+   - **D:** the role in action, with self-talk in the thinking;
+   - **E:** quiz items with a variant.
 
-   The lesson text rides in the context of its examples. It isn't a target, so the model learns to act on
-   it, not to recite it.
+   **The training target is the whole assistant reply, for every kind:** its thinking, explanation,
+   analysis, self-talk and answer. That's the maintainer's method. The role-shaping content itself is what's
+   learned, not only verdict production. The user turns are context, and the loss is masked to the assistant
+   turns. Each item carries its own context (Kind A brings its own short teaching passage). The lesson
+   documents aren't pasted in front of the items.
 2. **Absorb.** The next lesson's teaching comes before this lesson's quiz. The curriculum is interleaved, so
    every quiz follows unrelated training (the lesson plan's absorb gap).
 3. **Apply.** The model answers 10 fresh items for the lesson at the card's sampling settings. Answers that
@@ -86,8 +92,8 @@ samples (seeds 0–2). It counts as right when at least 2 of the 3 are right, an
 
 ## How much training data the first session needs
 
-**Decided (the maintainer, 2026-10-10): 40 hand-keyed worked examples per trait (18 × 40 = 720), plus 30 for
-each of Lessons 1–3 (90), about 810 in all, before round 1.**
+**Decided (the maintainer, 2026-10-10): 40 items per trait, 8 of each of the five kinds (18 × 40 = 720), plus
+30 for each of Lessons 1–3, 6 of each kind (90). About 810 in all, before round 1.**
 - **Who writes them:** Kimi, under the Publisher's handoff
   ([2026-10-10-stage1-training-data-kimi-handoff.md](2026-10-10-stage1-training-data-kimi-handoff.md)),
   in the format of [stage1-training-data-schema.md](stage1-training-data-schema.md).
@@ -98,10 +104,10 @@ each of Lessons 1–3 (90), about 810 in all, before round 1.**
   partway through.
 
 Why 40 per trait:
-- **Coverage.** Each trait has to show up across the varied content the lesson plan lists (about eight
-  kinds: notices, policies, labels, timetables, changelogs, code, records, puzzles). Each needs both sides of
-  its counterweight, for example skepticism that rejects and skepticism that rightly accepts. Eight kinds ×
-  two sides × at least two examples is 32. Forty leaves room for the multi-step cases.
+- **Coverage.** Each trait is taught five ways (identity, thinking pattern, contrast, action, quiz), with 8
+  of each. That's enough for both sides of the trait's counterweight in every kind (skepticism that rejects
+  and skepticism that rightly accepts, for example), spread across the varied content the lesson plan lists,
+  with at least 2 multi-step items per trait.
 - **Scale.** About 800 curated examples is the size at which small, careful SFT sets have changed a model's
   behaviour and format without large data (Zhou et al. 2023, *LIMA: Less Is More for Alignment*,
   arXiv:2305.11206, with 1,000 examples). Quality and variety matter more than count at this scale, which suits
@@ -111,12 +117,12 @@ Why 40 per trait:
 - **The ledger adds the rest.** Later sessions add the apply answers that were kept and the fresh variants of
   failed items. So the first session needn't carry everything.
 
-Every example follows the same rules as the task set:
+Every item follows the same rules as the task set:
 - the instant-agreement rule;
 - varied real material where it carries the case (and marked invented text where it can't);
 - the R&D key check and the Publisher's read;
 - the leakage check against the sealed set, the pilot and the pre-interview questions, with any similar
-  item rejected.
+  item rejected. Kinds A and E are held to a lower bar against the interview questions (see the schema).
 
 **Time is recorded per round:** wall-clock, GPU-minutes, examples per minute and cumulative training time,
 plus the machine line (GPU, driver, CUDA, torch, transformers), as the evaluation plan reports it.

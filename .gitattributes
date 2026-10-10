@@ -4,3 +4,4 @@
 # Run receipts are committed byte for byte, so their recorded sha256s hold in every checkout.
 docs/runs/receipts/** -text
 docs/runs/stage1-eval/** -text
+docs/runs/stage1-train/** -text
