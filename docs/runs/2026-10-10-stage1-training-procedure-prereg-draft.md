@@ -86,8 +86,16 @@ samples (seeds 0–2). It counts as right when at least 2 of the 3 are right, an
 
 ## How much training data the first session needs
 
-**Proposal: 40 hand-keyed worked examples per trait (18 × 40 = 720), plus 30 for each of Lessons 1–3
-(90), about 810 in all. Then 10 apply items and 10 quiz seeds per lesson, with the quiz variants rule-made.**
+**Decided (the maintainer, 2026-10-10): 40 hand-keyed worked examples per trait (18 × 40 = 720), plus 30 for
+each of Lessons 1–3 (90), about 810 in all, before round 1.**
+- **Who writes them:** Kimi, under the Publisher's handoff
+  ([2026-10-10-stage1-training-data-kimi-handoff.md](2026-10-10-stage1-training-data-kimi-handoff.md)),
+  in the format of [stage1-training-data-schema.md](stage1-training-data-schema.md).
+- **The apply items and quiz seeds** (10 + 10 per lesson, quiz variants rule-made) stay with this session,
+  unless the maintainer assigns them to Kimi.
+- **No new hand-written batch mid-curve.** The 810 are all in round 1. Later rounds add only the ledger's
+  fresh variants and the kept apply answers, so the learning curve isn't muddied by new data arriving
+  partway through.
 
 Why 40 per trait:
 - **Coverage.** Each trait has to show up across the varied content the lesson plan lists (about eight
@@ -109,6 +117,9 @@ Every example follows the same rules as the task set:
 - the R&D key check and the Publisher's read;
 - the leakage check against the sealed set, the pilot and the pre-interview questions, with any similar
   item rejected.
+
+**Time is recorded per round:** wall-clock, GPU-minutes, examples per minute and cumulative training time,
+plus the machine line (GPU, driver, CUDA, torch, transformers), as the evaluation plan reports it.
 
 ## Card use (estimates for the grant requests)
 
