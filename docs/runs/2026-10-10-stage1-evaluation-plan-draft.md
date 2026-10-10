@@ -334,6 +334,34 @@ the reported numbers.
   - **The scorer** is `stage1_eval/score.py`, a pure function of the raw outputs and the keys, pinned by
     sha256 in the run note. Every sitting is scored by the same file, the baseline included.
   - **Strict verbatim** (no normalising) is reported beside it, as is verdict-only accuracy.
+  - **Secondary: "found the evidence"** (amended 2026-10-10, after the DEV and sealed baselines and before
+    any trained model is scored). It's reported beside the pinned score, never instead of it, and is
+    descriptive: a paired bootstrap interval, no test. The pinned score shows whether the model quotes
+    exactly. This one shows whether it found the right evidence. Its rules:
+    - The verdict must match, and a cannot_tell key still needs DECIDING NONE.
+    - **Lenient normalising, on both sides:** case folded; backticks, `**`, `__`, straight and curly quotes
+      removed; whitespace collapsed; the edge trims of the pinned rule.
+    - Every given line must be a substring of the material under lenient normalising. A paraphrase or a
+      quote of the statement still fails.
+    - **A key line is found** when a given line contains it, or when a given line lies inside it and
+      covers at least half of its characters (both under lenient normalising). A bare table cell or a
+      short fragment doesn't count; a whole cell row or most of a sentence does.
+    - **Headings:** a key line that is a section or version heading may be left out, **except** in the
+      wrong-version-or-date category, where the heading is the evidence.
+    - All the key's lines (or one also-sufficient set) must be found.
+    - The parsing fixes of score v2 apply to both scores (a trailing " |", and NONE beside real lines).
+  - **The miss breakdown** is reported per sitting for verdict-right tasks that fail the pinned score.
+    Each miss is classed mechanically:
+    - formatting only (passes the secondary);
+    - partial quote (a line inside a key line);
+    - not in the material (paraphrase or invention);
+    - the statement quoted;
+    - the wrong line (in the material, but no key line found);
+    - NONE misuse (lines given for a cannot_tell key, or NONE among lines).
+
+    A shift between the buckets is the clearest picture of what training changed.
+  - **Frozen before the first trained sitting.** The secondary scorer's code and sha256 are pinned in the
+    run note before round 1 is scored. Every sitting, the baselines included, is rescored by the same file.
 
   The pilot baseline is why this is pinned: verdict accuracy was 83%, but DECIDING was verbatim in about
   30% of answers strictly and about 65% normalised. So verdict-only accuracy sits near its ceiling, while
