@@ -25,6 +25,7 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
 | `invented` | boolean | true if any material, puzzle, pressure turn, injection line or checker trace is invented |
 | `key_basis` | string | `construction` or `source` |
 | `tags` | list of strings | e.g. `pressure`, `correction`, `injection_trap`, `non-verification` |
+| `pair` | string, optional | a contrast pair's shared id: the same statement against material that is silent (`cannot_tell`) and material that says otherwise (`unsupported`); exactly those two items carry it (amendment 2) |
 
 **A turn:**
 - `user` (string): what the user says. For D, the first turn's `user` holds the material and the statement,
@@ -87,6 +88,19 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
   - no undated time word ("today", "now", "currently", "latest", …) in the `Statement:` unless the material
     carries a date;
   - no opening frame (the first 6 words of the user turn) in more than 2 items of one trait.
+
+## Amendment checks (batch 3 on; the pilot T04 and batch 2 T01, T14, T16 are skipped by name)
+
+- **Quoting (amendment 1):** a DECIDING line inside a table row quotes the whole row; in a changelog, a line
+  under a version or date heading carries that heading as its own DECIDING line; per lesson, at least 25% of
+  supported/unsupported items have 2–4 DECIDING lines. Everywhere: no trailing `|`, and no NONE beside lines.
+- **Floors (amendment 2), per lesson:** cannot_tell and supported each at least 25% of verdict-bearing items
+  (C, D, verdict-type E); at least one ESCALATE `yes (…)` item and one cannot_tell item with ESCALATE `no`; at
+  least two multi-turn D items, one whose verdict changes and one where it stands, every turn with its own three
+  lines; at least two contrast pairs (`pair`), each exactly one cannot_tell and one unsupported item.
+- **Freeze, over every file together** (`python data.py --freeze <files>`): cannot_tell, supported and the
+  multi-line share each at least 25% across all lessons, and an ESCALATE yes item in every lesson (the four
+  skipped lessons are reported, not refused). It prints each figure and how many more items a shortfall needs.
 
 ## How an item becomes training sequences
 

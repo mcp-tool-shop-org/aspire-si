@@ -232,6 +232,70 @@ def check_floors(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
                             f"verdict, {st['stood']} where it stands); at least 2 are needed, with at least 1 of each")
 
 
+def check_pairs(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, min_pairs: int = 2) -> None:
+    """Amendment 2, contrast pairs: items sharing a `pair` id are exactly one cannot_tell and one unsupported
+    verdict-bearing item of one lesson (the same statement against silent and against contradicting material);
+    every lesson has at least `min_pairs` of them."""
+    pairs: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip or r.get("pair") is None:
+            continue
+        if not isinstance(r["pair"], str) or not r["pair"].strip():
+            raise DataError(f"{r.get('id', '?')}: pair must be a non-empty string id")
+        keys = _verdict_keys(r)
+        if not isinstance(keys, dict):
+            raise DataError(f"{r.get('id', '?')}: pair {r['pair']!r} is on an item without a verdict")
+        pairs.setdefault((r["lesson"], r["pair"]), []).append((r["id"], keys.get("verdict")))
+    count: dict = {}
+    for (lesson, pid), members in sorted(pairs.items()):
+        if sorted(v for _, v in members) != ["cannot_tell", "unsupported"]:
+            raise DataError(f"{lesson}: pair {pid!r} is {members}; it needs exactly one cannot_tell and one "
+                            f"unsupported item")
+        count[lesson] = count.get(lesson, 0) + 1
+    lessons = sorted({r["lesson"] for r in rows if r.get("lesson") not in skip and _verdict_keys(r)})
+    for lesson in lessons:
+        if count.get(lesson, 0) < min_pairs:
+            raise DataError(f"{lesson}: {count.get(lesson, 0)} contrast pairs (shared `pair` id); at least "
+                            f"{min_pairs} are needed")
+
+
+def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
+    """The whole-dataset check before the freeze, over every file together. Across all lessons: cannot_tell and
+    supported each at least 25% of verdict-bearing items, and the multi-line share (2-4 DECIDING lines among
+    supported/unsupported) at least 25%; every lesson has an ESCALATE yes item (the exempt lessons are reported,
+    not refused). Returns the figures; raises DataError listing every shortfall."""
+    n = ct = sup = vb = multi = 0
+    esc: dict = {}
+    for r in rows:
+        keys = _verdict_keys(r)
+        if not isinstance(keys, dict):
+            continue
+        v = keys.get("verdict")
+        n += 1
+        ct += v == "cannot_tell"
+        sup += v == "supported"
+        if v in ("supported", "unsupported"):
+            vb += 1
+            multi += 2 <= len(keys.get("deciding") or []) <= 4
+        esc[r["lesson"]] = esc.get(r["lesson"], 0) + (keys.get("escalate") or "").startswith("yes (")
+    rep = {"verdict_bearing": n, "cannot_tell": ct, "supported": sup, "supported_or_unsupported": vb,
+           "multi_line": multi, "escalate_yes_per_lesson": dict(sorted(esc.items())),
+           "lessons_without_escalate_yes": sorted(k for k, v in esc.items() if not v)}
+    short = []
+    for name, k, total in (("cannot_tell", ct, n), ("supported", sup, n), ("multi-line share", multi, vb)):
+        if total and k < MIN_VERDICT_SHARE * total:
+            need = -(-int(MIN_VERDICT_SHARE * 100) * total // 100) - k
+            short.append(f"{name} {k} of {total} ({k / total:.0%}); {need} more needed for 25%")
+    refused = [x for x in rep["lessons_without_escalate_yes"] if x not in exempt]
+    if refused:
+        short.append(f"no ESCALATE yes item in {', '.join(refused)}")
+    rep["exempt_without_escalate_yes"] = [x for x in rep["lessons_without_escalate_yes"] if x in exempt]
+    rep["shortfalls"] = short
+    if short:
+        raise DataError("freeze: " + "; ".join(short) + f" (figures: {json.dumps(rep)})")
+    return rep
+
+
 def _check_keys(where, keys, material):
     if keys.get("verdict") not in VERDICTS:
         raise DataError(f"{where}: verdict {keys.get('verdict')!r}")
@@ -366,6 +430,7 @@ def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     check_frames(rows)
     check_multi_line_share(rows, skip=pre_amendment)
     check_floors(rows, skip=pre_amendment)
+    check_pairs(rows, skip=pre_amendment)
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:
@@ -462,3 +527,18 @@ def sequences(r: dict, tok) -> list[dict]:
 
 def load(path) -> list[dict]:
     return [json.loads(line) for line in open(path, encoding="utf-8") if line.strip()]
+
+
+if __name__ == "__main__":
+    # python data.py --freeze <file.jsonl> [<file.jsonl> ...]: the whole-dataset check, over all files together
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--freeze", nargs="+", required=True, metavar="FILE")
+    a = ap.parse_args()
+    everything = [r for f in a.freeze for r in load(f)]
+    try:
+        print(json.dumps(freeze_report(everything), indent=1))
+        print("freeze: clean")
+    except DataError as e:
+        print(e)
+        sys.exit(1)

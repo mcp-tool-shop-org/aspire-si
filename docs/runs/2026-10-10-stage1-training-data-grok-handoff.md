@@ -337,6 +337,7 @@ distinctions. This comes from aggregate counts only. No test item, test wording 
 - **Every trait has at least two contrast pairs:** the same statement checked against material that is
   *silent* on it (`cannot_tell`) and against material that *says otherwise* (`unsupported`). The reply names
   the difference ("the notice never mentions weekends" versus "the notice says closed on Sundays").
+  Both items of a contrast pair carry the same `pair` id (a short string), and no other item carries it.
 - **Kind C includes a checker who marks a silent case "unsupported"** (flaw `guess` or `reject_by_default`),
   and the reply corrects it to `cannot_tell`.
 - The self-talk carries the distinction in varied words: "not mentioned isn't the same as ruled out".

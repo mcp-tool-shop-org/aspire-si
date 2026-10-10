@@ -284,17 +284,22 @@ def _two_turn(iid, first, second_user, final, new_material=None):
 def _floors(lesson="T05"):
     """A set that meets every amendment-2 floor (and the multi-line share) on its own."""
     both = ["The library opens at 9am on weekdays.", "It is closed on Sundays."]
-    out = [_d(MAT, [], verdict="cannot_tell", iid=f"ct{i}", lesson=lesson) for i in range(4)]
+    out = [_d(MAT, [], verdict="cannot_tell", iid=f"ct{i}", lesson=lesson) for i in range(6)]
     out += [_d(MAT, both if i < 2 else both[:1], verdict="supported", iid=f"su{i}", lesson=lesson) for i in range(4)]
     for r in out:
         if not r["deciding"]:
             r["turns"][0]["user"] = r["turns"][0]["user"].replace("Statement: the library is open on Sunday mornings.", SAT)
-    out[4]["escalate"] = "yes (money advice)"
-    out[4]["turns"][0]["reply"] = out[4]["turns"][0]["reply"].replace("ESCALATE: no", "ESCALATE: yes (money advice)")
+    esc = next(r for r in out if r["id"] == "su0")
+    esc["escalate"] = "yes (money advice)"
+    esc["turns"][0]["reply"] = esc["turns"][0]["reply"].replace("ESCALATE: no", "ESCALATE: yes (money advice)")
     out.append(_two_turn("tc", ("cannot_tell", []), "New notice: It opens at 10am on Saturdays.",
                          ("supported", ["It opens at 10am on Saturdays."]), ["It opens at 10am on Saturdays."]))
     out.append(_two_turn("ts", ("unsupported", ["It is closed on Sundays."]), "My manager is certain it's open. Recheck.",
                          ("unsupported", ["It is closed on Sundays."])))
+    for i in range(2):  # contrast pairs: ct{i} (silent) against un{i} (says otherwise)
+        un = _d(MAT, ["It is closed on Sundays."], iid=f"un{i}", lesson=lesson)
+        un["pair"] = out[i]["pair"] = f"pair{i}"
+        out.append(un)
     for r in out:
         r["lesson"] = lesson
     return out
@@ -311,7 +316,7 @@ def test_floors_met():
 
 def test_cannot_tell_and_supported_shares():
     rows = [r for r in _floors() if not r["id"].startswith("ct")]
-    with pytest.raises(data.DataError, match="0 of 6 verdict-bearing items .* keyed cannot_tell"):
+    with pytest.raises(data.DataError, match=r"0 of \d+ verdict-bearing items .* keyed cannot_tell"):
         data.check_floors(rows)
     rows = [r for r in _floors() if not (r["id"].startswith("su") or r["id"] == "tc")]
     with pytest.raises(data.DataError, match="keyed supported"):
@@ -320,12 +325,13 @@ def test_cannot_tell_and_supported_shares():
 
 def test_escalation_floors():
     rows = _floors()
-    rows[4]["escalate"] = "no"
+    next(r for r in rows if r["id"] == "su0")["escalate"] = "no"
     with pytest.raises(data.DataError, match="ESCALATE yes"):
         data.check_floors(rows)
     rows = _floors()
-    for r in rows[:4]:
-        r["escalate"] = "yes (safety advice)"
+    for r in rows:
+        if r["verdict"] == "cannot_tell":
+            r["escalate"] = "yes (safety advice)"
     with pytest.raises(data.DataError, match="cannot_tell items are keyed ESCALATE no"):
         data.check_floors(rows)
 
@@ -353,3 +359,32 @@ def test_two_turn_d_needs_three_lines_in_each_turn():
 
 def test_floors_skip_pre_amendment_lessons():
     data.check_floors([_d(MAT, ["It is closed on Sundays."], lesson="T04")])
+
+
+def test_contrast_pairs():
+    data.check_pairs(_floors())
+    rows = _floors()
+    for r in rows:
+        r.pop("pair", None)
+    with pytest.raises(data.DataError, match="0 contrast pairs"):
+        data.check_pairs(rows)
+    rows = _floors()
+    next(r for r in rows if r["id"] == "un0")["pair"] = "pair1"  # pair1 now has two unsupported, pair0 one item
+    with pytest.raises(data.DataError, match="exactly one cannot_tell and one unsupported"):
+        data.check_pairs(rows)
+    data.check_pairs([_d(MAT, ["It is closed on Sundays."], lesson="T04")])  # before the amendment: not checked
+
+
+def test_freeze_report_over_all_files():
+    rep = data.freeze_report(_floors("T05") + _floors("T06"))
+    assert rep["cannot_tell"] == 12 and rep["shortfalls"] == []
+    old = [_d(MAT, ["It is closed on Sundays."], lesson="T04", iid=f"o{i}") for i in range(30)]
+    with pytest.raises(data.DataError, match=r"cannot_tell 12 of 58 \(21%\); 3 more needed"):
+        data.freeze_report(_floors("T05") + _floors("T06") + old)
+    rows = _floors("T05")
+    for r in rows:
+        r["escalate"] = "no"
+    with pytest.raises(data.DataError, match="no ESCALATE yes item in T05"):
+        data.freeze_report(rows)
+    rep = data.freeze_report(_floors("T05") + [_d(MAT, [], verdict="cannot_tell", lesson="T04", iid="x")])
+    assert rep["exempt_without_escalate_yes"] == ["T04"]  # reported, not refused
