@@ -145,3 +145,13 @@ def test_cuts_fall_on_bullet_or_paragraph_boundaries():
                                "A paragraph\nthat wraps.", "## v1.0"]
     out = NR.fit(NR.blocks(text), "It says:", "", "", 10, count)
     assert out == "It says:\n- first bullet that wraps\n  onto a second line"  # never half a wrapped bullet
+
+
+def test_recall_skips_an_oversized_unit_for_one_that_fits():
+    units = ["### Added", "- " + " ".join(["long"] * 40), "- a short bullet that fits"]
+    assert NR.fit_recall(units, "It says:", 10, count) == "It says:\n### Added\n- a short bullet that fits"
+
+
+def test_recall_takes_the_only_content_unit_even_when_oversized():
+    units = ["### Added", "- " + " ".join(["long"] * 40)]
+    assert NR.fit_recall(units, "It says:", 10, count) == "It says:\n" + units[1]

@@ -174,3 +174,17 @@ and wrong answers take the same time (15.6 against 15.7 s). Correct (pinned) per
 **Reading.** The untrained student mostly reaches the right verdict on supported and unsupported keys, but it
 rarely quotes its evidence exactly, almost never says cannot_tell, and almost never escalates. Those are the
 gaps Stage 1 is meant to move, and the miss buckets are the clearest view of what training changes.
+
+## NO-ROLE builder (the Phase B control), approved by R&D and pinned
+
+| File | sha256 |
+|---|---|
+| `stage1-train/no_role.py` | `63162cf42270b34e160d60e22559cca2072085bb71a83d8c6d9dbf8a08d16ee8` |
+| `stage1-train/test_no_role.py` | `d43afcf285d17df8772e0bc38708bbb086993878ae5fc3445fe70a4db8338ffb` |
+
+One NO-ROLE item per ROLE item, derived mechanically: same lesson, kind, tier, material, statement, keys, turns
+and pair id; the targets are a plain read-through with an always-true closing and the three lines, B puzzles
+restate their givens, and A and written E become material recall. The trainer prints both arms' composition
+side by side before Phase B and refuses any differing count. **Pre-registered limitation:** the NO-ROLE target
+is shorter (0.644 of ROLE target tokens on the pilot and batch 2), because it is never padded; the ratio is
+reported overall and per lesson × kind, and steps stay matched.

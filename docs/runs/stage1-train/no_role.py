@@ -202,11 +202,29 @@ def puzzle_turns(r: dict, count) -> list[dict]:
     return [{"user": user, "thinking": thinking, "reply": reply}]
 
 
+def fit_recall(units: list[str], head: str, target: int, count) -> str:
+    """A recall: units in material order while they fit within HIGH x target, an oversized unit skipped for the
+    next that fits, stopping near the target. It always holds at least one content unit (not a heading): if none
+    fits, the first content unit is taken whole, overshoot allowed."""
+    chosen: list[str] = []
+    for unit in units:
+        body = "\n".join([head] + chosen + [unit])
+        if count(target_text("", body)) > HIGH * target:
+            continue
+        chosen.append(unit)
+        if count(target_text("", body)) >= LOW * target:
+            break
+    content = [u for u in units if not u.lstrip().startswith("#")]
+    if content and not any(u in content for u in chosen):
+        chosen = [content[0]]
+    return "\n".join([head] + chosen)
+
+
 def recall_turns(r: dict, material: str, count, written_quiz: bool) -> list[dict]:
     t = r["turns"][0]
     user = (f"Read this material and say what it states:\n{material}" if written_quiz
             else f"Here is some material:\n{material}\nWhat does it say?")
-    reply = fit(blocks(material), "It says:", "", "", count(target_text(t["thinking"], t["reply"])), count)
+    reply = fit_recall(blocks(material), "It says:", count(target_text(t["thinking"], t["reply"])), count)
     return [{"user": user, "thinking": "", "reply": reply}]
 
 
