@@ -31,9 +31,16 @@ def test_identity_is_stable_and_versioned():
 
 
 def test_reason_table_is_pinned():
-    assert sorted(G.REASONS) == ["B_PHRASE_REUSED", "DUPLICATE_ID", "FRAMING_REUSED", "MATERIAL_REUSED",
-                                 "OPENING_REUSED", "PUZZLE_SHAPE_BATCH", "PUZZLE_SHAPE_REUSED", "SPAN_REUSED"]
-    assert G.REASONS["SPAN_REUSED"] == "the wording '{x}' is already in 2 items of this trait; reword it"
+    assert G.REASONS == {
+        "DUPLICATE_ID": "the id {x} is already used",
+        "SPAN_REUSED": "the wording '{x}' is already in 2 items of this trait; reword it",
+        "FRAMING_REUSED": "the framing '{x}' is already used; write a new one",
+        "MATERIAL_REUSED": "this material is already used; take another excerpt",
+        "PUZZLE_SHAPE_REUSED": "this trait already has a puzzle shaped {x}; use another structure",
+        "PUZZLE_SHAPE_BATCH": "two puzzles in this batch are already shaped {x}; use another structure",
+        "OPENING_REUSED": "the opening '{x}' already opens 2 items of this trait; vary it",
+        "B_PHRASE_REUSED": "the phrase '{x}' is already in 2 kind B items of this trait; reword it",
+    }
 
 
 def test_check_item_needs_no_other_row():
