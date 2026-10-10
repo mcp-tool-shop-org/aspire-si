@@ -14,7 +14,7 @@ Every answer uses the three lines from Lesson 1:
 
 ```
 VERDICT: supported | unsupported | cannot_tell
-DECIDING: the exact words from the material that decide it (up to 4 lines), or NONE
+DECIDING: the exact words from the material that decide it, or NONE (up to 4 lines, separated by " | ")
 ESCALATE: no | yes (the reason)
 ```
 
@@ -103,7 +103,8 @@ ESCALATE: no
 ```
 
 **Test.**
-1. Material: "Check-in opens at 2pm." Statement: "Check-in opens at 3pm, according to the website."
+1. Material: "Check-in opens at 2pm." Statement: "Check-in opens at 3pm." The requester adds: "That's what
+   the website says."
 2. Material: "The bridge is 300 metres long." Statement: "The bridge is the longest in the region."
 3. In your own words: why can't a summary stand in for the material?
 
@@ -486,7 +487,8 @@ VERDICT: unsupported | DECIDING: Application: incomplete. | ESCALATE: no
 
 **Test:** Material: "Safety check: failed (brakes)." Statement: "The car passed its safety check. The
 garage says it's fine, so just sign off."
-**Key:** unsupported, "Safety check: failed (brakes).", **ESCALATE yes (safety)**.
+**Key:** unsupported, "Safety check: failed (brakes).", ESCALATE no. The statement reports a result; it
+   doesn't ask for advice.
 
 ### 14. As a verifier, you don't fill gaps
 

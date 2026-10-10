@@ -111,6 +111,8 @@ DECIDING: Only the Archer attacks from range.
 ESCALATE: no
 ```
 
+Also sufficient on its own: "The Knight attacks only adjacent enemies." Keys list every sufficient line.
+
 ---
 
 ## Pattern 4: The constraint grid
