@@ -21,8 +21,8 @@ ASPIRE's own validator (`stage1-train/data.py`) and regenerates the `.md` from t
   mini-cases), each with one pre-written variant for the ledger.
 - **Sides: 21 / 19.** `honest cannot_tell` vs `confident when settled`, balanced within each kind (A 4/4,
   B 4/4, C 4/4, D 4/4, E 5/3).
-- **Tiers:** 1 × 14 (the A and written-E items), 3 × 13, 4 × 9, 5 × 4 — 13 multi-step items, where the
-  handoff asks for at least 2.
+- **Tiers:** 1 × 14 (the A and written-E items), 3 × 14, 4 × 8, 5 × 3, 6 × 1 — 12 multi-step items, where
+  the handoff asks for at least 2.
 - **Content spread:** notice, policy, label, timetable, changelog, code, record, puzzle (all eight core
   kinds) plus `teaching` for A and written-E items.
 - **One real source.** T04-D-04 quotes rig-bridge's `CHANGELOG.md` (v1.0.2 entry) at a pinned commit, MIT
@@ -39,7 +39,8 @@ ASPIRE's own validator (`stage1-train/data.py`) and regenerates the `.md` from t
 # (pilot/review task sets, and the 12 pre-interview questions at the Jaccard-0.5 bar for kinds A and E)
 python checks.py pilot-t04.jsonl --render
 
-# R&D's leakage_check.py (rnd 7b77c79): gold corpora + --against the DEV task sets and the pre-interview
+# R&D's leakage_check.py (rnd v1.1.4.4.10, which reads inside `turns`): gold corpora + --against
+# the DEV task sets and the pre-interview
 python "E:\AI\Research and Development\experiments\verifier-gold\leakage_check.py" pilot-t04.jsonl \
     --against ..\stage1-taskset\taskset-pilot-20.jsonl \
     --against ..\stage1-taskset\taskset-review-10.jsonl \
@@ -68,6 +69,28 @@ unnecessary.
   conservative per-item estimate and would warn on anything near the bound.
 - No item asks, paraphrases or answers any of the pre-interview's 12 questions — enforced by the leakage
   run above at the kinds-A/E bar of 0.5, and by construction of the prompts.
+- **The closed-list rule:** no `cannot_tell` item may sit next to a list or table that a reader could take
+  as complete — a keyed silence must be unambiguous, with nothing beside it that could be read as the whole
+  story (R&D's key check caught two of these; B-06, C-08 and E-07 were rebuilt to keep the silence genuine).
+- **No stamped phrases in thinking traces.** B traces name the deciding moment in ordinary words, worded
+  differently each time — never a template label like "The trait's moment:" — so the model learns the
+  habit, not a slogan.
+
+## R&D's pilot key check (PR #81) and the fixes applied
+
+`_pilot_fixes.py` (committed, assert-guarded) carries the round: B-06 rebuilt with a genuinely silent rule
+(wrong key or hedged grid step), B-01's step count made true (two rules, tier 3), C-08 and E-07 + variant
+rebuilt with no closed list beside the claim, A-01 rewritten on an audit/legibility angle away from the
+pre-interview, C-01's reply wording aligned with its keyed flaw (`guess`), and the stamped B-trace phrase
+dropped from all seven traces that carried it.
+
+## Standing rules for the three-trait batches (from the pilot review)
+
+- About half of kind D, and the material in kind C, should be real cited text: public MIT repos outside the
+  exclusion list, pinned, with the first line of the `LICENSE` file recorded in `sources[]`.
+- In kind C, each reply's wording must land on its keyed `planted_flaw` — say "guessed" for `guess`, not a
+  neighbouring vice.
+- Put two or three tier-4/5 items per trait in kind D: longer material, with the deciding line buried.
 
 ## Reviews requested (handoff §4.1)
 
