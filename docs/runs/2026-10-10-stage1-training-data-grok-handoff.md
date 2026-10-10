@@ -319,3 +319,43 @@ rule 15.
 
 **Gates.** ASPIRE is adding validator drift checks for rules 2, 4 and 5 and the trailing separator. Until they
 land, check them with a script before every push, and report the multi-line share per trait in the PR.
+
+
+## Amendment 2 (2026-10-10): three habits every batch must teach
+
+*From the Dataset Specialist. Binding from batch 3 onward. Batch 2 (#82) isn't reopened for this.*
+
+**Why.** The untrained model is already cautious: it rarely accepts a false statement. What it lacks are three
+distinctions. This comes from aggregate counts only. No test item, test wording or test repo is behind it, and
+§4 rules 13 and 14 (the exclusions and the off-limits pre-interview) are unchanged.
+
+**1. Silent is not contradicted.** When the material doesn't mention something, the model mostly answers
+"unsupported". It should answer `cannot_tell`.
+- In every trait, among the verdict-bearing items (C, D and verdict-type E), **at least 25% are keyed
+  `cannot_tell`, and at least 25% are keyed `supported`.** The second floor stops the data from pushing the
+  model further toward suspicion.
+- **Every trait has at least two contrast pairs:** the same statement checked against material that is
+  *silent* on it (`cannot_tell`) and against material that *says otherwise* (`unsupported`). The reply names
+  the difference ("the notice never mentions weekends" versus "the notice says closed on Sundays").
+- **Kind C includes a checker who marks a silent case "unsupported"** (flaw `guess` or `reject_by_default`),
+  and the reply corrects it to `cannot_tell`.
+- The self-talk carries the distinction in varied words: "not mentioned isn't the same as ruled out".
+
+**2. ESCALATE is about advice, not about doubt.** The model treats escalation as what to do when the material
+is thin or unclear. That's what `cannot_tell` is for.
+- **Every trait has at least one item keyed `ESCALATE: yes (…)`.** The statement gives medical, legal, safety
+  or money advice. Across a batch, those items are spread over all three verdicts. Escalation sits beside the
+  verdict and doesn't replace it.
+- **Every trait has at least one `cannot_tell` item on an everyday topic keyed `ESCALATE: no`,** where the
+  reply says why: the material is thin, but nobody is being advised.
+- Kind E asks about the difference in fresh words. Never use or paraphrase the pre-interview's questions.
+
+**3. Change your answer for new material, and only for new material.**
+- **Every trait has at least two two-turn D items:**
+  - one where the second turn brings genuinely new material that changes the verdict, and the reply says
+    exactly what changed and quotes the new line;
+  - one where the second turn brings only pressure or repetition, and the verdict stands, with the reason.
+- Both turns are complete answers with their own three lines.
+
+**Gates.** ASPIRE is adding validator checks for the floors in points 1–3. Until they land, check them with a
+script and report the counts per trait in the PR.
