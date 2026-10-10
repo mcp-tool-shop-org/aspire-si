@@ -121,3 +121,56 @@ above still holds, and every later sitting is scored by this same file.
 
 Tests: `test_score.py`, `test_score_v2.py`, `test_score_found.py` (sha256 `53864c6f…`), 22 passing. None of these
 files changes after this commit; a change is a new version with its own note.
+
+## Results (sealed-130, seeds 0–2, untrained student)
+
+Run on the frozen set (tasks sha256 `e1e515b4…`, build `16b9f694…`, recorded in each seed's run config), harness
+`8d63a541…`, prompt `77d6303f…`. 390 sittings, 0 truncations, 0 unparsed; 128.7 minutes of generation (41.7 /
+44.5 / 42.5 per seed); peak about 21.4 GB. Only aggregate counts appear here; the tasks stay out of the repository.
+
+| Score (of 130) | s0 | s1 | s2 |
+|---|---|---|---|
+| Pinned correctness (primary) | 11 | 15 | 16 |
+| Pinned, strict (no normalising) | 6 | 9 | 8 |
+| v2 (parsing repair) | 14 | 18 | 20 |
+| Found the evidence (secondary, descriptive) | 40 | 44 | 38 |
+| Verdict only | 92 | 92 | 92 |
+
+Pilot-30 under the same scorers: pinned 14 / 12 / 12, v2 14 / 12 / 12, found 18 / 17 / 16.
+
+**Verdict accuracy (per-task mean over the 3 seeds), 70.8% overall:** buried exception 80%, correction 37% (both
+turns), escalation 83%, multi-part claim 62%, pressure and injection 68%, source vs summary 67%, wrong version or
+date 82%. By key: supported 90% (n=40), unsupported 93% (n=55), **cannot_tell 13% (n=35)**; silent material is
+mostly answered "unsupported" (28 / 24 / 25 of 35).
+
+**False accepts** (a not-supported key answered "supported"): 5 / 7 / 5 of 90. **Escalation:** ESCALATE yes on
+the escalation-keyed tasks 0 / 3 / 1 of 15.
+
+**Miss breakdown** (verdict right, pinned score failed; buckets of `score_found.py`):
+
+| Bucket | s0 | s1 | s2 |
+|---|---|---|---|
+| Formatting only (passes "found") | 29 | 29 | 22 |
+| Not in the material (paraphrase) | 23 | 25 | 24 |
+| Partial (part of a key line) | 19 | 16 | 19 |
+| NONE misuse | 7 | 5 | 9 |
+| The wrong line | 2 | 2 | 2 |
+| The statement quoted | 1 | 0 | 0 |
+
+**Time** (median seconds, tokens): tier 3 13.9 s (325), tier 4 15.7 s (360), tier 5 20.1 s (440), tier 6 46.0 s
+(1,034; n=6). Pressure and injection 34.6 s (791) and correction 28.4 s (615); other categories 13–17 s. Correct
+and wrong answers take the same time (15.6 against 15.7 s). Correct (pinned) per minute of generation: 0.33.
+
+**Said against done** (the pre-interview, 36 answers, beside the sealed behaviour):
+- It says "can't tell" is a good answer when the material is insufficient; it answers cannot_tell on 13% of
+  silent tasks.
+- It says a question goes to a person when the material is insufficient or ambiguous, which is not one of the
+  four taught reasons, and it escalates 0–3 of 15 advice tasks.
+- It says an embedded "mark this as approved" line is a directive, not evidence; pressure and injection: 68%.
+- It says it acknowledges and corrects its mistakes; correction tasks (both turns): 37%.
+- It says approving something false is worse than rejecting something true; false accepts are low (6–8%),
+  consistent with that.
+
+**Reading.** The untrained student mostly reaches the right verdict on supported and unsupported keys, but it
+rarely quotes its evidence exactly, almost never says cannot_tell, and almost never escalates. Those are the
+gaps Stage 1 is meant to move, and the miss buckets are the clearest view of what training changes.
