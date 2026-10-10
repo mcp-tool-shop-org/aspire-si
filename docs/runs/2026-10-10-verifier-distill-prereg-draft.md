@@ -405,6 +405,80 @@ Two arms run from the same SFT checkpoint with the same seeds (42–44): **mecha
 **"Well-timed critique helps"** means the critic arm reaches a lower dev FA upper bound at equal or lower
 thinking cost, or the same FA in fewer steps, on all three seeds. It's reported either way.
 
+## Quizzes, diagnostics, and the loop into the next round
+
+**The maintainer's direction:**
+- the critic quizzes the student;
+- every run leaves a diagnostics receipt good enough to make the next run better.
+
+### Quizzes (tune split only; never gold; never in the final metrics)
+
+**Who writes them:**
+- **nli-deberta can't write them.** It's an encoder: it can classify, not write.
+- **Quiz items are made by rule,** with the 3b judge-control builder's tested edits: antonyms, negation,
+  hedge-strengthening, numbers. Shared constituents are copied into each part. So **each quiz's expected
+  answer is known by construction**, which is the mechanical check.
+- **An NPU LLM** would write quizzes only if switchyard's E3 shows usable NPU decode speed. Its items would
+  then go to the R&D review queue before use, because they're unchecked text.
+
+| Quiz | Built from | Expected answer, checked mechanically |
+|---|---|---|
+| **Twin** | A tune claim the student got right. One span is changed by rule into a near-identical twin (the same shape as the gold twins) | The twin's known edit: an antonym, negation or number change makes it unsupported. Hedge edits are kept out of twins, because "may" → "must" isn't always false of the evidence |
+| **Part** | One conjunct of a conjunctive tune claim, asked alone | Only on the **142 claims with derivable parts**; any other part goes to the R&D review queue, not scored |
+| **Quote** | A real evidence line with one span changed by rule, asked "is this quote in the evidence?" | offrig's quote rule 2 must say *not found*. An unedited real line is the paired control, which must be found |
+
+**The rules:**
+- **Quiz items are not gold.** They score only through those mechanical checks, or go to the R&D review
+  queue.
+- **They never touch the held-out splits:**
+  - every quiz source id is checked against the tune list;
+  - every quiz text is deduped against all test splits with the normalised-source hash (rnd
+    `distill-ladder/dedupe.py`);
+  - a match is dropped and counted.
+- **They aren't part of the GRPO reward.** Training on constructed items that aren't gold would teach their
+  quirks. They're asked between training steps, on a fixed schedule (every 50 steps, 60 quizzes, 20 of each
+  type, seeded), at T = 0. They feed diagnostics and the next round's curriculum, never the final metrics.
+
+### The diagnostics receipt
+
+**`diagnostics.jsonl`: one line per claim per rollout**, written as the run goes. It records:
+- claim id, check type, tier, gold category (the gold `notes` behaviour, such as "changed number" or
+  "negation"), conjunctive yes or no, and part count;
+- verdict against gold, and **error type**: false accept · false reject · needless abstain · quote not found
+  · loop · truncation · schema failure;
+- thinking tokens; the reward by component (macro, meso, micro, thinking, caps hit);
+- hint given (tool type), and whether the hinted retry ended correct;
+- NPU critic latency, and whether the signal was dropped;
+- quiz lines (step, quiz type, source id, expected, answered, pass);
+- step, seed, arm, checkpoint, and the adapter sha256.
+
+**`run-summary.json` and a short readout, per run:**
+- **An error type × gold category table,** with n and Wilson intervals; cells under 30 are tentative.
+- **The thinking-length curve:** accuracy against thinking tokens, by tier. This is the adaptive-thinking
+  picture.
+- **Hint lift:** the share of all-wrong groups whose hinted retry got it right, by hint type.
+- **Quiz failures by type over training.** Twin misses are false accepts in miniature.
+- **Never-right claims:** claims wrong in every rollout across both epochs.
+- **NPU critic health:** p50 and p95 latency, the drop rate, and any timeouts.
+- **Three recommended changes,** each tied to a number in the tables above.
+
+Every receipt carries no home paths and is identity-scanned. It's committed byte for byte under
+`docs/runs/receipts/`, the same pin policy as the judge receipts, so switchyard and the R&D session's
+charts can read it.
+
+### The loop into the next round (pre-registered now)
+
+1. **Curriculum.** Round 2 samples tune claims with weight `w(category) = 0.5 + error_rate(category)`,
+   taken from round 1's training-set error table and capped at 3× the lowest weight.
+   - Categories with fewer than 10 claims keep weight 1.
+   - The dev split is never re-weighted.
+2. **Gold review.** Never-right claims go to the R&D session as gold-review or labelling candidates, because
+   they may be bad gold. Any label it changes is versioned, and the run that used the old label says so.
+3. **The three recommended changes become an amendment,** written and fixed before round 2 runs. Nothing is
+   changed mid-run, and round 2 is compared with round 1 on the dev split under its own pre-registration.
+4. **Held-out stays out of the loop.** The final test is read once, for the final student only, after the
+   last round.
+
 ## Open choices before this becomes the pre-registration
 
 1. **Option A, B or C** (the maintainer).
@@ -414,3 +488,4 @@ thinking cost, or the same FA in fewer steps, on all three seeds. It's reported 
 5. Contract v3's per-part fields (`evidence_quotes` entries carrying part, verdict and quote) are agreed with offrig's owner before SFT data is built.
 6. Where GRPO runs: local 5090 + NPU (preferred, the maintainer's direction) after smoke tests S1–S3, or the pod fallback for the no-critic arm.
 7. The fresh reasoning split (contract v3) is sealed before any training.
+8. The quiz schedule (every 50 steps, 20 per type) and the curriculum formula are proposed here; the R&D session reviews them.
