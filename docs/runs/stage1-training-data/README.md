@@ -6,7 +6,7 @@ replacement: five kinds per trait, the whole assistant reply as the training tar
 [trainer's schema](../stage1-training-data-schema.md). Docs and data only: nothing here touches the GPU, the
 NPU or any training run.
 
-**This directory now holds the pilot:** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
+**This directory holds the pilot and batch 2:** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
 all five kinds, 40 items**, for trait 4, *honest about uncertainty* (its counterweight shows up inside the
 trait's items). Beside it: `pilot-t04.md`, the readable rendering, and `checks.py`, which gates the batch on
 ASPIRE's own validator (`stage1-train/data.py`) and regenerates the `.md` from the `.jsonl`.
@@ -57,6 +57,49 @@ collection errors with `ModuleNotFoundError: No module named 'harness'`). `check
 so the validator runs; a one-character fix at the source (or a directory rename) will make the shim
 unnecessary.
 
+**Batch 2 is in:** `batch2-t01.jsonl` (skeptical), `batch2-t14.jsonl` (doesn't fill gaps) and
+`batch2-t16.jsonl` (doesn't nitpick) — 40 items each, all five kinds, rendered `.md` beside each `.jsonl`.
+
+## Batch 2 at a glance
+
+- **Kinds:** 8 × 5 per trait. Sides balanced in each: T14 20/20 (refuses the gap / quotes only what is
+  there), T01 22/18 (rightly rejects / rightly accepts), T16 22/18 (accepts the equivalent / catches the
+  changed fact).
+- **Tiers:** every trait carries multi-step items (T14: 5 × tier 4 + 1 × tier 5; T01: 5/1; T16: 3/1),
+  with tier-4/5 D items built on longer material and a buried deciding line.
+- **Content spread:** all eight core kinds per trait, plus `teaching` for A and written-E items. Each kind
+  B keeps at least three non-verification puzzles (constraint grids, ordering, elimination, case splits —
+  never arithmetic of the gold math-ladder kind).
+- **Real cited text (per the standing rules below): all 8 kind-C materials per trait are real, and half of
+  kind D** (4 of 8 per trait): T01 D-01/-02/-05/-08, T14 D-01/-02/-05/-06, T16 D-01/-02/-05/-07. Plus
+  scattered B/E items (`T01-B-01`, `T01-E-07`, `T16-B-07`). Every citation is a public mcp-tool-shop-org
+  repo at a pinned commit, MIT `LICENSE` verified by its first line, outside every exclusion on the final
+  sealed/DEV/gold/anchor list:
+
+  | repo | pinned commit | items |
+  |---|---|---|
+  | `rig-bridge` | `e91f65b5c12bd070342abdb298b9434c27d4a9b4` | T01-C-04, T01-D-08, T14-C-03, T14-C-06, T14-D-06, T16-C-04, T16-C-05, T16-D-07 |
+  | `roll` | `fbec7b5a99b2eefbd01efe431ff1c1dcc07e5a03` | T01-B-01, T01-C-01/-06/-07, T01-D-01, T01-E-07, T14-C-01/-05/-07, T14-D-01, T16-C-01/-06, T16-D-01/-05 |
+  | `style-dataset-lab` | `9d91b77432a9950268e3fe6654cbdc8604650e90` | T01-C-02/-05/-08, T01-D-02, T14-C-04, T14-D-02, T16-B-07, T16-C-02/-08, T16-D-02 |
+  | `polyglot-mcp` | `25e970d9d598fb840baabaa7c0762b2762f88e0e` | T01-C-03, T01-D-05, T14-C-02/-08, T14-D-05, T16-C-03/-07 |
+
+  Contamination found while harvesting and excluded on sight: `ollama-intern-mcp` (mentions research-os),
+  polyglot-mcp `CHANGELOG.md` (tells an ai-rpg-engine story), repo-knowledge `CHANGELOG.md` (names a
+  gold-flavoured fixed enum). Citation spans are chosen disjoint across the whole batch — no two items
+  quote the same lines.
+
+## Batch 2 tooling
+
+- **`_verify_sources.py`** — proves every `sources[]` citation verbatim against the local clone at the
+  pinned commit: material must be a contiguous excerpt of the cited lines (normalised for whitespace and
+  `**`/`__`), the commit must be an ancestor of `origin/HEAD`, and duplicate citations across the batch
+  are rejected.
+- **`_build_t16.py`** — the auditable builder for T16, slicing real spans from scratch dumps of the pinned
+  blobs (`_harvest/` at the repo root, untracked; regenerable with `git show <commit>:<path>`).
+- All three files pass `checks.py --render` (schema + validator + pilot/review/pre-interview leakage) and
+  R&D's `leakage_check.py` (rnd v1.1.4.4.10) at 0 failures / 0 warnings each; `_verify_sources.py` passes
+  across the batch.
+
 ## Conventions this file follows
 
 - The conversation lives in `turns`; the first user turn carries the material and the statement, exactly as
@@ -75,6 +118,55 @@ unnecessary.
 - **No stamped phrases in thinking traces.** B traces name the deciding moment in ordinary words, worded
   differently each time — never a template label like "The trait's moment:" — so the model learns the
   habit, not a slogan.
+
+## Required parts, per kind (binding spec; ASPIRE's validator will enforce it)
+
+- **A** — the user turn is a teaching passage of 2–4 sentences in fresh words that **names the trait**
+  and says why it matters, followed by a question from a new angle. The reply is first person, with the
+  trait's main point and its reason, and no verdict lines.
+- **B** — a named thinking pattern, drawn as text; the deciding moment in ordinary, varied words; at
+  least 3 of the 8 per trait are non-verification puzzles.
+- **C** — material, a statement, and another checker's reasoning and verdict. The reply judges it,
+  **naming the flaw in the keyed flaw's own terms**, states the trait, and gives the three lines.
+- **D** — material and a statement. The thinking carries first-person **if–then self-talk**, then the
+  reply gives the three lines.
+- **E** — a question plus a variant that re-asks the same point in new words.
+
+**Provenance (binding, enforced by the landed validator):** `sources` is non-empty on every item.
+Real material is cited `repo@commit:path#lines` with the `LICENSE` first line; invented parts are
+marked in the same list as `{"invented": "<what>"}` — the checker trace in C, or the whole scenario
+for invented items. Top-level `invented` is true exactly when the item's material is invented.
+`checks.py` warns whenever those disagree, and `_verify_sources.py` proves every real citation
+byte-exact (whitespace-collapsed, markup kept, per the landed rule) at the pinned commit.
+
+**The landed drift checks this directory now passes** (`data.py` at 25ce64f+27d1318): kind A's
+teaching passage names the trait and the reply opens first person; kind B draws its pattern;
+DECIDING lines are verbatim with `**` kept; E variants share a key point with their original; no
+undated time words in C/D/E statements; no opening frame or B-phrase stamped across >2 items of a
+trait. `_audit_drift.py` (committed) replicates all of them batch-wide so failures are listed
+together, not one validator exception at a time.
+
+## R&D's key check on batch 2 (PR #82) and the rules it adds
+
+`_fix_batch2_r2.py` (committed, assert-guarded) plus `_build_t16.py` carry the round. Standing rules,
+applied to every batch from here:
+
+1. **No universal-vs-scope items** in either direction: a universal claim against a scope-limited line
+   splits readers between unsupported and cannot_tell. Use plain silence for cannot_tell and explicit
+   contradiction for unsupported.
+2. **Script-check every count** ("one digit", "three letters") against the actual strings — three T16
+   items had them wrong.
+3. **Accept-side (nitpick) items change notation, units, synonyms or numerals only.** Any added scope,
+   modality or recommendation word belongs in a reject item.
+4. **Each DECIDING is checked against every clause of its claim** — keep the material's `**` markers,
+   prefer whole clauses to fragments, name the flag/heading the claim points at.
+5. **Strip time words** ("now", "until 3.4.0") unless the cited material itself carries the version
+   or date.
+6. **Kind C replies keep to the shown material** — never assert what only the flawed checker said, and
+   don't credit them with "quoting" what they only described.
+7. **Vary the stampable shapes:** C openers (not "They (didn't) get it right" 24 times), D self-talk
+   intros and branch labels (the if–then habit itself is the spec'd part; its packaging isn't). The
+   A opener "As a verifier, …" is the lessons' own form and stays.
 
 ## R&D's pilot key check (PR #81) and the fixes applied
 

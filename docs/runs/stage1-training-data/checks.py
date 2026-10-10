@@ -78,6 +78,18 @@ def report(rows):
     if len(nv) < 3:
         warns.append(f"kind B has {len(nv)} non-verification items, need at least 3")
     for r in rows:
+        srcs = r.get("sources", [])
+        real = [s for s in srcs if isinstance(s, dict) and s.get("repo")]
+        marked_inv = [s for s in srcs if isinstance(s, dict) and s.get("invented")]
+        if not srcs:
+            warns.append(f"{r['id']}: empty sources — cite real material and/or mark invented parts")
+        if r["invented"] and real:
+            warns.append(f"{r['id']}: item marked invented but cites a real repo")
+        if not r["invented"] and not real:
+            warns.append(f"{r['id']}: item not marked invented but has no real citation")
+        if r["invented"] and not marked_inv:
+            warns.append(f"{r['id']}: invented item without an {'{'}'invented': ...{'}'} sources entry")
+    for r in rows:
         p, t = estimate_tokens(r)
         if p + t > 4096 or t > 3000:
             warns.append(f"{r['id']}: size estimate over limits (prompt ~{p}, target ~{t})")
@@ -85,7 +97,9 @@ def report(rows):
 
 
 def render(rows, path):
-    out = ["# Stage 1 training data — pilot, trait 4 (honest about uncertainty)",
+    lesson = rows[0]["lesson"] if rows else "??"
+    trait = rows[0]["trait"] if rows else "?"
+    out = [f"# Stage 1 training data — {lesson}: {trait}",
            "",
            f"*Generated from `{path.name}` by `checks.py --render`. Edit the JSONL, not this file.*",
            "",
@@ -114,9 +128,17 @@ def render(rows, path):
                 + f" / {q['escalate']}"
             keys = [f"quiz ({q['type']}): {body}", f"variant key: {json.dumps(r['variant']['key'])}"]
         tags = f" · tags: {', '.join(r['tags'])}" if r.get("tags") else ""
-        src = "invented (key by construction)" if r["invented"] else \
-            "; ".join(f"{s['repo']}@{s['commit'][:12]}:{s['path']}#{s['lines']} ({s['licence']})"
-                      for s in r["sources"])
+        def src_str(s):
+            if isinstance(s, dict) and s.get("invented"):
+                return f"invented: {s['invented']}"
+            if isinstance(s, str):
+                return s
+            return f"{s['repo']}@{s['commit'][:12]}:{s['path']}#{s['lines']} ({s['licence']})"
+        src = "; ".join(src_str(s) for s in r["sources"])
+        if r.get("invented_parts"):
+            src += " · invented parts: " + ", ".join(r["invented_parts"])
+        if r["invented"] and not any(s.get("repo") for s in r["sources"] if isinstance(s, dict)):
+            src += " (key by construction)"
         sec = [f"### {r['id']} · kind {r['kind']} · {r['content_kind']} · tier {r['tier']} · "
                f"{r['side']}{tags}", ""]
         for t in r["turns"]:
