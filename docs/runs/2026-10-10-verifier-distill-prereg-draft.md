@@ -172,8 +172,8 @@ maintainer decides.**
 
 ## Three stages: TEACH, APPLY, RETAIN
 
-**The maintainer's direction:** "teach the data and then test on the application of that data in practice,
-and then verify retention in various ways."
+**The maintainer's decision:** the training is organised as three stages. First the material is taught.
+Then its application is tested on new cases. Then retention is checked in several ways.
 
 Each stage has its own data and its own mechanical score. **No model-judge score appears anywhere in the
 reward.** If any stage ever needs a judge, the judge first passes a known-answer control: the planted-error
