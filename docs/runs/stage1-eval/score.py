@@ -11,13 +11,15 @@ Per task:
   key.turn1.
 - deciding_ok (normalised): for a cannot_tell key, DECIDING is NONE. Otherwise every " | " line of DECIDING,
   normalised, is a substring of the normalised material, and together the lines cover the key's DECIDING or
-  one also-sufficient set. A key line counts as covered when it, normalised, is contained in a given line or
-  contains it. For a correction task, the same check is applied to turn 1 against key.turn1.
+  one also-sufficient set. A key line counts as covered only when a given line (or the whole DECIDING string)
+  contains it, never the other way round, so a short fragment covers nothing. For a correction task, the same
+  check is applied to turn 1 against key.turn1.
 - correct = verdict_ok and deciding_ok.  Beside it: strict (no normalising) and verdict-only.
 Normalising, identical on both sides: whitespace runs -> one space; `**` and `__` removed; trimmed.
-Coverage (proposed, for R&D to ratify): leading "- " / "* " / "> " markers and trailing . ; , : are ignored
-when matching a key line, and a key line may also be matched against the whole DECIDING string, since a
-quoted table row contains the " | " separator.
+Coverage (ratified by R&D, 2026-10-10): leading "- " / "* " / "> " markers and trailing . ; , : are ignored at
+a quote's edges, on both sides, when matching a key line, and a key line may also be matched against the whole
+DECIDING string, since a quoted table row contains the " | " separator. Nothing inside a quote is normalised:
+no case folding, and dropped backticks fail.
 """
 
 import argparse
@@ -60,7 +62,7 @@ def deciding_ok(given, key_lines, alt_sets, material, verdict_key, f) -> bool:
     joined = core(f(" | ".join(given)))  # a table row contains " | " itself
     for want in [key_lines] + list(alt_sets):
         w = [core(f(x)) for x in want]
-        if all(k in joined or any(k in core(x) or core(x) in k for x in g if core(x)) for k in w):
+        if all(k in joined or any(k in core(x) for x in g) for k in w):  # one way only: given contains key
             return True
     return False
 

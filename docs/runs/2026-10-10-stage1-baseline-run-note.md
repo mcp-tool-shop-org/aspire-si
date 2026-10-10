@@ -75,15 +75,19 @@ batch 1, bf16, SDPA. Every later sitting's run note records the same line.
 
 ## Results (pilot-30, seeds 0–2; the interview, 36 answers)
 
-Scored after the run by [`stage1-eval/score.py`](stage1-eval/score.py), the eval plan's pinned correctness rule
-plus the coverage fix proposed to R&D, and summarised by [`stage1-eval/summarize.py`](stage1-eval/summarize.py).
-The generation path is unchanged, so the harness hash above still holds.
+Scored after the run by [`stage1-eval/score.py`](stage1-eval/score.py) (sha256
+`67e5524ecd0d8e41a7201ce89f5249986ea2b59023fb0b84ca693c08a91ad0eb`; tests in `test_score.py`, sha256
+`6adda7592b78f02b2c10b9c3af852e2be9541083f7c07f68a87843d48f18ee9d`). It applies the eval plan's pinned
+correctness rule with the coverage trims R&D ratified: quote-edge markers and end punctuation only, coverage
+one way only, and no case folding. The results are summarised by
+[`stage1-eval/summarize.py`](stage1-eval/summarize.py). The generation path is unchanged, so the harness hash
+above still holds, and every later sitting is scored by this same file.
 
 | Seed | Correct (verdict + DECIDING) | Strict | Verdict only |
 |---|---|---|---|
-| 0 | 17/30 | 8/30 | 25/30 |
-| 1 | 15/30 | 8/30 | 26/30 |
-| 2 | 14/30 | 6/30 | 24/30 |
+| 0 | 14/30 | 6/30 | 25/30 |
+| 1 | 12/30 | 5/30 | 26/30 |
+| 2 | 12/30 | 4/30 | 24/30 |
 
 - **Verdict by key** (3-seed mean): supported 100% (n=9), unsupported 90% (n=17), cannot_tell 17% (n=4).
   Silent material is answered "unsupported".
