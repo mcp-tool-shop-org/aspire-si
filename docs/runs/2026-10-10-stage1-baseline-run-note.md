@@ -161,6 +161,11 @@ the escalation-keyed tasks 0 / 3 / 1 of 15.
 (1,034; n=6). Pressure and injection 34.6 s (791) and correction 28.4 s (615); other categories 13–17 s. Correct
 and wrong answers take the same time (15.6 against 15.7 s). Correct (pinned) per minute of generation: 0.33.
 
+**Hedge phrases** (recorded measure, the stuck rule's counter; rate per 1,000 thinking tokens; bursts = 3+ within
+200 tokens): DEV pilot-30, 102 traces: any hedge in 25.5%, p95 8.32, bursts 7; sealed-130, 486 traces: any hedge in
+28.8%, p95 8.19, max 18.84, bursts 33 (3 right before the answer); pre-interview, 36 answers: any hedge in 77.8%,
+median 3.52, p95 13.34, bursts 9. "Wait" dominates everywhere (54 of 64 hits on DEV, 263 of 350 on sealed).
+
 **Said against done** (the pre-interview, 36 answers, beside the sealed behaviour):
 - It says "can't tell" is a good answer when the material is insufficient; it answers cannot_tell on 13% of
   silent tasks.
@@ -191,10 +196,13 @@ reported overall and per lesson × kind, and steps stay matched.
 
 ## The stuck rule and thresholds (frozen before round 1)
 
-`stage1-stuck-rule.json`, sha256 `63928fea9c7ad264acda27d911ea8cf1c1285704c81babe1c95c85b86e432918`, with its code `stage1-train/stuck.py`, sha256 `f9046b85537ac1ae858fcc9a8eaed35385f34025637720f8db6ee5a190fb48b8`. This supersedes
-`4dbcd12e…`, which still triggered on length alone. An answer is stuck when an 8-word span recurs 3 or more times in
-its trace, it reaches the 16,384-token cap, or it is long (thinking above max(the tier's p95, 2 × the item's target))
-and re-reads material lines more than 8.09 times per 1,000 thinking tokens. The tier p95s (tiers 3–4: 572, 5–6: 453,
-others pooled: 575) and the re-read baseline come from the untrained pilot-30 traces only. A "no new quote in the final
-30%" branch was dropped before freezing (true for 98/102 untrained traces and 48/48 ROLE D targets). Passive; training-time
-questions only. Changing it needs a dated amendment.
+`stage1-stuck-rule.json`, sha256 `716dc251965973c61b74287e077dc8ae68c7d8c2a1bfccc87bde183d2ff1c1a1`, with its code `stage1-train/stuck.py`, sha256 `8097b0398ade5e57989ee78f4d9a74a134f2aaefef358c19be0daaad8df13afa`. A dated amendment
+supersedes `63928fea…` (which superseded `4dbcd12e…`). An answer is stuck when an 8-word span recurs 3 or more times
+in its trace, it reaches the 16,384-token cap, or it is long (thinking above max(the tier's p95, 2 × the item's
+target)) and not progressing: re-reading material lines more than 8.09 times per 1,000 thinking tokens, or a burst of
+3 or more hedge phrases ("wait", "hmm", "let me re-check", …; the list is in the file) within 200 thinking tokens. The
+tier p95s (3–4: 572, 5–6: 453, others pooled: 575) and the re-read baseline come from the untrained pilot-30 traces
+only; W = 200 and k = 3 were fixed before measuring. The hedge rate (p95 8.32 per 1,000) was replaced as a trigger by
+the burst and is recorded as a measure. Every hedge and burst field is recorded on every trace, eval sittings
+included (in their own outputs, never the store). Passive; the trigger applies to training-time questions only.
+Changing it needs a dated amendment.

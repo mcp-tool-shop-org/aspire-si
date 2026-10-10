@@ -1,16 +1,17 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-10 from commit 2e399d0 by Atlas 1.24.0.
+Mapped at 2026-10-10 from commit 4bf6384 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (201 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (203 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-10 (63792e8)
+## What changed since 2026-10-10 (2e399d0)
 
-Nothing structural changed since 2026-10-10; 1 file added and 3 changed content.
+- docs/runs/stage1-train/stuck.py is now read by docs/runs/stage1-stuck-rule.json.
+- 2 files added and 3 changed content, across 1 part.
 
 ## What comes in
 
@@ -58,7 +59,7 @@ Window: 180 days; a pair counts from 3 shared commits, since 3 source files reac
 
 Every code part is imported by at least one test.
 
-5 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 2 more.
+6 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 3 more.
 
 ## Written but never read
 
@@ -88,7 +89,7 @@ Read those in order to follow one pull request end to end.
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/data.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; and 8 more.
 - 5 writes and 33 reads use paths built at run time and are not named here.
-- 59 writes and 68 reads go to a path their caller passes, not to this repository.
+- 59 writes and 70 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 

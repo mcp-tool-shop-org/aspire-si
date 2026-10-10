@@ -40,24 +40,32 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 1,
+      "added": 2,
       "changed": 3,
       "moved": 0,
-      "parts": 2,
+      "parts": 1,
       "removed": 0
     },
     "items": [
       {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-train/stuck.py is now read by docs/runs/stage1-stuck-rule.json.",
+        "subjects": [
+          "docs/runs/stage1-train/stuck.py",
+          "docs/runs/stage1-stuck-rule.json"
+        ]
+      },
+      {
         "kind": "counts",
-        "sentence": "Nothing structural changed since 2026-10-10; 1 file added and 3 changed content.",
+        "sentence": "2 files added and 3 changed content, across 1 part.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "63792e8b6bcd2081676528833edf7e4d214caca1",
-      "generatedAt": "2026-10-10T20:11:20.052Z"
+      "commit": "2e399d0c6fbe78666fd8f38d6903a4d7b13c631f",
+      "generatedAt": "2026-10-10T20:28:07.227Z"
     },
-    "unchanged": true
+    "unchanged": false
   },
   "changesTogether": [
     {
@@ -97,9 +105,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "2e399d0c6fbe78666fd8f38d6903a4d7b13c631f",
+  "commit": "4bf6384feba79628347bc37db73cb0e8026c469a",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (201 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (203 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -272,12 +280,12 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-10T20:28:07.227Z",
+  "generatedAt": "2026-10-10T20:36:22.353Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/data.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; and 8 more.",
     "5 writes and 33 reads use paths built at run time and are not named here.",
-    "59 writes and 68 reads go to a path their caller passes, not to this repository.",
+    "59 writes and 70 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
   ],
@@ -328,7 +336,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 83,
+  "testFiles": 84,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
@@ -347,7 +355,7 @@
   "unreadNote": [],
   "untested": [],
   "untestedNote": [
-    "5 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 2 more."
+    "6 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 3 more."
   ],
   "written": 2
 }

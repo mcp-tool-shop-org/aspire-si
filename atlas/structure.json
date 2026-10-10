@@ -1880,11 +1880,11 @@
           "path": "docs/runs/2026-10-08-step-3-plan.md"
         },
         {
-          "hash": "4596d28de39cb2103172bfea1cf6d95cf8ea98b08174e2d2b8198cb613fab810",
+          "hash": "b5db9a649e5fe1a12bc15a0c3b2aa616b1ddfd3e3956822e75d0c0f69e23b9c5",
           "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
         },
         {
-          "hash": "28eeb8fd0e7767dd6a499d2e342083dff37e8acb1d68dfe21b1ef6d5a5ed0433",
+          "hash": "96a91e8edbb7d67f4583c53604c0caabd11dd615216630a3275f984b183d3e1c",
           "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
         },
         {
@@ -2159,7 +2159,7 @@
           "path": "docs/runs/stage1-eval/test_score_v2.py"
         },
         {
-          "hash": "63928fea9c7ad264acda27d911ea8cf1c1285704c81babe1c95c85b86e432918",
+          "hash": "716dc251965973c61b74287e077dc8ae68c7d8c2a1bfccc87bde183d2ff1c1a1",
           "path": "docs/runs/stage1-stuck-rule.json"
         },
         {
@@ -2627,6 +2627,21 @@
         },
         {
           "exports": [
+            "burst_profile",
+            "hedge_profile",
+            "hedge_token_positions",
+            "hedges",
+            "judge",
+            "lenient",
+            "load_rule",
+            "quotes",
+            "repeated_span"
+          ],
+          "hash": "8097b0398ade5e57989ee78f4d9a74a134f2aaefef358c19be0daaad8df13afa",
+          "path": "docs/runs/stage1-train/stuck.py"
+        },
+        {
+          "exports": [
             "item",
             "test_bad_d_items_refused",
             "test_c_needs_a_known_flaw_and_e_a_reworded_variant",
@@ -2699,6 +2714,33 @@
           ],
           "path": "docs/runs/stage1-train/test_no_role.py",
           "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "filler",
+            "hedge_trace",
+            "rereads_trace",
+            "run",
+            "spaced",
+            "test_a_long_role_trace_that_keeps_quoting_new_lines_does_not_trigger",
+            "test_a_long_trace_with_a_high_reread_rate_triggers",
+            "test_a_looping_trace_triggers_a",
+            "test_a_quoted_material_line_with_actually_is_not_counted",
+            "test_a_self_check_sentence_with_wait_is_not_counted",
+            "test_a_short_trace_with_a_burst_does_not_trigger",
+            "test_hedge_profile_records_phrases_and_positions",
+            "test_hedges_in_material_or_a_self_check_do_not_count_toward_a_burst",
+            "test_the_burst_window_boundary",
+            "test_the_cap_triggers_b_and_length_alone_is_only_recorded",
+            "test_the_reread_boundary",
+            "test_the_same_three_hedges_spread_over_600_tokens_do_not",
+            "test_three_hedges_within_200_tokens_on_a_long_trace_trigger"
+          ],
+          "hash": "daaf428c3250bafe10c181aad52cd770e872ab1e2591926ae79e2c65e43596d8",
+          "importsFiles": [
+            "docs/runs/stage1-train/stuck.py"
+          ],
+          "path": "docs/runs/stage1-train/test_stuck.py"
         },
         {
           "exports": [
@@ -3195,17 +3237,17 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 5,
+          "reads": 7,
           "where": [
             "caller"
           ],
           "writes": 2
         }
       ],
-      "outsideReads": 5,
+      "outsideReads": 7,
       "outsideWrites": 2,
       "role": "docs",
-      "testedBy": 5,
+      "testedBy": 6,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/data.py",
@@ -6620,8 +6662,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "2e399d0c6fbe78666fd8f38d6903a4d7b13c631f",
-    "tracked": 326
+    "commit": "4bf6384feba79628347bc37db73cb0e8026c469a",
+    "tracked": 328
   },
   "landings": [
     {
@@ -6820,6 +6862,17 @@
         }
       ],
       "target": "docs/runs/stage1-train/eval_adapter.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-stuck-rule.json",
+          "call": "literal",
+          "confidence": "text"
+        }
+      ],
+      "target": "docs/runs/stage1-train/stuck.py",
       "writers": []
     },
     {
@@ -7193,13 +7246,14 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 83,
+  "testFiles": 84,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
     "docs/runs/stage1-eval/test_score_v2.py",
     "docs/runs/stage1-train/test_data.py",
-    "docs/runs/stage1-train/test_no_role.py"
+    "docs/runs/stage1-train/test_no_role.py",
+    "docs/runs/stage1-train/test_stuck.py"
   ],
   "unassigned": []
 }
