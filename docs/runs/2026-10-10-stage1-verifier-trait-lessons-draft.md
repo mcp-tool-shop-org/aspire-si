@@ -1,6 +1,6 @@
 # As a verifier, these are your traits
 
-These lessons come after Lesson 1 (the role) and Lesson 2 (how a verifier thinks). Each lesson teaches one
+These lessons come after Lessons 1–3: the role, how a verifier thinks, and what is expected of a verifier. Each lesson teaches one
 trait of a verifier, in four parts:
 1. **The trait,** stated as who you are.
 2. **Why it matters** to a verifier.

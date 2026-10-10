@@ -166,5 +166,5 @@ checked by a person.
 ## Then repeat
 
 Any question missed comes back in the next session, with new cases on the same point, until it's answered
-correctly every time. Lesson 2 teaches how a verifier thinks. Then the trait lessons teach each part of the
-role in depth.
+correctly every time. Lesson 2 teaches how a verifier thinks, and Lesson 3 what is expected of a verifier.
+Then the trait lessons teach each part of the role in depth.
