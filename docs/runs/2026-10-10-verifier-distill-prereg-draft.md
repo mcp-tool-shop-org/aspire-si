@@ -23,6 +23,120 @@ falls back to cannot_tell.
 - The same policy applied to the **untrained student** is the fair comparison: it isolates what training
   adds over the gate.
 
+## Research grounding
+
+This comes from a four-agent literature pass coordinated by the Publisher, 2026-10-10.
+- **Every arXiv ID below was checked against arXiv** (title, first author, date) before it was cited here.
+- **Dataset licences were read from the Hugging Face cards** the same day.
+- **Each finding is tied to a design choice in this plan.**
+
+### Data: the thin-data problem
+
+About 250 TEACH claims isn't enough on its own. So public, human-labelled fact-verification sets are
+proposed as additional **TEACH** material beside our code gold. **The maintainer decides on using them**:
+the downloads, and training on CC BY-SA data.
+
+| Set | What it gives | Licence (HF card) | Proposed use |
+|---|---|---|---|
+| **VitaminC**: Schuster et al. 2021, *Get Your Vitamin C! Robust Fact Verification with Contrastive Evidence*, arXiv:2103.08541 | 3-way labels; **contrastive evidence pairs** where a small edit flips the verdict. The closest public match to our twins | CC BY-SA 3.0 | TEACH and APPLY training, if approved |
+| **FEVER**: Thorne et al. 2018, *FEVER: a large-scale dataset for Fact Extraction and VERification*, arXiv:1803.05355 | Bulk 3-way supported, refuted, not-enough-info | Tagged **both** CC BY-SA 3.0 **and** GPL-3.0 | Training only after the dual tag is resolved; no redistribution until then |
+| **HoVer**: Jiang et al. 2020, *HoVer: A Dataset for Many-Hop Fact Extraction And Claim Verification*, arXiv:2011.03088 | Multi-hop, often conjunctive claims, 2-way. Matches the meso level | CC BY-SA 4.0 | Training, if approved. Test labels are hidden, so dev serves as its evaluation split |
+| **LLM-AggreFact**: Tang et al. 2024, *MiniCheck*, arXiv:2404.10774 | Grounding fact-checks across 11 sets | CC BY-ND 4.0, and the card forbids fine-tuning | **Evaluation only** |
+| **SciFact**: Wadden et al. 2020, *Fact or Fiction: Verifying Scientific Claims*, arXiv:2004.14974 | Scientific claims | CC BY-NC 2.0 (non-commercial) | **Evaluation only** |
+
+- **No public human-labelled code-domain verification set exists.** Our gold stays the code domain, with
+  VitaminC-style before-and-after diffs as now.
+- **Share-alike:** any dataset we derive from CC BY-SA data and publish carries the same licence. Whether that
+  reaches trained weights is a question for the maintainer, not settled here.
+
+### TEACH
+
+- **A small, clean SFT stage, then RL.** DeepSeek-AI 2025, *DeepSeek-R1*, arXiv:2501.12948: a cold-start SFT
+  on a small curated set before RL improved readability and stability over pure RL. So TEACH stays small and
+  clean.
+- **Several phrasings per fact, with some held out.** Allen-Zhu & Li 2023, *Physics of Language Models: Part
+  3.1, Knowledge Storage and Extraction*, arXiv:2309.14316: knowledge seen in a single phrasing was stored
+  but not extractable; varied rewrites in training made it extractable. So:
+  - each TEACH fact is written in several rule-made phrasings;
+  - **some phrasings are held out**, and become RETAIN's paraphrase test.
+- **LoRA as the default.** Biderman et al. 2024, *LoRA Learns Less and Forgets Less*, arXiv:2405.09673:
+  LoRA learned less than full fine-tuning on the target domain, but forgot less of the base model. That
+  suits a verifier that must keep its general reading skill.
+- **Replay.**
+  - Scialom et al. 2022, *Fine-tuned Language Models are Continual Learners*, arXiv:2205.12393, kept earlier
+    skills with a small rehearsal of earlier tasks.
+  - Ibrahim et al. 2024, *Simple and Scalable Strategies to Continually Pre-train Large Language Models*,
+    arXiv:2403.08763, found replay with re-warming matched training from scratch.
+  - **So:** a fixed share of TEACH items (proposed 20%) is replayed in every later stage's batches.
+
+### APPLY
+
+- **RL is what should transfer, so APPLY tests transfer.** Chu et al. 2025, *SFT Memorizes, RL Generalizes*,
+  arXiv:2501.17161: SFT fit the training distribution, while outcome-reward RL generalised to rule and visual
+  variants. So APPLY is scored on **counterfactual variants of taught cases**:
+  - the evidence swapped;
+  - identifiers renamed;
+  - the diff altered;
+
+  as well as on new facts.
+- **The gap is the measure.** Wu et al. 2023, *Reasoning or Reciting?*, arXiv:2307.02477: models did much
+  worse on counterfactual versions of tasks they handled by default, so **the original-versus-variant gap is
+  reported** as the measure of reciting.
+- **Balance and on-policy data.** Venkatkrishna, Paul & Gurevych 2026, *Aletheia: What Makes RLVR For Code
+  Verifiers Tick?*, arXiv:2601.12186: **on-policy data drove small code verifiers**, and negative samples
+  mattered more at larger sizes. So:
+  - GRPO stays on-policy;
+  - batches keep supported and unsupported labels balanced;
+  - **precision and recall** (false accepts and false rejects) are reported separately, never accuracy alone.
+
+### Adaptive thinking
+
+- **The penalty we designed is the one the literature supports; keep it.**
+  - Zhang et al. 2025, *AdaptThink*, arXiv:2505.13417, taught models when to skip thinking.
+  - Xiang et al. 2025, *Just Enough Thinking*, arXiv:2506.05256, used an adaptive length penalty.
+  - Both apply the length cost only where the answer is right, as our gated reward does.
+- **Two options, each pre-registered as a separate arm if used:**
+  - L1-style length targets in the prompt: Aggarwal & Welleck 2025, *L1*, arXiv:2503.04697;
+  - a staged cap: Hou et al. 2025, *ThinkPrune*, arXiv:2504.01296.
+- **At inference, two optional serving arms:**
+  - a majority vote over 3–5 samples: Zhang et al. 2024, *Generative Verifiers*, arXiv:2408.15240, found
+    that voting over verifier rationales helped;
+  - a token-cap fallback: Muennighoff et al. 2025, *s1: Simple test-time scaling*, arXiv:2501.19393, budget
+    forcing.
+
+  Both are measured against single-sample serving at equal cost.
+
+### RETAIN
+
+- **Every check is its own number:**
+  - exact taught items;
+  - held-out phrasings;
+  - counterfactual variants;
+  - re-tests after every later stage.
+- **A general-capability panel before and after every stage, with an andon on drops.** Luo et al. 2023, *An
+  Empirical Study of Catastrophic Forgetting in Large Language Models During Continual Fine-tuning*,
+  arXiv:2308.08747: general knowledge and reasoning eroded during continual fine-tuning. The panel is a
+  small fixed set of the student's general tasks, chosen before training. A drop beyond its interval
+  **stops the next stage**.
+- **The retention schedule is this plan's own design.** No citable LLM "spaced retention" protocol was found,
+  so the re-test schedule here isn't borrowed.
+
+### Judges: why the old labels failed, and what any future judge must pass
+
+- **Single scores cluster.** Stureborg et al. 2024, *Large Language Models are Inconsistent and Biased
+  Evaluators*, arXiv:2405.01724: 1–10 scores clustered on a few values and were inconsistent. That's
+  exactly the 69% at 7.0 we found.
+- **No reference, poor grading.** Zheng et al. 2023, *Judging LLM-as-a-Judge with MT-Bench and Chatbot
+  Arena*, arXiv:2306.05685: judges graded maths and reasoning poorly without a reference answer.
+- **Strong judges near chance on right-or-wrong pairs.** Tan et al. 2024, *JudgeBench*, arXiv:2410.12784:
+  strong judges were barely above chance on response pairs with an objectively correct answer.
+- **The rule for this plan: a judge is never in the reward.** Any judge used anywhere else (a diagnostic, a
+  quiz review, a teacher's rationale) must:
+  - be **reference-guided**, and preferably **pairwise, with the order swapped**;
+  - pass **planted-error separation above 90%**: it ranks the clean answer above its planted-error twin, on
+    our pairs;
+  - reach acceptable **kappa against a human-labelled sample**, with the threshold fixed before the check.
+
 ## Why not the old Socratic dialogue setup
 
 **What it was meant to test.** ASPIRE's original loop is a Socratic one:
@@ -203,8 +317,9 @@ An earlier "Gemma Terms of Use" note was wrong and has been corrected. Option C'
 - **Never in training data:** LLM-AggreFact (CC BY-ND 4.0). Its card says it must not be used to pretrain
   or fine-tune any NLP model. That includes SFT, GRPO, hints, quizzes, and the NLI critic's calibration. It
   may serve only as the R&D session's external check on the gold.
-- **Trainable but share-alike:** VitaminC (CC BY-SA 3.0). Any derived dataset we publish would carry the
-  same licence, so it's out of the training data unless the maintainer decides otherwise.
+- **Trainable but share-alike:** VitaminC (CC BY-SA 3.0) and HoVer (CC BY-SA 4.0); FEVER is tagged both
+  CC BY-SA 3.0 and GPL-3.0. They're proposed as TEACH and APPLY material (see Research grounding), but they
+  stay out of the training data until the maintainer approves. SciFact (non-commercial) is evaluation only.
 - **Training data is keyed to an rnd commit.** The R&D session's coherence check may re-rule gold labels
   (for example, about 60 cannot_tell items). After any labelled correction, every derived set is
   re-derived at the new commit before any run uses it:
@@ -630,3 +745,5 @@ charts can read it.
 6. Where GRPO runs: local 5090 + NPU (preferred, the maintainer's direction) after smoke tests S1–S3, or the pod fallback for the no-critic arm.
 7. The fresh reasoning split (contract v3) is sealed before any training.
 8. The quiz schedule (every 50 steps, 20 per type) and the curriculum formula are proposed here; the R&D session reviews them.
+9. Public training data (VitaminC, HoVer, FEVER once its dual tag is resolved): the maintainer's go for the downloads and for training on CC BY-SA data.
+10. The replay share (proposed 20%), the counterfactual-variant rules, and the general-capability panel are fixed before TEACH runs.
