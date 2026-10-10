@@ -129,7 +129,7 @@ base model ──► task set (baseline) ──► Stage 1 role training ──�
 - **Phase B:** a task-level cluster bootstrap (paired by task), ROLE against NO-ROLE, with a seed-noise gate: an arm
   difference counts only if it exceeds the spread between seeds within an arm.
 - **Trace rubric:** mechanical items first. Then blind human grading, after the graders calibrate to
-  Cohen's κ of at least 0.6 on a shared sample.
+  Cohen's κ of at least 0.6 on a shared 30-trace calibration batch.
 
 ## What's reported
 
