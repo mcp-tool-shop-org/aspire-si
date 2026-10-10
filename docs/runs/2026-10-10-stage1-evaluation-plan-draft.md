@@ -199,6 +199,21 @@ identical for every model:
   1024 × 1024. Boxes of side 2, 4, 8, 16, 32, 64 and 128 px are counted where they contain any ink.
   *D* = −slope of a least-squares fit of log(count) against log(box size).
 
+**Making subtle changes visible, and honest.** The maintainer expects the gains to be subtler than a clean
+wide-to-narrow picture, so the view is built to show small shifts without overstating them:
+- **Overlay as well as side by side.** Before and after (or ROLE and NO-ROLE) are drawn on the same canvas
+  in two fixed colours, with the same parameters. A **difference heatmap** (ink density after minus before,
+  on the same 1024 × 1024 grid, smoothed by a fixed 16 px box) shows small shifts in spread.
+- **Seed bands.** Each seed's silhouette is also drawn separately. A shift is judged against run-to-run
+  variation, the same idea as R&D's seed-noise gate.
+- **Every picture carries its numbers:** spread and box-counting dimension, each with a bootstrap interval
+  (2,000 resamples of traces), plus the tree metrics. A picture is never shown without its numbers.
+- **Honest outcomes, pre-registered.** "A small shift within seed noise" and "no visible change" are
+  acceptable, reportable results.
+- **No tuning after the data.** Parameters, opacity, colours, smoothing and canvas are fixed here. They're
+  never changed after seeing a trace; any change needs an amendment written before the data is looked at
+  again.
+
 ## Outcomes and statistics (the R&D session's plan)
 
 - **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
