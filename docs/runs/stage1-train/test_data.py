@@ -407,3 +407,11 @@ def test_prompts_are_role_neutral_outside_material_and_statement():
     c["turns"][0]["user"] += " Use a falsifier."
     assert data.role_words_in_prompt(c) == ["falsifier"]
     data.validate(copy.deepcopy(GOOD[:2]) + [c] + copy.deepcopy(GOOD[3:]))  # pre-amendment lesson: not refused
+
+
+def test_verdict_variant_is_a_prompt_too():
+    e = copy.deepcopy(GOOD[4])
+    e.update(material=MAT, quiz={"type": "verdict", "verdict": "unsupported", "deciding": ["It is closed on Sundays."],
+                                 "escalate": "no"})
+    e["variant"] = {"user": "Re-check it as a verifier would.", "key": e["quiz"]}
+    assert data.role_words_in_prompt(e) == ["verifier"]

@@ -360,3 +360,46 @@ is thin or unclear. That's what `cannot_tell` is for.
 
 **Gates.** ASPIRE is adding validator checks for the floors in points 1–3. Until they land, check them with a
 script and report the counts per trait in the PR.
+
+## Amendment 3 (2026-10-10): role-neutral prompts, and `checker_verdict`
+
+*Binding from batch 3 onward; batch 2 (#82) isn't reopened. Enforced by `data.py` (`ROLE_WORDS`,
+`role_words_in_prompt`).*
+
+**Why.** Phase B compares the ROLE arm with a NO-ROLE arm built from the same items. The NO-ROLE arm keeps the
+prompts of kinds C, D and verdict-type E word for word and changes only the assistant's targets. So those
+prompts must not carry the role: if a prompt says "verifier" or names a trait or a thinking pattern, both arms
+see the role and the comparison measures less than it should.
+
+**The rule.** In kinds C, D and verdict-type E, no user turn, and no `variant.user`, contains any of these words
+(case-insensitive, whole words; the forms in brackets count too):
+- the role: **verifier(s)**;
+- the traits and their short forms: **skeptic / sceptic** (and skeptical, skepticism), **goes / go / going to
+  the source**, **precise, precision**, **honest about uncertainty**, **independent, independence**,
+  **breaks / break / breaking things down, decompose** (and decomposition), **in proportion, proportionate**,
+  **knows its / your / my limits**, **consistent, consistency**, **literal** (and literally), **what a mistake
+  costs**, **agree(s) just to please**, **fill(s / ing) (the) gap(s)**, **round in circles**, **nitpick** (and
+  nitpicking), **take(s) orders from the material**, **fix(es / ing) things**;
+- the thinking patterns: **tree(s)**, **prune** (pruned, pruning), **falsify** (falsifier, falsification),
+  **eliminate** (elimination), **grid(s)**, **constraint grid**.
+
+**What is exempt:**
+- **material lines,** quoted or not, as they appear in the item's `material` or a turn's `new_material`. Real
+  material that happens to say "independent" or "tree" is content, not framing;
+- **the `Statement:` line;**
+- **"checker"**, which names the other party in kind C, not the role;
+- kinds **A, B and written E**, whose prompts teach the role and are replaced in the NO-ROLE arm anyway.
+
+**The other checker's quoted thinking counts as prompt.** A kind C trace is part of the user turn, so it avoids
+these words too, even in an ordinary sense. Batch 2 has two cases the rule would have caught: "source tree" in
+T01-C-04, and "hardcoded literal" in T14-C-07. Reword such phrases ("the repository's files", "a fixed value in
+the code").
+
+**`checker_verdict` (optional, kind C).** One of `supported`, `unsupported`, `cannot_tell` or `none`. It
+records the other checker's verdict for the NO-ROLE builder, which otherwise reads it from the user turn. Set it
+when the user turn doesn't state exactly one verdict word for the other checker, for example:
+- the checker never gave a verdict (`none`);
+- the turn mentions more than one verdict word (the checker wavered, or the text discusses another verdict);
+- the verdict appears only in a form the builder can't read, such as "can't be sure".
+Without it, such an item is refused when the NO-ROLE arm is built. When the turn states one verdict plainly,
+leave the field out.

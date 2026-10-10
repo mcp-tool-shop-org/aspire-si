@@ -314,9 +314,12 @@ def role_words_in_prompt(r: dict) -> list[str]:
         return []
     content = {x.strip() for x in (r.get("material") or "").splitlines() if x.strip()}
     found = []
-    for t in r["turns"]:
-        content |= {x.strip() for x in t.get("new_material", []) if x.strip()}
-        for line in t["user"].splitlines():
+    prompts = [(t["user"], t.get("new_material", [])) for t in r["turns"]]
+    if r.get("kind") == "E" and isinstance(r.get("variant"), dict):
+        prompts.append((r["variant"].get("user") or "", []))  # the re-asked variant is a prompt too
+    for user, new in prompts:
+        content |= {x.strip() for x in new if x.strip()}
+        for line in user.splitlines():
             bare = ws(line).replace('\\"', '"').strip("\"'“” ")
             if line.strip() in content or re.match(r"\s*statement\s*:", line, re.I) or \
                     (bare and bare in ws("\n".join(content))):  # a material line, possibly quoted
