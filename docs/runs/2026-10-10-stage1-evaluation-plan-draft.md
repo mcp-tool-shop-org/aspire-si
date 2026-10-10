@@ -323,6 +323,16 @@ the reported numbers.
   - **Normalising** is applied identically to DECIDING and the material: whitespace runs collapse to one
     space, `**` and `__` are removed, and leading and trailing spaces are trimmed. Nothing else is
     normalised.
+  - **Coverage** (amended 2026-10-10, before any sealed run; the DEV baseline showed artefacts at the edges of
+    lines). When a key line is matched against DECIDING, leading "- ", "* " and "> " markers and trailing
+    . ; , : are trimmed on both sides. A key line may match one given line or the whole joined DECIDING
+    string, which lets table rows match.
+  - **Coverage runs one way only.** The given DECIDING, trimmed, must contain the trimmed key line, and
+    never the reverse, so a short fragment can't cover a key line.
+  - **Nothing inside a quote is normalised.** That includes no case folding: a changed letter or dropped
+    backticks fail. Only a quote's edges are trimmed.
+  - **The scorer** is `stage1_eval/score.py`, a pure function of the raw outputs and the keys, pinned by
+    sha256 in the run note. Every sitting is scored by the same file, the baseline included.
   - **Strict verbatim** (no normalising) is reported beside it, as is verdict-only accuracy.
 
   The pilot baseline is why this is pinned: verdict accuracy was 83%, but DECIDING was verbatim in about
