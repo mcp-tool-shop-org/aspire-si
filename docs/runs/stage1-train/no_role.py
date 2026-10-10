@@ -54,16 +54,45 @@ def closing(keys: dict, statement: str) -> str:
         f"The lines {q} settle the statement."
 
 
-def fit(lines: list[str], head: str, tail: str, reply: str, target: int, count) -> str:
-    """head + as many whole lines as fit + tail, stopping near the ROLE target; never padded."""
+BLOCK_START = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|#|\|)")
+STATEMENT_LINE = re.compile(r"^\s*(?:statement|claim|case to check[^:]*)\s*:", re.I)
+
+
+def blocks(text: str) -> list[str]:
+    """The material in whole units: a bullet, heading, table row or paragraph, with its wrapped lines."""
+    out: list[list[str]] = []
+    blank = True
+    for line in text.splitlines():
+        if not line.strip():
+            blank = True
+            continue
+        if blank or BLOCK_START.match(line) or not out:
+            out.append([line])
+        else:
+            out[-1].append(line)
+        blank = False
+    return ["\n".join(b) for b in out]
+
+
+def fit(units: list[str], head: str, tail: str, reply: str, target: int, count, must=()) -> str:
+    """head + as many whole units as fit + tail, stopping near the ROLE target; never padded. A unit holding a
+    `must` line (a DECIDING line) that the budget cut off is appended after a "…" line, so the closing always
+    refers to a line that was read."""
     chosen: list[str] = []
-    for line in lines:
-        body = "\n".join([head] + chosen + [line] + ([tail] if tail else []))
+    for unit in units:
+        body = "\n".join([head] + chosen + [unit] + ([tail] if tail else []))
         if count(target_text(body, reply)) > HIGH * target:
             break
-        chosen.append(line)
+        chosen.append(unit)
         if count(target_text(body, reply)) >= LOW * target:
             break
+    late = []
+    for d in must:
+        if data.ws(d) in data.ws("\n".join(chosen + late)):
+            continue
+        late.append(next((u for u in units if data.ws(d) in data.ws(u)), d))
+    if late:
+        chosen += ["…"] + late
     return "\n".join(([head] + chosen if chosen else []) + ([tail] if tail else []))
 
 
@@ -94,7 +123,7 @@ def b_material(r: dict) -> str:
     if r.get("material"):
         return r["material"]
     lines = r["turns"][0]["user"].splitlines()
-    idx = next((i for i, x in enumerate(lines) if re.match(r"\s*statement\s*:", x, re.I)), None)
+    idx = next((i for i, x in enumerate(lines) if STATEMENT_LINE.match(x)), None)
     if not idx:
         raise BuildError(f"{r['id']}: kind B with a VERDICT reply but no material and no Statement line")
     body = lines[:idx]
@@ -132,27 +161,19 @@ def verdict_turns(r: dict, count) -> list[dict]:
             reply = f"The other checker {said}. The answer is {keys['verdict']}.\n" + reply
         target = count(target_text(t["thinking"], t["reply"]))
         if i == 1:
-            lines = [x for x in material.splitlines() if x.strip()]
-            thinking = fit(lines, "The material says:", closing(keys, statement), reply, target, count)
+            thinking = fit(blocks(material), "The material says:", closing(keys, statement), reply, target, count,
+                           must=keys["deciding"])
         elif t.get("new_material"):
             thinking = fit(list(t["new_material"]), "The new material says:", closing(keys, statement), reply,
-                           target, count)
+                           target, count, must=[d for d in keys["deciding"] if d in "\n".join(t["new_material"])])
         else:
             thinking = "No new material.\n" + closing(keys, statement)
         user = t["user"]
-        if kind == "B" and i == 1:  # the pattern instruction goes; material lines and the statement stay verbatim
-            mat_lines = {x.strip() for x in material.splitlines() if x.strip()}
-            kept = []
-            for line in user.splitlines():
-                if line.strip() in mat_lines or re.match(r"\s*statement\s*:", line, re.I):
-                    kept.append(line)
-                else:
-                    s = strip_patterns(line)
-                    if PATTERN_WORDS.search(s):
-                        raise BuildError(f"{r['id']}: kind B instruction still names a pattern after stripping")
-                    if s.strip():
-                        kept.append(s)
-            user = "\n".join(kept)
+        if kind == "B" and i == 1:  # the same shape as C, D and E: material, the statement, a neutral instruction
+            claim = next((x for x in user.splitlines() if STATEMENT_LINE.match(x)), None)
+            if claim is None:
+                raise BuildError(f"{r['id']}: kind B verification prompt has no Statement (or claim) line")
+            user = f"Material:\n{material}\n{claim.strip()}\nAnswer in the three lines."
         out.append({"user": user, "thinking": thinking, "reply": reply,
                     **({"new_material": t["new_material"]} if t.get("new_material") else {})})
     return out
@@ -161,7 +182,7 @@ def verdict_turns(r: dict, count) -> list[dict]:
 def strip_patterns(user: str) -> str:
     kept = []
     for line in user.splitlines():
-        sents = [s for s in re.split(r"(?<=[.!?:])\s+", line) if s and not PATTERN_WORDS.search(s)]
+        sents = [s for s in re.split(r"(?<=[.!?])\s+", line) if s and not PATTERN_WORDS.search(s)]
         if sents:
             kept.append(" ".join(sents))
     return "\n".join(kept)
@@ -185,8 +206,7 @@ def recall_turns(r: dict, material: str, count, written_quiz: bool) -> list[dict
     t = r["turns"][0]
     user = (f"Read this material and say what it states:\n{material}" if written_quiz
             else f"Here is some material:\n{material}\nWhat does it say?")
-    lines = [x for x in material.splitlines() if x.strip()]
-    reply = fit(lines, "It says:", "", "", count(target_text(t["thinking"], t["reply"])), count)
+    reply = fit(blocks(material), "It says:", "", "", count(target_text(t["thinking"], t["reply"])), count)
     return [{"user": user, "thinking": "", "reply": reply}]
 
 

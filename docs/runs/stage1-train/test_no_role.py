@@ -95,7 +95,8 @@ def test_b_split_puzzle_verification_and_refusal():
     t = out[0]["turns"][0]
     assert t["thinking"].startswith("The material says:\nThe library opens at 9am on weekdays.")
     assert t["reply"].startswith("VERDICT: unsupported")
-    assert t["user"].endswith("Statement: the library opens on Sundays.")  # "Work it as a falsifier hunt." stripped
+    assert t["user"] == ("Material:\nThe library opens at 9am on weekdays.\nIt is closed on Sundays.\n"
+                         "Statement: the library opens on Sundays.\nAnswer in the three lines.")  # instruction gone
     bad = copy.deepcopy(TD.GOOD[1])
     bad.update(id="bx", answer="")
     with pytest.raises(NR.BuildError, match="neither a VERDICT reply nor an answer"):
@@ -128,3 +129,19 @@ def test_compare_refuses_a_differing_count():
     by_id(nr, "d1-nr")["verdict"] = "supported"
     with pytest.raises(NR.BuildError, match="verdict"):
         NR.compare(role, nr, count)
+
+
+def test_read_through_reaches_the_settling_line():
+    units = [f"- bullet {i} has a few more words in it" for i in range(10)] + ["- Coverage: 63%."]
+    out = NR.fit(units, "The material says:", 'The line "Coverage: 63%." settles the statement.', "", 25, count,
+                 must=["Coverage: 63%."])
+    lines = out.splitlines()
+    assert lines[-3:] == ["…", "- Coverage: 63%.", 'The line "Coverage: 63%." settles the statement.']
+
+
+def test_cuts_fall_on_bullet_or_paragraph_boundaries():
+    text = "- first bullet that wraps\n  onto a second line\n- second bullet\n\nA paragraph\nthat wraps.\n## v1.0"
+    assert NR.blocks(text) == ["- first bullet that wraps\n  onto a second line", "- second bullet",
+                               "A paragraph\nthat wraps.", "## v1.0"]
+    out = NR.fit(NR.blocks(text), "It says:", "", "", 10, count)
+    assert out == "It says:\n- first bullet that wraps\n  onto a second line"  # never half a wrapped bullet
