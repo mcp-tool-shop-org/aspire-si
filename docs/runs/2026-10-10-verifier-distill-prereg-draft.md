@@ -1,4 +1,4 @@
-# DRAFT pre-registration: an 8B verifier trained to think when it needs to (SFT, then GRPO)
+# DRAFT pre-registration: an 8B verifier, taught, applied and checked for retention (TEACH → APPLY → RETAIN)
 
 **Status: draft for review, 2026-10-10. Nothing runs, and no card or pod time is booked.**
 - ASPIRE (this repo) owns the training mechanics.
@@ -23,6 +23,124 @@ falls back to cannot_tell.
 - The same policy applied to the **untrained student** is the fair comparison: it isolates what training
   adds over the gate.
 
+## Why not the old Socratic dialogue setup
+
+**What it was meant to test.** ASPIRE's original loop is a Socratic one:
+1. A small student answers an open question.
+2. A large teacher challenges the answer for three turns.
+3. The teacher scores the final answer on nine soft dimensions.
+4. A critic learns to predict that score, and the student is trained toward higher scores.
+
+The idea was that the student internalises the teacher's judgement through dialogue: a critic in its head.
+
+**Why it doesn't test that, measured on 2026-10-10.** An audit of 608 such dialogues (the critic-init and
+128-prompt runs; Qwen2.5-1.5B student, Qwen2.5-32B 4-bit teacher-judge) found:
+- **No ground truth anywhere.** The prompts are open questions ("What causes inflation?"). Nothing is
+  taught, and no answer is checked against a known fact. So there's nothing the student could be shown to
+  have learned.
+- **The judge's labels don't track correctness.**
+  - **Near-constant:** 69% of overall scores are exactly 7.0, with a standard deviation of 0.61.
+  - **Errors still score high:** in 10 random items, at least 4 replies were factually wrong, and all scored
+    8–9 for correctness. Examples: rate hikes "decrease savings returns"; lakes "release cold air" in
+    winter; controlling for smoking "eliminated" the smoking–lung-cancer link.
+  - **Templated reasoning:** "adequately addresses…, could benefit from more depth".
+- **The consequences fit.** Fine-tuning on teacher-filtered data (scored 8–9) showed no effect over three
+  seeds. Critics trained to predict these scores were learning close to noise.
+
+**Recommendation: retire it as a source of training signal and as an evaluation.** It can stay in the
+codebase as a historical experiment, documented with this finding. No future ASPIRE run trains on, or reads
+a result from, a teacher-judge score unless that teacher first passes a known-answer control. **The
+maintainer decides.**
+
+## Three stages: TEACH, APPLY, RETAIN
+
+**The maintainer's direction:** "teach the data and then test on the application of that data in practice,
+and then verify retention in various ways."
+
+Each stage has its own data and its own mechanical score. **No model-judge score appears anywhere in the
+reward.** If any stage ever needs a judge, the judge first passes a known-answer control: the planted-error
+pairs, where a sound judge must score the flawed twin lower.
+
+### Carving the tune split by fact, never by claim
+
+A **fact** is the evidence a claim is about. Claims that share any evidence source (the same file and line
+range, or the same PR hunk) are one **fact group**, connected transitively. So:
+- a claim and its twins always stay together;
+- so do several claims on one function.
+
+At rnd `0a39e25`:
+- **Size:** tune has 493 claims in **190 fact groups** (most hold 2–4 claims; the largest holds 8).
+- **The split:** a seeded draw, stratified by check type, frozen by sha256 before any training:
+
+| Slice | Share of fact groups | Used for |
+|---|---|---|
+| **TEACH** | 50% (~95 groups) | SFT examples |
+| **APPLY** | 35% (~66 groups) | GRPO prompts, and the APPLY score |
+| **DEV** | 15% (~29 groups) | Checkpoint choice only, never trained on |
+
+- **File overlap is reported.** The count of source files with groups in more than one slice is given (the
+  same file, different functions), so near-transfer is visible.
+- **Re-derived after gold changes.** If the R&D session's coherence check re-rules labels, the slices are
+  re-derived at the new commit, keeping the same group assignment where groups are unchanged.
+
+### Stage 1: TEACH (SFT)
+
+**The material is explicit:**
+- **The definitions:** what *supported*, *unsupported* and *cannot_tell* mean, in offrig's words; and
+  offrig's quote rule (rule 2: the quote must appear in the evidence).
+- **Worked examples from TEACH claims.** Each carries:
+  - the real evidence;
+  - the correct verdict (the gold label);
+  - why, as a short reasoning that names the deciding line;
+  - the quote that passes the quote rule.
+
+Every example shows the skill done right. Nothing in TEACH was scored by a judge.
+
+**Where the "why" comes from** (the A/B/C options, unchanged):
+- **A:** the student's own reasoning, kept only when its verdict matches gold and its quote passes the
+  rule. STaR rationalisation, with the gold hint, is allowed here only.
+- **B or C:** a teacher's reasoning, kept on the same conditions.
+- **In every option:** the verdict and the quote are checked mechanically; the reasoning text is never
+  scored by a judge.
+
+**The TEACH score** (mechanical, on TEACH claims after SFT): verdict accuracy against gold, the FA upper
+bound, and the quote-rule pass rate. This shows the material was learned. It isn't a generalisation claim.
+
+### Stage 2: APPLY (GRPO)
+
+**The data:** new claims on facts the student never saw in TEACH (the APPLY slice), in the real task
+format (offrig's contract v3). Real-PR claims are included: `prs/grounded-prs.jsonl` is real-PR evidence.
+
+**Scored only mechanically:**
+- the verdict against gold;
+- the quote against offrig's quote rule;
+- the thinking and format terms of the gated reward above.
+
+No learned model's score enters the reward. The NPU NLI critic is **not** in the reward. It may only:
+- select tool hints, which are themselves mechanical;
+- feed diagnostics, after it passes its known-answer control (S1).
+
+**The APPLY score:** verdict accuracy, the FA upper bound, abstain, false rejects and the quote-rule pass
+rate on APPLY claims, plus dev for checkpoint choice.
+
+### Stage 3: RETAIN (each check reported separately)
+
+| Check | What it is | Scored by |
+|---|---|---|
+| **Paraphrase** | TEACH claims reworded with the same fact, by the tested rule edits (number words, "for example" ⇄ "for instance", contractions), spot-checked by the R&D session on a sample | the gold verdict, unchanged by construction; the quote rule |
+| **Twin quiz** | Rule-made near-twins of claims the student got right (antonym, negation, number) | the twin's known edit |
+| **Part quiz** | One conjunct alone, only on the 142 derivable claims | the derived part label |
+| **Quote quiz** | A real evidence line with one span changed, asked "is this in the evidence?", paired with the unchanged line | offrig's quote rule |
+| **Transfer: other repos and languages** | Claims on repositories (and languages) outside tune's 6 origins | gold. This needs new gold from the R&D session; its cost is to be named. Until then it's an open item, not a claim |
+| **Transfer: out of domain, evaluation only** | VitaminC (CC BY-SA 3.0, used here for evaluation only); LLM-AggreFact (CC BY-ND 4.0, evaluation-only by licence) | each set's own labels, mapped to our verdicts by a mapping fixed before scoring |
+| **Forgetting** | TEACH and APPLY re-scored after every later training round (GRPO, then round 2) | as in TEACH and APPLY. A drop beyond the interval is reported as forgetting |
+| **Sealed held-out** | Once, at the end, for the final student only | `offrig verify calibrate`, default rule |
+
+**Quizzes and paraphrases never train the student.** They feed diagnostics and the next round's curriculum.
+
+**Retention is reported per check, never pooled.** A student can keep facts (paraphrase) while losing the
+skill (quote quiz), and the reader should see which.
+
 ## The student
 
 **Qwen3-8B**, licensed Apache-2.0 (card checked 2026-10-10), revision `b968826d9c46…`, pinned at plan time.
@@ -39,7 +157,7 @@ from. GRPO needs no teacher in any of them.
 
 | Option | SFT traces from | Licence | Status |
 |---|---|---|---|
-| **A: self-distillation (STaR-style)** | The student itself: k samples per tune claim (k = 8, temperature 0.7, thinking on), keeping only gold-correct ones | Apache-2.0 throughout | Ready to specify. Sidesteps the licence question |
+| **A: self-distillation (STaR-style)** | The student itself: k samples per TEACH claim (k = 8, temperature 0.7, thinking on), keeping only gold-correct ones whose quote passes the rule | Apache-2.0 throughout | Ready to specify. Sidesteps the licence question |
 | **B: a larger Apache-2.0 teacher** | Gold-filtered traces from a teacher that first passes the teacher bar (FA upper ≤ 0.07 on tune and on held-out) | Candidates below, all Apache-2.0 per their cards | Needs teacher calibration first |
 | **C: gemma4:31b with the think-before-accepting policy as teacher** | That policy's traces, gold-filtered | Apache-2.0: **licence-eligible** (see below) | Needs the teacher bar cleared by the policy, confirmed |
 
@@ -69,23 +187,16 @@ An earlier "Gemma Terms of Use" note was wrong and has been corrected. Option C'
 
 - Nemotron (NVIDIA Open Model License) stays out under any reading.
 
-## The data
+## Tests outside training (unchanged)
 
-- **Tune split (gold): training data.** Using it for training makes every calibration number on tune
-  in-sample from here on. That's stated now, and no claim is read from tune afterwards.
-- **Model selection** (the SFT epoch, the GRPO checkpoint) uses a dev split carved from tune before
-  training. It's 20%, grouped by source (by PR or by file) so no source sits on both sides, and frozen by
-  sha256 before any training.
-- **More GRPO prompts by construction** (optional, pre-registered here as an option):
-  - grounded claims made from gold evidence by rule: true claims; false ones by a changed number, name,
-    condition or negation; cannot_tell by removing the deciding evidence;
-  - labels true by construction, deduped against every test split by normalised source;
-  - kept to at most half the GRPO prompts, because constructed claims are easier (tier T1).
-- **Tests, each used once, for the final student only:**
+- **Tune is training data.** It's in-sample from here on, and no claim is read from tune afterwards.
+- **Sealed tests, each used once, for the final student only:**
   - **Grounded:** the held-out split is unspent but reserved first for confirming the policy. The student
     gets one look, agreed with the Publisher, or a fresh sealed grounded split.
   - **Reasoning:** the held-out is spent, so this uses the fresh sealed split planned for contract v3.
   - **Math ladder:** v2, sealed (a transfer check).
+- **Constructed claims** (true or false by rule) may add APPLY prompts, at most half of them. They're
+  deduped against every test split, and kept out of TEACH, which is gold only.
 
 ### Data licences and versions
 
@@ -259,25 +370,30 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 
   Any of these stops the run, and the stop is reported.
 
-## Evaluation
+## Evaluation, by stage
 
-Every arm is scored with `offrig verify calibrate` under the same default rule, on the sealed tests,
-once.
+Each stage is scored mechanically and reported on its own:
+- **TEACH** (after SFT): the material was learned;
+- **APPLY** (after GRPO): the skill was applied to new facts;
+- **RETAIN:** each check reported separately, including forgetting after every round;
+- **the sealed tests:** once, at the end, with `offrig verify calibrate` under the default rule.
+
 - **Arms:**
   - the base Qwen3-8B with thinking on;
   - the base with thinking off;
-  - the base with the think-before-accepting policy;
-  - SFT only;
-  - SFT + GRPO.
+  - the base with the think-before-accepting policy, as served natively;
+  - after TEACH (SFT only);
+  - after TEACH + APPLY (SFT + GRPO).
 - **Primary readings, fixed now:**
   - the FA upper bound;
   - abstain on decidable;
   - false rejects;
   - balanced accuracy;
-  - thinking tokens per claim, per difficulty tier. Adaptive thinking means short thinking on T1 and long
-    on T2/T3.
-- **"Training works" means** SFT+GRPO beats **the base with the policy** on FA upper (the default rule)
-  at equal or lower thinking cost, on all three seeds.
+  - the quote-rule pass rate;
+  - thinking tokens per claim, per difficulty tier.
+- **"Training works" means** the TEACH + APPLY student beats **the base with the policy** on FA upper (the
+  default rule), on APPLY claims and on the sealed tests, at equal or lower thinking cost, on all three
+  seeds, **with no forgetting on TEACH beyond its interval.**
 - Packaging is checked by the quant-drift test before any scoring.
 
 ## Seeds, SFT and trace generation
@@ -287,7 +403,7 @@ result.
 
 - **SFT (5090):** an 8B bf16 LoRA with gradient checkpointing. Peak memory is measured in the smoke gate,
   under the watchdog line. About 0.5–1 h per seed.
-- **Option A trace generation (5090):** about 395 tune claims (493, less the dev split) × 8 samples × ~1.5k
+- **Option A trace generation (5090):** about 250 TEACH claims × 8 samples × ~1.5k
   tokens ≈ 4.7M tokens. On llama.cpp or Ollama, that's about 2–4 h.
 - **Option B adds** teacher calibration and trace generation. That cost depends on the candidate: local is
   free; offrig is priced by `offrig_plan`.
@@ -309,15 +425,14 @@ with an ablation**.
 
 ### What the NPU critic does
 
-1. **Micro-level entailment: a capped bonus inside the gate.**
-   - **The model:** nli-deberta-v3-base on the NPU, batch 1 (about 0.27 s per pair, measured parity-clean).
-   - **The check:** whether each quoted span entails the part it's cited for.
-   - **The reward:** +0.05 per entailing quote, **only on a correct claim verdict**, and inside the
-     existing +0.3 extras cap. It's never a penalty, and never on the outcome.
-   - **Why only that:** switchyard's rows show this model is a weak *claim* judge on our gold (FA 0.19–0.22
-     grounded, balanced accuracy ~0.72). A short quote against one part is a more literal task, but it's
-     **unmeasured**. So smoke test S1 measures it first, and the bonus is used only if S1 passes.
-   - **Monitored:** its agreement with the quote rule. A quote the rule rejects but NLI "entails" is logged.
+1. **Micro-level entailment, in diagnostics and hint selection only, never in the reward.**
+   - **The model:** nli-deberta-v3-base on the Intel side, batch 1.
+   - **What it does:** checks whether each quoted span entails the part it's cited for. A non-entailing
+     quote can select the mechanical quote-check hint, and it's logged in diagnostics.
+   - **No reward:** under the maintainer's rule, no model-judge score enters the reward. An earlier draft's
+     +0.05 bonus is withdrawn.
+   - **Before any use:** it must pass its known-answer control, smoke test S1. Switchyard's rows show it's
+     a weak *claim* judge on our gold (FA 0.19–0.22 grounded).
 2. **Hints on failure: tool hints in GRPO, gold hints only in SFT.**
    - **Tool hints in GRPO.** When a rollout group is all wrong, the critic runs offrig's quote check and
      retrieval over the claim's evidence and inserts **a tool-derived hint for one retry**. For example:
@@ -373,7 +488,7 @@ with an ablation**.
 
 ### Wall-clock and cost
 
-**The measure:** about 500 GRPO prompts × G = 8 × ~800 completion tokens (the budgets keep easy claims
+**The measure:** at most about 500 GRPO prompts (APPLY's ~170 gold claims plus at most as many constructed ones, over repeated epochs) × G = 8 × ~800 completion tokens (the budgets keep easy claims
 short) ≈ 3.2M generated tokens per epoch.
 
 | Path | Throughput (assumed until S2) | Per epoch | 2 epochs × 3 seeds × 2 arms (critic ablation) | Spend |
@@ -407,10 +522,10 @@ no-critic arm, and only if the local path can't fit or is too slow.
     - entailment on gold-**unsupported** fooled pairs with a Wilson upper bound ≤ 0.15.
   - **Gold-cannot_tell fooled pairs** are reported and never gated: a true but insufficient line can fairly
     read as neutral or entailment.
-  - **The micro-NLI bonus is enabled only for check types that pass.** Reasoning claims are conclusions
-    about a diff that one quoted line rarely entails, so a reasoning fail is expected. The bonus would then
+  - **NLI-selected hint targeting is enabled only for check types that pass.** It is never a reward. Reasoning claims are conclusions
+    about a diff that one quoted line rarely entails, so a reasoning fail is expected. Targeting would then
     be grounded-only.
-  - **If both check types fail:** the bonus is dropped. The hint path doesn't depend on it.
+  - **If both check types fail:** NLI isn't used. The mechanical quote-check hints don't depend on it.
   - **Reported** by check type and difficulty tier.
 - **S2, the 5090 only, ~45 min:**
   - a 20-step GRPO on 32 tune prompts, each rollout path, G = 8;
@@ -426,12 +541,12 @@ no-critic arm, and only if the local path can't fit or is too slow.
 ### The critic ablation (the thesis test, fixed now)
 
 Two arms run from the same SFT checkpoint with the same seeds (42–44): **mechanical reward only**, and
-**mechanical reward + NPU critic** (micro-NLI bonus if S1 passed, plus tool hints).
+**mechanical reward + NPU critic** (tool hints, with NLI-selected hint targeting if S1 passed; the reward is identical in both arms).
 
 **"Well-timed critique helps"** means the critic arm reaches a lower dev FA upper bound at equal or lower
 thinking cost, or the same FA in fewer steps, on all three seeds. It's reported either way.
 
-## Quizzes, diagnostics, and the loop into the next round
+## Quizzes (part of RETAIN), diagnostics, and the loop into the next round
 
 **The maintainer's direction:**
 - the critic quizzes the student;
