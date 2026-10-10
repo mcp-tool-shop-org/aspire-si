@@ -40,67 +40,24 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 11,
-      "changed": 1,
+      "added": 0,
+      "changed": 3,
       "moved": 0,
-      "parts": 1,
+      "parts": 0,
       "removed": 0
     },
     "items": [
       {
-        "kind": "landing",
-        "sentence": "packages/aspire-si-gates/src/ is now read by docs/runs/stage1-train/data.py and packages/aspire-si-gates/pyproject.toml.",
-        "subjects": [
-          "packages/aspire-si-gates/src/",
-          "docs/runs/stage1-train/data.py",
-          "packages/aspire-si-gates/pyproject.toml"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "packages/aspire-si-gates/src/aspire_si_gates/ is now read by packages/aspire-si-gates/src/aspire_si_gates/__init__.py.",
-        "subjects": [
-          "packages/aspire-si-gates/src/aspire_si_gates/",
-          "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "packages/aspire-si-gates/README.md is new and belongs to no part, so atlas check fails on it against the previous map.",
-        "subjects": [
-          "packages/aspire-si-gates/README.md"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "packages/aspire-si-gates/pyproject.toml is new and belongs to no part, so atlas check fails on it against the previous map.",
-        "subjects": [
-          "packages/aspire-si-gates/pyproject.toml"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py is new and belongs to no part, so atlas check fails on it against the previous map.",
-        "subjects": [
-          "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "And 6 more new files that belong to no part.",
-        "subjects": []
-      },
-      {
         "kind": "counts",
-        "sentence": "11 files added and 1 changed content, across 1 part.",
+        "sentence": "Nothing structural changed since 2026-10-10; 3 files changed content.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "abddb1f7305e5e783e27f0f1eb1c71145bff4bdc",
-      "generatedAt": "2026-10-10T20:14:17.592Z"
+      "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
+      "generatedAt": "2026-10-10T20:17:45.908Z"
     },
-    "unchanged": false
+    "unchanged": true
   },
   "changesTogether": [
     {
@@ -140,7 +97,7 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
+  "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
   "defaultBranch": "main",
   "derived": "8 parts, mostly Python (209 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
@@ -315,7 +272,7 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-10T20:17:45.908Z",
+  "generatedAt": "2026-10-10T20:58:09.965Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 8 more.",

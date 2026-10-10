@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-10 from commit dd03230 by Atlas 1.24.0.
+Mapped at 2026-10-10 from commit 802fc87 by Atlas 1.24.0.
 
 ## What this is
 
@@ -8,15 +8,9 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (209 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-10 (abddb1f)
+## What changed since 2026-10-10 (dd03230)
 
-- packages/aspire-si-gates/src/ is now read by docs/runs/stage1-train/data.py and packages/aspire-si-gates/pyproject.toml.
-- packages/aspire-si-gates/src/aspire_si_gates/ is now read by packages/aspire-si-gates/src/aspire_si_gates/__init__.py.
-- packages/aspire-si-gates/README.md is new and belongs to no part, so atlas check fails on it against the previous map.
-- packages/aspire-si-gates/pyproject.toml is new and belongs to no part, so atlas check fails on it against the previous map.
-- packages/aspire-si-gates/src/aspire_si_gates/__init__.py is new and belongs to no part, so atlas check fails on it against the previous map.
-- And 6 more new files that belong to no part.
-- 11 files added and 1 changed content, across 1 part.
+Nothing structural changed since 2026-10-10; 3 files changed content.
 
 ## What comes in
 

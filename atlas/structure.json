@@ -6318,7 +6318,7 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
+    "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
     "tracked": 336
   },
   "landings": [
@@ -6934,14 +6934,14 @@
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "6ee0b815d9382d1667397378c0047fe3853a292a64186548161fbd3a4dc2e096",
+      "hash": "bec089eb806db0a5588bcace53219d24493eb34cee1bd96c50b5192eaf24566d",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "638731e90a6af4a71d58a339d2c37b7a484291bb8b6f5db10e2f7985dcfd6f83",
+      "hash": "fbf5a7c61340f1cdfa7f1115601883926b5c3654c64afc61cef55ea4c41e2fab",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
@@ -7323,9 +7323,10 @@
         "test_check_item_needs_no_other_row",
         "test_identity_is_stable_and_versioned",
         "test_reason_table_is_pinned",
+        "test_scorer_rules_are_exposed",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "ff5e35e63bdb2fc114b73e7f186fc9419b348121342d73ffc0683b45602ad157",
+      "hash": "0662819ba96a4933bf09cb4f5772381cbac80103553d5ac51cdd79c27ebc74f0",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
