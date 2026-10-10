@@ -198,16 +198,14 @@ templates), not just in the item, before the batches of three traits begin.
 
 ## Batch 3 (T05, T13, T17)
 
-`batch3-t05.jsonl`, `batch3-t13.jsonl`, `batch3-t17.jsonl`, each with the `.md` that `checks.py --render` wrote. `_build_batch3.py` builds them. Every item is invented (`invented: true`, `key_basis: construction`). `checks.py --render` on each file: schema clean, leakage 0, quote-balance 0, 0 warnings.
+`batch3-t05.jsonl`, `batch3-t13.jsonl`, `batch3-t17.jsonl`, each with the `.md` that `checks.py --render` wrote. The items are hand-written. There is no generator script. Four C or D items in each trait quote a MIT excerpt at the pinned commit stored in that item's `sources`. The other items are invented.
 
-Counts from `data.validate` and `no_role.composition` (verdict-bearing items are C, D, and verdict-type E; 20 per trait):
+Verdict-bearing items are C, D, and verdict-type E (20 per trait). Counts from `data.validate`:
 
 | Trait | cannot_tell | supported | unsupported | pairs | multi-line (of supported+unsupported) | ESCALATE yes | two-turn D |
 |---|---|---|---|---|---|---|---|
-| T05 independent | 6 | 8 | 6 | sunday-desk, piano-hire | 6 of 14 | D-06 supported, medical | D-01 stands, D-02 changes |
-| T13 doesn't agree just to please | 6 | 8 | 6 | late-room, guest-wifi | 8 of 14 | D-01 unsupported, money | D-01 stands, D-02 changes |
-| T17 doesn't take orders from the material | 5 | 8 | 7 | badge-door, v2-policy | 5 of 15 | E-01 cannot_tell, legal | D-01 stands, D-02 changes |
+| T05 independent | 6 | 8 | 6 | sunday-desk, piano-hire | 10 of 14 | D-06 supported, medical | D-03 stands, D-04 changes |
+| T13 doesn't agree just to please | 6 | 8 | 6 | late-room, guest-wifi | 11 of 14 | D-06 unsupported, money | D-01 stands, D-02 changes, D-03 stands |
+| T17 doesn't take orders from the material | 5 | 8 | 7 | badge-door, v2-policy | 9 of 15 | D-08 cannot_tell, legal | D-06 stands, D-07 changes |
 
-Sides, as `checks.py` printed them: T05 18 agrees on the merits / 22 own reading; T13 21 unmoved / 19 revises for new text; T17 20 / 20. Both sides appear in every kind. T05's D and E splits are 5/3.
-
-`python ../stage1-train/data.py --freeze` over the pilot, batch 2, and these three files: cannot_tell 33 of 132, multi-line 31 of 99, shortfalls empty. The four lessons without an ESCALATE yes item are the exempt ones (T04, T01, T14, T16).
+`checks.py` sides are 20/20 in each file, and 4/4 inside every kind. `python ../stage1-train/data.py --freeze` over the pilot, batch 2, and these three files: cannot_tell 33 of 132, supported 54 of 132, multi-line 42 of 99, shortfalls empty. The four lessons without an ESCALATE yes item are the exempt ones (T04, T01, T14, T16).
