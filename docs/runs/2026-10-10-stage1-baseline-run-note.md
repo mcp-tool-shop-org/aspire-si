@@ -110,3 +110,14 @@ above still holds, and every later sitting is scored by this same file.
   Time is flat across tiers 3–5: at baseline the model doesn't spend more on harder tasks. Generation took
   28.2 minutes for the 3 seeds, which is 1.6 correct answers per minute of generation. The interview took
   13.1 minutes.
+
+## Scorers (pinned before round 1; every sitting, the baselines included, is scored by these files)
+
+| Score | File | sha256 | Role |
+|---|---|---|---|
+| Pinned correctness | `stage1-eval/score.py` | `fd59cb5074d0858af2864bcadd68443ddea26c325beef3afe6f5cdadd624ab7d` | Primary |
+| v2 (parsing repair) | `stage1-eval/score_v2.py` | `64f52f6fe60d077a37db6d043476ac9e37d38043d756f203bb8d802b90e3cb44` | Reported beside it ([note](2026-10-10-stage1-score-v2-note.md)) |
+| Found the evidence, and the miss breakdown | `stage1-eval/score_found.py` | `55b4d0eaadbf29d3f40a66ce83c163b2ce742a1213dc4804a0a25774e49eae22` | Secondary, descriptive (eval plan at 7bca450), ratified by R&D |
+
+Tests: `test_score.py`, `test_score_v2.py`, `test_score_found.py` (sha256 `53864c6f…`), 22 passing. None of these
+files changes after this commit; a change is a new version with its own note.

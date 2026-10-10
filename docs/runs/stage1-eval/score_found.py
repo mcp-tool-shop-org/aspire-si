@@ -20,8 +20,9 @@ Rules, as pre-registered:
 - The parsing repair of score v2 applies: the lines as given are tried first, then the repaired lines.
 
 Miss buckets, for verdict-right tasks that fail the pinned score (first that applies, on the failing turn):
-formatting only (passes this score) / NONE misuse / the statement quoted / not in the material / partial / the
-wrong line.
+formatting only (passes this score) / NONE misuse (lines for a cannot_tell key, NONE where lines are needed, or
+NONE among lines) / the statement quoted / not in the material / partial (a key line found, or a given line of
+12+ characters or a quarter of a key line inside it) / the wrong line.
 """
 
 import argparse
@@ -106,10 +107,8 @@ def bucket(rec, task) -> str:
             continue
         raw = score.lines_of(deciding)
         lines = score_v2.repaired(deciding)
-        if vkey == "cannot_tell" or (len(raw) > 1 and any(x.upper() == "NONE" for x in raw)):
-            return "NONE misuse"
-        if not lines:
-            return "not in the material"
+        if vkey == "cannot_tell" or not lines or (len(raw) > 1 and any(x.upper() == "NONE" for x in raw)):
+            return "NONE misuse"  # lines for a cannot_tell key, NONE (or nothing) where lines are needed, NONE among lines
         mat, stmt = lenient(material), lenient(task.get("claim", ""))
         outside = [x for x in lines if lenient(x) not in mat]
         if outside:
@@ -117,7 +116,8 @@ def bucket(rec, task) -> str:
         g = [cov(x) for x in lines]
         joined = cov(" | ".join(lines))
         wanted = [cov(k) for k in keys] + [cov(k) for a in alts for k in a]
-        if any(_found(k, g, joined) or any(x and x in k for x in g) for k in wanted):
+        if any(_found(k, g, joined) or any(x and x in k and (len(x) >= 12 or 4 * len(x) >= len(k)) for x in g)
+               for k in wanted):
             return "partial"
         return "the wrong line"
     return "partial"  # every turn finds its evidence alone, yet the task fails: not reached in practice

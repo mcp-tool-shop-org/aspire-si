@@ -49,3 +49,23 @@ def test_v2_parsing_repair_applies():
               ["A session is capped at six requests and ten tool calls."])
     assert ok("A session is capped at six requests and ten tool calls. |",
               ["A session is capped at six requests and ten tool calls."])
+
+
+def _rec(deciding, verdict="supported"):
+    return {"final": {"verdict": verdict, "deciding": deciding}, "turns": []}
+
+
+def _task(key_lines, verdict="supported"):
+    return {"category": "buried exception", "material": MAT, "claim": "Sessions allow six requests.",
+            "key": {"verdict": verdict, "deciding": key_lines}}
+
+
+def test_bucket_none_where_lines_are_needed():
+    assert F.bucket(_rec("NONE"), _task([BULLET])) == "NONE misuse"
+    assert F.bucket(_rec("A session is capped at six requests and ten tool calls.", "cannot_tell"),
+                    _task([], "cannot_tell")) == "NONE misuse"
+
+
+def test_bucket_partial_needs_a_real_fragment():
+    assert F.bucket(_rec("every session prints its seed"), _task([BULLET])) == "partial"
+    assert F.bucket(_rec("seed"), _task([BULLET])) == "the wrong line"
