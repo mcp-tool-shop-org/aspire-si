@@ -74,8 +74,12 @@ base model ──► task set (baseline) ──► Stage 1 role training ──�
 ```
 
 - **The model:** the planned student, Qwen3-8B, with its exact revision or digest pinned.
-- **Settings, pinned and identical for both runs:** thinking setting, token budgets, temperature 0, seed,
-  and the sha256 of the prompt and of the answer format.
+- **Settings, pinned and identical for both runs:** thinking setting, token budgets, the sampling settings
+  below, and the sha256 of the prompt and of the answer format.
+- **Sampling, not greedy.** Qwen3's model card says thinking mode must not use greedy decoding (it degrades
+  and loops). Every generation uses the card's settings: temperature 0.6, top-p 0.95, top-k 20.
+- **3 samples per task,** seeds 0, 1 and 2, re-seeded per generation, at baseline and after. The seed list is
+  the same for every model.
 - **Seeds:** Stage 1 training runs on 3 seeds, so there are three "after" models, each compared with the
   one baseline.
 - **What it shows:** the change in verdict accuracy, the false-accept rate and every trace-rubric line,
@@ -254,7 +258,33 @@ the reported numbers.
 
 - **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
 - **Secondary outcomes:** the false-accept rate, and each trace-rubric line.
-- **Phase A:** exact McNemar test on paired task outcomes, before against after.
+- **Phase A, per task:** the task's score is its mean correctness over its samples: the 3 baseline samples,
+  and for "after" the 3 samples from each of the 3 training seeds, so 9.
+- **Phase A, primary test:** a task-level paired bootstrap of (after mean − baseline mean) over the 120
+  sealed tasks. 10,000 resamples of tasks, a 95% percentile interval. The role "helped" only if the
+  interval's lower end is above 0.
+- **Phase A, check:** exact McNemar on the per-task majority vote (2 or 3 of 3 correct), before against
+  after. With 9 after samples, the majority is 5 of 9. It's reported beside the primary result, and never
+  replaces it.
+- **Phase A, each training seed alone:** each of the 3 after models is also compared with the baseline the
+  same way (3 against 3 samples), and reported separately. A pooled effect that only one seed carries is
+  reported as such.
+- **Phase A power** (R&D simulation, 2026-10-10). The setup: 120 tasks × 3 samples per side, a 55% baseline,
+  and per-task difficulty spread as Beta with concentration 1 to 5 (lower means tasks are more often
+  all-right or all-wrong). The gain is a constant logit shift, 600 runs per cell, and α = 0.05. The
+  simulation is conservative on the after side (3 samples, not 9). It doesn't model training-seed
+  variation; the per-seed report covers that.
+
+  | Gain (points) | Bootstrap power | Majority-vote McNemar power |
+  |---|---|---|
+  | 5 | 0.32–0.47 | 0.19–0.22 |
+  | 8 | 0.66–0.85 | 0.42–0.52 |
+  | 10 | 0.84–0.98 | 0.57–0.78 |
+  | 15 | 1.00 | 0.93–0.98 |
+
+  So the primary test has 80% power for a gain of about 8–10 points. The majority-vote check needs about 11–14
+  points. Gains under about 8 points are underpowered at this size, and a null there is reported as "not
+  detectable at n = 120", not "no effect".
 - **Phase B:** a task-level cluster bootstrap (paired by task), ROLE against NO-ROLE, with a seed-noise gate: an arm
   difference counts only if it exceeds the spread between seeds within an arm.
 - **Trace rubric:** mechanical items first. Then blind human grading, after the graders calibrate to
