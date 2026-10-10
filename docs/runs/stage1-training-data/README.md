@@ -82,7 +82,10 @@ unnecessary.
 (wrong key or hedged grid step), B-01's step count made true (two rules, tier 3), C-08 and E-07 + variant
 rebuilt with no closed list beside the claim, A-01 rewritten on an audit/legibility angle away from the
 pre-interview, C-01's reply wording aligned with its keyed flaw (`guess`), and the stamped B-trace phrase
-dropped from all seven traces that carried it.
+dropped from all seven traces that carried it. Round 2 (`_pilot_fixes_r2.py`) rebuilt B-06 again per
+R&D's follow-up: the notice now names an eligibility condition ("registered members") that the case
+cannot be checked against — nothing says whether contractors are members — instead of leaving eligibility
+unnamed entirely. Still `cannot_tell`, tier 6, open grid cell kept.
 
 ## Standing rules for the three-trait batches (from the pilot review)
 

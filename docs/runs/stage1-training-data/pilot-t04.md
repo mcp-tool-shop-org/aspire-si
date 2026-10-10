@@ -299,31 +299,31 @@ clay: tea · tin: water · wood: juice. Three passes, each forced; nothing left 
 **User:**
 ```text
 Canteen notice:
-"Free lunch is served in the ground-floor canteen on weekdays, 12:00 to 14:00, one portion per person."
+"Free lunch for registered members in the ground-floor canteen on weekdays, 12:00 to 14:00, one portion per person."
 Case to check against it: a cleaning contractor, Tuesday, 12:30, takes one portion.
-Grid-check each part of the case against the notice. Where the notice is silent, say so — that's the exercise.
+Grid-check each part of the case against the notice. Where the case can't be checked against the notice, say so — that's the exercise.
 ```
 
 **Thinking:**
 ```text
 | notice line | this case | check |
 |---|---|---|
+| for registered members | a cleaning contractor | nothing says whether contractors are registered — no line to test it against [?] |
 | on weekdays | Tuesday | ✓ |
 | 12:00 to 14:00 | 12:30 | ✓ |
 | one portion per person | one portion | ✓ |
-| eligible diners | a cleaning contractor | the notice never says who may eat — no row to test [?] |
-The parts the notice governs all land. The part that decides this case — who may eat — has no line behind it in either direction. I leave the cell open and report the notice as silent on it, instead of writing my own eligibility rule into the gap.
+The eligibility condition is there this time, and it still decides nothing here: the notice never defines membership, so the case fact has no line to meet. Three parts land, the deciding part stays open, and I say so rather than guess membership in either direction.
 ```
 
 **Reply:**
 ```text
-Weekday ✓, time ✓, single portion ✓. Eligibility is the deciding part of this case, and the notice addresses when, where and how much — never who.
+Weekday ✓, time ✓, single portion ✓. Eligibility is the deciding part of this case, and the notice does address it — registered members — but never says whether a cleaning contractor counts as one, and no list of the registered sits beside it to check against.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** answer: day, time and portion comply; eligibility is unsettled — the notice never says who may eat
+**Key:** answer: day, time and portion comply; the case can't be checked against the membership condition — the notice never says whether contractors are registered members
 
 *invented (key by construction)*
 
