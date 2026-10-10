@@ -98,6 +98,74 @@ def norm(x: str) -> str:
     return re.sub(r"\s+", " ", x.replace("**", "").replace("__", "")).strip()
 
 
+# Amendment 1 (quoting the deciding lines) binds from batch 3 on. The pilot (T04) and batch 2 (T01, T14, T16)
+# were written before it and are not redone, so the whole-row, version-heading and multi-line-share checks skip
+# these lessons by name. The separator and NONE check applies to every lesson.
+PRE_AMENDMENT_LESSONS = frozenset({"T04", "T01", "T14", "T16"})
+HEADING = re.compile(r"^\s*(#{1,6})\s")
+VERSIONED = re.compile(r"\bv?\d+\.\d+(?:\.\d+)?\b|\b(?:19|20)\d\d-\d\d-\d\d\b|"
+                       r"\b\d{1,2} (?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (?:19|20)\d\d\b", re.I)
+MIN_MULTI_LINE_SHARE = 0.25
+
+
+def _version_heading_above(lines: list[str], idx: int):
+    """The version or date heading a material line sits under, or None. A plain heading at the same level or
+    higher closes the version section above it."""
+    current = None  # (level, line)
+    for line in lines[:idx]:
+        m = HEADING.match(line)
+        if not m:
+            continue
+        level = len(m.group(1))
+        if VERSIONED.search(line):
+            current = (level, line.strip())
+        elif current and level <= current[0]:
+            current = None
+    return current[1] if current else None
+
+
+def _check_quoting(where, keys, material, content_kind):
+    """Amendment 1, rules 2 and 3: a table row is quoted whole; in a changelog, a line under a version or date
+    heading carries that heading as its own DECIDING line."""
+    lines = (material or "").splitlines()
+    for d in keys["deciding"]:
+        wd = ws(d)
+        rows = [ws(x) for x in lines if x.strip().startswith("|") and wd in ws(x)]
+        prose = [x for x in lines if not x.strip().startswith("|") and wd in ws(x)]
+        if rows and not prose and wd not in rows:
+            raise DataError(f"{where}: quote the whole table row, not part of it: {d!r} is inside {rows[0]!r}")
+    if content_kind != "changelog":
+        return
+    given = {ws(x) for x in keys["deciding"]}
+    for d in keys["deciding"]:
+        if HEADING.match(d):
+            continue
+        idx = next((i for i, x in enumerate(lines) if ws(d) in ws(x)), None)
+        head = _version_heading_above(lines, idx) if idx is not None else None
+        if head and ws(head) not in given:
+            raise DataError(f"{where}: {d!r} sits under the version heading {head!r}; quote the heading as its "
+                            f"own DECIDING line")
+
+
+def check_multi_line_share(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    """Amendment 1, rule 4: per lesson, at least a quarter of the verdict-bearing items (supported or
+    unsupported) have 2 to 4 DECIDING lines."""
+    per: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip:
+            continue
+        keys = r if r.get("kind") in ("C", "D") else (r.get("quiz") if r.get("kind") == "E" else None)
+        if not isinstance(keys, dict) or keys.get("verdict") not in ("supported", "unsupported"):
+            continue
+        n = per.setdefault(r["lesson"], [0, 0])
+        n[0] += 1
+        n[1] += 2 <= len(keys.get("deciding") or []) <= 4
+    for lesson, (total, multi) in sorted(per.items()):
+        if multi < MIN_MULTI_LINE_SHARE * total:
+            raise DataError(f"{lesson}: {multi} of {total} verdict-bearing items ({multi / total:.0%}) have 2-4 "
+                            f"DECIDING lines; at least {MIN_MULTI_LINE_SHARE:.0%} are needed")
+
+
 def _check_keys(where, keys, material):
     if keys.get("verdict") not in VERDICTS:
         raise DataError(f"{where}: verdict {keys.get('verdict')!r}")
@@ -117,15 +185,21 @@ def _reply_matches(where, reply, keys):
     p = harness.parse_answer(reply)
     if p["verdict"] != keys["verdict"]:
         raise DataError(f"{where}: reply's VERDICT {p['verdict']!r} != key {keys['verdict']!r}")
-    given = [] if not p["deciding"] or p["deciding"].strip().upper() == "NONE" else \
-        [x.strip() for x in p["deciding"].split(" | ") if x.strip()]
-    if [ws(x) for x in given] != [ws(x) for x in keys["deciding"]]:
+    raw = (p["deciding"] or "").strip()
+    parts = [x.strip() for x in raw.split(" | ") if x.strip()]
+    if len(parts) > 1 and any(x.upper() == "NONE" for x in parts):
+        raise DataError(f"{where}: reply's DECIDING puts NONE beside other lines; NONE stands alone, for cannot_tell only")
+    last_key = keys["deciding"][-1].strip() if keys["deciding"] else ""
+    if raw.endswith("|") and not last_key.endswith("|"):
+        raise DataError(f"{where}: reply's DECIDING ends with a trailing separator \"|\"")
+    given = "" if raw.upper() == "NONE" else ws(raw)
+    if given != ws(" | ".join(keys["deciding"])):
         raise DataError(f"{where}: reply's DECIDING differs from the key (exact, markup kept)")
     if (p["escalate"] or "").strip() != keys["escalate"]:
         raise DataError(f"{where}: reply's ESCALATE {p['escalate']!r} != key {keys['escalate']!r}")
 
 
-def validate(rows: list[dict]) -> None:
+def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     seen = set()
     for n, r in enumerate(rows, 1):
         where = f"line {n} ({r.get('id', '?')})"
@@ -197,10 +271,14 @@ def validate(rows: list[dict]) -> None:
                 raise DataError(f"{where}: kind D needs material")
             _check_keys(where, r, available[-1])
             _reply_matches(where, last, r)
+            if r["lesson"] not in pre_amendment:
+                _check_quoting(where, r, available[-1], r["content_kind"])
             for idx, keys in (r.get("turn_keys") or {}).items():
                 i = int(idx)
                 _check_keys(f"{where} turn {i}", keys, available[i - 1])
                 _reply_matches(f"{where} turn {i}", r["turns"][i - 1]["reply"], keys)
+                if r["lesson"] not in pre_amendment:
+                    _check_quoting(f"{where} turn {i}", keys, available[i - 1], r["content_kind"])
         if kind == "E":
             q, v = r.get("quiz"), r.get("variant")
             if not isinstance(q, dict) or q.get("type") not in ("verdict", "written"):
@@ -208,6 +286,8 @@ def validate(rows: list[dict]) -> None:
             if q["type"] == "verdict":
                 _check_keys(where, q, available[-1])
                 _reply_matches(where, last, q)
+                if r["lesson"] not in pre_amendment:
+                    _check_quoting(where, q, available[-1], r["content_kind"])
             elif not q.get("key_points"):
                 raise DataError(f"{where}: written quiz needs key_points")
             if not isinstance(v, dict) or not v.get("user") or v["user"] == r["turns"][0]["user"] or "key" not in v:
@@ -218,6 +298,7 @@ def validate(rows: list[dict]) -> None:
                 raise DataError(f"{where}: the variant's key shares no key point with the original")
     check_stamps(rows)
     check_frames(rows)
+    check_multi_line_share(rows, skip=pre_amendment)
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:

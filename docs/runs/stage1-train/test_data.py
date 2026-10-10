@@ -190,3 +190,71 @@ def test_checker_verdict_given_as_a_value_counts():
     rows[2]["turns"][0]["user"] = ("Another checker read the notice. Their thinking: 'Saturday mornings are surely "
                                    "covered. supported.' Did they get it right?")
     data.validate(rows)
+
+
+# ---- amendment 1 (quoting the deciding lines): lesson T05 is past the amendment, T04 is not
+TABLE = "| Day | Opens | Closes |\n| Monday | 9am | 5pm |\n| Sunday | closed | closed |"
+OPENINGS = iter(f"Case {w} {v}." for w in ("amber", "birch", "cedar", "dune", "elm", "fern", "gale", "heath")
+                for v in ("arrives", "follows", "opens", "begins", "lands", "starts"))
+
+
+def _d(material, deciding, verdict="unsupported", lesson="T05", content_kind="notice", reply=None, iid="d9"):
+    r = copy.deepcopy(GOOD[3])
+    r.update(id=iid, lesson=lesson, material=material, deciding=deciding, verdict=verdict, content_kind=content_kind)
+    opening = next(OPENINGS)  # varied, so the stamped-frame check stays out of these tests
+    r["turns"][0]["user"] = f"{opening} Material:\n{material}\nStatement: the library is open on Sunday mornings."
+    r["turns"][0]["reply"] = reply or ("VERDICT: " + verdict + "\nDECIDING: " + (" | ".join(deciding) or "NONE")
+                                       + "\nESCALATE: no")
+    return r
+
+
+def _multi(lesson="T05", n=4):
+    """Filler items with two DECIDING lines, so the multi-line share passes."""
+    out = []
+    for i in range(n):
+        out.append(_d(MAT, ["The library opens at 9am on weekdays.", "It is closed on Sundays."], lesson=lesson,
+                      iid=f"m{i}"))
+    return out
+
+
+def test_table_row_quoted_whole():
+    rows = [_d(TABLE, ["| Sunday | closed | closed |"])] + _multi()
+    data.validate(rows)
+    rows = [_d(TABLE, ["Sunday | closed"])] + _multi()
+    with pytest.raises(data.DataError, match="whole table row"):
+        data.validate(rows)
+    rows = [_d(TABLE, ["Sunday | closed"], lesson="T04")] + _multi()  # before the amendment: not checked
+    data.validate(rows)
+
+
+CHANGELOG = "# Changelog\n## v2.3.0 (2026-04-02)\n- The dry run no longer writes the lock file.\n## Notes\n- Old builds stay."
+
+
+def test_version_heading_quoted_in_a_changelog():
+    ok = _d(CHANGELOG, ["## v2.3.0 (2026-04-02)", "- The dry run no longer writes the lock file."],
+            content_kind="changelog")
+    data.validate([ok] + _multi())
+    bad = _d(CHANGELOG, ["- The dry run no longer writes the lock file."], content_kind="changelog")
+    with pytest.raises(data.DataError, match="version heading"):
+        data.validate([bad] + _multi())
+    after_plain_heading = _d(CHANGELOG, ["- Old builds stay."], content_kind="changelog")
+    data.validate([after_plain_heading] + _multi())  # "## Notes" closes the version section
+
+
+def test_trailing_separator_and_none_beside_lines_refused():
+    r = _d(MAT, ["It is closed on Sundays."], reply="VERDICT: unsupported\nDECIDING: It is closed on Sundays. |\n"
+                                                  "ESCALATE: no", lesson="T04")
+    with pytest.raises(data.DataError, match="trailing separator"):
+        data.validate([r])
+    r = _d(MAT, ["It is closed on Sundays."], reply="VERDICT: unsupported\nDECIDING: It is closed on Sundays. | NONE\n"
+                                                  "ESCALATE: no", lesson="T04")
+    with pytest.raises(data.DataError, match="NONE beside"):
+        data.validate([r])
+
+
+def test_multi_line_share_per_lesson():
+    single = [_d(MAT, ["It is closed on Sundays."], iid=f"s{i}") for i in range(4)]
+    with pytest.raises(data.DataError, match="0 of 4 verdict-bearing items"):
+        data.validate(single)
+    data.validate(single + _multi(n=2))  # 2 of 6 = 33%
+    data.validate([_d(MAT, ["It is closed on Sundays."], lesson="T04", iid=f"p{i}") for i in range(4)])
