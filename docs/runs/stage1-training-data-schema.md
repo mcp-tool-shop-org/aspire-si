@@ -98,6 +98,10 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
   (C, D, verdict-type E); at least one ESCALATE `yes (…)` item and one cannot_tell item with ESCALATE `no`; at
   least two multi-turn D items, one whose verdict changes and one where it stands, every turn with its own three
   lines; at least two contrast pairs (`pair`), each exactly one cannot_tell and one unsupported item.
+- **Role-neutral prompts:** C, D and verdict-type E user turns carry no role, trait or pattern word (the fixed
+  `ROLE_WORDS` list: "verifier", the 18 trait names and short forms, tree, prune, falsifier, elimination, grid)
+  outside the material lines and the statement line, so the ROLE and NO-ROLE arms share these prompts exactly.
+  "Checker" is allowed. The other checker's quoted thinking counts as prompt, so it avoids these words too.
 - **Freeze, over every file together** (`python data.py --freeze <files>`): cannot_tell, supported and the
   multi-line share each at least 25% across all lessons, and an ESCALATE yes item in every lesson (the four
   skipped lessons are reported, not refused). It prints each figure and how many more items a shortfall needs.

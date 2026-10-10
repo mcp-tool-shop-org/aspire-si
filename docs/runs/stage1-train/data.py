@@ -296,6 +296,35 @@ def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
     return rep
 
 
+# Fixed banned list (R&D, 2026-10-10): the role, the 18 trait names and their short forms, and Lesson 2's
+# pattern names. "Checker" is allowed: in kind C it names the other party, not the role.
+ROLE_WORDS = re.compile(
+    r"\b(verifiers?|sceptic\w*|skeptic\w*|goe?s? to the source|going to the source|precise|precision|"
+    r"honest about uncertainty|independen\w*|breaks? things down|breaking things down|decompos\w*|"
+    r"in proportion|proportionate|knows? (?:its|your|my) limits|consistent|consistency|literal\w*|"
+    r"what a mistake costs|agrees? just to please|fill(?:s|ing)? (?:the )?gaps?|round in circles|nitpick\w*|"
+    r"takes? orders from the material|fix(?:es|ing)? things|"
+    r"trees?|prun\w*|falsif\w*|eliminat\w*|grids?|constraint grids?)\b", re.I)
+
+
+def role_words_in_prompt(r: dict) -> list[str]:
+    """Banned words in a C, D or verdict-type E item's user turns, outside the material, new material and the
+    statement line (those are the content being checked, shared by both arms as they are)."""
+    if not (r.get("kind") in ("C", "D") or (r.get("kind") == "E" and (r.get("quiz") or {}).get("type") == "verdict")):
+        return []
+    content = {x.strip() for x in (r.get("material") or "").splitlines() if x.strip()}
+    found = []
+    for t in r["turns"]:
+        content |= {x.strip() for x in t.get("new_material", []) if x.strip()}
+        for line in t["user"].splitlines():
+            bare = ws(line).replace('\\"', '"').strip("\"'“” ")
+            if line.strip() in content or re.match(r"\s*statement\s*:", line, re.I) or \
+                    (bare and bare in ws("\n".join(content))):  # a material line, possibly quoted
+                continue
+            found += [m.group(0) for m in ROLE_WORDS.finditer(line)]
+    return found
+
+
 def _check_keys(where, keys, material):
     if keys.get("verdict") not in VERDICTS:
         raise DataError(f"{where}: verdict {keys.get('verdict')!r}")
@@ -394,6 +423,9 @@ def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
             raise DataError(f"{where}: kind A needs key_points")
         if kind == "B" and not r.get("answer"):
             raise DataError(f"{where}: kind B needs answer")
+        if r["lesson"] not in pre_amendment and role_words_in_prompt(r):
+            raise DataError(f"{where}: the prompt names the role, a trait or a pattern ({role_words_in_prompt(r)[0]!r}) "
+                            f"outside the material and the statement; prompts are role-neutral")
         if kind in ("C", "D"):
             if kind == "C" and r.get("planted_flaw") not in FLAWS:
                 raise DataError(f"{where}: planted_flaw {r.get('planted_flaw')!r}")

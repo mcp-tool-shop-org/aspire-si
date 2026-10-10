@@ -388,3 +388,22 @@ def test_freeze_report_over_all_files():
         data.freeze_report(rows)
     rep = data.freeze_report(_floors("T05") + [_d(MAT, [], verdict="cannot_tell", lesson="T04", iid="x")])
     assert rep["exempt_without_escalate_yes"] == ["T04"]  # reported, not refused
+
+
+def test_prompts_are_role_neutral_outside_material_and_statement():
+    rows = _floors()
+    d = next(r for r in rows if r["id"] == "su2")
+    d["turns"][0]["user"] += "\nAs a verifier, check it."
+    with pytest.raises(data.DataError, match="role-neutral"):
+        data.validate(rows)
+    rows = _floors()
+    d = next(r for r in rows if r["id"] == "su2")
+    d["material"] = MAT + "\nThe tree outside is pruned in May."
+    d["turns"][0]["user"] = d["turns"][0]["user"].replace(MAT, d["material"])
+    assert data.role_words_in_prompt(d) == []  # words inside the material are content, not framing
+    c = copy.deepcopy(GOOD[2])
+    assert data.role_words_in_prompt(c) == []  # "checker" names the other party
+    c["lesson"] = "T04"
+    c["turns"][0]["user"] += " Use a falsifier."
+    assert data.role_words_in_prompt(c) == ["falsifier"]
+    data.validate(copy.deepcopy(GOOD[:2]) + [c] + copy.deepcopy(GOOD[3:]))  # pre-amendment lesson: not refused
