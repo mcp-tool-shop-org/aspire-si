@@ -6,7 +6,7 @@ replacement: five kinds per trait, the whole assistant reply as the training tar
 [trainer's schema](../stage1-training-data-schema.md). Docs and data only: nothing here touches the GPU, the
 NPU or any training run.
 
-**This directory now holds the pilot:** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
+**This directory holds the pilot and batch 2:** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
 all five kinds, 40 items**, for trait 4, *honest about uncertainty* (its counterweight shows up inside the
 trait's items). Beside it: `pilot-t04.md`, the readable rendering, and `checks.py`, which gates the batch on
 ASPIRE's own validator (`stage1-train/data.py`) and regenerates the `.md` from the `.jsonl`.
@@ -56,6 +56,49 @@ eval directory on disk is `stage1-eval` — the import of `harness` fails as com
 collection errors with `ModuleNotFoundError: No module named 'harness'`). `checks.py` shims the correct path
 so the validator runs; a one-character fix at the source (or a directory rename) will make the shim
 unnecessary.
+
+**Batch 2 is in:** `batch2-t01.jsonl` (skeptical), `batch2-t14.jsonl` (doesn't fill gaps) and
+`batch2-t16.jsonl` (doesn't nitpick) — 40 items each, all five kinds, rendered `.md` beside each `.jsonl`.
+
+## Batch 2 at a glance
+
+- **Kinds:** 8 × 5 per trait. Sides balanced in each: T14 20/20 (refuses the gap / quotes only what is
+  there), T01 22/18 (rightly rejects / rightly accepts), T16 22/18 (accepts the equivalent / catches the
+  changed fact).
+- **Tiers:** every trait carries multi-step items (T14: 5 × tier 4 + 1 × tier 5; T01: 5/1; T16: 3/1),
+  with tier-4/5 D items built on longer material and a buried deciding line.
+- **Content spread:** all eight core kinds per trait, plus `teaching` for A and written-E items. Each kind
+  B keeps at least three non-verification puzzles (constraint grids, ordering, elimination, case splits —
+  never arithmetic of the gold math-ladder kind).
+- **Real cited text (per the standing rules below): all 8 kind-C materials per trait are real, and half of
+  kind D** (4 of 8 per trait): T01 D-01/-02/-05/-08, T14 D-01/-02/-05/-06, T16 D-01/-02/-05/-07. Plus
+  scattered B/E items (`T01-B-01`, `T01-E-07`, `T16-B-07`). Every citation is a public mcp-tool-shop-org
+  repo at a pinned commit, MIT `LICENSE` verified by its first line, outside every exclusion on the final
+  sealed/DEV/gold/anchor list:
+
+  | repo | pinned commit | items |
+  |---|---|---|
+  | `rig-bridge` | `e91f65b5c12bd070342abdb298b9434c27d4a9b4` | T01-C-04, T01-D-08, T14-C-03, T14-C-06, T14-D-06, T16-C-04, T16-C-05, T16-D-07 |
+  | `roll` | `fbec7b5a99b2eefbd01efe431ff1c1dcc07e5a03` | T01-B-01, T01-C-01/-06/-07, T01-D-01, T01-E-07, T14-C-01/-05/-07, T14-D-01, T16-C-01/-06, T16-D-01/-05 |
+  | `style-dataset-lab` | `9d91b77432a9950268e3fe6654cbdc8604650e90` | T01-C-02/-05/-08, T01-D-02, T14-C-04, T14-D-02, T16-B-07, T16-C-02/-08, T16-D-02 |
+  | `polyglot-mcp` | `25e970d9d598fb840baabaa7c0762b2762f88e0e` | T01-C-03, T01-D-05, T14-C-02/-08, T14-D-05, T16-C-03/-07 |
+
+  Contamination found while harvesting and excluded on sight: `ollama-intern-mcp` (mentions research-os),
+  polyglot-mcp `CHANGELOG.md` (tells an ai-rpg-engine story), repo-knowledge `CHANGELOG.md` (names a
+  gold-flavoured fixed enum). Citation spans are chosen disjoint across the whole batch — no two items
+  quote the same lines.
+
+## Batch 2 tooling
+
+- **`_verify_sources.py`** — proves every `sources[]` citation verbatim against the local clone at the
+  pinned commit: material must be a contiguous excerpt of the cited lines (normalised for whitespace and
+  `**`/`__`), the commit must be an ancestor of `origin/HEAD`, and duplicate citations across the batch
+  are rejected.
+- **`_build_t16.py`** — the auditable builder for T16, slicing real spans from scratch dumps of the pinned
+  blobs (`_harvest/` at the repo root, untracked; regenerable with `git show <commit>:<path>`).
+- All three files pass `checks.py --render` (schema + validator + pilot/review/pre-interview leakage) and
+  R&D's `leakage_check.py` (rnd v1.1.4.4.10) at 0 failures / 0 warnings each; `_verify_sources.py` passes
+  across the batch.
 
 ## Conventions this file follows
 

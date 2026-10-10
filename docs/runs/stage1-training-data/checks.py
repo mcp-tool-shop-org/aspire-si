@@ -85,7 +85,9 @@ def report(rows):
 
 
 def render(rows, path):
-    out = ["# Stage 1 training data — pilot, trait 4 (honest about uncertainty)",
+    lesson = rows[0]["lesson"] if rows else "??"
+    trait = rows[0]["trait"] if rows else "?"
+    out = [f"# Stage 1 training data — {lesson}: {trait}",
            "",
            f"*Generated from `{path.name}` by `checks.py --render`. Edit the JSONL, not this file.*",
            "",
