@@ -17,7 +17,9 @@ thinking off; an "unsupported" stands; "supported" or "cannot_tell" is re-asked 
 falls back to cannot_tell.
 - Replayed on gemma4:31b over tune, it gives a false-accept (FA) upper bound of 0.026 grounded and 0.058
   reasoning, at about 87% of always-on cost.
-- It's still post hoc, pending confirmation on grounded held-out.
+- It's still post hoc, pending confirmation on grounded held-out. The replay combined two offrig builds,
+  so **the baseline of record is the policy as offrig serves it natively**, measured once it ships. The
+  replay numbers are context only.
 - The same policy applied to the **untrained student** is the fair comparison: it isolates what training
   adds over the gate.
 
@@ -170,22 +172,34 @@ The tune split has 493 claims. **221 are conjunctive** (and, both, as well as).
 | Conjunctive tune claims | n | Part labels |
 |---|---|---|
 | supported | 117 | **derived:** every part is supported, given a checked split |
-| unsupported, with a supported twin differing in one span of ≤ 3 words | 29 | **derived:** the differing part is unsupported, the rest supported |
-| unsupported, twin differs in several spans or no twin | 72 | **need new labels** |
+| unsupported, with a supported twin differing in one span of ≤ 3 words **on both sides** | 25 | **derived:** the differing part is unsupported, the rest supported |
+| unsupported, twin differs in several spans or a longer span, or no twin | 76 | **need new labels** |
 | cannot_tell | 3 | **need new labels** |
+
+The R&D session replicated the derivation independently with a word-level diff and found the same 25.
+A first count of 29 bounded only the supported side of each pair. The 4 extra pairs insert 5–11 words on
+the unsupported side, so they move to "need new labels".
+
+**The 25 twin-derived ids** (tune, rnd at `d602719`): `cal-corrections-f`, `boost-cap-f`, `jury-min-f`, `jury-defaults-f`, `or-sidecar-f`, `or-reserved-f`, `prs-aspire-si-53-12u`, `prs-aspire-si-55-4u`, `prs-aspire-si-55-6u`, `prs-aspire-si-59-1u`, `prs-aspire-si-61-5u`, `prs-aspire-si-61-13u`, `prs-offrig-39-2u`, `prs-offrig-39-3u`, `prs-offrig-39-24u`, `prs-offrig-40-9u`, `prs-offrig-41-11u`, `prs-offrig-41-15u`, `prs-role-os-24-9u`, `diff-aspire-si-13-1u`, `diff-aspire-si-47-3u`, `diff2-role-os-0a13ed4-2u`, `diff2-role-os-54f6a32-5u`, `diff2-aspire-si-4d45a08-3u`, `diff2-aspire-si-4d45a08-8u`.
+
+**The shared-constituent rule, applied before any derivation is trusted.** A split copies a shared object
+or modifier into every part it governs. Example: `prs-offrig-40-9u`, "Network volumes are listed and
+created under /networkvolumes". Here "under /networkvolumes" governs both verbs, so the parts are
+"listed under /networkvolumes" and "created under /networkvolumes". Without the copy, a derived
+"supported" part would be wrong.
 
 - **Splits:** every conjunctive claim needs one checked split into parts. It's proposed by rule (on the
   conjunction), and a model proposes where the rule fails. It's reviewed blind under the gold set's usual
   process (the R&D session owns it).
-- **Cost:** about **221 split reviews**, plus about **75 claims × ~2.5 parts ≈ 190 new part labels**.
+- **Cost:** about **221 split reviews**, plus about **79 claims × ~2.5 parts ≈ 200 new part labels**.
   The cost is labelling time under the R&D session's blind-label process, with no card time.
-- **A caveat on the 29 derived from twins:** the derivation assumes the differing span sits inside
+- **A caveat on the 25 derived from twins:** the derivation assumes the differing span sits inside
   exactly one part. Each one is confirmed against its checked split, and the R&D session spot-checks a
   sample, before any of them is used.
 - **Recommendation: phase it.**
   - **Phase 1 needs no new labels.** It uses macro, consistency, micro and thinking everywhere, with part
-    correctness only on the **146 derivable claims**.
-  - **Phase 2 adds the 75 labelled claims** only if Phase 1's ablation shows part correctness helps.
+    correctness only on the **142 derivable claims**.
+  - **Phase 2 adds the 79 labelled claims** only if Phase 1's ablation shows part correctness helps.
 
 ### The ablation that tests the idea (fixed now)
 
@@ -208,8 +222,13 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 
 ### GRPO settings (fixed before any run)
 
-- **Group size G = 8,** at temperature 0.7 (loops come with greedy decoding). Group-normalised advantage;
-  the share of zero-variance groups is reported.
+- **Group size G = 8,** sampled at temperature 0.7. Group-normalised advantage; the share of zero-variance
+  groups is reported.
+- **G = 8, β = 0.04 and ε = 0.2 are the usual GRPO defaults,** pre-registered as defaults for a first run,
+  not as tuned values. Changing any of them needs an amendment.
+- **Evaluation decoding is at serving temperature, 0,** as offrig serves. Every checkpoint's dev **loop rate
+  at T = 0** is reported. Loops are a greedy-decoding failure that distilled students show more (Pipis et
+  al. 2025, arXiv:2512.12895).
 - **KL:** β = 0.04 against the SFT checkpoint as the reference, with a ratio clip ε = 0.2. With little
   training data, staying near SFT is deliberate.
 - **Updates:** LoRA (r = 16, α = 32 on q/k/v/o), learning rate 1e-5, 2 epochs.
@@ -219,7 +238,8 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
   - any one verdict above 70%;
   - mean thinking under 32 tokens with accuracy falling;
   - positive extras above 25% of total reward;
-  - more than 4 parts per claim on average (splitting to farm part credit).
+  - more than 4 parts per claim on average (splitting to farm part credit);
+  - the dev loop rate at T = 0 rising above the SFT checkpoint's.
 
   Any of these stops the run, and the stop is reported.
 
@@ -267,7 +287,7 @@ result.
 1. **Option A, B or C** (the maintainer).
 2. The grounded test: one look at the held-out, or a fresh sealed split (the Publisher and the R&D session).
 3. The reward weights, budgets and GRPO settings. They're proposed here; the R&D session reviews them before any run.
-4. The part gold: Phase 1 only (146 derivable claims), or Phase 2's ~190 new part labels as well. Labelling is the R&D session's, under its blind process.
+4. The part gold: Phase 1 only (142 derivable claims), or Phase 2's ~200 new part labels as well. Labelling is the R&D session's, under its blind process.
 5. Contract v3's per-part fields (`evidence_quotes` entries carrying part, verdict and quote) are agreed with offrig's owner before SFT data is built.
 6. Where GRPO runs: the pod, or the 5090 after its fit check.
 7. The fresh reasoning split (contract v3) is sealed before any training.
