@@ -370,12 +370,22 @@ no-critic arm, and only if the local path can't fit or is too slow.
 
 ### Smoke tests, each with its own grant, in this order
 
-- **S1, NPU only, a quiet-CPU window, ~30 min.**
-  - **What runs:** nli-deberta on the NPU at batch 1, over quote–part pairs built from the tune gold, using
-    the 142 derivable conjunctive claims and their gold quotes.
-  - **The pass line (fixed now):** entailment agreement with the quote rule and part gold of ≥ 0.85, and an
-    FA on parts (entails a part whose gold is unsupported) with a Wilson upper bound ≤ 0.15.
+- **S1, NPU only, a quiet-CPU window, about 10 minutes including health checks.**
+  - **Data, already committed, no new labels:** the R&D session's tune calibration verdicts (rnd
+    `calibration/results/2026-10-09-chain`). Each line carries the claim, the model's evidence quote,
+    `quote_found` and the gold label. After deduping on claim plus quote, there are 1,213 distinct pairs with
+    a found quote:
+    - **523 positives:** gold supported, the model said supported;
+    - **166 "fooled" pairs:** gold unsupported or cannot_tell, but the model accepted with a quote that does
+      exist. These are exactly the cases a micro critic must not bless.
+  - **The run:** nli-deberta-v3-base on the NPU, batch 1, over (quote → claim) for those 689 pairs. That's
+    about 3 minutes at 0.27 s a pair.
+  - **The pass line (fixed now):**
+    - entailment on the positives ≥ 0.85;
+    - entailment on the fooled pairs with a Wilson upper bound ≤ 0.15 (it catches at least ~85% of real
+      false accepts).
   - **If it fails:** the micro-NLI bonus is dropped. The hint path doesn't depend on it.
+  - **Reported** by check type and difficulty tier.
 - **S2, the 5090 only, ~45 min:**
   - a 20-step GRPO on 32 tune prompts, each rollout path, G = 8;
   - peak VRAM, tokens per second, step time;
