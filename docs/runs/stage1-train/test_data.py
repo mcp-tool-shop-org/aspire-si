@@ -174,3 +174,19 @@ def test_stamped_frames_refused():
         rows.append(d)
     with pytest.raises(data.DataError, match="frame"):
         data.validate(rows)
+
+
+def test_wrapped_deciding_line_with_markup_passes():
+    rows = copy.deepcopy(GOOD)
+    rows[3]["material"] = "The library opens at 9am on weekdays.\nIt is **closed**\non Sundays."
+    rows[3]["turns"][0]["user"] = "Material:\n" + rows[3]["material"] + "\nStatement: the library is open on Sundays."
+    rows[3]["deciding"] = ["It is **closed** on Sundays."]
+    rows[3]["turns"][0]["reply"] = "VERDICT: unsupported\nDECIDING: It is **closed** on Sundays.\nESCALATE: no"
+    data.validate(rows)
+
+
+def test_checker_verdict_given_as_a_value_counts():
+    rows = copy.deepcopy(GOOD)
+    rows[2]["turns"][0]["user"] = ("Another checker read the notice. Their thinking: 'Saturday mornings are surely "
+                                   "covered. supported.' Did they get it right?")
+    data.validate(rows)

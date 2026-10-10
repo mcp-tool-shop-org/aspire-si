@@ -66,8 +66,8 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
   - `sources` is non-empty. Each entry is either `repo@commit:path#lines` (a string, or `{repo, commit, ...}`)
     or marked invented (`{"invented": "<what>"}`).
 - **DECIDING:**
-  - keyed lines are verbatim in the material with markup kept (`**` stays), not just equal after
-    normalisation;
+  - keyed lines are verbatim in the material with markup kept (`**` stays). Only whitespace may differ, so a
+    quoted line can wrap;
   - a reply's DECIDING equals its key exactly.
 - **Kind A:**
   - the user turn has at least 2 sentences before its question, and names the trait (the validator's
@@ -79,7 +79,7 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
     steps;
   - no 8-word phrase recurs in more than 2 kind-B items of one trait.
 - **Kind C:**
-  - the user turn carries the other checker's verdict;
+  - the user turn carries the other checker's verdict (the word "verdict" or a verdict value);
   - if the material or user turn cites a repository (`owner/repo@sha` or a github.com link), `sources` has
     a real (non-invented) entry.
 - **Kind E:** the variant's key shares at least one key point with the original.

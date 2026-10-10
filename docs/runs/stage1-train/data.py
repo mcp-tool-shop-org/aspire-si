@@ -89,6 +89,11 @@ def _key_points(k) -> list[str]:
     return [norm(str(k)).lower()] if k else []
 
 
+def ws(x: str) -> str:
+    """Whitespace collapsed, markup kept: a quoted line may wrap, but `**` must stay as printed."""
+    return re.sub(r"\s+", " ", x).strip()
+
+
 def norm(x: str) -> str:
     return re.sub(r"\s+", " ", x.replace("**", "").replace("__", "")).strip()
 
@@ -102,7 +107,7 @@ def _check_keys(where, keys, material):
     if (keys["verdict"] == "cannot_tell") != (not deciding):
         raise DataError(f"{where}: cannot_tell exactly when deciding is empty")
     for d in deciding:
-        if not isinstance(d, str) or not d.strip() or d.strip() not in (material or ""):
+        if not isinstance(d, str) or not d.strip() or ws(d) not in ws(material or ""):
             raise DataError(f"{where}: deciding line not verbatim in the material (markup such as ** kept): {d!r}")
     if not isinstance(keys.get("escalate"), str) or not ESC.match(keys["escalate"]):
         raise DataError(f"{where}: escalate {keys.get('escalate')!r} (only no, or yes (medical|legal|safety|money ...))")
@@ -114,7 +119,7 @@ def _reply_matches(where, reply, keys):
         raise DataError(f"{where}: reply's VERDICT {p['verdict']!r} != key {keys['verdict']!r}")
     given = [] if not p["deciding"] or p["deciding"].strip().upper() == "NONE" else \
         [x.strip() for x in p["deciding"].split(" | ") if x.strip()]
-    if [x.strip() for x in given] != [x.strip() for x in keys["deciding"]]:
+    if [ws(x) for x in given] != [ws(x) for x in keys["deciding"]]:
         raise DataError(f"{where}: reply's DECIDING differs from the key (exact, markup kept)")
     if (p["escalate"] or "").strip() != keys["escalate"]:
         raise DataError(f"{where}: reply's ESCALATE {p['escalate']!r} != key {keys['escalate']!r}")
@@ -177,7 +182,7 @@ def validate(rows: list[dict]) -> None:
             if not any(rx.search(drawn) for rx in DRAWN):
                 raise DataError(f"{where}: kind B draws no pattern (tree glyphs, a grid table or numbered elimination)")
         if kind == "C":
-            if not re.search(r"verdict", first_user, re.I):
+            if not re.search(r"\b(verdict|supported|unsupported|cannot_tell|can't tell)\b", first_user, re.I):
                 raise DataError(f"{where}: kind C's user turn has no checker verdict")
             if REPO_CITATION.search((r.get("material") or "") + "\n" + first_user) and not has_real:
                 raise DataError(f"{where}: kind C cites a repository but sources has no real (non-invented) entry")
