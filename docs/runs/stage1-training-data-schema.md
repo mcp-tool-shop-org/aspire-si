@@ -102,9 +102,17 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
   `ROLE_WORDS` list: "verifier", the 18 trait names and short forms, tree, prune, falsifier, elimination, grid)
   outside the material lines and the statement line, so the ROLE and NO-ROLE arms share these prompts exactly.
   "Checker" is allowed. The other checker's quoted thinking counts as prompt, so it avoids these words too.
+- **Diversity gate (after batch 3), per lesson:** no 8-word span outside material lines, the Statement line and
+  the three lines appears in 3 or more items (a bracketed quote counts as one token, so a skeleton sentence
+  around different quotes is still caught); a C or D framing that names a kind of material ("board", "rules",
+  "snippet", "changelog", …) fits the item's `content_kind` (only clear mismatches are refused); the same
+  material appears in at most 2 items, and only as a contrast pair; no two non-verification B puzzles share a
+  structure signature (entity count, and which cues the clues use: order, chained order, gate, negation,
+  one-each). Across one batch (`python data.py --batch <files>`): at most 2 puzzles per signature, and no
+  framing line repeats.
 - **Freeze, over every file together** (`python data.py --freeze <files>`): cannot_tell, supported and the
-  multi-line share each at least 25% across all lessons, and an ESCALATE yes item in every lesson (the four
-  skipped lessons are reported, not refused). It prints each figure and how many more items a shortfall needs.
+  multi-line share each at least 25% across all lessons, an ESCALATE yes item in every lesson (the four
+  skipped lessons are reported, not refused), and no C or D framing line repeated anywhere. It prints each figure and how many more items a shortfall needs.
 
 ## How an item becomes training sequences
 

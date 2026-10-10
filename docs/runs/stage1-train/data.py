@@ -259,6 +259,217 @@ def check_pairs(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, min_pairs: int = 2
                             f"{min_pairs} are needed")
 
 
+# ---------------------------------------------------------------- the diversity gate (after batch 3)
+THREE_LINE = re.compile(r"^\s*(VERDICT|DECIDING|ESCALATE)\s*:", re.I)
+SPAN_WORDS = 8
+
+
+def _content_lines(r: dict) -> str:
+    """Every material line of an item (its material and every turn's new_material), whitespace-normalised."""
+    return ws((r.get("material") or "") + "\n" + "\n".join(
+        x for t in r["turns"] for x in t.get("new_material", []))).lower()
+
+
+def _spans(r: dict) -> set:
+    """8-word spans of an item's user turns, thinking and replies, outside material lines, the Statement line
+    and the three-line block. A bracketed quote of the material counts as one token, so a skeleton sentence
+    with different quotes in it is still the same span."""
+    content = _content_lines(r)
+    out = set()
+    for t in r["turns"]:
+        for text in (t["user"], t["thinking"], t["reply"]):
+            for line in text.splitlines():
+                bare = ws(line).replace('\\"', '"').strip("\"'“” ").lower()
+                if not bare or THREE_LINE.match(line) or STATEMENT_RE.match(line) or bare in content:
+                    continue
+                words = re.findall(r"[a-z0-9']+|\[q\]", re.sub(r"\[[^\]]*\]", " [q] ", line.lower()))
+                out |= {" ".join(words[i:i + SPAN_WORDS]) for i in range(len(words) - SPAN_WORDS + 1)}
+    return out
+
+
+STATEMENT_RE = re.compile(r"^\s*statement\s*:", re.I)
+
+
+def shared_spans(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_items: int = 2) -> dict:
+    """{(lesson, span): [ids]} for every 8-word span in more than max_items items of a lesson."""
+    seen: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip:
+            continue
+        for sp in _spans(r):
+            seen.setdefault((r["lesson"], sp), []).append(r["id"])
+    return {k: v for k, v in seen.items() if len(v) > max_items}
+
+
+def check_spans(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    st = shared_spans(rows, skip)
+    if st:
+        (lesson, span), ids = max(st.items(), key=lambda kv: len(kv[1]))
+        raise DataError(f"{lesson}: the span {span!r} appears in {len(ids)} items ({', '.join(ids[:8])}); "
+                        f"{len(st)} shared 8-word span(s) in all; none may appear in 3 or more items")
+
+
+# Framing words that name a kind of material, and the content kinds each clearly does NOT fit. Conservative: only
+# clear mismatches are refused (a board over code, rules over a changelog); ambiguous words ("note", "file",
+# "entry", "text", "record") are not checked.
+PHYSICAL = {"board", "card", "slip", "panel", "sign", "poster", "sheet", "menu", "leaflet", "flyer", "rules",
+            "notice", "label", "timetable", "memo", "minutes", "plaque", "tag", "ticket"}
+CODE_WORDS = {"code", "snippet", "function", "script", "module", "config"}
+CHANGELOG_WORDS = {"changelog", "release notes", "release note"}
+README_WORDS = {"readme"}
+NOT_FIT = {
+    "code": PHYSICAL | CHANGELOG_WORDS,
+    "changelog": PHYSICAL | CODE_WORDS,
+    "design-note": PHYSICAL - {"memo"},
+}
+for _k in ("notice", "policy", "label", "timetable", "record"):
+    NOT_FIT[_k] = CODE_WORDS | CHANGELOG_WORDS | README_WORDS
+
+
+def framing_mismatch(r: dict) -> str:
+    """The framing word that clearly doesn't fit the item's content_kind, or ''."""
+    if r.get("kind") not in ("C", "D"):
+        return ""
+    user = r["turns"][0]["user"]
+    at = user.find("Material:")
+    framing = user[:at].lower() if at > 0 else ""
+    bad = NOT_FIT.get(r.get("content_kind", ""), set())
+    for w in sorted(bad, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(w)}s?\b", framing):
+            return w
+    return ""
+
+
+def check_framing_fits(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    bad = [(r["id"], framing_mismatch(r), r.get("content_kind")) for r in rows
+           if r.get("lesson") not in skip and framing_mismatch(r)]
+    if bad:
+        i, w, k = bad[0]
+        raise DataError(f"{i}: the framing calls the material a {w!r} but its content_kind is {k!r}; "
+                        f"{len(bad)} mismatched framing(s) in all")
+
+
+def reused_material(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> list:
+    """(lesson, ids) for each material used by more than one item of a lesson, unless by exactly two items that
+    share a `pair` id."""
+    seen: dict = {}
+    for r in rows:
+        m = ws(r.get("material") or "").lower()
+        if r.get("lesson") in skip or not m:
+            continue
+        seen.setdefault((r["lesson"], m), []).append(r)
+    bad = []
+    for (lesson, _), items in seen.items():
+        pairs = {it.get("pair") for it in items}
+        if len(items) == 1 or (len(items) == 2 and len(pairs) == 1 and None not in pairs):
+            continue
+        bad.append((lesson, [it["id"] for it in items]))
+    return bad
+
+
+def check_material_reuse(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    bad = reused_material(rows, skip)
+    if bad:
+        lesson, ids = max(bad, key=lambda x: len(x[1]))
+        raise DataError(f"{lesson}: the same material in {len(ids)} items ({', '.join(ids[:6])}); a material may "
+                        f"appear in at most 2 items, and only as a contrast pair; {len(bad)} reused material(s) in all")
+
+
+COUNT_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+ORDER_CUE = re.compile(r"\b(left of|right of|above|below|ahead of|behind|before|after|less than|more than|"
+                       r"\w+er than|higher than|lower than|purer than|faster than|older than|younger than)\b", re.I)
+GATE_CUE = re.compile(r"\bonly after\b|\bonly before\b", re.I)
+NOT_CUE = re.compile(r"\b(not|never)\b", re.I)
+ONE_EACH = re.compile(r"\b(one each|exactly one|one per)\b", re.I)
+
+
+def puzzle_signature(r: dict) -> tuple:
+    """A non-verification B puzzle's structure: (entity count, constraint form). The count is the first count word
+    or numeral before a plural noun (else the number of distinct capitalised names); the form is which cues the
+    clue sentences use (order, gate, negation, one-each) and whether the order clues chain (one clue's object is
+    the next clue's subject)."""
+    text = r["turns"][0]["user"]
+    m = re.search(r"\b(two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\b(?:\s+[a-z-]+){0,2}?\s+[a-z]+s\b",
+                  text, re.I)
+    if m:
+        g = m.group(1).lower()
+        n = int(g) if g.isdigit() else COUNT_WORDS[g]
+    else:
+        n = len(set(re.findall(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-z]+\b", text)))
+    sents = [x for x in re.split(r"(?<=[.!?])\s+|\n", text) if x.strip()]
+    order = []
+    for x in sents:
+        mo = ORDER_CUE.search(x)
+        if mo and not GATE_CUE.search(x) and "?" not in x:
+            order.append((set(re.findall(r"[a-z]{3,}", x[:mo.start()].lower())),
+                          set(re.findall(r"[a-z]{3,}", x[mo.end():].lower()))))
+    stop = {"the", "and", "than", "one", "its", "has", "have", "you", "may", "are", "is"}
+    chain = any((order[i][1] - stop) & (order[i + 1][0] - stop) for i in range(len(order) - 1))
+    form = tuple(name for name, ok in (("order", bool(order)), ("chain", chain),
+                                       ("gate", bool(GATE_CUE.search(text))),
+                                       ("negation", bool(NOT_CUE.search(text))),
+                                       ("one-each", bool(ONE_EACH.search(text)))) if ok)
+    return n, form
+
+
+def _is_puzzle(r: dict) -> bool:
+    return r.get("kind") == "B" and not re.search(r"(?m)^\s*VERDICT\s*:", r["turns"][-1]["reply"])
+
+
+def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
+    """{signature: [(lesson, id)]} for the non-verification B puzzles."""
+    seen: dict = {}
+    for r in rows:
+        if r.get("lesson") not in skip and _is_puzzle(r):
+            seen.setdefault(puzzle_signature(r), []).append((r["lesson"], r["id"]))
+    return seen
+
+
+def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int = 2) -> None:
+    """No two puzzles of one lesson share a structure signature; across the rows given (a batch), at most
+    per_batch share one."""
+    for sig, items in puzzle_repeats(rows, skip).items():
+        by_lesson: dict = {}
+        for lesson, i in items:
+            by_lesson.setdefault(lesson, []).append(i)
+        dup = next(((l, ids) for l, ids in by_lesson.items() if len(ids) > 1), None)
+        if dup:
+            raise DataError(f"{dup[0]}: puzzles {', '.join(dup[1])} share the structure {sig[0]} entities, "
+                            f"{' + '.join(sig[1]) or 'no cues'}; vary the puzzle shape")
+        if len(items) > per_batch:
+            raise DataError(f"{len(items)} puzzles share the structure {sig[0]} entities, "
+                            f"{' + '.join(sig[1]) or 'no cues'} ({', '.join(i for _, i in items)}); at most "
+                            f"{per_batch} per batch")
+
+
+def framing_of(r: dict) -> str:
+    """A C or D item's framing: its first user turn before "Material:", case and whitespace normalised."""
+    if r.get("kind") not in ("C", "D"):
+        return ""
+    user = r["turns"][0]["user"]
+    at = user.find("Material:")
+    return re.sub(r"\s+", " ", user[:at]).strip().lower() if at > 0 else ""
+
+
+def framing_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
+    seen: dict = {}
+    for r in rows:
+        f = framing_of(r) if r.get("lesson") not in skip else ""
+        if f:
+            seen.setdefault(f, []).append(r["id"])
+    return {f: ids for f, ids in seen.items() if len(ids) > 1}
+
+
+def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
+    """Every diversity figure for a set of rows, refusing nothing (for review and for briefs)."""
+    return {"shared_spans": len(shared_spans(rows, skip)),
+            "framing_mismatches": sum(bool(framing_mismatch(r)) for r in rows if r.get("lesson") not in skip),
+            "reused_materials": len(reused_material(rows, skip)),
+            "puzzle_signatures": {f"{k[0]} / {'+'.join(k[1])}": [i for _, i in v]
+                                  for k, v in puzzle_repeats(rows, skip).items()},
+            "repeated_framings": len(framing_repeats(rows, skip))}
+
+
 def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
     """The whole-dataset check before the freeze, over every file together. Across all lessons: cannot_tell and
     supported each at least 25% of verdict-bearing items, and the multi-line share (2-4 DECIDING lines among
@@ -290,6 +501,11 @@ def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
     if refused:
         short.append(f"no ESCALATE yes item in {', '.join(refused)}")
     rep["exempt_without_escalate_yes"] = [x for x in rep["lessons_without_escalate_yes"] if x in exempt]
+    repeats = framing_repeats(rows, exempt)
+    rep["repeated_framings"] = len(repeats)
+    if repeats:
+        f, ids = next(iter(repeats.items()))
+        short.append(f"{len(repeats)} framing line(s) repeated across files, e.g. {f!r} in {', '.join(ids[:5])}")
     rep["shortfalls"] = short
     if short:
         raise DataError("freeze: " + "; ".join(short) + f" (figures: {json.dumps(rep)})")
@@ -466,6 +682,10 @@ def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     check_multi_line_share(rows, skip=pre_amendment)
     check_floors(rows, skip=pre_amendment)
     check_pairs(rows, skip=pre_amendment)
+    check_spans(rows, skip=pre_amendment)
+    check_framing_fits(rows, skip=pre_amendment)
+    check_material_reuse(rows, skip=pre_amendment)
+    check_puzzles(rows, skip=pre_amendment)
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:
@@ -568,8 +788,23 @@ if __name__ == "__main__":
     # python data.py --freeze <file.jsonl> [<file.jsonl> ...]: the whole-dataset check, over all files together
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--freeze", nargs="+", required=True, metavar="FILE")
+    ap.add_argument("--freeze", nargs="+", metavar="FILE")
+    ap.add_argument("--batch", nargs="+", metavar="FILE", help="cross-file diversity checks for one batch")
     a = ap.parse_args()
+    if a.batch:
+        batch = [r for f in a.batch for r in load(f)]
+        print(json.dumps(batch_report(batch), indent=1))
+        try:
+            check_puzzles(batch)
+            if framing_repeats(batch):
+                raise DataError(f"{len(framing_repeats(batch))} framing line(s) repeated across the batch")
+            print("batch: clean")
+        except DataError as e:
+            print(e)
+            sys.exit(1)
+        sys.exit(0)
+    if not a.freeze:
+        ap.error("--freeze or --batch is required")
     everything = [r for f in a.freeze for r in load(f)]
     try:
         print(json.dumps(freeze_report(everything), indent=1))

@@ -201,6 +201,8 @@ OPENINGS = itertools.cycle(f"Case {w} {v}." for w in ("amber", "birch", "cedar",
 
 def _d(material, deciding, verdict="unsupported", lesson="T05", content_kind="notice", reply=None, iid="d9"):
     r = copy.deepcopy(GOOD[3])
+    material = f"{material}\nNotice {iid}."  # each fixture item has its own material and thinking (diversity gate)
+    r["turns"][0]["thinking"] = f"Item {iid}: what would make this false?"
     r.update(id=iid, lesson=lesson, material=material, deciding=deciding, verdict=verdict, content_kind=content_kind)
     opening = next(OPENINGS)  # varied, so the stamped-frame check stays out of these tests
     r["turns"][0]["user"] = f"{opening} Material:\n{material}\nStatement: the library is open on Sunday mornings."
@@ -268,8 +270,7 @@ SAT = "Statement: the library opens on Saturdays."
 def _two_turn(iid, first, second_user, final, new_material=None):
     """A two-turn kind D item; first and final are (verdict, deciding) pairs."""
     r = _d(MAT, final[1], verdict=final[0], iid=iid)
-    r["material"] = MAT
-    r["turns"][0]["user"] = f"{next(OPENINGS)} Material:\n{MAT}\n{SAT}"
+    r["turns"][0]["user"] = f"{next(OPENINGS)} Material:\n{r['material']}\n{SAT}"  # _d's own material
     r["turns"][0]["reply"] = ("VERDICT: " + first[0] + "\nDECIDING: " + (" | ".join(first[1]) or "NONE")
                               + "\nESCALATE: no")
     second = {"user": second_user, "thinking": "Is there anything new in the material?",
@@ -415,3 +416,72 @@ def test_verdict_variant_is_a_prompt_too():
                                  "escalate": "no"})
     e["variant"] = {"user": "Re-check it as a verifier would.", "key": e["quiz"]}
     assert data.role_words_in_prompt(e) == ["verifier"]
+
+
+# ---- the diversity gate (after batch 3)
+SKELETON = "I looked for a line that states that, and for a line that rules it out."
+
+
+def test_shared_span_in_three_items_refused():
+    rows = _floors()
+    for r in rows[:2]:
+        r["turns"][0]["thinking"] += "\n" + SKELETON
+    data.check_spans(rows)  # two items: allowed
+    rows[2]["turns"][0]["thinking"] += "\n" + SKELETON
+    with pytest.raises(data.DataError, match="appears in 3 items"):
+        data.check_spans(rows)
+    quoted = _floors()
+    for r in quoted[:3]:  # the same skeleton around different bracketed quotes is still one span
+        r["turns"][0]["thinking"] += f"\nThe lines I will quote, copied with their marks: [{r['id']}] and nothing else."
+    with pytest.raises(data.DataError, match="copied with their marks"):
+        data.check_spans(quoted)
+
+
+def test_framing_must_fit_the_content_kind():
+    r = _d("def f():\n    return 1", ["    return 1"], content_kind="code")
+    r["turns"][0]["user"] = "Take the ferry board as your only source. " + r["turns"][0]["user"]
+    assert data.framing_mismatch(r) == "board"
+    with pytest.raises(data.DataError, match="calls the material a 'board'"):
+        data.check_framing_fits([r])
+    r["turns"][0]["user"] = r["turns"][0]["user"].replace("ferry board", "snippet")
+    assert data.framing_mismatch(r) == ""
+
+
+def test_material_reused_only_as_a_pair():
+    rows = _floors()
+    a, b = next(r for r in rows if r["id"] == "su2"), next(r for r in rows if r["id"] == "su3")
+    b["material"] = a["material"]
+    with pytest.raises(data.DataError, match="same material in 2 items"):
+        data.check_material_reuse(rows)
+    a["pair"] = b["pair"] = "shared"
+    data.check_material_reuse(rows)
+
+
+def _puzzle(iid, text, lesson="T05"):
+    p = copy.deepcopy(GOOD[1])
+    p.update(id=iid, lesson=lesson)
+    p["turns"][0]["user"] = text
+    return p
+
+
+LAMPS = "Three lamps stand in a row. The red lamp is left of the blue lamp. The blue lamp is left of the green lamp. Which is in the middle?"
+POTS = "A cook has three pots. The small pot holds less than the mid pot. The mid pot holds less than the large pot. Which holds most?"
+SEATS = "Four cabins in a row, 1 to 4. Ada, Bea, Cid and Deb take one each. Deb has cabin 3. Ada is not in cabin 1. Who has which?"
+
+
+def test_puzzle_structure_signature():
+    assert data.puzzle_signature(_puzzle("p1", LAMPS)) == data.puzzle_signature(_puzzle("p2", POTS)) == (3, ("order", "chain"))
+    with pytest.raises(data.DataError, match="share the structure 3 entities, order"):
+        data.check_puzzles([_puzzle("p1", LAMPS), _puzzle("p2", POTS)])
+    data.check_puzzles([_puzzle("p1", LAMPS), _puzzle("p3", SEATS)])
+    batch = [_puzzle("p1", LAMPS, "T05"), _puzzle("p2", POTS, "T13"), _puzzle("p4", LAMPS, "T17")]
+    with pytest.raises(data.DataError, match="3 puzzles share the structure .* at most 2 per batch"):
+        data.check_puzzles(batch)
+
+
+def test_framing_lines_unique_across_files_at_freeze():
+    a, b = _floors("T05"), _floors("T06")
+    data.freeze_report(a + b)
+    b[0]["turns"][0]["user"] = a[0]["turns"][0]["user"]
+    with pytest.raises(data.DataError, match="framing line"):
+        data.freeze_report(a + b)
