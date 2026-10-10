@@ -169,6 +169,36 @@ for the report). The report includes:
 
 They're for the maintainer's review.
 
+### The shape view: every trace as one silhouette
+
+**The maintainer's decision:** alongside the per-task trees, every mapped trace tree for a model (one phase or
+one arm) is rendered as an abstract fractal with no step text, all overlaid at low opacity. The overall
+silhouette then shows at a glance. The expectation is a wide, sprawling shape before training and a narrow,
+focused one after.
+
+**The rendering, derived only from the mapped tree structure.** These parameters are fixed now and
+identical for every model:
+- **Segments:** each step is a segment. The root starts at the origin, pointing up, with length 1.0. A
+  segment at depth *d* has length 0.7^*d*.
+- **Branch angle:** the children of a node with *k* explored parts fan out evenly across
+  min(120°, 30° × *k*), centred on the parent's direction. A single child continues straight on.
+- **Revisits** are drawn as a curl: a 270° arc of radius 0.15 × the current segment length.
+- **Guesses** (a check with no real quote) are drawn with the segment's end faded to 30% opacity.
+- **Pruned branches** are short stubs, at 20% of the length they would have had.
+- **Overlay:** all of a model's traces on one fixed canvas (1024 × 1024 px; x from −3 to 3, y from −0.5 to
+  4), each at opacity max(1/*N*, 0.05), in a single ink colour.
+- **The panels:**
+  - baseline against after Stage 1 (Phase A);
+  - the ROLE arm against the NO-ROLE arm (Phase B);
+  - the ideal trees' silhouette, as a reference.
+
+**Two descriptive numbers per silhouette.** These are pinned and **descriptive only, never tested**:
+- **Spread:** the convex hull of every segment endpoint, reported as hull width ÷ hull height. Also
+  reported: the angular width, the range of first-level segment angles from vertical.
+- **Fractal dimension (box counting):** the overlaid drawing is binarised (ink where alpha ≥ 0.01) at
+  1024 × 1024. Boxes of side 2, 4, 8, 16, 32, 64 and 128 px are counted where they contain any ink.
+  *D* = −slope of a least-squares fit of log(count) against log(box size).
+
 ## Outcomes and statistics (the R&D session's plan)
 
 - **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
