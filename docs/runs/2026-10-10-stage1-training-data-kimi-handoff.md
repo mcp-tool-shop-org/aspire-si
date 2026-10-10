@@ -7,7 +7,7 @@ by Kimi. Docs and data only. Nothing in this task touches the GPU, the NPU or an
 
 The studio is teaching an 8B model (Qwen3-8B) the **role of a verifier**: someone who checks whether
 written material really backs up a statement, and says so honestly, exactly and without being pushed
-around. the maintainer's method is role first: the model is trained on the *qualities* of a good verifier, and on a
+around. The maintainer's method is role first: the model is trained on the *qualities* of a good verifier, and on a
 way of thinking, before it's trained on any domain knowledge. Your job is to write the **worked teaching
 examples** that Stage 1 trains on.
 
@@ -56,7 +56,7 @@ escalate, sources[], invented, key_basis`.
 - `tier` is the number of thinking steps, under the pinned min_steps rule in the eval plan.
 - `key_basis` says how the answer is known: by construction, or from the source's own words.
 
-## 3. The rules (all binding; The maintainer has rejected work that broke them)
+## 3. The rules (all binding; the maintainer has rejected work that broke them)
 
 1. **Instant agreement.** Every key must be one any careful reader agrees with at once. If a reader would
    hesitate or argue, cut the item. Never ask anyone to rule on wording. No hedge-versus-universal items
@@ -84,13 +84,23 @@ escalate, sources[], invented, key_basis`.
    - Everyday material (a notice, a label, a timetable) may be written by you, as the lessons do, and is
      marked `invented: true`. Pressure turns and injection traps are always invented and tagged.
 8. **Stay clear of the test sets.** Leakage would ruin the experiment. Don't draw material from:
-   - **the sealed set's repos:** portlight, ai-eyes-mcp, prompt-craft, vocal-synth-engine, backpropagate,
-     ai-rpg-engine, plus any others ASPIRE names. The final list is in `stage1-training-data-schema.md`;
-   - **the DEV/pilot repos:** offrig, aspire-si, stillpoint, research-os, runforge, loadout-os;
-   - **the gold sets' sources:** role-os, plus the offrig, aspire-si and rnd material already excluded above.
+   - **the sealed set's repos (final list):** portlight, ai-eyes-mcp, backpropagate, ai-rpg-engine,
+     vocal-synth-engine, prompt-craft, and offrig (all of it);
+   - **the DEV/pilot repos (all 30 pilot tasks):** offrig, aspire-si, stillpoint, research-os, runforge,
+     loadout-os;
+   - **the gold sets' sources:** role-os, offrig, aspire-si and **rnd**. That includes rnd's math ladder.
+     Write no arithmetic or small-function items in the ladder's style;
+   - **the public anchors:** LLM-AggreFact, VitaminC and HoVer, including the Wikipedia claims they're built
+     from;
+   - **Stage 2's domain sources,** once they're named. Until then, ask before using any source that might
+     become domain data.
+
+   **Licence text:** quote no MIT licence text. The pilot's licence tasks use it. For licence examples, use
+   another permissive licence (Apache-2.0, BSD) or invented terms.
 
    Never copy or paraphrase any item from the pilot, the pre-interview questions or the lesson files'
-   tests. R&D's `leakage_check.py` (rnd `experiments/verifier-gold/`) runs on everything you deliver.
+   tests. R&D runs `leakage_check.py` (rnd 7b77c79) locally on every batch. It fails anything with the same
+   claim, Jaccard ≥ 0.8, or 2+ shared material lines against the held-out sets, and warns from Jaccard 0.5.
 9. **No identity leaks.** No local file paths, usernames, email addresses or personal names from
    repositories (skip copyright lines and author emails). Run the identity scan on your branch before
    pushing: `python $env:USERPROFILE\.grok\bin\identity-scan.py <dir>` on a `git archive` of the branch,
@@ -122,7 +132,7 @@ escalate, sources[], invented, key_basis`.
 - **R&D** (Research and Development session): key checks, leakage check, statistics.
 - **The Publisher:** coordinator. Reads samples of every batch, grants all GPU time (none needed here),
   merges.
-- **The maintainer:** final say. He reads a sample of each stage. His standing direction: the role is taught, not
+- **The maintainer:** final say. They read a sample of each stage. Their standing direction: the role is taught, not
   tested; material must not be garbage; stay on the traits, not word-level label debates.
 
 ## 6. Done means

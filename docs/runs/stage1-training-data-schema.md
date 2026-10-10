@@ -54,10 +54,15 @@ and refuses the whole file on any error, naming the line and the field.
 
 Don't draw material from any of these repositories (any file, any commit):
 - **Sealed set (frozen with the 130):** portlight, ai-eyes-mcp, prompt-craft, vocal-synth-engine,
-  backpropagate, ai-rpg-engine, offrig.
+  backpropagate, ai-rpg-engine, and all of offrig.
 - **DEV/pilot:** offrig, aspire-si, stillpoint, research-os, runforge, loadout-os.
-- **Gold sets:** role-os, rnd, and the offrig and aspire-si material already listed.
+- **Gold sets:** role-os, offrig, aspire-si and rnd, including rnd's math ladder (no arithmetic or
+  small-function items in its style).
+- **Public anchors:** LLM-AggreFact, VitaminC and HoVer, and the Wikipedia claims they're built from.
+- **Stage 2's domain sources,** once named.
+- **No MIT licence text** (the pilot's licence tasks use it). Use Apache-2.0, BSD or invented terms.
 
-R&D's `leakage_check.py` runs on every delivery. The trainer also rejects any example whose statement is
-within a 5-gram Jaccard of 0.8 of a sealed, pilot or pre-interview item, or that shares 3 or more material
-lines with one.
+R&D runs `leakage_check.py` (rnd 7b77c79) on every batch. It fails the same claim, a 5-gram Jaccard of 0.8 or
+more, or 2 or more shared material lines against the held-out sets, and warns from a Jaccard of 0.5. The
+trainer applies the same thresholds against the sealed set, the pilot and the pre-interview, and refuses an
+example that fails them.
