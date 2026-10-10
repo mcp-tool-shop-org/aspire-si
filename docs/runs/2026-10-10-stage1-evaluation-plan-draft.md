@@ -593,6 +593,37 @@ against after (the same resampling as Phase A). It shows the size of the change 
 would be warranted only if a later decision rests on "training made thinking cheaper". That claim would need
 its own amendment written before the data it's tested on.
 
+## Hedge phrases (a recorded measure at every sitting; amendment 2026-10-10)
+
+**The maintainer's decision:** hedge phrases are among the most valuable data points. They're recorded
+everywhere, whether or not they trigger "stuck". Separately, the R&D ruling adopted them as a trigger, inside
+(C) of the frozen stuck rule (long AND (re-read rate > 8.09 OR hedge rate > 8.32)).
+
+**The phrase list** is the one fixed in `stage1-stuck-rule.json` (its sha256 is pinned in the run note) and
+never changes between rounds or sittings, so counts compare across them. The same exclusions apply
+everywhere:
+- sentences opening "If …, then I …";
+- a planned-step "check";
+- material lines, by the lenient quote matching.
+
+**Recorded per trace** (training observations, receipts, and every eval sitting's outputs):
+- the count per phrase, and the total rate per 1,000 thinking tokens;
+- the positions of the first and last hedge, as fractions of the trace's thinking tokens;
+- **end clustering:** the share of the trace's hedges that fall in its final 30% of thinking tokens. This is
+  reported only when the trace has 2 or more hedges, and is null otherwise.
+
+**Where it goes:**
+- **Training-time observations** (quiz ledger and rehearsals) go to the store, as already ruled.
+- **DEV, sealed and pre-interview sittings** stay in their own output files and **never** reach the store.
+  The firewall is unchanged.
+
+**How it's reported:** descriptive only, with no test, beside thinking tokens.
+- per sitting and arm, the hedge rate's median, p90 and p95, the share of traces with any hedge, and the
+  top phrases;
+- before against after (Phase A), and ROLE against NO-ROLE (Phase B), as a task-level paired bootstrap
+  interval of the per-task mean rate, the same resampling as thinking tokens;
+- end clustering, as the mean share over traces with 2 or more hedges.
+
 ## What's reported
 
 Each number is reported **separately**, per phase and per arm, by seed and as a mean with its interval:
@@ -604,6 +635,8 @@ Each number is reported **separately**, per phase and per arm, by seed and as a 
   shares.
 - time and thinking cost: seconds and tokens per task, by tier, category and right against wrong; accuracy
   per minute per sitting; and training time per round.
+- hedge phrases: the rate, the share of traces with any, the top phrases and end clustering, per sitting and
+  arm, with paired intervals.
 
 - **time, as its own measure** (the maintainer's request, 2026-10-10):
   - **per task:** wall-clock seconds and new tokens (thinking plus answer), with the median and spread per
