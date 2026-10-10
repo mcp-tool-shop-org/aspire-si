@@ -191,8 +191,10 @@ reported overall and per lesson × kind, and steps stay matched.
 
 ## The stuck rule and thresholds (frozen before round 1)
 
-`stage1-stuck-rule.json`, sha256 `4dbcd12ef2ffcefec83c43988f86ddeb02972a6d85f37c96696f271396b69993`. The p95
-thinking tokens per tier come from the untrained pilot-30 baseline only (tiers 3–4: 572, tiers 5–6: 453, others
-pooled: 575). An answer is stuck when its thinking exceeds max(the tier's p95, 2 × the item's own target thinking
-tokens), an 8-word span repeats 3 or more times in its trace, or it reaches the 16,384-token cap. The rule is
-passive and applies to training-time questions only. Changing it needs a dated amendment.
+`stage1-stuck-rule.json`, sha256 `63928fea9c7ad264acda27d911ea8cf1c1285704c81babe1c95c85b86e432918`, with its code `stage1-train/stuck.py`, sha256 `f9046b85537ac1ae858fcc9a8eaed35385f34025637720f8db6ee5a190fb48b8`. This supersedes
+`4dbcd12e…`, which still triggered on length alone. An answer is stuck when an 8-word span recurs 3 or more times in
+its trace, it reaches the 16,384-token cap, or it is long (thinking above max(the tier's p95, 2 × the item's target))
+and re-reads material lines more than 8.09 times per 1,000 thinking tokens. The tier p95s (tiers 3–4: 572, 5–6: 453,
+others pooled: 575) and the re-read baseline come from the untrained pilot-30 traces only. A "no new quote in the final
+30%" branch was dropped before freezing (true for 98/102 untrained traces and 48/48 ROLE D targets). Passive; training-time
+questions only. Changing it needs a dated amendment.

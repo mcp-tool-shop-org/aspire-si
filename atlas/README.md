@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-10 from commit 63792e8 by Atlas 1.24.0.
+Mapped at 2026-10-10 from commit 2e399d0 by Atlas 1.24.0.
 
 ## What this is
 
@@ -8,14 +8,9 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (201 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-07 (5c5346d)
+## What changed since 2026-10-10 (63792e8)
 
-- docs/runs/stage1-training-data/ is now written by docs/runs/stage1-training-data/_fix_batch2.py, docs/runs/stage1-training-data/_fix_batch2_r2.py, docs/runs/stage1-training-data/_fix_batch2_r3.py, docs/runs/stage1-training-data/_fix_batch2_r4.py, docs/runs/stage1-training-data/_fix_batch2_r5.py, docs/runs/stage1-training-data/_fix_batch2_r6.py and docs/runs/stage1-training-data/_fix_batch2_r7.py.
-- docs/runs/stage1-training-data/pilot-t04.jsonl is now written by docs/runs/stage1-training-data/_fix_pilot_sources.py, docs/runs/stage1-training-data/_pilot_fixes.py and docs/runs/stage1-training-data/_pilot_fixes_r2.py.
-- CHANGELOG.md is now read by docs/runs/stage1-training-data/_build_t16.py.
-- And 19 more new writers and readers of places.
-- docs was authored and is now mixed.
-- 114 files added and 16 changed content, across 5 parts.
+Nothing structural changed since 2026-10-10; 1 file added and 3 changed content.
 
 ## What comes in
 

@@ -1880,11 +1880,11 @@
           "path": "docs/runs/2026-10-08-step-3-plan.md"
         },
         {
-          "hash": "1772718ec6260c222b326cf76103534e1871694ec952fd05383de923764b9555",
+          "hash": "4596d28de39cb2103172bfea1cf6d95cf8ea98b08174e2d2b8198cb613fab810",
           "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
         },
         {
-          "hash": "d188fc6901e3c21a55837cc6db414aada2a77d1afc8306eab09554fdc1aabe32",
+          "hash": "28eeb8fd0e7767dd6a499d2e342083dff37e8acb1d68dfe21b1ef6d5a5ed0433",
           "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
         },
         {
@@ -2157,6 +2157,10 @@
             "docs/runs/stage1-eval/score_v2.py"
           ],
           "path": "docs/runs/stage1-eval/test_score_v2.py"
+        },
+        {
+          "hash": "63928fea9c7ad264acda27d911ea8cf1c1285704c81babe1c95c85b86e432918",
+          "path": "docs/runs/stage1-stuck-rule.json"
         },
         {
           "hash": "efffbfdb5458a9f083e5aaab04fefb19cb4f84f62a8cfe5e90fbbde85e79e96a",
@@ -4679,7 +4683,7 @@
       "externals": 0,
       "files": [
         {
-          "hash": "f02465a66dd46fe00203ec6b66dea5abbd7f0c582d14aa839f7455a426a48b8e",
+          "hash": "32c9bd0b6b3c4653ce99fb42d3e75d574d7e5ed12f63dac6e585ec07250a73ac",
           "path": ".gitattributes"
         },
         {
@@ -6616,8 +6620,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "63792e8b6bcd2081676528833edf7e4d214caca1",
-    "tracked": 325
+    "commit": "2e399d0c6fbe78666fd8f38d6903a4d7b13c631f",
+    "tracked": 326
   },
   "landings": [
     {

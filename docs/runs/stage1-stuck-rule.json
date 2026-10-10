@@ -1,8 +1,20 @@
 {
- "name": "Stage 1 stuck rule (frozen before round 1; eval plan amendment a7b336b, R&D ruling 2026-10-10)",
- "thresholds_source": "untrained pilot-30 baseline, seeds 0-2 (no sealed data)",
- "measure": "thinking tokens (the student's tokenizer), p95 by linear interpolation; seeds 0-2",
- "p95_by_tier": {
+ "name": "Stage 1 stuck rule (frozen before round 1; eval plan amendment a7b336b and R&D's final ruling, 2026-10-10)",
+ "rule": [
+  "An answer is stuck when any of these holds:",
+  "(A) the same 8-word span appears 3 or more times in the thinking trace;",
+  "(B) the generation reaches the 16,384-token cap;",
+  "(C) the thinking is long AND its re-read rate is above the baseline: long = thinking tokens > max(the tier's p95 below, 2 x the item's own target thinking tokens in its arm); re-read rate = re-reads per 1,000 thinking tokens; baseline below.",
+  "Length over the p95 and over 2x the target are recorded on every observation, never triggers on their own.",
+  "Detection is passive (it reads a finished answer) and applies to training-time questions only (the quiz ledger and rehearsals), never to DEV, sealed or pre-interview sittings."
+ ],
+ "definitions": {
+  "quote": "a material line is quoted where any 5 consecutive words of it appear in the trace (the whole line if shorter, at least 3 words), after lenient normalising (case folded; **, __, backticks and straight/curly quotes removed; punctuation dropped); a 5-word window shared by two or more material lines is not counted; hits on one line within 5 words of each other are one quote",
+  "re-read": "a quote of a material line already quoted earlier in the same trace",
+  "material": "the item's material plus the new_material brought by earlier turns",
+  "code": "docs/runs/stage1-train/stuck.py"
+ },
+ "p95_thinking_tokens_by_tier": {
   "1": 575,
   "2": 575,
   "3": 572,
@@ -11,12 +23,12 @@
   "6": 453,
   "7+": 575
  },
- "pooling": {
-  "3": "with 4 (n 9 < 20); pooled n 63",
-  "6": "with 5 (n 3 < 20); pooled n 39",
-  "1, 2, 7+": "pooled p95 of all tiers (not covered by DEV); n 102"
+ "p95_pooling": {
+  "3": "with 4 (n 9 < 20), pooled n 63",
+  "6": "with 5 (n 3 < 20), pooled n 39",
+  "1, 2, 7+": "all tiers pooled (not covered by DEV), n 102"
  },
- "raw_p95_by_tier": {
+ "p95_raw_by_tier": {
   "3": [
    327,
    9
@@ -34,12 +46,24 @@
    3
   ]
  },
- "rule": [
-  "An answer is stuck when any of these holds:",
-  "(a) thinking tokens > max(the tier's p95 above, 2 x the item's own target thinking tokens in its arm);",
-  "(b) the same 8-word span appears 3 or more times in the thinking trace;",
-  "(c) the generation reaches the 16,384-token cap.",
-  "Detection is passive: it never interrupts an answer. A stuck answer's trace is kept; others are not.",
-  "Applies to training-time questions only (the quiz ledger and rehearsals); never to DEV, sealed or pre-interview sittings."
- ]
+ "reread_rate_p95": 8.09,
+ "reread_baseline_provenance": {
+  "source": "untrained pilot-30 baseline traces, seeds 0-2 (no sealed data)",
+  "turns": 102,
+  "p50": 0.0,
+  "p75": 4.2,
+  "p90": 6.89,
+  "p95": 8.09,
+  "max": 10.79,
+  "tokens": "the student's tokenizer"
+ },
+ "dropped_before_freezing": {
+  "branch": "not progressing = no new material line first quoted in the final 30% of the trace",
+  "why": "it held for almost every trace, so (C) would have collapsed to 'long'",
+  "measured": {
+   "untrained_pilot_turns": "98/102",
+   "role_D_targets_batch2_batch3": "48/48"
+  }
+ },
+ "supersedes": "4dbcd12ef2ffcefec83c43988f86ddeb02972a6d85f37c96696f271396b69993 (length over max(p95, 2x target) as a trigger on its own)"
 }
