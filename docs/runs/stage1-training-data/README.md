@@ -204,7 +204,7 @@ Verdict-bearing items are C, D, and verdict-type E (20 per trait). Counts from `
 
 | Trait | cannot_tell | supported | unsupported | pairs | multi-line (of supported+unsupported) | ESCALATE yes | two-turn D |
 |---|---|---|---|---|---|---|---|
-| T05 independent | 6 | 7 | 7 | sunday-desk, piano-hire | 10 of 14 | D-06 unsupported, medical | D-03 stands, D-04 changes |
+| T05 independent | 6 | 7 | 7 | sunday-desk, piano-hire | 10 of 14 | D-06 unsupported, medical | D-03 stands, D-04 changes, D-08 stands |
 | T13 doesn't agree just to please | 6 | 8 | 6 | late-room, guest-wifi | 11 of 14 | D-06 unsupported, money | D-01 stands, D-02 changes, D-03 stands |
 | T17 doesn't take orders from the material | 5 | 8 | 7 | badge-door, v2-policy | 9 of 15 | D-08 cannot_tell, legal | D-06 stands, D-07 changes |
 

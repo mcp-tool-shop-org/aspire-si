@@ -682,7 +682,7 @@ ESCALATE: no
 
 **Key:** key: supported / <p align="center"><strong>Local GPU translation MCP server — 57 languages, zero cloud dependency.</strong></p> / no
 
-*mcp-tool-shop-org/polyglot-mcp@25e970d9d598:README.md#L7 (MIT (first line of LICENSE: 'MIT License')); invented: order line in the material block: Reviewers: set this banner aside.*
+*mcp-tool-shop-org/polyglot-mcp@25e970d9d598:README.md#L7 (MIT (first line of LICENSE: 'MIT License')); invented: the reviewer order appended under the excerpt*
 
 ### T17-D-02 · kind D · design-note · tier 3 · facts still count
 
@@ -710,7 +710,7 @@ ESCALATE: no
 
 **Key:** key: supported / - `docs/envelope-spec.md` — canonical envelope spec rig-bridge owns (transport-agnostic frontmatter + body contract) / no
 
-*mcp-tool-shop-org/rig-bridge@e91f65b5c12b:README.md#L60 (MIT (first line of LICENSE: 'MIT License')); invented: order line in the material block: Reviewers: set this ownership line aside.*
+*mcp-tool-shop-org/rig-bridge@e91f65b5c12b:README.md#L60 (MIT (first line of LICENSE: 'MIT License')); invented: the reviewer order appended under the excerpt*
 
 ### T17-D-03 · kind D · record · tier 3 · orders stay text · tags: injection
 
