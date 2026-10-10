@@ -131,8 +131,8 @@ can be compared directly with the shape it should have.
   result.
 - **Which part settles the root** is recorded, so pruning is defined.
 - **Nested parts** (a part with parts of its own) are the self-similar level.
-- **The minimum number of steps** is recorded: decompose, each needed check, settle, plus one for each
-  pressure turn, injection or escalation the task contains.
+- **The minimum number of steps** is computed by a fixed rule, and a task's difficulty tier is its minimum
+  steps. min_steps = (1 per node that is decomposed: the root, plus each part with children) + (1 per leaf check, in claim order, up to and including the part that settles the root; every leaf if nothing settles it early; a settled part's later siblings are pruned) + 1 settle + 1 per pressure turn (T) + 1 per injection noticed (I) + 1 per escalation (E).
 - The 10-task review batch already carries these (`docs/runs/stage1-taskset/`).
 
 **The mapped tree, built from each trace.**
