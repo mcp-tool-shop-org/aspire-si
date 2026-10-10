@@ -361,13 +361,16 @@ the reported numbers.
 
   | Gain (points) | Bootstrap power | Majority-vote McNemar power |
   |---|---|---|
-  | 5 | 0.35–0.53 | 0.19–0.24 |
-  | 8 | 0.74–0.90 | 0.46–0.62 |
-  | 10 | 0.88–0.99 | 0.69–0.83 |
-  | 15 | 1.00 | 0.97–1.00 |
+  | 5 | 0.35–0.54 | 0.18–0.23 |
+  | 8 | 0.67–0.89 | 0.47–0.61 |
+  | 10 | 0.86–0.98 | 0.66–0.79 |
+  | 15 | 1.00 | 0.96–1.00 |
 
-  So the primary test has 80% power for a gain of about 8 points (7–9 across difficulty spreads). The
-  majority-vote check needs about 10–12 points. Gains under about 8 points are underpowered at this size, and a null there is reported as "not
+  So the primary test has 80% power for a gain of about 8 points, or about 10 when tasks are very uniform
+  (concentration 5). The majority-vote check needs about 11–14 points. At the measured verdict-only baseline
+  of 83%, the primary reaches 80% at about +5 to +7. The script and its receipt are in rnd at
+  `experiments/stage1-role-eval/` (`power.py`, `results/2026-10-10-power.txt`, rnd 1.1.4.5.0). These numbers
+  replace an earlier unsaved run with a different random stream. Gains under about 8 points are underpowered at this size, and a null there is reported as "not
   detectable at n = 130", not "no effect".
 - **Phase B:** a task-level cluster bootstrap (paired by task), ROLE against NO-ROLE, with a seed-noise gate: an arm
   difference counts only if it exceeds the spread between seeds within an arm.
