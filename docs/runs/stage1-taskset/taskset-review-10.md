@@ -159,12 +159,12 @@ minimum steps: 3
 | < 1.0   | No        |
 
 ````
-**Statement:** Version 0.9.2 of ASPIRE receives security fixes.
+**Statement:** Version 0.9.2 of ASPIRE is a supported version.
 **Key:** unsupported; DECIDING: | < 1.0   | No        |; ESCALATE: no
 
 **Ideal tree:**
 ```text
-ROOT  Version 0.9.2 of ASPIRE receives security fixes.
+ROOT  Version 0.9.2 of ASPIRE is a supported version.
 ├─ P1 which row covers 0.9.2: below 1.0 ← "| < 1.0   | No        |"  [→]
 └─ P2 that row says supported ← "| < 1.0   | No        |"  [✗]  → settles ROOT
 minimum steps: 3
