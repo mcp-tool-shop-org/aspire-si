@@ -423,6 +423,48 @@ training, in both arms. Each question gets 3 samples at the card settings, seeds
   held, and the share of correction tasks where it moved. Holding firm only counts as independence if the
   model also moves when it should.
 
+## Time and thinking cost (descriptive)
+
+**The maintainer's decision:** time is tracked at every sitting and every round. These measures are
+descriptive. None is tested.
+
+**Per task, per sample:**
+- wall-clock seconds;
+- thinking tokens and answer tokens.
+
+Each is reported by category, by tier, and by right against wrong. The median and the 90th percentile are
+reported, not the mean alone, because a looping trace skews a mean.
+
+**Per sitting:**
+- the totals: seconds, tokens and tasks;
+- accuracy per minute: correct tasks ÷ wall-clock minutes for the sitting.
+
+**Per training round:** wall-clock training time and steps. These give the learning curve a time axis as well
+as a rounds axis. Cumulative training hours are drawn against DEV accuracy, and the plateau rule still runs
+on rounds.
+
+**Proportion, read with the trace rubric's length line:**
+- Seconds and thinking tokens are drawn against tier, before and after.
+- The expected after-training shape is effort that rises with tier and drops on low tiers, not a uniform
+  cut. Wrong answers that are fast on high tiers are reported as their own count.
+
+**Tokens travel; seconds don't.**
+- **Thinking tokens** don't depend on the machine, so they're the number to quote when comparing models or
+  runs.
+- **Seconds** hold only within this machine's pinned environment. For each sitting, these are recorded:
+  - the GPU and driver;
+  - CUDA, torch and transformers versions;
+  - the dtype and batch size;
+  - that the GPU was exclusive (the Publisher's grant, with no other job on the card).
+
+  Any change to these breaks the time series, and it's marked on every time plot. Times are never compared
+  across machines.
+
+**The change in thinking tokens per task** is reported with a task-level paired bootstrap interval, before
+against after (the same resampling as Phase A). It shows the size of the change and is not a test. A test
+would be warranted only if a later decision rests on "training made thinking cheaper". That claim would need
+its own amendment written before the data it's tested on.
+
 ## What's reported
 
 Each number is reported **separately**, per phase and per arm, by seed and as a mean with its interval:
@@ -432,6 +474,8 @@ Each number is reported **separately**, per phase and per arm, by seed and as a 
 - each trace-rubric line;
 - each pre-interview score (Q1–11), the lesson-word echo rate, and said-versus-done consistency with its four
   shares.
+- time and thinking cost: seconds and tokens per task, by tier, category and right against wrong; accuracy
+  per minute per sitting; and training time per round.
 
 There's no single merged score.
 
