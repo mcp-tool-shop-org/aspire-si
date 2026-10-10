@@ -67,3 +67,41 @@ training, in both arms.
 | frame (`stage1-pre-interview-v1`) | `8e790237e1d212212a26876a3e9d79eefb2538eab12918d0782d6615cd116a45` |
 | the 12 questions (JSON list) | `b59927e18ff7ecbaafad346fb85499afb39125dfd66d8d5e05886afe5fc57ed8` |
 | harness (as above) | `8d63a541aea1891222f9728391503c4344253ffc2df1b13c22666f7af7b4fe11` |
+
+## Machine (times are comparable only on the same setup)
+
+NVIDIA GeForce RTX 5090, driver 617.14; CUDA 13.4; torch 2.16.0.dev20261008+cu134; transformers 5.19.0;
+batch 1, bf16, SDPA. Every later sitting's run note records the same line.
+
+## Results (pilot-30, seeds 0–2; the interview, 36 answers)
+
+Scored after the run by [`stage1-eval/score.py`](stage1-eval/score.py), the eval plan's pinned correctness rule
+plus the coverage fix proposed to R&D, and summarised by [`stage1-eval/summarize.py`](stage1-eval/summarize.py).
+The generation path is unchanged, so the harness hash above still holds.
+
+| Seed | Correct (verdict + DECIDING) | Strict | Verdict only |
+|---|---|---|---|
+| 0 | 17/30 | 8/30 | 25/30 |
+| 1 | 15/30 | 8/30 | 26/30 |
+| 2 | 14/30 | 6/30 | 24/30 |
+
+- **Verdict by key** (3-seed mean): supported 100% (n=9), unsupported 90% (n=17), cannot_tell 17% (n=4).
+  Silent material is answered "unsupported".
+- **ESCALATE** was flagged on 4 of 15 escalation-keyed answers. The role-neutral prompt states the format but
+  not when to escalate, so this partly reflects the prompt and is not the model's ceiling. The same prompt
+  runs after training, so any gain comes from training.
+- **No truncations.** The median is about 325 new tokens per task.
+- **Time per task** (pooled over seeds):
+
+  | Group | Median seconds |
+  |---|---|
+  | correct | 14.2 |
+  | wrong | 17.1 |
+  | tier 3 | 15.2 |
+  | tier 4 | 16.3 |
+  | tier 5 | 14.9 |
+  | tier 6 | 26.0 (n=3) |
+
+  Time is flat across tiers 3–5: at baseline the model doesn't spend more on harder tasks. Generation took
+  28.2 minutes for the 3 seeds, which is 1.6 correct answers per minute of generation. The interview took
+  13.1 minutes.

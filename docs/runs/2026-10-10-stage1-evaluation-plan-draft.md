@@ -477,6 +477,16 @@ Each number is reported **separately**, per phase and per arm, by seed and as a 
 - time and thinking cost: seconds and tokens per task, by tier, category and right against wrong; accuracy
   per minute per sitting; and training time per round.
 
+- **time, as its own measure** (the maintainer's request, 2026-10-10):
+  - **per task:** wall-clock seconds and new tokens (thinking plus answer), with the median and spread per
+    category, per tier, and for correct against wrong answers. Seconds against tier is the proportion trait
+    in time units: quick on the easy, careful on the hard;
+  - **per sitting:** total generation time, and correct answers per minute of generation (descriptive);
+  - **per training round:** wall-clock time, GPU-minutes, examples per minute and cumulative training time,
+    so the learning curve can be plotted against time as well as rounds;
+  - **the machine:** the GPU, driver, CUDA, torch and transformers versions go in every run note, since
+    times are only comparable on the same setup.
+
 There's no single merged score.
 
 ## Before anything runs
