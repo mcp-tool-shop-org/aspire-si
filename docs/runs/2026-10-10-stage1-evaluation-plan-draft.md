@@ -214,6 +214,42 @@ wide-to-narrow picture, so the view is built to show small shifts without overst
   never changed after seeing a trace; any change needs an amendment written before the data is looked at
   again.
 
+### The mapped-tree record and the interactive viewer
+
+**The maintainer's decision:** the shape view is interactive. Clicking a branch gives more data on that area.
+The Publisher builds the page once mapped trees exist. The mapper writes this record from day one, so the
+viewer has everything it shows.
+
+**Per step: `mapped-steps.jsonl`, one line per step.**
+
+| Field | Meaning |
+|---|---|
+| `task_id`, `category`, `tier` | from the sealed task |
+| `phase`, `arm`, `seed` | A-before / A-after, ROLE / NO-ROLE, and the seed |
+| `trace_id`, `step_id`, `parent_step_id` | the tree structure (the root step has no parent) |
+| `step_type` | decompose, check, settle, revisit, guess or prune |
+| `part_id` | the claim part it addresses, by the task's ideal-tree part id, or none |
+| `quoted_span` | the span the step quotes, verbatim, or none |
+| `matched_line` | the material line the span matched, with its index, or none |
+| `traits` | the trait(s) the step bears on, from the ideal tree's part and the step type |
+| `tokens` | the tokens spent on the step |
+| `trace_correct` | whether the trace's final verdict was right, copied onto each step for filtering |
+
+**Per trace: `mapped-traces.jsonl`, one line per trace.** `trace_id`, `task_id`, `phase`, `arm`, `seed`,
+`verdict`, `deciding`, `escalate`, `correct`, `ideal_tree_id`, total tokens, and the mapping method:
+mechanical, person or a controlled model.
+
+**The viewer's levels:**
+1. **Silhouette:** all traces, as in the shape view, with the fixed parameters above.
+2. **Region:** clicking a region of the silhouette lists the traces passing through it. They can be filtered
+   by category, trait, right or wrong, seed and arm.
+3. **Trace:** clicking a trace shows its mapped tree beside the task's ideal tree.
+4. **Step:** clicking a step shows its detail: type, part, quoted span, tokens, and the material with the
+   matched line highlighted.
+
+The viewer only reads these records. It computes no metric of its own, so what it shows always agrees with
+the reported numbers.
+
 ## Outcomes and statistics (the R&D session's plan)
 
 - **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
