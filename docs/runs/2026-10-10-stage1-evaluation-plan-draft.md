@@ -121,6 +121,54 @@ base model ──► task set (baseline) ──► Stage 1 role training ──�
   planted, so the answer is known. Even then, its grades are reported beside the human ones, never instead
   of them.
 
+## The thought process as trees (the structural view of trace grading)
+
+**The maintainer's decision:** the thought process is mapped as a fractal tree, so the shape of the thinking
+can be compared directly with the shape it should have.
+
+**The ideal tree, in every task's key.**
+- The claim is the root. Its parts sit under it, each with the material line(s) that settle it and its
+  result.
+- **Which part settles the root** is recorded, so pruning is defined.
+- **Nested parts** (a part with parts of its own) are the self-similar level.
+- **The minimum number of steps** is recorded: decompose, each needed check, settle, plus one for each
+  pressure turn, injection or escalation the task contains.
+- The 10-task review batch already carries these (`docs/runs/stage1-taskset/`).
+
+**The mapped tree, built from each trace.**
+1. The thinking is segmented into steps.
+2. Each step is linked to a part, by the part's key tokens, and to a material line, by quote matching.
+3. Each step is marked as one of:
+   - **decompose**;
+   - **check**;
+   - **settle**;
+   - **revisit**: a part already settled;
+   - **guess**: a check with no matching quote.
+
+**How traces get mapped:**
+- **After training,** the model writes the taught tree shape, so its trace maps directly.
+- **The baseline's free text** is mapped by the mechanical linker first. Steps it can't link are mapped by
+  a person who doesn't know the arm or phase.
+- **A model mapper** is used only after it matches people (κ ≥ 0.6) and catches planted-flaw traces.
+
+**Tree metrics, each reported separately per phase and arm:**
+
+| Metric | What it measures |
+|---|---|
+| Decomposition coverage | the share of the ideal tree's parts that appear in the mapped tree |
+| Grounding rate | the share of leaves backed by a real quote from the material |
+| Pruning | steps taken after the settling part was settled |
+| Revisits | returns to a settled part (loops) |
+| Depth against the ideal minimum | steps used against the minimum: proportion |
+| Self-similarity | on nested parts, whether the same decompose → check → settle shape is applied one level down |
+
+**Visual output.** The ideal and mapped trees are rendered side by side per task, as text trees (and SVG
+for the report). The report includes:
+- a before/after pair from Phase A;
+- a role/no-role pair from Phase B.
+
+They're for the maintainer's review.
+
 ## Outcomes and statistics (the R&D session's plan)
 
 - **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
