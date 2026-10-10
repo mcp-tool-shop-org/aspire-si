@@ -27,14 +27,14 @@ v2.3.0
 - Removed the legacy JSON importer.
 ```
 
-Statement: "Version 2.3.0 added PNG export, fixed the empty-file crash, and added a new JSON importer."
+Statement: "Version 2.3.0 added PNG export, fixed the empty-file crash, and kept the JSON importer."
 
 ```
-ROOT  v2.3.0: PNG export + crash fix + new JSON importer          [open]
+ROOT  v2.3.0: PNG export + crash fix + JSON importer kept         [open]
 ├─ B1 added PNG export          ← "Added export to PNG."            ✓
 ├─ B2 fixed empty-file crash    ← "Fixed a crash when saving an
 │                                  empty file."                     ✓
-└─ B3 added a JSON importer     ← "Removed the legacy JSON
+└─ B3 kept the JSON importer    ← "Removed the legacy JSON
                                    importer."                       ✗  → ROOT ✗
 ```
 
