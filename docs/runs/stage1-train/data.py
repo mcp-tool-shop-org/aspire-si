@@ -304,7 +304,7 @@ def shared_spans(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_items: int = 
 def check_spans(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
     st = shared_spans(rows, skip)
     if st:
-        (lesson, span), ids = max(st.items(), key=lambda kv: len(kv[1]))
+        (lesson, span), ids = min(st.items(), key=lambda kv: (-len(kv[1]), kv[0]))
         raise DataError(f"{lesson}: the span {span!r} appears in {len(ids)} items ({', '.join(ids[:8])}); "
                         f"{len(st)} shared 8-word span(s) in all; none may appear in 3 or more items")
 
@@ -524,7 +524,7 @@ def frequent_phrases(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_share: fl
 def check_phrases(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
     fp = frequent_phrases(rows, skip)
     if fp:
-        (lesson, ph), (n, total) = max(fp.items(), key=lambda kv: kv[1][0] / kv[1][1])
+        (lesson, ph), (n, total) = min(fp.items(), key=lambda kv: (-kv[1][0] / kv[1][1], kv[0]))
         raise DataError(f"{lesson}: the phrase {ph!r} is in {n} of {total} turns ({n / total:.0%}); at most "
                         f"{MAX_PHRASE_SHARE:.0%}; {len(fp)} over-used phrase(s) in all")
 
@@ -577,7 +577,7 @@ def formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_share: float = MA
 def check_formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
     fm = formulas(rows, skip)
     if fm:
-        (lesson, t), (n, total) = max(fm.items(), key=lambda kv: kv[1][0])
+        (lesson, t), (n, total) = min(fm.items(), key=lambda kv: (-kv[1][0], kv[0]))
         raise DataError(f"{lesson}: the sentence template {t!r} is in {n} of {total} kind B items; at most "
                         f"{MAX_FORMULA_SHARE:.0%}; {len(fm)} formula(s) in all")
 
@@ -837,7 +837,8 @@ def check_stamps(rows: list[dict], max_items: int = 2) -> None:
         text = " ".join(t["thinking"] + " " + t["reply"] for t in r["turns"])
         for sh in _shingles(text):
             seen.setdefault((r["lesson"], sh), set()).add(r["id"])
-    stamped = [(k, sorted(v)) for k, v in seen.items() if len(v) > max_items]
+    stamped = sorted(((k, sorted(v)) for k, v in seen.items() if len(v) > max_items),
+                     key=lambda kv: (-len(kv[1]), kv[0]))
     if stamped:
         (lesson, phrase), ids = stamped[0]
         raise DataError(f"{lesson}: kind B phrase repeats in {len(ids)} items ({', '.join(ids[:5])}): {phrase!r}")

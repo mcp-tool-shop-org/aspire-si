@@ -433,7 +433,7 @@ def test_shared_span_in_three_items_refused():
     quoted = _floors()
     for r in quoted[:3]:  # the same skeleton around different bracketed quotes is still one span
         r["turns"][0]["thinking"] += f"\nThe lines I will quote, copied with their marks: [{r['id']}] and nothing else."
-    with pytest.raises(data.DataError, match="quote copied with their"):
+    with pytest.raises(data.DataError, match="copied with their marks"):
         data.check_spans(quoted)
 
 
@@ -516,3 +516,19 @@ def test_formula_in_over_25_percent_of_b_items_refused():
     for i, b in enumerate(bs):
         b["turns"][0]["thinking"] = f"| seat | {i} |\nOption {['one', 'two', 'three', 'four'][i]} fails at a different clue."
     data.check_formulas(bs[:1] + [GOOD[1]])
+
+
+def test_refusal_text_does_not_depend_on_the_hash_seed():
+    """Run one refusal under three hash seeds: the example a check reports must be the same each time."""
+    import os
+    import subprocess
+    import sys as _sys
+    code = ("import copy, data, test_data as T\n"
+            "rows = T._floors()\n"
+            "for r in rows[:4]:\n"
+            "    r['turns'][0]['thinking'] += ' I looked for a line that states it and for a line that rules it out.'\n"
+            "try:\n    data.check_spans(rows)\nexcept data.DataError as e:\n    print(e)\n")
+    here = os.path.dirname(os.path.abspath(__file__))
+    outs = {subprocess.run([_sys.executable, "-c", code], cwd=here, capture_output=True, text=True,
+                           env={**os.environ, "PYTHONHASHSEED": seed}).stdout for seed in ("1", "2", "3")}
+    assert len(outs) == 1 and "appears in 4 items" in outs.pop()
