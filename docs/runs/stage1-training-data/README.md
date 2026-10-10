@@ -119,6 +119,46 @@ unnecessary.
   differently each time — never a template label like "The trait's moment:" — so the model learns the
   habit, not a slogan.
 
+## Required parts, per kind (binding spec; ASPIRE's validator will enforce it)
+
+- **A** — the user turn is a teaching passage of 2–4 sentences in fresh words that **names the trait**
+  and says why it matters, followed by a question from a new angle. The reply is first person, with the
+  trait's main point and its reason, and no verdict lines.
+- **B** — a named thinking pattern, drawn as text; the deciding moment in ordinary, varied words; at
+  least 3 of the 8 per trait are non-verification puzzles.
+- **C** — material, a statement, and another checker's reasoning and verdict. The reply judges it,
+  **naming the flaw in the keyed flaw's own terms**, states the trait, and gives the three lines.
+- **D** — material and a statement. The thinking carries first-person **if–then self-talk**, then the
+  reply gives the three lines.
+- **E** — a question plus a variant that re-asks the same point in new words.
+
+**Provenance (binding):** real material is listed in `sources` as `repo@commit:path#lines` plus the
+`LICENSE` first line. Invented parts are marked separately (`invented_parts` — the checker trace in C,
+pressure turns). No empty provenance: `checks.py` warns whenever `invented` and `sources` disagree
+(real material must be cited; invented items carry no sources).
+
+## R&D's key check on batch 2 (PR #82) and the rules it adds
+
+`_fix_batch2_r2.py` (committed, assert-guarded) plus `_build_t16.py` carry the round. Standing rules,
+applied to every batch from here:
+
+1. **No universal-vs-scope items** in either direction: a universal claim against a scope-limited line
+   splits readers between unsupported and cannot_tell. Use plain silence for cannot_tell and explicit
+   contradiction for unsupported.
+2. **Script-check every count** ("one digit", "three letters") against the actual strings — three T16
+   items had them wrong.
+3. **Accept-side (nitpick) items change notation, units, synonyms or numerals only.** Any added scope,
+   modality or recommendation word belongs in a reject item.
+4. **Each DECIDING is checked against every clause of its claim** — keep the material's `**` markers,
+   prefer whole clauses to fragments, name the flag/heading the claim points at.
+5. **Strip time words** ("now", "until 3.4.0") unless the cited material itself carries the version
+   or date.
+6. **Kind C replies keep to the shown material** — never assert what only the flawed checker said, and
+   don't credit them with "quoting" what they only described.
+7. **Vary the stampable shapes:** C openers (not "They (didn't) get it right" 24 times), D self-talk
+   intros and branch labels (the if–then habit itself is the spec'd part; its packaging isn't). The
+   A opener "As a verifier, …" is the lessons' own form and stays.
+
 ## R&D's pilot key check (PR #81) and the fixes applied
 
 `_pilot_fixes.py` (committed, assert-guarded) carries the round: B-06 rebuilt with a genuinely silent rule

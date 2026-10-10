@@ -78,6 +78,11 @@ def report(rows):
     if len(nv) < 3:
         warns.append(f"kind B has {len(nv)} non-verification items, need at least 3")
     for r in rows:
+        if r["invented"] == bool(r.get("sources")):
+            warns.append(f"{r['id']}: provenance inconsistent — invented={r['invented']} but "
+                         f"{len(r.get('sources', []))} source(s); real material must be cited and "
+                         "invented items must carry no sources (mixed provenance goes in invented_parts)")
+    for r in rows:
         p, t = estimate_tokens(r)
         if p + t > 4096 or t > 3000:
             warns.append(f"{r['id']}: size estimate over limits (prompt ~{p}, target ~{t})")
@@ -119,6 +124,8 @@ def render(rows, path):
         src = "invented (key by construction)" if r["invented"] else \
             "; ".join(f"{s['repo']}@{s['commit'][:12]}:{s['path']}#{s['lines']} ({s['licence']})"
                       for s in r["sources"])
+        if r.get("invented_parts"):
+            src += " · invented parts: " + ", ".join(r["invented_parts"])
         sec = [f"### {r['id']} · kind {r['kind']} · {r['content_kind']} · tier {r['tier']} · "
                f"{r['side']}{tags}", ""]
         for t in r["turns"]:
