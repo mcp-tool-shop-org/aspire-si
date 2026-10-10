@@ -188,3 +188,11 @@ restate their givens, and A and written E become material recall. The trainer pr
 side by side before Phase B and refuses any differing count. **Pre-registered limitation:** the NO-ROLE target
 is shorter (0.644 of ROLE target tokens on the pilot and batch 2), because it is never padded; the ratio is
 reported overall and per lesson × kind, and steps stay matched.
+
+## The stuck rule and thresholds (frozen before round 1)
+
+`stage1-stuck-rule.json`, sha256 `4dbcd12ef2ffcefec83c43988f86ddeb02972a6d85f37c96696f271396b69993`. The p95
+thinking tokens per tier come from the untrained pilot-30 baseline only (tiers 3–4: 572, tiers 5–6: 453, others
+pooled: 575). An answer is stuck when its thinking exceeds max(the tier's p95, 2 × the item's own target thinking
+tokens), an 8-word span repeats 3 or more times in its trace, or it reaches the 16,384-token cap. The rule is
+passive and applies to training-time questions only. Changing it needs a dated amendment.

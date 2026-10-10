@@ -5,3 +5,4 @@
 docs/runs/receipts/** -text
 docs/runs/stage1-eval/** -text
 docs/runs/stage1-train/** -text
+docs/runs/stage1-stuck-rule.json -text

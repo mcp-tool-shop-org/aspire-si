@@ -1,0 +1,45 @@
+{
+ "name": "Stage 1 stuck rule (frozen before round 1; eval plan amendment a7b336b, R&D ruling 2026-10-10)",
+ "thresholds_source": "untrained pilot-30 baseline, seeds 0-2 (no sealed data)",
+ "measure": "thinking tokens (the student's tokenizer), p95 by linear interpolation; seeds 0-2",
+ "p95_by_tier": {
+  "1": 575,
+  "2": 575,
+  "3": 572,
+  "4": 572,
+  "5": 453,
+  "6": 453,
+  "7+": 575
+ },
+ "pooling": {
+  "3": "with 4 (n 9 < 20); pooled n 63",
+  "6": "with 5 (n 3 < 20); pooled n 39",
+  "1, 2, 7+": "pooled p95 of all tiers (not covered by DEV); n 102"
+ },
+ "raw_p95_by_tier": {
+  "3": [
+   327,
+   9
+  ],
+  "4": [
+   617,
+   54
+  ],
+  "5": [
+   270,
+   36
+  ],
+  "6": [
+   623,
+   3
+  ]
+ },
+ "rule": [
+  "An answer is stuck when any of these holds:",
+  "(a) thinking tokens > max(the tier's p95 above, 2 x the item's own target thinking tokens in its arm);",
+  "(b) the same 8-word span appears 3 or more times in the thinking trace;",
+  "(c) the generation reaches the 16,384-token cap.",
+  "Detection is passive: it never interrupts an answer. A stuck answer's trace is kept; others are not.",
+  "Applies to training-time questions only (the quiz ledger and rehearsals); never to DEV, sealed or pre-interview sittings."
+ ]
+}
