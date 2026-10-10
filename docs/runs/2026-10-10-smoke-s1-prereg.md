@@ -5,8 +5,9 @@ draft PR #79). It tests plumbing and one capability, not a training result. The 
 to run before the maintainer picks the supervision option.
 
 **The question:** can `cross-encoder/nli-deberta-v3-base` (revision `6c749ce3…`, Apache-2.0) tell a real
-supporting quote from one that fooled a verifier? If it can, it earns a small, gated bonus in GRPO's micro
-layer. If it can't, the bonus is dropped and nothing else changes.
+supporting quote from one that fooled a verifier? S1 is its known-answer control. If it passes, it may
+select mechanical quote-check hints and feed diagnostics. It never enters the reward: the plan's rule is
+that no model-judge score is in the reward. If it fails, it isn't used, and nothing else changes.
 
 ## Data (committed, no new labels)
 
@@ -29,8 +30,8 @@ layer. If it can't, the bonus is dropped and nothing else changes.
 **The rules around it:**
 - Gold-cannot_tell fooled pairs are reported and never gated.
 - An incomplete run (a timeout or a stopped device) never passes.
-- The bonus is enabled only for check types that pass. A reasoning fail is expected, because one quoted
-  line rarely entails a conclusion about a diff.
+- NLI is used only for check types that pass. A reasoning fail is expected, because one quoted line rarely
+  entails a conclusion about a diff.
 
 ## Devices and safety
 
