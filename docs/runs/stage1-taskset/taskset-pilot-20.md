@@ -608,9 +608,9 @@ minimum steps: 4
 
 ## Task 23 · wrong version or date · tier 3
 
-`pl-3dc59b58db` · traits: version awareness, literalness
+`pl-3a513121e8` · traits: version awareness, literalness
 
-**Claim:** The RunForge app published in the Store today is version 2.
+**Claim:** According to the README, the published RunForge Store app is version 2.
 
 **Material:**
 
@@ -654,12 +654,10 @@ DECIDING: The published Store app stays the 1.0.1 classifier until a package abo
 ESCALATE: no
 ```
 
-Also sufficient: `The published Store app is still the 1.0.1 classifier build until a package above `1.0.1.0` is submitted on product `9PHL1HX0CGMF`.`
-
 **Ideal tree:**
 
 ```text
-ROOT  The RunForge app published in the Store today is version 2.
+ROOT  According to the README, the published RunForge Store app is version 2.
 └─ P1 the published Store app is version 2 (version 2 is the replacement, not yet submitted) ← "The published Store app stays the 1.0.1 classifier until a package above `1.0.1.0` is submitted."  [✗]  → settles ROOT
 minimum steps: 3
 ```
