@@ -52,7 +52,7 @@
       "confidence": "low",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 25,
+      "qualifyingSourceCommits": 26,
       "rebaseline": null
     },
     {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 14,
-        "lines": 364,
+        "commits": 15,
+        "lines": 404,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 14,
-        "lines": 1186,
+        "commits": 15,
+        "lines": 1339,
         "path": "atlas/page.json"
       },
       {
-        "commits": 14,
-        "lines": 4780,
+        "commits": 15,
+        "lines": 5623,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 14,
-        "lines": 11074,
+        "commits": 15,
+        "lines": 13866,
         "path": "atlas/structure.json"
       },
       {
@@ -749,8 +749,8 @@
         "path": "docs/runs/stage1-train/_evaldir.py"
       },
       {
-        "commits": 11,
-        "lines": 972,
+        "commits": 12,
+        "lines": 981,
         "path": "docs/runs/stage1-train/data.py"
       },
       {
@@ -764,8 +764,8 @@
         "path": "docs/runs/stage1-train/no_role.py"
       },
       {
-        "commits": 10,
-        "lines": 570,
+        "commits": 11,
+        "lines": 588,
         "path": "docs/runs/stage1-train/test_data.py"
       },
       {
@@ -1804,9 +1804,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-10T20:11:20.052Z",
+  "generatedAt": "2026-10-10T20:14:17.592Z",
   "generatedFrom": {
-    "commit": "63792e8b6bcd2081676528833edf7e4d214caca1"
+    "commit": "abddb1f7305e5e783e27f0f1eb1c71145bff4bdc"
   },
   "pairs": [
     {
@@ -2015,65 +2015,65 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 7,
-      "shared": 7,
+      "either": 8,
+      "shared": 8,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 7,
-      "shared": 7,
+      "either": 8,
+      "shared": 8,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 7,
-      "shared": 7,
+      "either": 8,
+      "shared": 8,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 7,
-      "shared": 7,
+      "either": 8,
+      "shared": 8,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 7,
-      "shared": 7,
+      "either": 8,
+      "shared": 8,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 7,
-      "shared": 7,
+      "either": 8,
+      "shared": 8,
       "strength": 1
     },
     {
       "a": "docs/runs/stage1-train/data.py",
       "b": "docs/runs/stage1-train/test_data.py",
-      "either": 11,
-      "shared": 10,
-      "strength": 0.909091
+      "either": 12,
+      "shared": 11,
+      "strength": 0.916667
     },
     {
       "a": "docs/runs/stage1-train/data.py",
       "b": "docs/runs/stage1-training-data-schema.md",
-      "either": 13,
+      "either": 14,
       "shared": 7,
-      "strength": 0.538462
+      "strength": 0.5
     },
     {
       "a": "docs/runs/stage1-train/test_data.py",
       "b": "docs/runs/stage1-training-data-schema.md",
-      "either": 12,
+      "either": 13,
       "shared": 7,
-      "strength": 0.583333
+      "strength": 0.538462
     },
     {
       "a": "examples/pod-run/real-composite-teacher.yaml",
@@ -2100,16 +2100,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-10T16:05:51-04:00",
+    "headDate": "2026-10-10T16:11:35-04:00",
     "inScopeFiles": 330,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 149,
+    "qualifyingCommits": 151,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-13T20:05:51.000Z",
+    "since": "2026-04-13T20:11:35.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",

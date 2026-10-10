@@ -2184,341 +2184,23 @@
         },
         {
           "exports": [
-            "batch_report",
-            "check_floors",
-            "check_formulas",
-            "check_frames",
-            "check_framing_fits",
-            "check_material_reuse",
-            "check_multi_line_share",
-            "check_pairs",
-            "check_phrases",
-            "check_puzzles",
-            "check_spans",
-            "check_stamps",
-            "formulas",
-            "framing_mismatch",
-            "framing_of",
-            "framing_repeats",
-            "freeze_report",
-            "frequent_phrases",
-            "leakage",
-            "load",
-            "norm",
-            "puzzle_repeats",
-            "puzzle_signature",
-            "reused_material",
-            "role_words_in_prompt",
-            "sequences",
-            "shared_spans",
-            "validate",
-            "ws"
+            "sequences"
           ],
           "failurePaths": [
             {
-              "in": "_check_quoting",
               "kind": "raise",
-              "line": 136
-            },
-            {
-              "in": "_check_quoting",
-              "kind": "raise",
-              "line": 146
-            },
-            {
-              "in": "check_multi_line_share",
-              "kind": "raise",
-              "line": 165
-            },
-            {
-              "in": "_turn_verdicts",
-              "kind": "raise",
-              "line": 187
-            },
-            {
-              "in": "check_floors",
-              "kind": "raise",
-              "line": 223
-            },
-            {
-              "in": "check_floors",
-              "kind": "raise",
-              "line": 226
-            },
-            {
-              "in": "check_floors",
-              "kind": "raise",
-              "line": 228
-            },
-            {
-              "in": "check_floors",
-              "kind": "raise",
-              "line": 231
-            },
-            {
-              "in": "check_pairs",
-              "kind": "raise",
-              "line": 244
-            },
-            {
-              "in": "check_pairs",
-              "kind": "raise",
-              "line": 247
-            },
-            {
-              "in": "check_pairs",
-              "kind": "raise",
-              "line": 252
-            },
-            {
-              "in": "check_pairs",
-              "kind": "raise",
-              "line": 258
-            },
-            {
-              "in": "check_spans",
-              "kind": "raise",
-              "line": 308
-            },
-            {
-              "in": "check_framing_fits",
-              "kind": "raise",
-              "line": 348
-            },
-            {
-              "in": "check_material_reuse",
-              "kind": "raise",
-              "line": 374
-            },
-            {
-              "in": "check_puzzles",
-              "kind": "raise",
-              "line": 437
-            },
-            {
-              "in": "check_puzzles",
-              "kind": "raise",
-              "line": 440
-            },
-            {
-              "in": "check_phrases",
-              "kind": "raise",
-              "line": 528
-            },
-            {
-              "in": "check_formulas",
-              "kind": "raise",
-              "line": 581
-            },
-            {
-              "in": "freeze_report",
-              "kind": "raise",
-              "line": 633
-            },
-            {
-              "in": "_check_keys",
-              "kind": "raise",
-              "line": 671
-            },
-            {
-              "in": "_check_keys",
-              "kind": "raise",
-              "line": 674
-            },
-            {
-              "in": "_check_keys",
-              "kind": "raise",
-              "line": 676
-            },
-            {
-              "in": "_check_keys",
-              "kind": "raise",
-              "line": 679
-            },
-            {
-              "in": "_check_keys",
-              "kind": "raise",
-              "line": 681
-            },
-            {
-              "in": "_reply_matches",
-              "kind": "raise",
-              "line": 687
-            },
-            {
-              "in": "_reply_matches",
-              "kind": "raise",
-              "line": 691
-            },
-            {
-              "in": "_reply_matches",
-              "kind": "raise",
-              "line": 694
-            },
-            {
-              "in": "_reply_matches",
-              "kind": "raise",
-              "line": 697
-            },
-            {
-              "in": "_reply_matches",
-              "kind": "raise",
-              "line": 699
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 708
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 710
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 713
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 715
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 721
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 723
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 726
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 734
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 737
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 741
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 746
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 749
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 751
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 753
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 757
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 760
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 762
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 764
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 766
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 768
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 772
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 774
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 788
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 795
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 797
-            },
-            {
-              "in": "validate",
-              "kind": "raise",
-              "line": 801
-            },
-            {
-              "in": "check_frames",
-              "kind": "raise",
-              "line": 828
-            },
-            {
-              "in": "check_stamps",
-              "kind": "raise",
-              "line": 843
-            },
-            {
-              "kind": "raise",
-              "line": 924
+              "line": 58
             },
             {
               "kind": "except",
-              "line": 926
+              "line": 60
             },
             {
               "kind": "except",
-              "line": 936
+              "line": 70
             }
           ],
-          "hash": "5da77ef5a0be5fb5b6cdd5f99355af3f151e189914f8a04a00a6ba69dcc5691b",
+          "hash": "ccf8655624b0f30882e6d812c9d5544d40f1355ea231652972d50fad4bf3ed18",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py"
           ],
@@ -2651,6 +2333,7 @@
             "test_phrase_in_over_40_percent_of_turns_refused",
             "test_prompts_are_role_neutral_outside_material_and_statement",
             "test_puzzle_structure_signature",
+            "test_refusal_text_does_not_depend_on_the_hash_seed",
             "test_shared_span_in_three_items_refused",
             "test_stamped_frames_refused",
             "test_table_row_quoted_whole",
@@ -2661,7 +2344,7 @@
             "test_version_heading_quoted_in_a_changelog",
             "test_wrapped_deciding_line_with_markup_passes"
           ],
-          "hash": "738061c72545244e85e2ba55b419052805ab1c0c45d51365f4bff81e881a4bdc",
+          "hash": "a7a3a4239ac99a90293c7b3929aa93894662e731ecca887825df919812efaa8f",
           "importsFiles": [
             "docs/runs/stage1-train/data.py"
           ],
@@ -3191,23 +2874,18 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 5,
+          "reads": 4,
           "where": [
             "caller"
           ],
           "writes": 2
         }
       ],
-      "outsideReads": 5,
+      "outsideReads": 4,
       "outsideWrites": 2,
       "role": "docs",
       "testedBy": 5,
       "unresolvedNamed": [
-        {
-          "path": "docs/runs/stage1-train/data.py",
-          "specifier": "harness",
-          "why": "unplaced"
-        },
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
           "specifier": "harness",
@@ -3217,9 +2895,14 @@
           "path": "docs/runs/stage1-train/eval_adapter.py",
           "specifier": "mapper",
           "why": "unplaced"
+        },
+        {
+          "path": "docs/runs/stage1-train/eval_adapter.py",
+          "specifier": "student",
+          "why": "unplaced"
         }
       ],
-      "unresolvedSites": 9
+      "unresolvedSites": 8
     },
     {
       "dynamicReads": 14,
@@ -4679,7 +4362,7 @@
       "externals": 0,
       "files": [
         {
-          "hash": "f02465a66dd46fe00203ec6b66dea5abbd7f0c582d14aa839f7455a426a48b8e",
+          "hash": "a8a7cf749765c871494d914b69b337f2a3367db58cd38b995f7f951675e42d5f",
           "path": ".gitattributes"
         },
         {
@@ -6616,7 +6299,7 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "63792e8b6bcd2081676528833edf7e4d214caca1",
+    "commit": "abddb1f7305e5e783e27f0f1eb1c71145bff4bdc",
     "tracked": 325
   },
   "landings": [
