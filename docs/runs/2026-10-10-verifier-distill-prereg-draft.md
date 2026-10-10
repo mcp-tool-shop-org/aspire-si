@@ -372,19 +372,29 @@ no-critic arm, and only if the local path can't fit or is too slow.
 
 - **S1, NPU only, a quiet-CPU window, about 10 minutes including health checks.**
   - **Data, already committed, no new labels:** the R&D session's tune calibration verdicts (rnd
-    `calibration/results/2026-10-09-chain`). Each line carries the claim, the model's evidence quote,
-    `quote_found` and the gold label. After deduping on claim plus quote, there are 1,213 distinct pairs with
-    a found quote:
-    - **523 positives:** gold supported, the model said supported;
-    - **166 "fooled" pairs:** gold unsupported or cannot_tell, but the model accepted with a quote that does
-      exist. These are exactly the cases a micro critic must not bless.
-  - **The run:** nli-deberta-v3-base on the NPU, batch 1, over (quote → claim) for those 689 pairs. That's
-    about 3 minutes at 0.27 s a pair.
-  - **The pass line (fixed now):**
-    - entailment on the positives ≥ 0.85;
-    - entailment on the fooled pairs with a Wilson upper bound ≤ 0.15 (it catches at least ~85% of real
-      false accepts).
-  - **If it fails:** the micro-NLI bonus is dropped. The hint path doesn't depend on it.
+    `calibration/results/2026-10-09-chain`: 6 models × 2 check types, quote rule 1, so short and
+    whole-line quotes are under-represented).
+  - **The pairing rule** (the R&D session's, replicated):
+    - take every line with `model_verdict == "supported"`, `quote_found` true and an `evidence_quote`. A
+      quote cited to *reject* a claim is never a positive;
+    - dedupe on (claim_id, whitespace-normalised quote), because six models often cite the same line;
+    - a **positive** is gold supported. A **fooled** pair is gold unsupported or cannot_tell, split by gold.
+  - **Counts, after normalisation:**
+    - positives 477 (grounded 267, reasoning 210);
+    - fooled pairs on gold **unsupported** 178 (grounded 110, reasoning 68);
+    - fooled pairs on gold **cannot_tell** 22.
+    - A first count of 523/166 deduped before filtering on the verdict, which was a bug.
+  - **The run:** nli-deberta-v3-base on the NPU, batch 1, over (quote → claim) for 677 pairs. That's about
+    3 minutes at 0.27 s a pair.
+  - **The pass line, per check type (fixed now):**
+    - entailment on positives ≥ 0.85;
+    - entailment on gold-**unsupported** fooled pairs with a Wilson upper bound ≤ 0.15.
+  - **Gold-cannot_tell fooled pairs** are reported and never gated: a true but insufficient line can fairly
+    read as neutral or entailment.
+  - **The micro-NLI bonus is enabled only for check types that pass.** Reasoning claims are conclusions
+    about a diff that one quoted line rarely entails, so a reasoning fail is expected. The bonus would then
+    be grounded-only.
+  - **If both check types fail:** the bonus is dropped. The hint path doesn't depend on it.
   - **Reported** by check type and difficulty tier.
 - **S2, the 5090 only, ~45 min:**
   - a 20-step GRPO on 32 tune prompts, each rollout path, G = 8;
