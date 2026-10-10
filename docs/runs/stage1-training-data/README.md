@@ -132,10 +132,19 @@ unnecessary.
   reply gives the three lines.
 - **E** — a question plus a variant that re-asks the same point in new words.
 
-**Provenance (binding):** real material is listed in `sources` as `repo@commit:path#lines` plus the
-`LICENSE` first line. Invented parts are marked separately (`invented_parts` — the checker trace in C,
-pressure turns). No empty provenance: `checks.py` warns whenever `invented` and `sources` disagree
-(real material must be cited; invented items carry no sources).
+**Provenance (binding, enforced by the landed validator):** `sources` is non-empty on every item.
+Real material is cited `repo@commit:path#lines` with the `LICENSE` first line; invented parts are
+marked in the same list as `{"invented": "<what>"}` — the checker trace in C, or the whole scenario
+for invented items. Top-level `invented` is true exactly when the item's material is invented.
+`checks.py` warns whenever those disagree, and `_verify_sources.py` proves every real citation
+byte-exact (whitespace-collapsed, markup kept, per the landed rule) at the pinned commit.
+
+**The landed drift checks this directory now passes** (`data.py` at 25ce64f+27d1318): kind A's
+teaching passage names the trait and the reply opens first person; kind B draws its pattern;
+DECIDING lines are verbatim with `**` kept; E variants share a key point with their original; no
+undated time words in C/D/E statements; no opening frame or B-phrase stamped across >2 items of a
+trait. `_audit_drift.py` (committed) replicates all of them batch-wide so failures are listed
+together, not one validator exception at a time.
 
 ## R&D's key check on batch 2 (PR #82) and the rules it adds
 
