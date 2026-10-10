@@ -264,23 +264,136 @@ once.
   at equal or lower thinking cost, on all three seeds.
 - Packaging is checked by the quant-drift test before any scoring.
 
-## Seeds and compute (estimates, measured in the smoke gate)
+## Seeds, SFT and trace generation
 
 **Seeds:** 3 for any claim, which is the standing rule. A one-seed pilot is labelled a pilot, never a
 result.
 
 - **SFT (5090):** an 8B bf16 LoRA with gradient checkpointing. Peak memory is measured in the smoke gate,
   under the watchdog line. About 0.5–1 h per seed.
-- **Option A trace generation (5090):** 458 tune claims × 8 samples × ~1.5k tokens ≈ 5.5M tokens. On
-  llama.cpp or Ollama, that's about 2–4 h.
-- **GRPO:** about 1,000 prompts × 8 samples × ~1.5k tokens ≈ 12M generated tokens per epoch.
-  - **On a rented RTX PRO 6000 at ~$2.09/h:** about 3 h per epoch, so 2 epochs × 3 seeds ≈ 18 h ≈ **$38**.
-    That's above the RunPod balance last reported (about $36.79).
-  - **On the 5090 overnight:** free, but 2–3× slower, and the memory fit is unproven.
-  - **So:** GRPO is a one-seed pilot first, then the 3-seed run on whichever path the pilot's measured
-    numbers support. That's for the Publisher and the maintainer to decide.
+- **Option A trace generation (5090):** about 395 tune claims (493, less the dev split) × 8 samples × ~1.5k
+  tokens ≈ 4.7M tokens. On llama.cpp or Ollama, that's about 2–4 h.
 - **Option B adds** teacher calibration and trace generation. That cost depends on the candidate: local is
   free; offrig is priced by `offrig_plan`.
+
+## Compute: local first, with an NPU critic (preferred); the pod as fallback
+
+**The maintainer's direction:** train locally, with an NPU model supervising. His thesis is that well-timed
+critique and assistance matter more than the supervisor's knowledge, provided it has tools and a database to
+refer to. This plan makes that the preferred path, keeps a rented pod as the fallback, and **tests the thesis
+with an ablation**.
+
+### The division of labour
+
+- **The 5090 trains:** QLoRA GRPO on the 8B student, with local rollouts, in the CUDA 13.4 env.
+- **The NPU critics:** dense, well-timed signals and hints.
+- **The correctness reward stays mechanical:** gold labels plus offrig's quote rule. **The critic never
+  decides correctness,** and nothing it says can turn a wrong claim verdict into a positive reward. The
+  gated combination and its invariants above still hold.
+
+### What the NPU critic does
+
+1. **Micro-level entailment: a capped bonus inside the gate.**
+   - **The model:** nli-deberta-v3-base on the NPU, batch 1 (about 0.27 s per pair, measured parity-clean).
+   - **The check:** whether each quoted span entails the part it's cited for.
+   - **The reward:** +0.05 per entailing quote, **only on a correct claim verdict**, and inside the
+     existing +0.3 extras cap. It's never a penalty, and never on the outcome.
+   - **Why only that:** switchyard's rows show this model is a weak *claim* judge on our gold (FA 0.19–0.22
+     grounded, balanced accuracy ~0.72). A short quote against one part is a more literal task, but it's
+     **unmeasured**. So smoke test S1 measures it first, and the bonus is used only if S1 passes.
+   - **Monitored:** its agreement with the quote rule. A quote the rule rejects but NLI "entails" is logged.
+2. **Hints on failure: tool hints in GRPO, gold hints only in SFT.**
+   - **Tool hints in GRPO.** When a rollout group is all wrong, the critic runs offrig's quote check and
+     retrieval over the claim's evidence and inserts **a tool-derived hint for one retry**. For example:
+     "the quote for part 2 is not in the evidence"; "these lines decide the claim". It **never** includes
+     the gold label.
+     - The retry is still scored on gold.
+     - Hinted samples change the conditioning, so by default they're **logged and scored but excluded from
+       the gradient**. Training on them is a separate pre-registered arm, guided-GRPO style.
+   - **Gold hints in SFT (STaR rationalisation).** Zelikman et al. 2022, *STaR*, arXiv:2203.14465:
+     - when a gold-label hint produces a correct trace, that trace goes to the **SFT** set for option A;
+     - it's marked as rationalised, and its share is reported.
+3. **A small LLM coach on the NPU, only if switchyard's E3 measures usable NPU decode speed.** It isn't
+   assumed. Without E3's receipt, there's no coach.
+
+### NPU safety (from the R&D session's and Kimi's incidents)
+
+- **Batch 1 only.** Batches above 1 have hung the NPU: nomic at 8×1024, 3/3; DeBERTa at 8×512.
+- **A health check before and after** every critic session.
+- **A timeout on every call,** using Kimi's probe-timeout work.
+- **A hang or timeout drops that step's critic signal.** The component scores 0 and is logged; it **never
+  stalls the trainer**. The critic runs asynchronously from the training loop, and a missed deadline means
+  no signal, not a wait.
+- **The critic-signal drop rate** is reported per run. Above 20%, the critic arm's result is reported as
+  "critic unreliable" and not read.
+
+### Devices and grants
+
+- **One grant covers everything:** the 5090 and the NPU together, with the CPU kept quiet enough for the
+  NPU, granted once by the Publisher. These are long windows, typically overnight.
+- **switchyard:** the plan is to dogfood its harness and guards for device allocation where they support a
+  two-device run. If they don't yet, that's a switchyard gap, filed with the R&D session, not worked around.
+
+### Memory on 32 GB, estimated honestly and measured in smoke test S2
+
+| Piece | Estimate |
+|---|---|
+| Qwen3-8B in 4-bit (QLoRA base) | ~5.5–6 GB |
+| LoRA weights, gradients, optimiser (r = 16 on q/k/v/o) | < 1 GB |
+| Training activations, G = 8 × (prompt ≤ 1.5k + completion ≤ 2k) with gradient checkpointing | ~6–10 GB |
+| Rollout KV cache, 8 sequences × 3.5k tokens | ~4–5 GB |
+| CUDA context and fragmentation | ~2–3 GB |
+| **Total** | **~19–25 GB, under the 31.2 GB watchdog line, if one model copy serves both training and rollouts** |
+
+**The risks, measured rather than assumed:**
+- **vLLM, the usual fast rollout engine, isn't native on Windows.** On this rig, the rollouts are either:
+  - Hugging Face `generate` on the 4-bit model (slow), or
+  - a separate llama.cpp server (CUDA 13.4, already built) with the adapter reloaded each step: a second
+    model copy (~5 GB at Q4) and adapter conversion time.
+
+  S2 measures both, and picks the faster path that fits.
+- **The levers if it doesn't fit:** G (8 → 6 → 4), the completion cap (2k → 1.5k), and prompts per step.
+  Each change is an amendment, made before the run.
+
+### Wall-clock and cost
+
+**The measure:** about 500 GRPO prompts × G = 8 × ~800 completion tokens (the budgets keep easy claims
+short) ≈ 3.2M generated tokens per epoch.
+
+| Path | Throughput (assumed until S2) | Per epoch | 2 epochs × 3 seeds × 2 arms (critic ablation) | Spend |
+|---|---|---|---|---|
+| **Local 5090 + NPU (preferred)** | ~300–500 tok/s aggregate rollouts | ~2–3 h rollouts + ~1 h training | **~36–48 h of card**, spread over overnight windows | **$0 pod spend**; more wall-clock and card time |
+| **Pod fallback** (1× RTX PRO 6000, vLLM) | ~1.5k tok/s | ~1 h | ~12 h | **~$25–30** at ~$2.09/h, plus the NPU arm can't run there (the critic is local) |
+
+Because the critic is on the local NPU, **the critic ablation only runs locally.** The pod fallback covers the
+no-critic arm, and only if the local path can't fit or is too slow.
+
+### Smoke tests, each with its own grant, in this order
+
+- **S1, NPU only, a quiet-CPU window, ~30 min.**
+  - **What runs:** nli-deberta on the NPU at batch 1, over quote–part pairs built from the tune gold, using
+    the 142 derivable conjunctive claims and their gold quotes.
+  - **The pass line (fixed now):** entailment agreement with the quote rule and part gold of ≥ 0.85, and an
+    FA on parts (entails a part whose gold is unsupported) with a Wilson upper bound ≤ 0.15.
+  - **If it fails:** the micro-NLI bonus is dropped. The hint path doesn't depend on it.
+- **S2, the 5090 only, ~45 min:**
+  - a 20-step GRPO on 32 tune prompts, each rollout path, G = 8;
+  - peak VRAM, tokens per second, step time;
+  - no OOM, and under the watchdog line.
+- **S3, the 5090 + NPU, one combined grant, ~1 h.**
+  - **What runs:** S2's run with the async critic attached.
+  - **Faults injected:** an NPU timeout and a missed deadline, to prove the trainer never stalls. The
+    trainer's step time with the critic must be within 10% of S2's.
+- **S4 (the pilot):** one seed, both arms, a few hundred steps. It's labelled a pilot, never a result.
+  Then the 3-seed run.
+
+### The critic ablation (the thesis test, fixed now)
+
+Two arms run from the same SFT checkpoint with the same seeds (42–44): **mechanical reward only**, and
+**mechanical reward + NPU critic** (micro-NLI bonus if S1 passed, plus tool hints).
+
+**"Well-timed critique helps"** means the critic arm reaches a lower dev FA upper bound at equal or lower
+thinking cost, or the same FA in fewer steps, on all three seeds. It's reported either way.
 
 ## Open choices before this becomes the pre-registration
 
@@ -289,5 +402,5 @@ result.
 3. The reward weights, budgets and GRPO settings. They're proposed here; the R&D session reviews them before any run.
 4. The part gold: Phase 1 only (142 derivable claims), or Phase 2's ~200 new part labels as well. Labelling is the R&D session's, under its blind process.
 5. Contract v3's per-part fields (`evidence_quotes` entries carrying part, verdict and quote) are agreed with offrig's owner before SFT data is built.
-6. Where GRPO runs: the pod, or the 5090 after its fit check.
+6. Where GRPO runs: local 5090 + NPU (preferred, the maintainer's direction) after smoke tests S1–S3, or the pod fallback for the no-critic arm.
 7. The fresh reasoning split (contract v3) is sealed before any training.
