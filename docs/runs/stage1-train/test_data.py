@@ -202,7 +202,7 @@ OPENINGS = itertools.cycle(f"Case {w} {v}." for w in ("amber", "birch", "cedar",
 def _d(material, deciding, verdict="unsupported", lesson="T05", content_kind="notice", reply=None, iid="d9"):
     r = copy.deepcopy(GOOD[3])
     material = f"{material}\nNotice {iid}."  # each fixture item has its own material and thinking (diversity gate)
-    r["turns"][0]["thinking"] = f"Item {iid}: what would make this false?"
+    r["turns"][0]["thinking"] = f"{iid}."  # no shared wording across fixtures (phrase-frequency check)
     r.update(id=iid, lesson=lesson, material=material, deciding=deciding, verdict=verdict, content_kind=content_kind)
     opening = next(OPENINGS)  # varied, so the stamped-frame check stays out of these tests
     r["turns"][0]["user"] = f"{opening} Material:\n{material}\nStatement: the library is open on Sunday mornings."
@@ -433,7 +433,7 @@ def test_shared_span_in_three_items_refused():
     quoted = _floors()
     for r in quoted[:3]:  # the same skeleton around different bracketed quotes is still one span
         r["turns"][0]["thinking"] += f"\nThe lines I will quote, copied with their marks: [{r['id']}] and nothing else."
-    with pytest.raises(data.DataError, match="copied with their marks"):
+    with pytest.raises(data.DataError, match="quote copied with their"):
         data.check_spans(quoted)
 
 
@@ -485,3 +485,34 @@ def test_framing_lines_unique_across_files_at_freeze():
     b[0]["turns"][0]["user"] = a[0]["turns"][0]["user"]
     with pytest.raises(data.DataError, match="framing line"):
         data.freeze_report(a + b)
+
+
+def test_phrase_in_over_40_percent_of_turns_refused():
+    rows = _floors()
+    n = sum(len(r["turns"]) for r in rows)
+    k = int(0.4 * n) + 1
+    for r in rows[:k]:
+        r["turns"][0]["thinking"] += " I stop."
+    with pytest.raises(data.DataError, match=r"the phrase 'i stop' is in \d+ of \d+ turns"):
+        data.check_phrases(rows)
+    rows = _floors()
+    for r in rows[:k]:
+        r["turns"][0]["thinking"] += " The claim and the material agree."  # task nouns and function words only
+    assert not any(ph == "the claim" for _, ph in data.frequent_phrases(rows))
+
+
+def test_formula_in_over_25_percent_of_b_items_refused():
+    bs = []
+    for i, tail in enumerate(["is the supervisor's request", "names the margin note", "leaves the manual shut",
+                              "quotes the bell sentence"]):
+        b = copy.deepcopy(GOOD[1])
+        b.update(id=f"bf{i}", lesson="T05")
+        b["turns"][0]["thinking"] = f"| seat | 1 |\n{i + 1}. Step 2 {tail}."
+        bs.append(b)
+    assert data._template("2. Step 2 is the decisive step.") == "step n is the x"
+    assert data.formulas(bs)[("T05", "step n …")] == (4, 4)
+    with pytest.raises(data.DataError, match="kind B items"):
+        data.check_formulas(bs)
+    for i, b in enumerate(bs):
+        b["turns"][0]["thinking"] = f"| seat | {i} |\nOption {['one', 'two', 'three', 'four'][i]} fails at a different clue."
+    data.check_formulas(bs[:1] + [GOOD[1]])

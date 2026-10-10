@@ -110,6 +110,12 @@ explanation, analysis, self-talk and answer. The user turns are context. This ho
   structure signature (entity count, and which cues the clues use: order, chained order, gate, negation,
   one-each). Across one batch (`python data.py --batch <files>`): at most 2 puzzles per signature, and no
   framing line repeats.
+- **Phrases and formulas (after the rebuilt batch 3), per lesson:** no 2–7 word phrase in more than 40% of a
+  lesson's assistant turns (outside material lines, the Statement line and the three lines). A phrase made only of
+  function words and the task's own nouns (claim, statement, material, line, verdict, text, …) is exempt. No
+  sentence template (numerals as N, each determiner's noun phrase as X), and no opener of one ("step N …"), in
+  more than 25% of a lesson's kind B items, and in at least 2 of them. There is no length floor; padding would be
+  worse.
 - **Freeze, over every file together** (`python data.py --freeze <files>`): cannot_tell, supported and the
   multi-line share each at least 25% across all lessons, an ESCALATE yes item in every lesson (the four
   skipped lessons are reported, not refused), and no C or D framing line repeated anywhere. It prints each figure and how many more items a shortfall needs.

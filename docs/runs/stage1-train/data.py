@@ -460,6 +460,128 @@ def framing_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
     return {f: ids for f, ids in seen.items() if len(ids) > 1}
 
 
+# Articles, prepositions, pronouns, auxiliaries and conjunctions: a phrase made only of these is exempt.
+FUNCTION_WORDS = set("""
+a an the this that these those each every some any no
+of in on at to for from by with about into onto over under after before between through during without within
+along across against among around behind beside up down out off near than as per via
+i me my mine we us our you your he him his she her it its they them their what which who whom whose
+is are was were be been being am do does did done have has had having will would shall should can could may
+might must and or but if so nor yet then not
+""".split())
+# The nouns of the task itself: a phrase made only of these and function words ("the claim", "the material") is
+# the subject matter, not a stamp.
+TASK_WORDS = {"claim", "claims", "statement", "statements", "material", "line", "lines", "verdict", "text",
+              "deciding", "escalate", "answer"}
+MAX_PHRASE_SHARE = 0.40
+MAX_FORMULA_SHARE = 0.25
+DETERMINERS = {"the", "a", "an", "this", "that", "these", "those", "each", "every", "its", "their", "his", "her",
+               "my", "our", "your"}
+
+
+def _target_lines(r: dict):
+    """(turn index, line) for each line of the assistant turns, outside material lines, the Statement line and
+    the three lines; bracketed quotes collapsed to one token."""
+    content = _content_lines(r)
+    for i, t in enumerate(r["turns"]):
+        for text in (t["thinking"], t["reply"]):
+            for line in text.splitlines():
+                bare = ws(line).replace('\\"', '"').strip("\"'“” ").lower()
+                if not bare or THREE_LINE.match(line) or STATEMENT_RE.match(line) or bare in content:
+                    continue
+                yield i, re.sub(r"\[[^\]]*\]", " [q] ", line.lower())
+
+
+def frequent_phrases(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_share: float = MAX_PHRASE_SHARE) -> dict:
+    """{(lesson, phrase): (turns with it, turns in lesson)} for 2-7 word phrases (with at least one word that is
+    not a function word) in more than max_share of a lesson's assistant turns. Only the longest such phrase of
+    an overlapping family is kept."""
+    per: dict = {}
+    turns: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip:
+            continue
+        lesson = r["lesson"]
+        grams_by_turn: dict = {}
+        for i, line in _target_lines(r):
+            w = re.findall(r"[a-z0-9']+|\[q\]", line)
+            g = grams_by_turn.setdefault(i, set())
+            for n in range(2, 8):
+                for k in range(len(w) - n + 1):
+                    ph = w[k:k + n]
+                    if any(x not in FUNCTION_WORDS and x not in TASK_WORDS and x != "[q]" for x in ph):
+                        g.add(" ".join(ph))
+        turns[lesson] = turns.get(lesson, 0) + len(r["turns"])
+        for g in grams_by_turn.values():
+            for ph in g:
+                per[(lesson, ph)] = per.get((lesson, ph), 0) + 1
+    hits = {k: (v, turns[k[0]]) for k, v in per.items() if v > max_share * turns[k[0]]}
+    return {k: v for k, v in hits.items()
+            if not any(o[0] == k[0] and o[1] != k[1] and f" {k[1]} " in f" {o[1]} " and hits[o][0] == v[0]
+                       for o in hits)}
+
+
+def check_phrases(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    fp = frequent_phrases(rows, skip)
+    if fp:
+        (lesson, ph), (n, total) = max(fp.items(), key=lambda kv: kv[1][0] / kv[1][1])
+        raise DataError(f"{lesson}: the phrase {ph!r} is in {n} of {total} turns ({n / total:.0%}); at most "
+                        f"{MAX_PHRASE_SHARE:.0%}; {len(fp)} over-used phrase(s) in all")
+
+
+def _template(sentence: str) -> str:
+    """A sentence with numerals as N and each determiner's noun phrase (up to two words after it) as X, and a
+    leading list number dropped: "2. Step 2 is the decisive step." -> "step n is the x"."""
+    w = re.findall(r"[a-z0-9']+|\[q\]", re.sub(r"^\s*\d+[.)]\s*", "", sentence.lower()))
+    out: list[str] = []
+    skip = 0
+    for k, x in enumerate(w):
+        if skip:
+            skip -= 1
+            continue
+        if x.isdigit():
+            out.append("n")
+        elif x in DETERMINERS:
+            out += [x, "x"]
+            skip = min(2, sum(1 for y in w[k + 1:k + 3] if y not in FUNCTION_WORDS and not y.isdigit()))
+            skip = skip if skip else 0
+        else:
+            out.append(x)
+    return " ".join(out)
+
+
+def formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_share: float = MAX_FORMULA_SHARE) -> dict:
+    """{(lesson, template): (B items with it, B items in lesson)} for sentence templates of 4+ tokens in more than
+    max_share of a lesson's kind B items."""
+    per: dict = {}
+    count: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip or r.get("kind") != "B":
+            continue
+        count[r["lesson"]] = count.get(r["lesson"], 0) + 1
+        temps = set()
+        for _, line in _target_lines(r):
+            for sent in re.split(r"(?<=[.!?:])\s+", line):
+                t = _template(sent).split()
+                if len(t) >= 4:
+                    temps.add(" ".join(t))
+                # the opener: a grafted formula keeps its first words while the rest varies ("Step N is …")
+                opener = t[:2] if "n" in t[:2] else t[:3]
+                if len(opener) >= 2 and any(x not in FUNCTION_WORDS and x not in ("n", "x", "[q]") for x in opener):
+                    temps.add(" ".join(opener) + " …")
+        for t in temps:
+            per[(r["lesson"], t)] = per.get((r["lesson"], t), 0) + 1
+    return {k: (v, count[k[0]]) for k, v in per.items() if v > max_share * count[k[0]] and v >= 2}  # a formula repeats
+
+
+def check_formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    fm = formulas(rows, skip)
+    if fm:
+        (lesson, t), (n, total) = max(fm.items(), key=lambda kv: kv[1][0])
+        raise DataError(f"{lesson}: the sentence template {t!r} is in {n} of {total} kind B items; at most "
+                        f"{MAX_FORMULA_SHARE:.0%}; {len(fm)} formula(s) in all")
+
+
 def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
     """Every diversity figure for a set of rows, refusing nothing (for review and for briefs)."""
     return {"shared_spans": len(shared_spans(rows, skip)),
@@ -686,6 +808,8 @@ def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     check_framing_fits(rows, skip=pre_amendment)
     check_material_reuse(rows, skip=pre_amendment)
     check_puzzles(rows, skip=pre_amendment)
+    check_phrases(rows, skip=pre_amendment)
+    check_formulas(rows, skip=pre_amendment)
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:
