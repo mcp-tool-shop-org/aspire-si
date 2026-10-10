@@ -166,6 +166,72 @@ def check_multi_line_share(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None
                             f"DECIDING lines; at least {MIN_MULTI_LINE_SHARE:.0%} are needed")
 
 
+MIN_VERDICT_SHARE = 0.25  # amendment 2, point 1: cannot_tell and supported each at least a quarter
+
+
+def _verdict_keys(r: dict):
+    """The final-turn keys of a verdict-bearing item (C, D, or a verdict-type E), or None."""
+    if r.get("kind") in ("C", "D"):
+        return r
+    q = r.get("quiz")
+    return q if r.get("kind") == "E" and isinstance(q, dict) and q.get("type") == "verdict" else None
+
+
+def _turn_verdicts(where, r: dict) -> list:
+    """Each turn's verdict for a multi-turn kind D item: turn_keys where given, else the reply's own VERDICT line.
+    Amendment 2: every turn is a complete answer with its own three lines."""
+    out = []
+    for i, t in enumerate(r["turns"], 1):
+        p = harness.parse_answer(t["reply"])
+        if not (p["verdict"] and p["deciding"] is not None and p["escalate"] is not None):
+            raise DataError(f"{where} turn {i}: a multi-turn kind D reply needs its own three lines "
+                            f"(VERDICT, DECIDING, ESCALATE)")
+        keyed = (r.get("turn_keys") or {}).get(str(i)) if i < len(r["turns"]) else r
+        out.append(keyed["verdict"] if keyed else p["verdict"])
+    return out
+
+
+def check_floors(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    """Amendment 2, per lesson: (e) cannot_tell and supported each at least 25% of the verdict-bearing items;
+    (f) at least one ESCALATE yes (...) item and one cannot_tell item with ESCALATE no; (g) at least two
+    multi-turn kind D items, one whose last verdict differs from its first and one whose verdict stands."""
+    per: dict = {}
+    for n, r in enumerate(rows, 1):
+        if r.get("lesson") in skip:
+            continue
+        keys = _verdict_keys(r)
+        if not isinstance(keys, dict):
+            continue
+        st = per.setdefault(r["lesson"], {"n": 0, "cannot_tell": 0, "supported": 0, "esc_yes": 0,
+                                          "ct_esc_no": 0, "multi": 0, "changed": 0, "stood": 0})
+        st["n"] += 1
+        v = keys.get("verdict")
+        st["cannot_tell"] += v == "cannot_tell"
+        st["supported"] += v == "supported"
+        esc = keys.get("escalate") or ""
+        st["esc_yes"] += esc.startswith("yes (")
+        st["ct_esc_no"] += v == "cannot_tell" and esc == "no"
+        if r["kind"] == "D" and len(r["turns"]) >= 2:
+            vs = _turn_verdicts(f"line {n} ({r.get('id', '?')})", r)
+            st["multi"] += 1
+            st["changed"] += vs[-1] != vs[0]
+            st["stood"] += vs[-1] == vs[0]
+    for lesson, st in sorted(per.items()):
+        n = st["n"]
+        for v in ("cannot_tell", "supported"):
+            if st[v] < MIN_VERDICT_SHARE * n:
+                raise DataError(f"{lesson}: {st[v]} of {n} verdict-bearing items ({st[v] / n:.0%}) are keyed {v}; "
+                                f"at least {MIN_VERDICT_SHARE:.0%} are needed")
+        if st["esc_yes"] < 1:
+            raise DataError(f"{lesson}: 0 of {n} verdict-bearing items are keyed ESCALATE yes (...); at least 1 is needed")
+        if st["ct_esc_no"] < 1:
+            raise DataError(f"{lesson}: 0 of {st['cannot_tell']} cannot_tell items are keyed ESCALATE no; "
+                            f"at least 1 is needed")
+        if st["multi"] < 2 or not st["changed"] or not st["stood"]:
+            raise DataError(f"{lesson}: {st['multi']} multi-turn kind D items ({st['changed']} with a changed "
+                            f"verdict, {st['stood']} where it stands); at least 2 are needed, with at least 1 of each")
+
+
 def _check_keys(where, keys, material):
     if keys.get("verdict") not in VERDICTS:
         raise DataError(f"{where}: verdict {keys.get('verdict')!r}")
@@ -299,6 +365,7 @@ def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     check_stamps(rows)
     check_frames(rows)
     check_multi_line_share(rows, skip=pre_amendment)
+    check_floors(rows, skip=pre_amendment)
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:

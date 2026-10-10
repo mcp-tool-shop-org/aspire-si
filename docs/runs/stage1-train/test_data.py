@@ -1,6 +1,7 @@
 """Tests for the five-kind training-data validator, leakage guard and rendering (CPU, tokenizer only)."""
 
 import copy
+import itertools
 import json
 
 import pytest
@@ -194,7 +195,7 @@ def test_checker_verdict_given_as_a_value_counts():
 
 # ---- amendment 1 (quoting the deciding lines): lesson T05 is past the amendment, T04 is not
 TABLE = "| Day | Opens | Closes |\n| Monday | 9am | 5pm |\n| Sunday | closed | closed |"
-OPENINGS = iter(f"Case {w} {v}." for w in ("amber", "birch", "cedar", "dune", "elm", "fern", "gale", "heath")
+OPENINGS = itertools.cycle(f"Case {w} {v}." for w in ("amber", "birch", "cedar", "dune", "elm", "fern", "gale", "heath")
                 for v in ("arrives", "follows", "opens", "begins", "lands", "starts"))
 
 
@@ -219,12 +220,12 @@ def _multi(lesson="T05", n=4):
 
 def test_table_row_quoted_whole():
     rows = [_d(TABLE, ["| Sunday | closed | closed |"])] + _multi()
-    data.validate(rows)
+    _validate(rows)
     rows = [_d(TABLE, ["Sunday | closed"])] + _multi()
     with pytest.raises(data.DataError, match="whole table row"):
-        data.validate(rows)
+        _validate(rows)
     rows = [_d(TABLE, ["Sunday | closed"], lesson="T04")] + _multi()  # before the amendment: not checked
-    data.validate(rows)
+    _validate(rows)
 
 
 CHANGELOG = "# Changelog\n## v2.3.0 (2026-04-02)\n- The dry run no longer writes the lock file.\n## Notes\n- Old builds stay."
@@ -233,12 +234,12 @@ CHANGELOG = "# Changelog\n## v2.3.0 (2026-04-02)\n- The dry run no longer writes
 def test_version_heading_quoted_in_a_changelog():
     ok = _d(CHANGELOG, ["## v2.3.0 (2026-04-02)", "- The dry run no longer writes the lock file."],
             content_kind="changelog")
-    data.validate([ok] + _multi())
+    _validate([ok] + _multi())
     bad = _d(CHANGELOG, ["- The dry run no longer writes the lock file."], content_kind="changelog")
     with pytest.raises(data.DataError, match="version heading"):
-        data.validate([bad] + _multi())
+        _validate([bad] + _multi())
     after_plain_heading = _d(CHANGELOG, ["- Old builds stay."], content_kind="changelog")
-    data.validate([after_plain_heading] + _multi())  # "## Notes" closes the version section
+    _validate([after_plain_heading] + _multi())  # "## Notes" closes the version section
 
 
 def test_trailing_separator_and_none_beside_lines_refused():
@@ -255,6 +256,100 @@ def test_trailing_separator_and_none_beside_lines_refused():
 def test_multi_line_share_per_lesson():
     single = [_d(MAT, ["It is closed on Sundays."], iid=f"s{i}") for i in range(4)]
     with pytest.raises(data.DataError, match="0 of 4 verdict-bearing items"):
-        data.validate(single)
-    data.validate(single + _multi(n=2))  # 2 of 6 = 33%
+        data.check_multi_line_share(single)
+    data.check_multi_line_share(single + _multi(n=2))  # 2 of 6 = 33%
     data.validate([_d(MAT, ["It is closed on Sundays."], lesson="T04", iid=f"p{i}") for i in range(4)])
+
+
+# ---- amendment 2 (floors per lesson): cannot_tell and supported shares, escalation, two-turn D items
+SAT = "Statement: the library opens on Saturdays."
+
+
+def _two_turn(iid, first, second_user, final, new_material=None):
+    """A two-turn kind D item; first and final are (verdict, deciding) pairs."""
+    r = _d(MAT, final[1], verdict=final[0], iid=iid)
+    r["material"] = MAT
+    r["turns"][0]["user"] = f"{next(OPENINGS)} Material:\n{MAT}\n{SAT}"
+    r["turns"][0]["reply"] = ("VERDICT: " + first[0] + "\nDECIDING: " + (" | ".join(first[1]) or "NONE")
+                              + "\nESCALATE: no")
+    second = {"user": second_user, "thinking": "Is there anything new in the material?",
+              "reply": "VERDICT: " + final[0] + "\nDECIDING: " + (" | ".join(final[1]) or "NONE") + "\nESCALATE: no"}
+    if new_material:
+        second["new_material"] = new_material
+    r["turns"].append(second)
+    r["turn_keys"] = {"1": {"verdict": first[0], "deciding": first[1], "escalate": "no"}}
+    return r
+
+
+def _floors(lesson="T05"):
+    """A set that meets every amendment-2 floor (and the multi-line share) on its own."""
+    both = ["The library opens at 9am on weekdays.", "It is closed on Sundays."]
+    out = [_d(MAT, [], verdict="cannot_tell", iid=f"ct{i}", lesson=lesson) for i in range(4)]
+    out += [_d(MAT, both if i < 2 else both[:1], verdict="supported", iid=f"su{i}", lesson=lesson) for i in range(4)]
+    for r in out:
+        if not r["deciding"]:
+            r["turns"][0]["user"] = r["turns"][0]["user"].replace("Statement: the library is open on Sunday mornings.", SAT)
+    out[4]["escalate"] = "yes (money advice)"
+    out[4]["turns"][0]["reply"] = out[4]["turns"][0]["reply"].replace("ESCALATE: no", "ESCALATE: yes (money advice)")
+    out.append(_two_turn("tc", ("cannot_tell", []), "New notice: It opens at 10am on Saturdays.",
+                         ("supported", ["It opens at 10am on Saturdays."]), ["It opens at 10am on Saturdays."]))
+    out.append(_two_turn("ts", ("unsupported", ["It is closed on Sundays."]), "My manager is certain it's open. Recheck.",
+                         ("unsupported", ["It is closed on Sundays."])))
+    for r in out:
+        r["lesson"] = lesson
+    return out
+
+
+def _validate(rows):
+    lessons = sorted({r["lesson"] for r in rows} - data.PRE_AMENDMENT_LESSONS) or ["T05"]
+    data.validate(rows + [f for lesson in lessons for f in _floors(lesson)])
+
+
+def test_floors_met():
+    data.validate(_floors())
+
+
+def test_cannot_tell_and_supported_shares():
+    rows = [r for r in _floors() if not r["id"].startswith("ct")]
+    with pytest.raises(data.DataError, match="0 of 6 verdict-bearing items .* keyed cannot_tell"):
+        data.check_floors(rows)
+    rows = [r for r in _floors() if not (r["id"].startswith("su") or r["id"] == "tc")]
+    with pytest.raises(data.DataError, match="keyed supported"):
+        data.check_floors(rows)
+
+
+def test_escalation_floors():
+    rows = _floors()
+    rows[4]["escalate"] = "no"
+    with pytest.raises(data.DataError, match="ESCALATE yes"):
+        data.check_floors(rows)
+    rows = _floors()
+    for r in rows[:4]:
+        r["escalate"] = "yes (safety advice)"
+    with pytest.raises(data.DataError, match="cannot_tell items are keyed ESCALATE no"):
+        data.check_floors(rows)
+
+
+def test_two_turn_d_floor():
+    rows = [r for r in _floors() if r["id"] != "tc"]
+    with pytest.raises(data.DataError, match="1 multi-turn kind D items"):
+        data.check_floors(rows)
+    rows = [r for r in _floors() if r["id"] != "ts"] + [_two_turn("tc2", ("cannot_tell", []), "Another new notice: "
+                                                         "It opens at 10am on Saturdays.", ("supported",
+                                                         ["It opens at 10am on Saturdays."]),
+                                                         ["It opens at 10am on Saturdays."])]
+    with pytest.raises(data.DataError, match="0 where it stands"):
+        data.check_floors(rows)
+
+
+def test_two_turn_d_needs_three_lines_in_each_turn():
+    rows = _floors()
+    tc = next(r for r in rows if r["id"] == "tc")
+    tc["turns"][0]["reply"] = "I can't tell yet."
+    tc.pop("turn_keys")
+    with pytest.raises(data.DataError, match="its own three lines"):
+        data.check_floors(rows)
+
+
+def test_floors_skip_pre_amendment_lessons():
+    data.check_floors([_d(MAT, ["It is closed on Sundays."], lesson="T04")])
