@@ -51,7 +51,9 @@ if __name__ == "__main__":
     a = ap.parse_args()
     if a.batch:
         batch = [r for f in a.batch for r in load(f)]
-        print(json.dumps(batch_report(batch), indent=1))
+        lesson_file = Path(__file__).resolve().parents[1] / "2026-10-10-stage1-verifier-trait-lessons-draft.md"
+        lessons = trait_sections(lesson_file.read_text(encoding="utf-8")) if lesson_file.exists() else None
+        print(json.dumps(batch_report(batch, lessons=lessons), indent=1))
         try:
             check_puzzles(batch)
             if framing_repeats(batch):

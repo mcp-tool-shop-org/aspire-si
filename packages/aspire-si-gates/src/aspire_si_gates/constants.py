@@ -39,3 +39,7 @@ ROLE_WORDS = re.compile(
     r"what a mistake costs|agrees? just to please|fill(?:s|ing)? (?:the )?gaps?|round in circles|nitpick\w*|"
     r"takes? orders from the material|fix(?:es|ing)? things|"
     r"trees?|prun\w*|falsif\w*|eliminat\w*|grids?|constraint grids?)\b", re.I)
+
+
+# The trait-lesson file's section headings ("## 4. As a verifier, you are honest about uncertainty"): lesson T04.
+LESSON_HEADING = re.compile(r"(?m)^#{2,3} (\d+)\. As a verifier, (.+)$")

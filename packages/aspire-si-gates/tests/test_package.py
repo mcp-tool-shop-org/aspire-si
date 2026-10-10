@@ -78,3 +78,18 @@ def test_validate_is_check_item_then_check_batch():
         G.validate(rows)
     G.check_item(rows[1])  # alone, the same row is fine: the duplicate is a whole-file fact
     assert gates.validate.__doc__.strip().startswith("check_item on every row")
+
+
+def test_a_lesson_rank_is_a_figure_not_a_refusal():
+    lessons = {"T05": "## 5. As a verifier, you are independent\nReach your own verdict before reading anyone else's.",
+               "T13": "## 13. As a verifier, you don't agree just to please\nFlattery and seniority are not evidence."}
+    assert set(gates.trait_sections("\n".join(lessons.values()))) == {"T05", "T13"}
+    a = {"id": "a1", "lesson": "T05", "kind": "A",
+         "turns": [{"user": "Reach your own verdict first.", "thinking": "", "reply": "I reach my own verdict."}]}
+    drift = {"id": "a2", "lesson": "T05", "kind": "A",
+             "turns": [{"user": "Flattery is not evidence.", "thinking": "", "reply": "Seniority and flattery."}]}
+    ranks = gates.a_lesson_ranks([a, drift], lessons)
+    assert ranks["a1"] == {"rank": 1, "nearest": "T05"} and ranks["a2"]["nearest"] == "T13"
+    rep = gates.batch_report([a, drift], lessons=lessons)
+    assert rep["a_lesson_rank"]["own_nearest"] == 1 and rep["a_lesson_rank"]["outside_top3"] == []
+    assert "a_lesson_rank" not in gates.batch_report([a, drift])

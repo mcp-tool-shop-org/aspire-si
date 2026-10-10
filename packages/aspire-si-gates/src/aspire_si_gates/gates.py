@@ -11,7 +11,9 @@ import sys
 from pathlib import Path
 
 from .answer_format import parse_answer
-from .constants import LESSONS, PRE_AMENDMENT_LESSONS, ROLE_WORDS, TRAIT_NAMES  # noqa: F401
+import math
+
+from .constants import LESSON_HEADING, LESSONS, PRE_AMENDMENT_LESSONS, ROLE_WORDS, TRAIT_NAMES  # noqa: F401
 
 KINDS = {"A", "B", "C", "D", "E"}
 VERDICTS = {"supported", "unsupported", "cannot_tell"}
@@ -556,14 +558,92 @@ def check_formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
                         f"{MAX_FORMULA_SHARE:.0%}; {len(fm)} formula(s) in all")
 
 
-def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
-    """Every diversity figure for a set of rows, refusing nothing (for review and for briefs)."""
-    return {"shared_spans": len(shared_spans(rows, skip)),
+# ---------------------------------------------------------------- kind A lesson drift (a figure, never a refusal)
+# Term overlap with the trait lessons was probed on the pilot, batch 2 and batch 3 (280 items): an item's own
+# lesson was strictly nearest for only 15%, mostly by design (C teaches through another trait's failure; B and D
+# talk about the material). So it is reported for kind A only, as a reviewer's ranking, and refuses nothing.
+_DRIFT_STOP = {"verifier", "verifiers", "trait", "also", "just", "only", "one", "two"}
+
+
+def trait_sections(markdown: str) -> dict:
+    """{lesson: text} from the trait-lesson file, split at its numbered headings."""
+    heads = list(LESSON_HEADING.finditer(markdown))
+    out = {}
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(markdown)
+        out[f"T{int(m.group(1)):02d}"] = markdown[m.start():end].split("\n## What a verifier doesn't do")[0]
+    return out
+
+
+def _drift_terms(text: str) -> list:
+    out = []
+    for w in re.findall(r"[a-z][a-z']+", text.lower()):
+        w = w.strip("'")
+        if len(w) < 3 or w in FUNCTION_WORDS or w in TASK_WORDS or w in _DRIFT_STOP:
+            continue
+        for suf in ("ing", "ed", "es", "s", "ly"):
+            if w.endswith(suf) and len(w) - len(suf) >= 4:
+                w = w[: -len(suf)]
+                break
+        out.append(w)
+    return out
+
+
+def _tfidf(counts: dict, idf: dict, default: float) -> dict:
+    v = {w: (1 + math.log(n)) * idf.get(w, default) for w, n in counts.items()}
+    norm = math.sqrt(sum(x * x for x in v.values())) or 1.0
+    return {w: x / norm for w, x in v.items()}
+
+
+def _count(terms: list) -> dict:
+    c: dict = {}
+    for t in terms:
+        c[t] = c.get(t, 0) + 1
+    return c
+
+
+def a_lesson_ranks(rows: list[dict], lessons: dict) -> dict:
+    """For each kind A item: the rank (1 = nearest) of its own lesson among the trait lessons by TF-IDF cosine of
+    its passage and reply, and the nearest lesson. A figure for reviewers, never a refusal."""
+    docs = {k: _count(_drift_terms(v)) for k, v in lessons.items()}
+    n = len(docs)
+    df: dict = {}
+    for c in docs.values():
+        for w in c:
+            df[w] = df.get(w, 0) + 1
+    idf = {w: math.log((1 + n) / (1 + d)) + 1 for w, d in df.items()}
+    default = math.log(1 + n) + 1
+    vecs = {k: _tfidf(c, idf, default) for k, c in docs.items()}
+    out = {}
+    for r in rows:
+        if r.get("kind") != "A" or r.get("lesson") not in vecs:
+            continue
+        text = "\n".join(t["user"] + "\n" + t["reply"] for t in r["turns"])
+        v = _tfidf(_count(_drift_terms(text)), idf, default)
+        sims = sorted(((sum(v.get(w, 0.0) * x for w, x in lv.items()), k) for k, lv in vecs.items()),
+                      key=lambda p: (-p[0], p[1]))
+        order = [k for _, k in sims]
+        out[r["id"]] = {"rank": order.index(r["lesson"]) + 1, "nearest": order[0]}
+    return out
+
+
+def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, lessons=None) -> dict:
+    """Every diversity figure for a set of rows, refusing nothing (for review and for briefs). With `lessons`
+    ({lesson: text}), it adds the kind A lesson-drift ranking."""
+    rep = {"shared_spans": len(shared_spans(rows, skip)),
             "framing_mismatches": sum(bool(framing_mismatch(r)) for r in rows if r.get("lesson") not in skip),
             "reused_materials": len(reused_material(rows, skip)),
             "puzzle_signatures": {f"{k[0]} / {'+'.join(k[1])}": [i for _, i in v]
                                   for k, v in puzzle_repeats(rows, skip).items()},
             "repeated_framings": len(framing_repeats(rows, skip))}
+    if lessons:
+        ranks = a_lesson_ranks(rows, lessons)
+        rep["a_lesson_rank"] = {
+            "own_nearest": sum(1 for x in ranks.values() if x["rank"] == 1),
+            "own_in_top3": sum(1 for x in ranks.values() if x["rank"] <= 3),
+            "items": len(ranks),
+            "outside_top3": sorted([i, x["rank"], x["nearest"]] for i, x in ranks.items() if x["rank"] > 3)}
+    return rep
 
 
 def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
