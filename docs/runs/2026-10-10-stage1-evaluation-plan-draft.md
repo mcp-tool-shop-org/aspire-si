@@ -126,7 +126,7 @@ base model ──► task set (baseline) ──► Stage 1 role training ──�
 - **Primary outcome: correctness.** That's the verdict plus a sufficient DECIDING, per task.
 - **Secondary outcomes:** the false-accept rate, and each trace-rubric line.
 - **Phase A:** exact McNemar test on paired task outcomes, before against after.
-- **Phase B:** a task-level paired bootstrap, ROLE against NO-ROLE, with a seed-noise gate: an arm
+- **Phase B:** a task-level cluster bootstrap (paired by task), ROLE against NO-ROLE, with a seed-noise gate: an arm
   difference counts only if it exceeds the spread between seeds within an arm.
 - **Trace rubric:** mechanical items first. Then blind human grading, after the graders calibrate to
   Cohen's κ of at least 0.6 on a shared sample.
