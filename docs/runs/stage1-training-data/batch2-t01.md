@@ -1070,7 +1070,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Asked another way: Node.js 20 is a version Roll will run on. What is your answer?
+Claim: Node.js 20 is a version Roll will run on.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): unsupported / Requires Node.js >= 22. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["Requires Node.js >= 22."], "escalate": "no"}
@@ -1103,7 +1104,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Put differently, the claim is that pump 3 got a new filter on the seventh of May. Your answer?
+Claim: pump 3 got a new filter on the seventh of May.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): supported / filter replaced 7 May / no · variant key: {"type": "verdict", "verdict": "supported", "deciding": ["filter replaced 7 May"], "escalate": "no"}

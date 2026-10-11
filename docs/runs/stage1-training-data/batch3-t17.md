@@ -1055,7 +1055,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Now the claim reads: calling open_gate gives back zero. What do you answer?
+Claim: calling open_gate gives back zero.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): unsupported / def open_gate(): |     return 1 / no · variant key: {"verdict": "unsupported"}
@@ -1124,7 +1125,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Put another way, the claim is that the pond is brimming with water. Your answer?
+Claim: the pond is brimming with water.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): unsupported / Pond | The pond is drained. / no · variant key: {"verdict": "unsupported"}

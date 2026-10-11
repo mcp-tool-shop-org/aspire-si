@@ -1051,7 +1051,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Restated: nobody may stand in the viewing gallery without a helmet on. What do you answer?
+Claim: nobody may stand in the viewing gallery without a helmet on.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): unsupported / the viewing gallery is helmet-free. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["the viewing gallery is helmet-free."], "escalate": "no"}
@@ -1081,7 +1082,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Said another way, this bottle holds 75 cl of Spanish extra-virgin olive oil. Your answer?
+Claim: this bottle holds 75 cl of Spanish extra-virgin olive oil.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): supported / Olive oil, 750 ml. Extra virgin. | Product of Spain. / no · variant key: {"type": "verdict", "verdict": "supported", "deciding": ["Olive oil, 750 ml. Extra virgin.", "Product of Spain."], "escalate": "no"}

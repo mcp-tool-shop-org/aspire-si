@@ -1076,7 +1076,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The same claim in new words: every pile of towels has ten in it. What do you answer?
+Claim: every pile of towels has ten in it.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
@@ -1111,7 +1112,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Here is the claim again, phrased differently: beyond the oak, the footpath is shut. What is your answer?
+Claim: beyond the oak, the footpath is shut.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
