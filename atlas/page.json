@@ -40,65 +40,30 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 11,
-      "changed": 1,
+      "added": 9,
+      "changed": 8,
       "moved": 0,
-      "parts": 1,
-      "removed": 0
+      "parts": 2,
+      "removed": 1
     },
     "items": [
       {
         "kind": "landing",
-        "sentence": "packages/aspire-si-gates/src/ is now read by docs/runs/stage1-train/data.py and packages/aspire-si-gates/pyproject.toml.",
+        "sentence": "docs/runs/stage1-train/stuck.py is now read by docs/runs/stage1-stuck-rule.json.",
         "subjects": [
-          "packages/aspire-si-gates/src/",
-          "docs/runs/stage1-train/data.py",
-          "packages/aspire-si-gates/pyproject.toml"
+          "docs/runs/stage1-train/stuck.py",
+          "docs/runs/stage1-stuck-rule.json"
         ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "packages/aspire-si-gates/src/aspire_si_gates/ is now read by packages/aspire-si-gates/src/aspire_si_gates/__init__.py.",
-        "subjects": [
-          "packages/aspire-si-gates/src/aspire_si_gates/",
-          "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "packages/aspire-si-gates/README.md is new and belongs to no part, so atlas check fails on it against the previous map.",
-        "subjects": [
-          "packages/aspire-si-gates/README.md"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "packages/aspire-si-gates/pyproject.toml is new and belongs to no part, so atlas check fails on it against the previous map.",
-        "subjects": [
-          "packages/aspire-si-gates/pyproject.toml"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py is new and belongs to no part, so atlas check fails on it against the previous map.",
-        "subjects": [
-          "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
-        ]
-      },
-      {
-        "kind": "unassigned",
-        "sentence": "And 6 more new files that belong to no part.",
-        "subjects": []
       },
       {
         "kind": "counts",
-        "sentence": "11 files added and 1 changed content, across 1 part.",
+        "sentence": "9 files added, 1 removed and 8 changed content, across 2 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "abddb1f7305e5e783e27f0f1eb1c71145bff4bdc",
-      "generatedAt": "2026-10-10T20:14:17.592Z"
+      "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
+      "generatedAt": "2026-10-10T20:17:45.908Z"
     },
     "unchanged": false
   },
@@ -140,9 +105,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
+  "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (209 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (211 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -315,12 +280,12 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-10T20:17:45.908Z",
+  "generatedAt": "2026-10-11T01:43:05.326Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 8 more.",
     "5 writes and 33 reads use paths built at run time and are not named here.",
-    "59 writes and 67 reads go to a path their caller passes, not to this repository.",
+    "59 writes and 69 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "9 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 6 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
@@ -372,7 +337,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 86,
+  "testFiles": 87,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
@@ -391,7 +356,7 @@
   "unreadNote": [],
   "untested": [],
   "untestedNote": [
-    "7 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 4 more."
+    "8 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 5 more."
   ],
   "written": 2
 }
