@@ -1189,7 +1189,7 @@ You and another reader are holding one sentence, and it settles the claim. What 
 ```text
 A night log is on the bench. Another reader has already given an answer.
 Material:
-Night log
+Pump night log
 Operator: Nia.
 Stop: 19:00.
 Statement: The pump stops at 19:00.
@@ -1198,26 +1198,26 @@ Statement: The pump stops at 19:00.
 **Thinking:**
 ```text
 A pump stop at 19:00 is the claim, and another reader has already given an answer without saying which.
-The log is headed Night log, names operator Nia, and records Stop: 19:00.
-That stop line is the hour in the claim. The operator line names a person and does not move the hour.
+The log is headed Pump night log, names operator Nia, and records Stop: 19:00.
+The heading names the pump, and the stop line under it is the hour in the claim. The operator line names a person and does not move the hour.
 Their answer is not a line on the log, so it is not what settles the hour.
 The stop line does.
 ```
 
 **Reply:**
 ```text
-The log records Stop: 19:00, which is the hour in the claim. The operator line does not move it, and the other reader's answer is not on the log.
+The pump night log records Stop: 19:00, which is the hour in the claim. The operator line does not move it, and the other reader's answer is not on the log.
 VERDICT: supported
-DECIDING: Stop: 19:00.
+DECIDING: Pump night log | Stop: 19:00.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-A night log names an operator and records Stop: 19:00. The claim says the pump stops at 19:00. What do you answer?
+Asked another way: does this log back a 19:00 stop for the pump?
 ```
 
-**Key:** quiz (verdict): supported / Stop: 19:00. / no · variant key: {"verdict": "supported"}
+**Key:** quiz (verdict): supported / Pump night log | Stop: 19:00. / no · variant key: {"verdict": "supported"}
 
 *invented: night-log verdict quiz and variant, written for this item (key by construction)*
 
