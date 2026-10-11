@@ -1,20 +1,17 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-11 from commit 65fc4e5 by Atlas 1.24.0.
+Mapped at 2026-10-11 from commit 1a25b97 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (218 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (219 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-11 (4ba99b2)
+## What changed since 2026-10-11 (65fc4e5)
 
-- docs/runs/stage1-eval/ is now also read by docs/runs/stage1-train/test_receipts.py and docs/runs/stage1-train/test_runner.py.
-- docs/runs/stage1-stuck-rule.json is now read by docs/runs/stage1-train/run.py.
-- docs/runs/stage1-train/eval_adapter.py is now also read by docs/runs/stage1-train/test_receipts.py.
-- And 3 more new writers and readers of places.
-- 5 files added and 3 changed content, across 1 part.
+- packages/aspire-si-gates/tests/test_closed_form.py is new and belongs to no part, so atlas check fails on it against the previous map.
+- 1 file added and 16 changed content, across 1 part.
 
 ## What comes in
 
@@ -62,7 +59,7 @@ Window: 180 days; a pair counts from 3 shared commits, since 3 source files reac
 
 Every code part is imported by at least one test.
 
-11 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 8 more.
+12 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 9 more.
 
 ## Written but never read
 
@@ -94,7 +91,7 @@ Read those in order to follow one pull request end to end.
 - 15 writes and 34 reads use paths built at run time and are not named here.
 - 65 writes and 77 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
-- 10 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 7 more.
+- 11 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 8 more.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.

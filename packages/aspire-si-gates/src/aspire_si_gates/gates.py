@@ -840,9 +840,64 @@ def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=No
         if not isinstance(v, dict) or not v.get("user") or v["user"] == r["turns"][0]["user"] or "key" not in v:
             raise DataError(f"{where}: variant must be a re-worded {{user, key}}")
         original = _key_points(q)
+        if q["type"] == "written" and isinstance(v["key"], dict) and "answer" in v["key"]:
+            _check_closed_form(where, v, original)
+            return
         variant = " ".join(_key_points(v["key"]))
         if not any(k and (k in variant or variant in k) for k in original):
             raise DataError(f"{where}: the variant's key shares no key point with the original")
+
+
+OPTION_RX = re.compile(r"^\s*\(?([A-D])[.)]\s+(\S.*)$")
+ANSWER_RX = re.compile(r"^\s*ANSWER:\s*\(?([A-D])\)?\s*[.]?\s*$", re.M)
+
+
+def closed_form_options(user: str) -> dict:
+    """{letter: option text} for a closed-form variant: lines that start "A." or "A)" (or "(A)"), A to D."""
+    out = {}
+    for line in user.splitlines():
+        m = OPTION_RX.match(line)
+        if m:
+            out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def parse_choice(answer: str) -> str | None:
+    """The letter on the last ANSWER line of a reply to a closed-form variant, or None."""
+    found = ANSWER_RX.findall(answer or "")
+    return found[-1] if found else None
+
+
+def _check_closed_form(where: str, v: dict, original: list):
+    """A written E item's closed-form variant (R&D, 2026-10-11): 3 or 4 options labelled A, B, C(, D) on their
+    own lines, an instruction to answer with an ANSWER line, key {"answer": "<letter>"}, exactly one option
+    carrying a key point of the original, and nothing else in the variant (no material: it stands alone)."""
+    extra = set(v) - {"user", "key"}
+    if extra:
+        raise DataError(f"{where}: a closed-form variant is {{user, key}} only (it stands alone), not {sorted(extra)}")
+    if set(v["key"]) != {"answer"}:
+        raise DataError(f"{where}: a closed-form key is {{\"answer\": \"<letter>\"}} only")
+    opts = closed_form_options(v["user"])
+    letters = sorted(opts)
+    if len(opts) not in (3, 4) or letters != list("ABCD"[:len(opts)]):
+        raise DataError(f"{where}: a closed-form variant needs 3 or 4 options labelled A, B, C(, D), got {letters}")
+    if "ANSWER:" not in v["user"]:
+        raise DataError(f"{where}: a closed-form variant asks for the letter on an ANSWER: line")
+    texts = [norm(t).lower() for t in opts.values()]
+    if len(set(texts)) != len(texts):
+        raise DataError(f"{where}: two closed-form options are the same after normalising")
+    key = v["key"]["answer"]
+    if key not in opts:
+        raise DataError(f"{where}: the closed-form key {key!r} isn't one of the options {letters}")
+
+    def carries(t):
+        t = norm(t).lower()
+        return any(k and (k in t or t in k) for k in original)
+    if not carries(opts[key]):
+        raise DataError(f"{where}: the keyed option shares no key point with the original")
+    others = [x for x in letters if x != key and carries(opts[x])]
+    if others:
+        raise DataError(f"{where}: options {others} also carry a key point of the original: exactly one is keyed")
 
 
 def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:

@@ -8,10 +8,10 @@ from pathlib import Path
 
 from .context import REASONS, check_against  # noqa: F401
 from .scorer_rules import critic_mismatch, deciding_covers, deciding_ok, lines_of, norm  # noqa: F401
-from .gates import (DataError, batch_report, check_batch, check_item, freeze_report, leakage, load,  # noqa: F401
-                    role_words_in_prompt, validate)
+from .gates import (DataError, batch_report, check_batch, check_item, closed_form_options,  # noqa: F401
+                    freeze_report, leakage, load, parse_choice, role_words_in_prompt, validate)
 
-GATES_VERSION = "1.1.0"
+GATES_VERSION = "1.2.0"
 
 
 def gates_identity() -> dict:
