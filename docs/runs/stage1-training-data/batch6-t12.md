@@ -1093,7 +1093,7 @@ I keep 12 pages. Edition 3 matches and the booklet prints 12.
 **Variant user:**
 ```text
 A harbour booklet for edition 3 shows a length of 12 pages. A reader asks to file 9 pages against that edition. Which sentence do you stand on?
-A. Borrow the neighbouring volume's count, since a quiet spot in this one can be answered from the copy beside it.
+A. Borrow a page count from a neighbouring edition, because a quiet spot in edition 3 can be answered by the booklet beside it.
 B. 12 pages stay, since edition 3 matches and 12 is what the booklet prints.
 C. File 9 pages, because a shorter booklet is the kinder reading of the same edition.
 D. Wait for a second booklet before edition 3 is allowed to mean any page count at all.
@@ -1124,10 +1124,10 @@ I stop before any figure. These notes are version 2.0 and the question names ver
 **Variant user:**
 ```text
 The folder holds notes for release 2.0 only. The ask is about a charge named under release 4.0. What do you do?
-A. Use the earlier number for the later release, since a nearby issue is close enough to answer the one after it.
+A. Use the version 2.0 figure for version 4.0, because a nearby version is close enough to answer the later one.
 B. Deny the version 4.0 claim outright, because a missing version is the same thing as a printed no.
-C. Average the pair, since a gap between the earlier issue and the later one can be split down the middle.
-D. Halt before a figure, since these notes are release 2.0 while the question names release 4.0.
+C. Average the two versions, because a gap between version 2.0 and version 4.0 can be split down the middle.
+D. Stop before a figure, since these notes are release 2.0 while the question names version 4.0.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1156,7 +1156,7 @@ I stop. The timetable date is 2 May 2020 and the question names 2 May 2021.
 ```text
 The drawer holds one timetable, and its date is the second of May in 2020. The ask is about that day in 2021. Which ending is yours?
 A. Stop here, since the timetable date is 2 May 2020 while the question names 2021.
-B. Copy the leaving time from the page in hand onto the later morning, since the neighbouring day can answer the one that is missing.
+B. Copy the 2 May 2020 leaving time onto 2 May 2021, because the neighbouring date can answer the one that is missing.
 C. Refuse every boat, because a missing year is a printed ban on the later service.
 D. Call the two May dates one morning written down with two years.
 Put the letter alone on an ANSWER: line.
