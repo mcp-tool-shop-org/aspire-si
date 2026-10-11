@@ -260,27 +260,27 @@ the red peg
 
 **User:**
 ```text
-1. Three bells are brass, clay and tin. Heights are 1st, 2nd and 3rd. The noon strike uses the bell in 1st. A weight chart ranks bells by weight.
-2. Brass is ahead of clay.
-3. Tin is after clay.
+1. Three bells are brass, clay and tin. Heights are 1st, 2nd and 3rd, each bell at a different height. The noon strike uses the bell in 1st. A weight chart ranks bells by weight.
+2. Brass is not in 3rd.
+3. Clay and tin hang next to each other.
 Question: Which bell does the noon strike use?
 ```
 
 **Thinking:**
 ```text
 Brass, clay and tin, heights 1st, 2nd and 3rd. The noon strike uses 1st. A weight chart is not a height.
-Brass is ahead of clay.
-Tin is after clay.
-The order is brass, clay, tin, so 1st is brass.
-Both height lines are already in. I stop. The chart ranks weight.
+Brass is not in 3rd.
+Clay and tin hang next to each other, so they take 1st and 2nd or 2nd and 3rd, and brass takes the end they leave.
+Brass isn't in 3rd, so brass is in 1st, with clay and tin in 2nd and 3rd.
+That settles the bell in 1st, so I stop. Which of clay and tin is 2nd doesn't touch the answer, and the chart ranks weight.
 ```
 
 **Reply:**
 ```text
 | bell | height |
 | brass | 1st |
-| clay | 2nd |
-| tin | 3rd |
+| clay | 2nd or 3rd |
+| tin | 2nd or 3rd |
 brass
 ```
 
