@@ -24,7 +24,14 @@ the evaluation) is never touched: the run stops and a person decides. The automa
    run, then stop. Paused time is excluded from train_seconds; wall time is reported beside it.
 5. A stall (no step within 5x the median step time; before the 3rd step, the startup allowance): train.py
    dumps its own stack, then the run stops. Never restarted by itself.
+6. The card grant's planned end passes: train.py is asked to stop, writes its checkpoint at the last finished
+   step, and exits; the run stops and is never resumed by itself. Extending a grant is the Publisher's call, made
+   before the end, never the runner's.
 Also stopped, never acted on: a non-finite loss, a loss spike (3 straight steps over 3x the running median).
+There is no rest or cooldown wait before or after a run: rest between runs is the Publisher's scheduling. The
+only waits are the heat pause (a temperature guard) and the 60 s before a crash resume.
+The device state at the start (GPU temperature, SM clock, power, memory used) is recorded in status.json and the
+diagnostics receipt.
 
 **Ownership.** On Windows train.py runs inside a Job Object with kill-on-close, so if this process dies for any
 reason, the OS ends train.py too. Second guard: train.py stops itself when status.json's heartbeat is older than
@@ -60,7 +67,7 @@ STALL_FACTOR = 5
 WATCHDOG_MAX_AGE_S = 60
 CARD_SLACK_MIB = 1024
 EXIT_REASON = {71: "VRAM self-stop (28 GB)", 72: "non-finite loss", 73: "loss spike", 74: "disk full",
-               75: "supervisor heartbeat lost", 76: "I/O still failing after 5 tries"}
+               75: "supervisor heartbeat lost", 76: "I/O still failing after 5 tries", 77: "card grant ended"}
 
 
 def now_iso(t=None) -> str:
@@ -94,13 +101,15 @@ def write_atomic(path: Path, obj):
 # ---------------------------------------------------------------- the rig
 
 def nvidia_smi() -> dict | None:
-    """Temperature (C), power (W) and used memory (MiB) of GPU 0, or None if nvidia-smi can't answer."""
+    """Temperature (C), power (W), SM clock (MHz) and used memory (MiB) of GPU 0, or None if nvidia-smi can't
+    answer."""
     try:
-        out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu,power.draw,memory.used",
+        out = subprocess.run(["nvidia-smi", "--query-gpu=temperature.gpu,power.draw,clocks.sm,memory.used",
                               "--format=csv,noheader,nounits", "-i", "0"], capture_output=True, text=True,
                              timeout=10).stdout
-        temp, power, mem = (x.strip() for x in out.strip().splitlines()[0].split(","))
-        return {"temp_c": float(temp), "power_w": float(power), "mem_used_mib": float(mem)}
+        temp, power, sm, mem = (x.strip() for x in out.strip().splitlines()[0].split(","))
+        return {"temp_c": float(temp), "power_w": float(power), "sm_clock_mhz": float(sm),
+                "mem_used_mib": float(mem)}
     except (OSError, ValueError, IndexError, subprocess.SubprocessError):
         return None
 
@@ -300,6 +309,8 @@ class Runner:
             return "nvidia-smi didn't answer"
         if first:
             self.status["card_baseline_mib"] = g["mem_used_mib"]
+            self.status["device_at_start"] = {"at": now_iso(), **{k: g.get(k) for k in
+                                              ("temp_c", "sm_clock_mhz", "power_w", "mem_used_mib")}}
         elif g["mem_used_mib"] > self.status["card_baseline_mib"] + CARD_SLACK_MIB:
             return (f"the card isn't empty: {g['mem_used_mib']:.0f} MiB used, baseline "
                     f"{self.status['card_baseline_mib']:.0f} + {CARD_SLACK_MIB}")
@@ -317,6 +328,7 @@ class Runner:
         started, last_step_at, last_probe = time.time(), time.time(), 0.0
         hot_since, pause_started = None, None
         n_steps = len(self.steps)
+        grant_end = parse_iso(self.a.grant_end)
         new_steps = 0  # steps this attempt has completed (a resumed trainer reloads the model first)
         try:
             while True:
@@ -326,6 +338,11 @@ class Runner:
                 if len(self.steps) != n_steps:
                     new_steps += max(0, len(self.steps) - n_steps)
                     n_steps, last_step_at = len(self.steps), t
+                # the grant's end: ask train.py to checkpoint and stop (once)
+                if t >= grant_end and code is None and not self.status.get("stop_requested"):
+                    self.act("the card grant's planned end passed", "stop at the next checkpoint",
+                             grant_end=self.a.grant_end)
+                    self.write_status(stop_requested=True, stop_reason="card grant ended")
                 # heat
                 if t - last_probe >= self.a.probe_every:
                     last_probe = t
@@ -491,6 +508,7 @@ class Runner:
             "paused_seconds": round(self.counts["pause_s"], 1), "resumes": self.counts["resumes"],
             "peak_vram_gb": max((r.get("peak_vram_gb", 0) for r in self.steps), default=None),
             "planned_peak_gb": self.a.planned_peak_gb, "grant_id": self.a.grant_id,
+            "device_at_start": self.status.get("device_at_start"),
             "quiz": None, "stuck_by_cell": [], "hedge_summary": None,
             "near_length_caps": near, "loss_spikes": spikes, "backup": self.backup(),
             "proposals": proposals,
@@ -506,9 +524,12 @@ class Runner:
     def backup(self) -> dict:
         """Copy the run's small records and the adapter to the backup drive, if it's mounted. Never fatal."""
         root = Path(self.a.backup_root) if self.a.backup_root else None
-        if root is None or not Path(root.anchor or root).exists():
-            return {"status": "skipped", "reason": f"{root.anchor if root else 'no backup root'} not mounted"}
-        dest = root / "stage1-train" / str(self.a.round) / self.a.arm / str(self.a.seed)
+        if root is None:
+            return {"status": "skipped", "reason": "no backup root set"}
+        if not Path(root.anchor or root).exists():
+            return {"status": "skipped", "reason": "the archive drive isn't mounted"}
+        rel = f"stage1-train/{self.a.round}/{self.a.arm}/{self.a.seed}"
+        dest = root / rel
         try:
             dest.mkdir(parents=True, exist_ok=True)
             for name in ("status.json", "actions.jsonl"):
@@ -519,9 +540,9 @@ class Runner:
                     shutil.copy2(self.train_dir / name, dest / name)
             if (self.train_dir / "adapter").exists():
                 shutil.copytree(self.train_dir / "adapter", dest / "adapter", dirs_exist_ok=True)
-            return {"status": "copied", "to": str(dest)}
+            return {"status": "copied", "to": f"external-archive:{rel}"}  # receipts carry no absolute paths
         except OSError as e:
-            return {"status": "failed", "reason": f"{type(e).__name__}: {e}"}
+            return {"status": "failed", "reason": f"{type(e).__name__} (errno {e.errno})"}
 
 
 def _until_flag(xs):

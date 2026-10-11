@@ -12,6 +12,7 @@ Fault injection, for the runner's tests only (environment variables):
 - TINY_OOM_AT_STEP=N: an out-of-memory error at step N;
 - TINY_HANG_AT_STEP=N: step N never finishes;
 - TINY_IO_FAIL=N: the first N loss-log writes raise a transient OSError.
+- TINY_SLOW_S=X: every step waits X seconds first (so a test can land an event mid-run).
 """
 
 import os
@@ -53,6 +54,7 @@ def install_faults(argv):
     real_check = train.Supervisor.check
     step = {"n": None}
     start = resumed_from(out)
+    slow = float(os.environ.get("TINY_SLOW_S", 0))
 
     def check(self):
         paused = real_check(self)
@@ -64,6 +66,8 @@ def install_faults(argv):
             marker.write_text("1")
             os._exit(1)
         FAULT["oom"] = bool(oom and n == oom)  # raised inside the forward pass, where a real one happens
+        if n and slow:
+            time.sleep(slow)
         if hang and n == hang:
             while True:
                 time.sleep(1)

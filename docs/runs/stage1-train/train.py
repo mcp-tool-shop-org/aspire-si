@@ -21,7 +21,9 @@
   stops with one of the exit codes below.
 
 Exit codes: 0 done; 71 VRAM self-stop (28 GB); 72 non-finite loss; 73 loss spike (3 steps over 3x the running
-median); 74 disk full; 75 supervisor heartbeat lost; 76 I/O still failing after 5 tries. Anything else is a crash.
+median); 74 disk full; 75 supervisor heartbeat lost; 76 I/O still failing after 5 tries; 77 the card grant ended
+(the supervisor asked for a stop: the checkpoint is written at the last finished step first, so the run can be
+resumed under a new grant). Anything else is a crash.
 """
 
 import argparse
@@ -53,11 +55,15 @@ LORA = {"r": 64, "lora_alpha": 128, "lora_dropout": 0.05,
 VRAM_CAP_GB = 28  # self-stop line; jobs are planned at or below about 26 GB
 OPT = {"lr": 1e-4, "warmup_frac": 0.03, "weight_decay": 0.0, "effective_batch": 16, "max_len": 4096,
        "max_target": 3000, "epochs": 1, "seed": 0}
-EXIT = {"vram": 71, "nonfinite": 72, "spike": 73, "disk_full": 74, "orphan": 75, "io": 76}
+EXIT = {"vram": 71, "nonfinite": 72, "spike": 73, "disk_full": 74, "orphan": 75, "io": 76, "grant_end": 77}
 HEARTBEAT_MAX_AGE_S = 120
 SPIKE = {"factor": 3.0, "steps": 3, "window": 20}  # stop: 3 straight steps over 3x the median of the last 20
 IO_BACKOFF_S = (1, 2, 4, 8, 16)  # 5 tries per operation
 NEAR_CAP = 0.9  # sequences within 10% of a length cap are listed for the round's diagnostics
+
+
+class StopRequested(Exception):
+    """The supervisor asked for a stop (the card grant ended): checkpoint first, then exit 77."""
 
 
 class Stop(Exception):
@@ -221,6 +227,8 @@ class Supervisor:
             if hb is None or time.time() - hb > self.max_age:
                 age = None if hb is None else round(time.time() - hb, 1)
                 raise Stop("supervisor heartbeat lost", EXIT["orphan"], heartbeat_age_s=age)
+            if st.get("stop_requested"):
+                raise StopRequested(st.get("stop_reason") or "stop requested")
             if not st.get("pause"):
                 if announced:
                     self.events("pause_end", paused_s=round(paused, 1))
@@ -283,7 +291,10 @@ def train(a, seqs, manifest, out, events):
 
     cuda = torch.cuda.is_available()
     sup = Supervisor(Path(a.status) if a.status else None, events)
-    sup.check()  # no supervisor heartbeat, no model load
+    try:
+        sup.check()  # no supervisor heartbeat, no model load
+    except StopRequested as e:
+        raise Stop("card grant ended", EXIT["grant_end"], step=None, checkpoint_step=None, request=str(e)) from e
     print(json.dumps(student.verify_weights()), flush=True)
     if cuda:
         # The trainer stops itself at 28 GB (the maintainer's policy): past this limit an allocation fails with a
@@ -353,8 +364,18 @@ def train(a, seqs, manifest, out, events):
     t0 = time.time()
     paused = 0.0
     over = 0
+    saved_at = start_step
     for step in range(start_step, total_steps):
-        paused += sup.check()
+        try:
+            paused += sup.check()
+        except StopRequested as e:
+            if step > saved_at:  # flush: the steps finished since the last checkpoint are kept
+                state = {"step": step, "code_sha256": manifest["code_sha256"], "data": manifest["data"],
+                         "train_seconds": prior_seconds + time.time() - t0 - paused,
+                         "paused_seconds": prior_paused + paused}
+                with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
+            faulthandler.cancel_dump_traceback_later()
+            raise Stop("card grant ended", EXIT["grant_end"], step=step, checkpoint_step=step, request=str(e)) from e
         t_step = time.time()
         for g in opt.param_groups:
             g["lr"] = lr_at(step)
@@ -415,6 +436,7 @@ def train(a, seqs, manifest, out, events):
                      "train_seconds": prior_seconds + time.time() - t0 - paused,
                      "paused_seconds": prior_paused + paused}
             with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
+            saved_at = step + 1
         if len(step_times) >= 3:
             # A stalled step writes its own stack: the dump fires if the next step takes 5x the median step time.
             faulthandler.dump_traceback_later(5 * statistics.median(step_times), repeat=False, file=stall_file)

@@ -57,7 +57,7 @@ def rig(tmp_path):
     sealed.write_text(json.dumps({"id": "sx-planted0001", "material": "the planted sealed line says the north "
                                   "gate opens at seven every morning except holidays"}) + "\n", encoding="utf-8")
     gpu = tmp_path / "gpu.json"
-    gpu.write_text(json.dumps({"temp_c": 50, "power_w": 100, "mem_used_mib": 1000}))
+    gpu.write_text(json.dumps({"temp_c": 50, "power_w": 100, "sm_clock_mhz": 2400, "mem_used_mib": 1000}))
     yield {"wd": wd, "sealed": sealed, "gpu": gpu, "root": tmp_path / "out", "stop": stop}
     stop.set()
 
@@ -119,6 +119,8 @@ def test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run(rig, tmp_pat
     assert len(resumed) == 1 and resumed[0]["count"] == 1 and resumed[0]["cap"] == 3
     diag = json.loads((d / "diagnostics.json").read_text(encoding="utf-8"))
     assert diag["resumes"] == 1 and diag["backup"]["status"] == "skipped"
+    assert diag["device_at_start"]["temp_c"] == 50 and "sm_clock_mhz" in diag["device_at_start"]
+    assert status["device_at_start"] == diag["device_at_start"]
     row = json.loads((d / "receipts" / "diagnostics.jsonl").read_text(encoding="utf-8"))
     assert row["schema"] == "stage1-receipt-v1" and row["source"] == "diagnostics" and row["round"] == 1
     assert row["arm"] == "ROLE" and row["seed"] == 0 and row["grant_id"] == "G-test"
@@ -218,6 +220,29 @@ def test_heat_pauses_between_steps_and_resumes(rig, monkeypatch, tmp_path):
     assert "pause_start" in events and "pause_end" in events
     manifest = json.loads((d / "train" / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["paused_seconds"] > 0
+
+
+@needs_tokenizer
+def test_the_grant_end_checkpoints_and_stops_without_resuming(rig):
+    from datetime import datetime, timedelta, timezone
+    end = (datetime.now(timezone.utc) + timedelta(seconds=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    p, d, status, actions = run_runner(rig, {"TINY_SLOW_S": "1"}, steps=10, ckpt=4, grant_end=end, startup=600)
+    assert p.returncode == 1
+    assert status["state"] == "stopped" and status["stop_reason"] == "card grant ended" and status["resumes"] == 0
+    assert [x["action"] for x in actions if "grant" in x["trigger"]] == ["stop at the next checkpoint"]
+    logged = [s for s, _ in losses(d)]
+    ck = json.loads((d / "train" / "checkpoint" / "state.json").read_text(encoding="utf-8"))["step"]
+    assert 1 <= ck < 10 and logged == list(range(1, ck + 1))  # flushed at the last finished step
+    assert '"code": 77' in (d / "train" / "trainer-events.jsonl").read_text(encoding="utf-8")
+
+
+def test_no_absolute_path_reaches_a_receipt(rig, tmp_path):
+    trainer = tmp_path / "ok.py"
+    trainer.write_text("raise SystemExit(0)\n")
+    p, d, status, _ = run_runner(rig, None, "--trainer", str(trainer), "--backup-root", str(tmp_path / "archive"))
+    row = (d / "receipts" / "diagnostics.jsonl").read_text(encoding="utf-8")
+    assert json.loads(row)["backup"] == {"status": "copied", "to": "external-archive:stage1-train/1/ROLE/0"}
+    assert str(tmp_path) not in row and str(tmp_path).replace("\\", "/") not in row
 
 
 @needs_tokenizer
