@@ -23,7 +23,6 @@ def _spent(r):
 
 
 VERDICT_E = [r for r in ALL_VERDICT_E if not _spent(r)]  # own variants never trained on
-SPENT_E = [r for r in ALL_VERDICT_E if _spent(r)]
 WRITTEN_E = [r for r in ITEMS if r["kind"] == "E" and r["quiz"]["type"] == "written"]
 RULE = stuck_adapter.load_frozen()
 
@@ -142,13 +141,19 @@ def test_readout_reports_n0_beside_n_ge_1_and_star_off():
 
 
 def test_a_variant_that_was_trained_on_is_spent_not_asked():
-    """T05-E-06's own variant repeats its trained statement word for word, so it can't be a fresh first ask."""
-    assert [r["id"] for r in SPENT_E] == ["T05-E-06"]
+    """A variant that repeats a sentence of its item's trained turn can't be a fresh first ask. The case is built
+    here, not read from the data: the data's spent variants are reworded in fix rounds."""
+    r = copy.deepcopy(VERDICT_E[0])
+    r["id"] = "T05-E-99"
+    trained_words = r["turns"][0]["thinking"].split()
+    assert len(trained_words) >= 10
+    r["variant"] = {"user": " ".join(trained_words[:10]) + " What do you answer?", "key": r["variant"]["key"]}
+    r["_marker"] = r["variant"]["user"]
     lg = Ledger()
-    out, rows, _ = sit(SPENT_E, {0: True, 1: True, 2: True}, ledger=lg)
+    out, rows, _ = sit([r], {0: True, 1: True, 2: True}, ledger=lg)
     assert rows == [] and out["spent_variants"] == [
-        {"base": "T05-E-06", "n": 0, "reason": "shares an 8-word span with a trained turn"}]
-    assert lg.items["T05-E-06"]["status"].startswith("unmastered") and lg.items["T05-E-06"]["spent"]
+        {"base": "T05-E-99", "n": 0, "reason": "shares an 8-word span with a trained turn"}]
+    assert lg.items["T05-E-99"]["status"].startswith("unmastered") and lg.items["T05-E-99"]["spent"]
 
 
 def test_a_free_text_store_variant_is_spent_and_the_next_closed_one_is_asked():
