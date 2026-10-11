@@ -1166,7 +1166,7 @@ I refuse six. The basket cap is five.
 **Variant user:**
 ```text
 A basket card caps sample jars at five and a claim says six were pulled. Which move do you make?
-A. Accept six, because the person counting sounds careful and the extra jar looks small beside the basket.
+A. Accept six, since the person counting sounds careful and the extra jar looks small beside the basket.
 B. Distrust the cap, because one basket sentence is too thin a source to use against a count.
 C. Turn away six jars, since five is the basket cap.
 D. Call five jars and six jars one count written out in two styles on the same card.
