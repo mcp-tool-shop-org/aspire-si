@@ -171,7 +171,7 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         else:
             ledger.enrol(r["id"], r["lesson"], session)
     import receipts
-    trained, shown_on_purpose = trained_spans(items), material_spans(items)
+    trained = trained_spans(items)
     spent: list = []
     asked = []
     for base in ledger.due(session):
@@ -179,10 +179,18 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         if r is None:
             continue
         family = {0: r["variant"], **store.get(base, {})}
+        shown_on_purpose = material_spans([r])  # only the asked item's own material is shown with it
         n = ledger.next_variant(base, sorted(family))
-        while n is not None and (receipts.spans(family[n]["user"]) - shown_on_purpose) & trained:
-            ledger.spend(base, n, "shares an 8-word span with a trained turn")
-            spent.append({"base": base, "n": n})
+        while n is not None:
+            why = None
+            if quiz_type(r, family[n]) == "free_text":
+                why = "free text, not yet testable"  # a written variant can only be quizzed in closed form
+            elif (receipts.spans(family[n]["user"]) - shown_on_purpose) & trained:
+                why = "shares an 8-word span with a trained turn"
+            if why is None:
+                break
+            ledger.spend(base, n, why)
+            spent.append({"base": base, "n": n, "reason": why})
             n = ledger.next_variant(base, sorted(family))
         if n is None:
             continue

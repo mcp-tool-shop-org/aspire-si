@@ -146,5 +146,21 @@ def test_a_variant_that_was_trained_on_is_spent_not_asked():
     assert [r["id"] for r in SPENT_E] == ["T05-E-06"]
     lg = Ledger()
     out, rows, _ = sit(SPENT_E, {0: True, 1: True, 2: True}, ledger=lg)
-    assert rows == [] and out["spent_variants"] == [{"base": "T05-E-06", "n": 0}]
+    assert rows == [] and out["spent_variants"] == [
+        {"base": "T05-E-06", "n": 0, "reason": "shares an 8-word span with a trained turn"}]
     assert lg.items["T05-E-06"]["status"].startswith("unmastered") and lg.items["T05-E-06"]["spent"]
+
+
+def test_a_free_text_store_variant_is_spent_and_the_next_closed_one_is_asked():
+    """R&D's fix on #102: {0 closed, 1 free text, 2 closed} asks 0, then 2; the free-text one never blocks."""
+    c = CLOSED[0]
+    c["_marker"] = "A. Count the approvals."  # in both closed-form variants, so the stand-in finds the item
+    other = c["variant"]["user"].replace("Which is the habit", "Pick the habit")
+    store = {c["id"]: {1: {"user": "Say in your own words what the habit is.", "key": ["read the page first"]},
+                       2: {"user": other, "key": {"answer": "B"}}}}
+    lg = Ledger()
+    sit([c], {0: False, 1: False, 2: False}, ledger=lg, session=1, store=store)
+    out, rows, _ = sit([c], {0: True, 1: True, 2: True}, ledger=lg, session=2, store=store)
+    assert {x["variant"] for x in rows} == {2}
+    assert out["spent_variants"] == [{"base": c["id"], "n": 1, "reason": "free text, not yet testable"}]
+    assert [h["variant"] for h in lg.items[c["id"]]["history"]] == [0, 2]
