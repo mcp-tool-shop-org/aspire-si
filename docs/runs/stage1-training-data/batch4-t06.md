@@ -603,13 +603,13 @@ The statement is one claim, that the lentil pot is the Tuesday pot. The board gi
 
 **Reply:**
 ```text
-They guessed. The pot line keeps its condition, and the bread line speaks about bread. The bare identity stays conditional, and the pot line was the claim to check.
+They treated silence as a no. The pot line keeps its condition, and the bread line speaks about bread. The bare identity stays conditional, and the pot line was the claim to check.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
 *invented: kitchen board and checker trace, written for this item (key by construction)*
 
