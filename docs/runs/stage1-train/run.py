@@ -509,6 +509,7 @@ class Runner:
             "peak_vram_gb": max((r.get("peak_vram_gb", 0) for r in self.steps), default=None),
             "planned_peak_gb": self.a.planned_peak_gb, "grant_id": self.a.grant_id,
             "device_at_start": self.status.get("device_at_start"),
+            "order": manifest.get("order"),
             "quiz": None, "stuck_by_cell": [], "hedge_summary": None,
             "near_length_caps": near, "loss_spikes": spikes, "backup": self.backup(),
             "proposals": proposals,
