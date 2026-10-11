@@ -400,7 +400,7 @@ Falsifier pass: does any line deny either half? The policy has exactly these two
 ```text
 Both halves sit verbatim in the policy; no line contradicts either.
 VERDICT: supported
-DECIDING: priority 1 tickets are answered within 1 hour | All other tickets are answered within 2 working days
+DECIDING: IT helpdesk: priority 1 tickets are answered within 1 hour. All other tickets are answered within 2 working days.
 ESCALATE: no
 supported
 ```

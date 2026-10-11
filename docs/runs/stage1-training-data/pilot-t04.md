@@ -340,38 +340,35 @@ cannot_tell
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
-### T04-B-07 · kind B · record · tier 4 · honest cannot_tell · tags: non-verification
+### T04-B-07 · kind B · record · tier 4 · honest cannot_tell
 
 **User:**
 ```text
-1. Four notes are amount, status, paid on the 12th and by bank transfer. A note is known or assumed.
-2. The count of known is 2.
-3. The amount is known.
-4. The status is known.
-Question: Which note is known and which note is assumed?
+Sort what's known from what's assumed.
+The file says: "Invoice 77 — amount £120, status: PAID."
+A colleague believes it was paid on the 12th, by bank transfer.
+Claim: the file shows the payment was on the 12th, by bank transfer.
+Can the file settle that claim? Draw the tree and mark what you'd have to invent.
 ```
 
 **Thinking:**
 ```text
-Amount, status, the 12th and the transfer are each known or assumed, and the opening line marks none.
-Known is counted at 2.
-Amount is known.
-Status is known.
-Those two known notes fill the count, so the 12th and the transfer stay assumed.
-A date or a method would need a line this file does not have.
+ROOT  the colleague's two beliefs: the date + the method    [open]
+├─ paid on the 12th   ← the file names an amount and a stamp, no date anywhere   [?]
+└─ by bank transfer   ← no payment method is named anywhere                      [?]
+Either belief would need a line that isn't there. What the file doesn't say stays assumed: neither belief gets promoted just because it sounds like how invoices usually go. Known from the file: £120 and PAID.
 ```
 
 **Reply:**
 ```text
-| note | mark |
-| amount | known |
-| status | known |
-| paid on the 12th | assumed |
-| by bank transfer | assumed |
-amount=known; status=known; paid on the 12th=assumed; by bank transfer=assumed
+Known from the file: amount £120, status PAID. Assumed by my colleague: the date and the method — believing either takes a line the file doesn't have. One pass over every line, two beliefs ungrounded, stop.
+VERDICT: unsupported
+DECIDING: The file says: "Invoice 77 — amount £120, status: PAID."
+ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: amount=known; status=known; paid on the 12th=assumed; by bank transfer=assumed
+**Key:** answer: unsupported
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
@@ -379,26 +376,24 @@ amount=known; status=known; paid on the 12th=assumed; by bank transfer=assumed
 
 **User:**
 ```text
-1. Two boats are the white boat and the grey boat. A boat crosses at dusk or at dawn.
-2. The white boat crosses at dusk.
-Question: Does the grey boat cross at dawn?
+Material (a canon card):
+"The Ferryman keeps two boats. The grey boat crosses at dawn. The white boat crosses at dusk."
+Statement: "The Ferryman keeps two boats, the grey one crossing at dawn."
+Draw the tree; stop when the root is settled.
 ```
 
 **Thinking:**
 ```text
-White and grey, dusk and dawn, one each, and the opening line times neither boat.
-White crosses at dusk.
-Dawn is the other time, so grey crosses at dawn.
-Both boats are timed from that one line. The root is settled.
+ROOT  two boats + grey crosses at dawn                    [open]
+├─ B1 keeps two boats  ← "The Ferryman keeps two boats."        ✓
+└─ B2 grey at dawn     ← "The grey boat crosses at dawn."       ✓
+Both leaves backed by lines on the card. No leaf was pruned and none left open, so the root settles plainly — nothing hedged.
 ```
 
 **Reply:**
 ```text
-ROOT grey at dawn
-├─ white crosses at dusk
-└─ dawn is the remaining time
 VERDICT: supported
-DECIDING: The white boat crosses at dusk.
+DECIDING: The Ferryman keeps two boats. | The grey boat crosses at dawn.
 ESCALATE: no
 supported
 ```

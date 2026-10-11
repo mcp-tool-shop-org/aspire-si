@@ -148,37 +148,39 @@ I answer from the photocopy. Waiting for the original would pretend the rule was
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T02-B-01 · kind B · puzzle · tier 2 · from the page · tags: non-verification
+### T02-B-01 · kind B · puzzle · tier 2 · from the page
 
 **User:**
 ```text
-1. Four sheds are north, south, east and west. A shed is open or shut. A rumour says the south shed was closed.
-2. East is shut.
-3. West is shut.
-4. The count of open is 2.
-Question: Which sheds are open?
+Four sheds stand on the lane: north, south, east and west.
+The lane note allows any shed it does not close.
+The lane note closes the east shed and the west shed.
+A rumour passed along the yard says the south shed was closed.
+Claim: the lane note allows the north shed and the south shed.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-North, south, east and west, open or shut. A yard rumour about the south shed is not the lane note.
-East is shut.
-West is shut.
-Open is counted at 2, so north and south are open.
-The rumour does not close south. The note does.
+The lane note allows any shed it does not close, and the sheds it closes are east and west. North stays open on that note, and so does south. The yard rumour is talk from the yard, not the lane note, and the question asks what the note allows. I do not let the rumour close a shed the note left open.
 ```
 
 **Reply:**
 ```text
-| shed | state |
-| north | open |
-| south | open |
-| east | shut |
-| west | shut |
-north, south
+North and south.
+| Shed | Lane note |
+| --- | --- |
+| north | allowed |
+| south | allowed |
+| east | closed |
+| west | closed |
+VERDICT: supported
+DECIDING: The lane note allows any shed it does not close. | The lane note closes the east shed and the west shed.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: north, south
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -187,7 +189,7 @@ north, south
 **User:**
 ```text
 1. Five lamps are the red lamp, the blue lamp, the green lamp, the amber lamp and the white lamp. A lamp is spare or lit. A passer-by points at the blue lamp.
-2. The count of spare is 1.
+2. Exactly one lamp is spare.
 3. The blue lamp is not spare.
 4. The green lamp is not spare.
 5. The amber lamp is not spare.
@@ -226,7 +228,7 @@ the red lamp
 **User:**
 ```text
 1. Six pegs are the red peg, the blue peg, the green peg, the amber peg, the white peg and the black peg. Hooks are the end hook, the middle hook and the near hook. A workshop sketch ranks pegs by length.
-2. The count of the end hook is 1.
+2. Exactly one peg is on the end hook.
 3. The blue peg, the green peg and the amber peg are not on the end hook.
 4. The white peg is the middle hook.
 5. The black peg is the near hook.
@@ -236,7 +238,7 @@ Question: Which peg is on the end hook?
 **Thinking:**
 ```text
 Red, blue, green, amber, white and black pegs. Hooks are the end hook, the middle hook and the near hook. A length sketch is not a hook.
-The end hook is counted at 1.
+Exactly one peg is on the end hook.
 Blue, green and amber are not on the end hook.
 White is the middle hook.
 Black is the near hook.
@@ -288,33 +290,36 @@ brass
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T02-B-05 · kind B · puzzle · tier 2 · stops once decided · tags: non-verification
+### T02-B-05 · kind B · puzzle · tier 2 · stops once decided
 
 **User:**
 ```text
-1. Seven doors face the lane. Two of them are the yard door and the lane door. A door waits or opens. A building plan is clipped to the list.
-2. The yard door waits.
-3. The lane door opens.
-Question: Which door waits?
+Seven doors face the lane.
+The yard door opens only after the bell.
+No other door waits on the bell.
+A building plan is clipped to the back of the list.
+Claim: the yard door is the door that waits on the bell.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Seven doors, and the two in play are the yard door and the lane door, waits or opens. A building plan draws walls, not a bell.
-The yard door waits.
-The lane door opens.
-The door that waits is the yard door. The list has named it, so I stop.
+The yard door opens only after the bell, and the list adds that no other door waits on the bell. Those two lines name one door. The plan draws wall thicknesses. The list has already named the yard door. The yard door is the door the list has already named.
 ```
 
 **Reply:**
 ```text
-| door | state |
-| the yard door | waits |
-| the lane door | opens |
-the yard door
+The yard door.
+1. The yard door opens only after the bell.
+2. The list says no other door waits on the bell.
+3. The plan draws wall thicknesses, and the list has named the door.
+VERDICT: supported
+DECIDING: The yard door opens only after the bell.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: the yard door
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 

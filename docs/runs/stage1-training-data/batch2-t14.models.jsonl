@@ -5,4 +5,4 @@
 {"id": "T14-B-05", "structure": "underdetermined_with_explicit_set", "model": {"entities": ["Ada", "Bea", "Cid", "Deb"], "attributes": {"cabin": {"values": ["cabin 1", "cabin 2", "cabin 3", "cabin 4"], "ordered": true}}, "facts": [{"line": 2, "rule": ["is", "Deb", "cabin", "cabin 3"]}, {"line": 3, "rule": ["after", "Bea", "Cid", "cabin"]}, {"line": 4, "rule": ["is_not", "Ada", "cabin", "cabin 1"]}], "flavour": [1], "asks": {"entity_with": {"cabin": "cabin 2"}}}, "row_sha256": "0a502b2129b502a3e4f51eeaffc8cca3b6b33b3cbadcae37e26762c33f2d4061"}
 {"id": "T14-B-06", "structure": "verdict", "row_sha256": "f56209a8605c0ed8baba9a99dce216d7a17a1732c82a8f7ef27bcfa015239786"}
 {"id": "T14-B-07", "structure": "verdict", "row_sha256": "f9fcbeb334f3a8af015ef6228869ed9de78509e6df9954871f705fc4d4d97f61"}
-{"id": "T14-B-08", "structure": "verdict", "row_sha256": "0736e0c8e98d7659ea7e359c6b3b18298c85ab1d1568851f47fb40e6cadd7e60"}
+{"id": "T14-B-08", "structure": "verdict", "row_sha256": "80b03e3263a9b82931cc00882112fbb7787970041422aa8fd97606221b3dc2ed"}

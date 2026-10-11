@@ -161,30 +161,35 @@ I add nothing. The nails' tin being blue is one fact, and the closed lid does no
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T06-B-01 · kind B · puzzle · tier 2 · one step is enough · tags: non-verification
+### T06-B-01 · kind B · puzzle · tier 2 · one step is enough
 
 **User:**
 ```text
-1. Six pegs are peg A, peg B, peg C, peg D, peg E and peg F. A peg may or may not take the cord. A drawer stays shut beside the bench.
-2. The count of may is 6.
-Question: After which line is it settled which pegs may take the cord?
+Ten pegs sit on the bench.
+Any peg may take the cord.
+A drawer is shut and stays shut.
+Claim: any of the ten pegs may take the cord.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Peg A through peg F, each may or may not take the cord. A shut drawer beside the bench is not a peg.
-The count of may is 6.
-All six pegs may take the cord. That count settles the question, so I stop on this line and do not split the pegs into groups the lines never name.
+The question asks which pegs may take the cord, and that is one question. Ten pegs sit on the bench and any peg may take the cord, so the answer is that whole set. I do not divide the pegs into groups the lines never name. The shut drawer is a separate object and it does not change the cord.
 ```
 
 **Reply:**
 ```text
-1. Setting only: may or may not.
-2. Count of may is 6, every peg settled.
-2
+Any of the ten pegs.
+1. The bench allows any peg to take the cord.
+2. The question asks about pegs, not about the drawer.
+3. Dividing the row into unnamed groups would add a claim.
+VERDICT: supported
+DECIDING: Any peg may take the cord.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: 2
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -193,7 +198,7 @@ All six pegs may take the cord. That count settles the question, so I stop on th
 **User:**
 ```text
 1. Five crates are the Hull crate, the Lyme crate, the Oban crate, the Rye crate and the Wick crate. A crate does go or does stay. The morning boat takes the crate that does go.
-2. The count of go is 1.
+2. Exactly one crate does go.
 3. The Lyme crate is marked Lyme, so the Lyme crate does stay.
 4. The Oban crate is unsealed, so the Oban crate does stay.
 5. The Rye crate is open, so the Rye crate does stay.
@@ -319,29 +324,31 @@ the white cup
 
 **User:**
 ```text
-1. Four labels sit on the page. Two foods are oats and rice. Places are in the jar and in the sack.
-2. The oats are in the jar.
-3. The rice is in the sack.
-Question: What does the page settle?
+A pantry pair is the page.
+Material:
+The oats are in the jar.
+The rice is in the sack.
+Claim: the page settles the oats in the jar and the rice in the sack.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Oats and rice, in the jar or in the sack. Four labels, two foods.
-The oats are in the jar.
-The rice is in the sack.
-The page settles both foods, each on its own line. Splitting them apart is the whole of the question.
+Two lines sit on the page. One places the oats in the jar. The other places the rice in the sack. The page settles both, and each food stays on its own line.
 ```
 
 **Reply:**
 ```text
-| food | place |
-| oats | in the jar |
-| rice | in the sack |
-oats=in the jar; rice=in the sack
+The page settles both foods.
+1. The oats are in the jar.
+2. The rice is in the sack.
+VERDICT: supported
+DECIDING: The oats are in the jar. | The rice is in the sack.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: oats=in the jar; rice=in the sack
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -349,27 +356,27 @@ oats=in the jar; rice=in the sack
 
 **User:**
 ```text
-1. Two pumps are the night pump and the day pump. A pump is by the shed or by the lane. A pump stops at dusk or later.
-2. The night pump is by the shed.
-3. If the night pump is by the shed, then the night pump stops at dusk.
-Question: Does the night pump stop at dusk?
+A pump board is the page.
+Material:
+The pump by the shed stops at dusk.
+The night pump is by the shed.
+The day pump is by the lane.
+The cistern is covered.
+Statement: The night pump stops at dusk.
 ```
 
 **Thinking:**
 ```text
-Night pump and day pump, by the shed or by the lane, stopping at dusk or later.
-The night pump is by the shed.
-If the night pump is by the shed, the night pump stops at dusk. It is by the shed, so it stops at dusk.
-Those two lines carry the statement. I do not add a third object the question never asked about.
+The statement says the night pump stops at dusk. The pump that stops at dusk is the one by the shed, and the night pump is by the shed, so those two lines carry the statement. The day pump is by the lane. The cistern's cover is a third line the statement never asked about. I do not tour it.
 ```
 
 **Reply:**
 ```text
-ROOT night pump stops at dusk
-├─ the night pump is by the shed
-└─ that place means it stops at dusk
+The night pump stops at dusk.
+1. The pump by the shed stops at dusk.
+2. The night pump is by the shed.
 VERDICT: supported
-DECIDING: The night pump is by the shed.
+DECIDING: The pump by the shed stops at dusk. | The night pump is by the shed.
 ESCALATE: no
 supported
 ```

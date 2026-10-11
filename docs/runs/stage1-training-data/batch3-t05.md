@@ -148,61 +148,77 @@ I agree on the merits when my own reading is already in hand and it matches the 
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T05-B-01 · kind B · puzzle · tier 2 · own reading · tags: non-verification
+### T05-B-01 · kind B · puzzle · tier 2 · own reading
 
 **User:**
 ```text
-1. Six pairs are Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, and Cal and Dee. A pair is yes or no.
-2. The count of yes is 6.
-Question: Which pairs may sit in front?
+Four clerks share a front row that holds a pair of chairs.
+The four clerks are Ana, Bo, Cal and Dee.
+Any pair among the four may sit in front.
+Another solver has written a list. It stays unread while you work.
+Claim: every pair among Ana, Bo, Cal and Dee may sit in front.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Six pairs, each yes or no. Another list stays unread, and an unread list is not a ban.
-Yes is counted at 6.
-All six pairs are yes. I do not let an unread list shrink them.
+Which pairs may sit is the whole allowed set, written in the order the question asks.
+1. The row seats a pair, and any pair of Ana, Bo, Cal and Dee may sit.
+2. The six unordered pairs, alphabetical, are Ana with Bo, Ana with Cal, Ana with Dee, Bo with Cal, Bo with Dee, and Cal with Dee.
+3. The unread list stays unread, so it cuts nothing.
 ```
 
 **Reply:**
 ```text
-1. Six pairs are named.
-2. Yes is counted at 6.
-3. The unread list adds no ban.
-Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, Cal and Dee
+Any pair may sit, so the list is all six, in alphabetical order.
+1. The chairs seat one pair.
+2. Ana, Bo, Cal and Dee give those six pairs and no ban.
+3. An unread list cannot shrink the set.
+VERDICT: supported
+DECIDING: Any pair among the four may sit in front.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, Cal and Dee
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T05-B-02 · kind B · puzzle · tier 2 · own reading · tags: non-verification
+### T05-B-02 · kind B · puzzle · tier 2 · own reading
 
 **User:**
 ```text
-1. Five names are on the card. Two runners are the blue runner and the field. A runner is out or running.
-2. The blue runner is not running.
-3. The field is running.
-Question: Who is out?
+Five names are on the card.
+The blue runner never starts.
+The remaining people all start.
+Every other opinion stays unread.
+Claim: the blue runner is out.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Five names sit on the card. The runners in play are the blue runner and the field, out or running.
-The blue runner is not running, so the blue runner is out.
-The field is running.
-Out is the blue runner. I do not import some other name off an unread opinion.
+Who is out asks for the person the card itself excludes.
+Five names are on the card, the blue runner never starts, and the remaining people all start.
+That is one exclusion, then a start for everybody else.
+No second name is cut, and nothing puts the blue runner back among the starters.
+Opinions besides the card stay unread, so they cannot add an exclusion or cancel this one.
+The card's own cut is the blue runner.
 ```
 
 **Reply:**
 ```text
-| runner | state |
-| the blue runner | out |
-| the field | running |
-the blue runner
+Out goes the blue runner.
+| person | starts |
+| blue runner | never |
+| everyone else | yes |
+VERDICT: supported
+DECIDING: The blue runner never starts.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: the blue runner
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -210,7 +226,7 @@ the blue runner
 
 **User:**
 ```text
-1. Six riders are blue, green, yellow, white, black and red. Boats are North, South, East, West, Near and Far. Exactly one rider per boat.
+1. Six riders are blue, green, yellow, white, black and red. Boats are North, South, East, West, Near and Far. Exactly one rider per boat. The coxswain stays silent.
 2. Blue is on South.
 3. Green is on East.
 4. Yellow is on West.
@@ -353,7 +369,7 @@ ESCALATE: no
 **User:**
 ```text
 1. Two rooms are room 2 and room 4. A room is the meeting or the other room.
-2. The count of the meeting is 1.
+2. Exactly one room is the meeting.
 Question: Is the meeting in room 2?
 ```
 
@@ -368,7 +384,7 @@ I do not treat the colleague's ruling as a line.
 **Reply:**
 ```text
 ROOT meeting in room 2
-├─ count of the meeting is 1
+├─ exactly one room is the meeting
 ├─ room 2 still possible
 └─ room 4 still possible
 VERDICT: cannot_tell

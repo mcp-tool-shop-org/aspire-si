@@ -148,88 +148,103 @@ I point to the printed 250, marks and all. Two hundred and fifty is that count, 
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T03-B-01 · kind B · puzzle · tier 2 · quotes the words · tags: non-verification
+### T03-B-01 · kind B · puzzle · tier 2 · quotes the words
 
 **User:**
 ```text
-1. Eight bins stand in a row. The third bin and the catalogue use the words tin and container. The catalogue calls every bin a container.
-2. The third bin is not container.
-Question: Which word does the row paint on the third bin?
+Eight bins stand in a row, and the third bin is painted tin.
+The catalogue on the shelf calls every bin a container.
+Claim: the row itself paints tin on the third bin.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Eight bins. The words in play are tin and container. The catalogue's container is a shelf name, not paint.
-The third bin is not container, so the third bin is tin.
-I answer with the paint, tin, because the question asked for the row's own word.
+The question asks for the word the row paints, and the third bin is painted tin. The catalogue's word is container, which is a shelf name for a bin rather than the paint. I answer with the paint, because that is the word the question asked for.
 ```
 
 **Reply:**
 ```text
-| source | word |
-| the third bin | tin |
-| the catalogue | container |
-tin
+Tin, the paint on the third bin.
+| Asked for | Word |
+| --- | --- |
+| the row's paint | tin |
+| the catalogue's name | container |
+VERDICT: supported
+DECIDING: Eight bins stand in a row, and the third bin is painted tin.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: tin
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T03-B-02 · kind B · puzzle · tier 2 · quotes the words · tags: non-verification
+### T03-B-02 · kind B · puzzle · tier 2 · quotes the words
 
 **User:**
 ```text
-1. Nine tickets are in the jar. Two of them are ticket C and ticket A. A ticket is valid or void. A pencil note says dud.
-2. Ticket C is not valid.
-3. Ticket A is valid.
-Question: Which ticket is void?
+Nine tickets are in the jar, marked A through I.
+The void ticket is not valid.
+Ticket C is not valid.
+Every other ticket is valid.
+A pencil note calls the void ticket the dud.
+Claim: ticket C is the void ticket.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Nine tickets. Ticket C and ticket A are valid or void. Dud is a pencil nickname, not the jar's clause.
-Ticket C is not valid, so ticket C is void.
-Ticket A is valid.
-The jar's words are that ticket C is not valid. I quote that, not dud.
+Void means not valid, and the jar says ticket C is not valid. The other tickets are valid, so C is the void ticket. The pencil calls it the dud, which is a nickname rather than the jar's clause. The void ticket is ticket C, and the jar's words are 'Ticket C is not valid.'
 ```
 
 **Reply:**
 ```text
-| clause | ticket |
-| not valid | ticket C |
-| valid | ticket A |
-ticket C
+Ticket C is void, because the jar's own clause says ticket C is not valid. The pencil's dud is a nickname for that clause.
+| Jar's clause | Ticket |
+| --- | --- |
+| not valid | C |
+VERDICT: supported
+DECIDING: Ticket C is not valid.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: ticket C
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T03-B-03 · kind B · puzzle · tier 2 · equivalent wording · tags: non-verification
+### T03-B-03 · kind B · puzzle · tier 2 · equivalent wording
 
 **User:**
 ```text
-1. Two cooks are the tall cook and the other cook. Stoves are the soup stove and the fryer. A chalkboard calls the soup stove the stockpot burner.
-2. The tall cook does not take the fryer.
-Question: Which stove does the tall cook take, in the stove card name?
+Two cooks share two stoves.
+The stove card names them the soup stove and the fryer.
+Exactly one cook stands at each stove.
+The tall cook does not take the fryer.
+A chalkboard calls the soup stove the stockpot burner.
+Claim: the tall cook takes the soup stove, in the stove card's own name.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Tall cook and the other cook. Stoves are the soup stove and the fryer. Stockpot burner is the chalkboard's alias.
-The tall cook does not take the fryer, so the tall cook takes the soup stove.
-The question asks for the card's own name, so I keep the soup stove and skip the alias.
+Exactly one cook stands at each stove, and the tall cook does not take the fryer, so the tall cook takes the soup stove. The chalkboard's stockpot burner is another name for that stove. The question asks for the card's own name, so the answer stays soup stove, and I do not swap in the chalkboard's words.
 ```
 
 **Reply:**
 ```text
-| cook | stove |
-| the tall cook | the soup stove |
-the soup stove
+The card's own name for that stove is the soup stove.
+| Cook | Stove |
+| --- | --- |
+| tall cook | soup stove |
+VERDICT: supported
+DECIDING: Exactly one cook stands at each stove. | The tall cook does not take the fryer.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: the soup stove
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -263,33 +278,38 @@ North
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T03-B-05 · kind B · puzzle · tier 2 · equivalent wording · tags: non-verification
+### T03-B-05 · kind B · puzzle · tier 2 · equivalent wording
 
 **User:**
 ```text
-1. Two hatches are the grain hatch and the late hatch. A hatch is fog-blocked until the whistle or clear. The early hatch is the grain hatch.
-2. The late hatch is clear.
-3. The count of fog-blocked until the whistle is 1.
-Question: What state does the grain hatch have?
+Three hatches open onto the yard.
+The early hatch opens only after the whistle.
+The early hatch never opens in fog.
+The early hatch is the grain hatch.
+Claim: fog blocks the grain hatch, and that hatch waits on the whistle.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-Grain hatch and late hatch. A hatch is fog-blocked until the whistle, or clear. Early hatch is another name for the grain hatch.
-The late hatch is clear.
-Fog-blocked until the whistle is counted at 1, so the grain hatch carries that state.
-That phrase restates the fog block and the whistle wait in the card's own terms. I point at the hatch, not at a looser gloss.
+The hatch that never opens in fog is the early hatch, and the early hatch is the grain hatch. That same hatch opens only after the whistle. Fog blocks the grain hatch, and the sound it waits on is the whistle. 'Needs the whistle' would be the same requirement, and I still point at the printed clause.
 ```
 
 **Reply:**
 ```text
-| hatch | state |
-| the late hatch | clear |
-| the grain hatch | fog-blocked until the whistle |
-fog-blocked until the whistle
+Fog blocks the grain hatch, and the sound that hatch waits on is the whistle.
+| Fact | Words |
+| --- | --- |
+| blocked by fog | the early hatch never opens in fog |
+| which hatch | the early hatch is the grain hatch |
+| the sound | it opens only after the whistle |
+VERDICT: supported
+DECIDING: The early hatch never opens in fog. | The early hatch is the grain hatch. | The early hatch opens only after the whistle.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: fog-blocked until the whistle
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -297,28 +317,31 @@ fog-blocked until the whistle
 
 **User:**
 ```text
-1. Two clocks are 4pm and 6pm. Times are slot 1 and slot 2. A rate is 2 pounds an hour or unlisted.
-2. If 4pm is before 6pm, then 4pm costs 2 pounds an hour.
-3. 4pm is before 6pm.
-Question: What rate does 4pm have?
+A parking line is the page.
+Material:
+Before 6pm it costs 2 pounds an hour.
+Claim: at 4pm parking costs 2 pounds an hour.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-4pm and 6pm, slots 1 and 2, rate 2 pounds an hour or unlisted.
-If 4pm is before 6pm, then 4pm costs 2 pounds an hour.
-4pm is before 6pm, so 4pm costs 2 pounds an hour.
-I name that rate from the before-6pm line, not a vaguer afternoon label.
+Cost at 4pm is inside 'before 6pm', and the line states 2 pounds an hour for that span. I name the line before the answer: Before 6pm it costs 2 pounds an hour. 4pm is before 6pm, so the rate applies. I do not answer 'the afternoon rate' and leave the line behind. Nothing else on the page qualifies the rate.
 ```
 
 **Reply:**
 ```text
-| clock | rate |
-| 4pm | 2 pounds an hour |
-2 pounds an hour
+At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
+| Clock | Rate |
+| --- | --- |
+| before 6pm, which covers 4pm | 2 pounds an hour |
+VERDICT: supported
+DECIDING: Before 6pm it costs 2 pounds an hour.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: 2 pounds an hour
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -326,26 +349,30 @@ I name that rate from the before-6pm line, not a vaguer afternoon label.
 
 **User:**
 ```text
-1. Two lines are the choir line and the margin. A count is 1 or 2. Exactly one tenor is named on the choir line.
-2. The choir line is 1.
-Question: What count does the choir line give?
+A choir line is the page.
+Material:
+The choir has 1 tenor.
+Question: Is a single tenor that same count, and which line do you point to?
 ```
 
 **Thinking:**
 ```text
-Choir line and margin, counts 1 or 2. Exactly one tenor is what the choir line is for.
-The choir line is 1.
-A single tenor is that same count. The line I point to keeps the numeral.
+A single tenor is one tenor. The line prints The choir has 1 tenor. The printed line keeps its numeral, and I accept the claim's word single as the same count. Nothing beside the line adds a second tenor.
 ```
 
 **Reply:**
 ```text
-| line | count |
-| the choir line | 1 |
-1
+Yes. A single tenor is that count, and the line I cite keeps the numeral.
+| Line | Count |
+| --- | --- |
+| The choir has 1 tenor. | 1 tenor |
+VERDICT: supported
+DECIDING: The choir has 1 tenor.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: 1
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -353,26 +380,30 @@ A single tenor is that same count. The line I point to keeps the numeral.
 
 **User:**
 ```text
-1. Four figures are printed beside the call-out fee and the spare fee. A fee is 40 pounds or 40 dollars.
-2. The call-out fee is not 40 dollars.
-Question: What money does the page set for the call-out fee?
+A fee line is the page.
+Material:
+The call-out fee is 40 pounds.
+Question: Does the page set the call-out fee at 40 dollars?
 ```
 
 **Thinking:**
 ```text
-Call-out fee and spare fee, 40 pounds or 40 dollars. Four figures sit beside them.
-The call-out fee is not 40 dollars, so the call-out fee is 40 pounds.
-The unit is the part that answers. Dropping pounds and keeping 40 would keep the wrong money.
+40 dollars is not 40 pounds. The line says pounds, and the whole line is what contradicts the claim. Dropping the unit and keeping the 40 would be a piece of the line, and the unit is the part that contradicts dollars. I name 'The call-out fee is 40 pounds.' and the dollar claim does not hold.
 ```
 
 **Reply:**
 ```text
-| fee | money |
-| the call-out fee | 40 pounds |
-40 pounds
+No. The page sets the fee in pounds, so a dollar figure does not hold.
+| Printed | Claimed |
+| --- | --- |
+| 40 pounds | 40 dollars |
+VERDICT: unsupported
+DECIDING: The call-out fee is 40 pounds.
+ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: 40 pounds
+**Key:** answer: unsupported
 
 *invented: puzzle, written for this item (key by construction)*
 

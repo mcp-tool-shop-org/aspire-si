@@ -200,7 +200,7 @@ The swap test is brutal here: a swimmer turning up at 17:00 finds open swim, not
 ```text
 The digit matters: 08:30 and 18:30 are ten different hours of pool time. One character, but the character is the fact.
 VERDICT: unsupported
-DECIDING: lane swimming 06:30–08:30 weekdays
+DECIDING: Pool timetable: lane swimming 06:30–08:30 weekdays; open swim from 12:00.
 ESCALATE: no
 unsupported
 ```
@@ -209,36 +209,34 @@ unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T16-B-03 · kind B · puzzle · tier 4 · accepts the equivalent · tags: non-verification
+### T16-B-03 · kind B · puzzle · tier 4 · accepts the equivalent
 
 **User:**
 ```text
-1. Three names are Vale, Moss and Renn. A score is 64 or 71. Ana says Vale and Moss tied on sixty-four and Renn leads by seven.
-2. Vale scores 64.
-3. Moss scores 64.
-4. Renn scores 71.
-Question: Which score does each name have?
+Scorecard: Vale 64, Moss 64, Renn 71.
+Ana reads it out over the phone as: "Vale and Moss tied on sixty-four; Renn leads by seven."
+Did she read it right? Work the check as an equivalence exercise — and note which of her liberties were free and which would have cost.
 ```
 
 **Thinking:**
 ```text
-Vale, Moss and Renn, scores 64 or 71. Ana's spoken line is a reading, not a second card.
-Vale scores 64. Sixty-four is that same count.
-Moss scores 64. Tied is what two equal scores are.
-Renn scores 71. 71 minus 64 is 7, so leads by seven matches.
-The liberties touch spelling and a difference that comes out exact. I accept the reading.
+Her reading takes three liberties; test each:
+├─ 64 → "sixty-four" — numeral to words: free. Same number.
+├─ "Vale 64, Moss 64" → "tied" — same figure twice printed as equality: free. 64 = 64.
+└─ "Renn 71" → "leads by seven" — a subtraction done aloud: 71 − 64 = 7 exactly. Also free — but only because the arithmetic is exact; "leads by about seven" or "71-ish" would have cost, because the card prints exact figures.
+All three pass, so the phone version is the scorecard in spoken clothes. Had she shaved a point or rounded anything, the same exercise would have caught it at once.
 ```
 
 **Reply:**
 ```text
-| name | score |
-| Vale | 64 |
-| Moss | 64 |
-| Renn | 71 |
-Vale=64; Moss=64; Renn=71
+She read it right. The spelled-out numbers match the printed figures; "tied" is what two equal scores are; and "leads by seven" is exact arithmetic on 71 and 64, not a gloss. The liberties that cost are the ones that touch the numbers — she didn't touch any.
+VERDICT: supported
+DECIDING: Scorecard: Vale 64, Moss 64, Renn 71. | Ana reads it out over the phone as: "Vale and Moss tied on sixty-four; Renn leads by seven."
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: Vale=64; Moss=64; Renn=71
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -273,38 +271,34 @@ unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T16-B-05 · kind B · puzzle · tier 3 · accepts the equivalent · tags: non-verification
+### T16-B-05 · kind B · puzzle · tier 3 · accepts the equivalent
 
 **User:**
 ```text
-1. Four labels are row 5, row five, seat B12 and seat B twelve. A label is the row or the seat.
-2. The count of the row is 2.
-3. Seat B12 is the seat.
-4. Seat B twelve is the seat.
-Question: Which field does each label name?
+The booking system prints: row 5, seat B12.
+The ticket stub in the customer's hand reads: "row five, seat B twelve."
+Same booking? Treat it as a strict equivalence exercise: enumerate every difference, and classify each as free or costing before you answer.
 ```
 
 **Thinking:**
 ```text
-Row 5, row five, seat B12, seat B twelve. Each label is the row or the seat.
-The row is counted at 2.
-Seat B12 is the seat.
-Seat B twelve is the seat.
-Both seat labels take the seat, so both row labels take the row.
-Five spoken as five, and twelve spoken as twelve, are the same booking.
+Differences, enumerated not waved at:
+├─ 5 ↔ five — numeral spoken aloud: free
+├─ B12 ↔ B twelve — the twelve spoken, the letter untouched: free
+└─ row/seat order — same two fields in the same order: no difference at all
+Zero costing differences. The stub and the printout point at one chair. If she'd swapped the letter or either number, that would be a different chair and a costing difference — the enumeration is what earns the calm conclusion.
 ```
 
 **Reply:**
 ```text
-| label | field |
-| row 5 | the row |
-| row five | the row |
-| seat B12 | the seat |
-| seat B twelve | the seat |
-row 5=the row; row five=the row; seat B12=the seat; seat B twelve=the seat
+Same booking. Both tokens are spoken-style renderings of the printed ones (5→five, 12→twelve) with the letter intact and the fields in order. Enumerating differences found two liberties and zero changes, so the two strings address one seat.
+VERDICT: supported
+DECIDING: The booking system prints: row 5, seat B12. | The ticket stub in the customer's hand reads: "row five, seat B twelve."
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: row 5=the row; row five=the row; seat B12=the seat; seat B twelve=the seat
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -369,41 +363,35 @@ unsupported
 
 *mcp-tool-shop-org/style-dataset-lab@9d91b77432a9:CHANGELOG.md#L58 (MIT (first line of LICENSE: 'MIT License'))*
 
-### T16-B-08 · kind B · puzzle · tier 4 · catches the changed fact · tags: non-verification
+### T16-B-08 · kind B · puzzle · tier 4 · catches the changed fact
 
 **User:**
 ```text
-1. Five readings are 12.5, 21.5, 15.2, 51.2 and alarm. A mark is free, change or no. Someone reads 51.2 back as twenty-five point one.
-2. 12.5 is free.
-3. 21.5 is free.
-4. 15.2 is free.
-5. 51.2 is change.
-6. The alarm is not free and the alarm is not change.
-Question: Which mark does each reading get?
+Lab log: four sensor readings — 12.5, 21.5, 15.2, 51.2. Alarm rule: anything over 20 raises the alarm.
+Someone reads the log back as: "twelve point five, twenty-one point five, fifteen point two, twenty-five point one."
+Claim: the read-back is the same log. Work entry by entry, and say whether that claim holds.
 ```
 
 **Thinking:**
 ```text
-12.5, 21.5, 15.2, 51.2 and alarm. Marks are free, change or no. Twenty-five point one is the spoken stand-in for 51.2.
-12.5 is free. Spelling that reading out leaves the number.
-21.5 is free.
-15.2 is free.
-51.2 is change. Twenty-five point one is a different reading, even if a value over 20 would still trip an alarm.
-The alarm is not free and not change, so the alarm mark is no.
+Entry by entry:
+├─ 12.5 → "twelve point five" — numerals to words, same value: free
+├─ 21.5 → "twenty-one point five" — free
+├─ 15.2 → "fifteen point two" — free
+└─ 51.2 → "twenty-five point one" — a rotation of the digits: 51.2 ≠ 25.1. Costing — the log now records a value the sensor never wrote.
+Alarm verdict, incidentally, doesn't change: 21.5, 51.2 and now 25.1 all sit over 20, so the same readings trip it either way. Irrelevant mercy — the log itself is a fact independent of the rule it feeds. Three clean translations and one wrong number: the read-back changes the record, and the unchanged alarm doesn't launder it.
 ```
 
 **Reply:**
 ```text
-| reading | mark |
-| 12.5 | free |
-| 21.5 | free |
-| 15.2 | free |
-| 51.2 | change |
-| alarm | no |
-12.5=free; 21.5=free; 15.2=free; 51.2=change; alarm=no
+Entries one to three are free (spelled-out forms of the same values). Entry four is a change: 51.2 came back as 25.1, and a rotation of the digits is a different reading, full stop. The alarm would still fire on the wrong value, but the rule's patience doesn't repair the log — the record differs, so the read-back is not the log.
+VERDICT: unsupported
+DECIDING: Lab log: four sensor readings — 12.5, 21.5, 15.2, 51.2. Alarm rule: anything over 20 raises the alarm. | Someone reads the log back as: "twelve point five, twenty-one point five, fifteen point two, twenty-five point one."
+ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: 12.5=free; 21.5=free; 15.2=free; 51.2=change; alarm=no
+**Key:** answer: unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 

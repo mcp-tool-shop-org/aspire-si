@@ -279,34 +279,35 @@ supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T01-B-05 · kind B · puzzle · tier 4 · rightly accepts · tags: non-verification
+### T01-B-05 · kind B · puzzle · tier 4 · rightly accepts
 
 **User:**
 ```text
-1. Three switches are A, B and C. A switch is wired or idle. C was never tested.
-2. The count of wired is 1.
-3. B is wired.
-Question: Which switch is wired?
+A lamp is wired to exactly one of three switches — A, B or C. Test log: switch A alone → lamp stays dark. Switch B alone → lamp lights. Switch C was never tested.
+Claim: switch B controls the lamp.
+A doubter says C was never ruled out by a test, so nothing is certain. Work it through and say whether the claim is earned.
 ```
 
 **Thinking:**
 ```text
-A, B and C are wired or idle. C went untested. An untested switch is not a second wired switch.
-Wired is counted at 1.
-B is wired.
-The count is filled by B, so A and C are idle without a separate idle line.
-The claim that B controls the lamp stands on the count plus the test.
+The doubter's challenge: no test touched C. Does the claim survive anyway?
+├─ given: exactly one switch controls the lamp — a premise, stated as fact in the setup
+├─ test 1: A alone, no light → A ruled out (premise says one switch works; A didn't)
+├─ test 2: B alone, lamp lights → B demonstrated
+└─ close over C: the premise allows exactly one; that one is B → C does nothing, test or no test
+So the answer rests on the premise doing the closure, not on an untested switch being hand-waved away. Certainty here is assembled from what was given and what was observed — no guessing about C needed. The skeptic's yes is allowed when the logic closes every door, including the untested one.
 ```
 
 **Reply:**
 ```text
-1. Wired is counted once.
-2. B is the wired switch.
-3. A and C stay idle because the count is full.
-B
+Earned. B demonstrated control directly under test; A ruled itself out; and the setup's own premise — exactly one switch controls the lamp — leaves C nothing to control, with no test required. The claim stands on the given plus the log, not on a guess about C.
+VERDICT: supported
+DECIDING: A lamp is wired to exactly one of three switches — A, B or C. Test log: switch A alone → lamp stays dark. Switch B alone → lamp lights. Switch C was never tested.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: B
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -365,7 +366,7 @@ Stop here: two leaves quoted, one sweep clean. The claim survives the full pass 
 ```text
 Over-£25 claims need receipts, and £30 is over £25; the payment window is stated in the policy's own words. No exception line exists to undermine either half.
 VERDICT: supported
-DECIDING: receipts are required for any claim over £25 | Approved claims are paid within 10 working days
+DECIDING: Expenses policy: receipts are required for any claim over £25. Approved claims are paid within 10 working days. Mileage is paid at 45p per mile for the first 10,000 miles in a tax year.
 ESCALATE: no
 supported
 ```
@@ -379,7 +380,7 @@ supported
 **User:**
 ```text
 1. Three routes are the north path, the river steps and the old tramway. A route is open or blank.
-2. The count of open is 1.
+2. Exactly one route is open.
 3. The north path is not open.
 4. The old tramway is not open.
 Question: Which route is open?
