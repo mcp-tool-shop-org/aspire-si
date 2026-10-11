@@ -1940,11 +1940,11 @@
           "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
         },
         {
-          "hash": "f1b2a84610478cef0f5eec444c6b2b23f0aeb6aeae08b3fd27e17bd5cfcfc0a7",
+          "hash": "a1efe68ff8f0de27d46f0352e67b694a74b7e8b24480b69fd987b07e4a2b8a02",
           "path": "docs/runs/receipts/2026-10-08-auditor/B-manifest.json"
         },
         {
-          "hash": "ca2cfcc7af7e2d65190d11a8f208b278a3f62ee993042c9c68693154f130c589",
+          "hash": "d61915ebf4106c3067b6ea08d83c3aace9555113afb8193fe480c7013cb47eb5",
           "path": "docs/runs/receipts/2026-10-08-auditor/B-readout.json"
         },
         {
@@ -1960,7 +1960,7 @@
           "path": "docs/runs/receipts/2026-10-08-auditor/judge-control-selection.json"
         },
         {
-          "hash": "da4f838fa51623f3a4d15e91a4c6664d752fff6769feb2f9d938b1136d66d5dc",
+          "hash": "a1c984b29c3e3631f150019899c704b75e268b356ebec786e186c7b27fde7711",
           "path": "docs/runs/receipts/2026-10-08-auditor/verdicts-error-B-mistral-small_24b.json"
         },
         {
@@ -2416,6 +2416,19 @@
           ],
           "path": "docs/runs/stage1-train/test_no_role.py",
           "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "test_critic_mismatch",
+            "test_scorer_copies_are_identical_to_the_frozen_scorer"
+          ],
+          "hash": "37c7c25d8448c47fb07c65c1426c932b757291573ac6924f52aef83918686353",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py"
+          ],
+          "path": "docs/runs/stage1-train/test_scorer_rules.py"
         },
         {
           "exports": [
@@ -2975,7 +2988,7 @@
       "outsideReads": 6,
       "outsideWrites": 2,
       "role": "docs",
-      "testedBy": 7,
+      "testedBy": 8,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
@@ -2993,7 +3006,7 @@
           "why": "unplaced"
         }
       ],
-      "unresolvedSites": 9
+      "unresolvedSites": 10
     },
     {
       "dynamicReads": 14,
@@ -4452,6 +4465,10 @@
       "entryPoints": [],
       "externals": 0,
       "files": [
+        {
+          "hash": "8dfdef09ac96ca7fc68e61ef8683251cc9e4a0e8ac3e692e59c60c6e9da5fbc9",
+          "path": ".gitattributes"
+        },
         {
           "hash": "8b4ba133a91df8ebef01d7ce6f81752b51732e85e0e510ad1e2f0034295d872d",
           "path": ".gitignore"
@@ -6386,8 +6403,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
-    "tracked": 344
+    "commit": "4ba99b28d3dd24cbdd9eb18d411425d9d543572b",
+    "tracked": 347
   },
   "landings": [
     {
@@ -6997,7 +7014,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 87,
+  "testFiles": 88,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
@@ -7005,6 +7022,7 @@
     "docs/runs/stage1-train/test_answer_format.py",
     "docs/runs/stage1-train/test_data.py",
     "docs/runs/stage1-train/test_no_role.py",
+    "docs/runs/stage1-train/test_scorer_rules.py",
     "docs/runs/stage1-train/test_stuck.py",
     "packages/aspire-si-gates/tests/test_package.py"
   ],
@@ -7014,17 +7032,23 @@
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "6ee0b815d9382d1667397378c0047fe3853a292a64186548161fbd3a4dc2e096",
+      "hash": "bec089eb806db0a5588bcace53219d24493eb34cee1bd96c50b5192eaf24566d",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "638731e90a6af4a71d58a339d2c37b7a484291bb8b6f5db10e2f7985dcfd6f83",
+      "hash": "fbf5a7c61340f1cdfa7f1115601883926b5c3654c64afc61cef55ea4c41e2fab",
+      "importOrder": [
+        "packages/aspire-si-gates/src/aspire_si_gates/context.py",
+        "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py",
+        "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+      ],
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
-        "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+        "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
+        "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py"
       ],
       "path": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
     },
@@ -7391,6 +7415,19 @@
       "path": "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
     },
     {
+      "exports": [
+        "core",
+        "critic_mismatch",
+        "deciding_covers",
+        "deciding_ok",
+        "ident",
+        "lines_of",
+        "norm"
+      ],
+      "hash": "f345e961944cddec8a969b81eea8e7ed3f3ccd86fca219986061531939caea99",
+      "path": "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py"
+    },
+    {
       "hash": "dbb875277a34e36e9dd96d54da4b1c991e255824742e71999729019a41261d9b",
       "path": "packages/aspire-si-gates/tests/conftest.py"
     },
@@ -7403,9 +7440,10 @@
         "test_check_item_needs_no_other_row",
         "test_identity_is_stable_and_versioned",
         "test_reason_table_is_pinned",
+        "test_scorer_rules_are_exposed",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "03d76f8f4971e0eaf6c8ada9185e15febb1194453182e9a78e40401e566819db",
+      "hash": "0662819ba96a4933bf09cb4f5772381cbac80103553d5ac51cdd79c27ebc74f0",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
