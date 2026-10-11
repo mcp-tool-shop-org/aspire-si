@@ -127,6 +127,8 @@ def test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run(rig, tmp_pat
     row = json.loads((d / "receipts" / "diagnostics.jsonl").read_text(encoding="utf-8"))
     assert row["schema"] == "stage1-receipt-v1" and row["source"] == "diagnostics" and row["round"] == 1
     assert row["arm"] == "ROLE" and row["seed"] == 0 and row["grant_id"] == "G-test"
+    assert row["closed_form"] == {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8,
+                                   "distractor_margin": 0.0, "span": 8}
 
 
 @needs_tokenizer

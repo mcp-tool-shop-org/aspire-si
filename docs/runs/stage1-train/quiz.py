@@ -122,26 +122,52 @@ def stuck_fields(thinking: str, material: str, tier: int, target: int, total_tok
     }
 
 
-def trained_spans(items: list) -> set:
+def trained_spans(items: list, n: int = 8) -> set:
     """8-word spans of everything the trainer trains on: every turn's user text, thinking and reply."""
     import receipts
     out: set = set()
     for r in items:
         for t in r.get("turns", []):
             for k in ("user", "thinking", "reply"):
-                out |= receipts.spans(t.get(k) or "")
+                out |= receipts.spans(t.get(k) or "", n)
     return out
 
 
-def material_spans(items: list) -> set:
+def material_spans(items: list, n: int = 8) -> set:
     import receipts
     out: set = set()
     for r in items:
-        out |= receipts.spans(r.get("material") or "")
+        out |= receipts.spans(r.get("material") or "", n)
         for t in r.get("turns", []):
             nm = t.get("new_material") or ""
-            out |= receipts.spans("\n".join(nm) if isinstance(nm, list) else nm)
+            out |= receipts.spans("\n".join(nm) if isinstance(nm, list) else nm, n)
     return out
+
+
+# The spent check's settings (the maintainer: configurable; the defaults are R&D's ruling): the span length, and
+# whether a closed-form variant's keyed option may repeat the item's own key points (exempt_keyed_key_points,
+# option (a); off by default, so a keyed option that repeats trained wording is spent).
+SPENT_RULE_DEFAULT = {"span": 8, "exempt_keyed_key_points": False}
+
+
+def checked_spans(item: dict, variant: dict, rule_s: dict) -> set:
+    """The variant's spans that the spent check compares with trained turns. With exempt_keyed_key_points on, a
+    closed-form variant's keyed option is checked without the item's own key points, and everything else (the
+    stem, the distractors) is checked in full: a stem that repeats the same words is still caught."""
+    import receipts
+    n = rule_s["span"]
+    if not rule_s["exempt_keyed_key_points"] or not (isinstance(variant.get("key"), dict)
+                                                     and "answer" in variant["key"]):
+        return receipts.spans(variant["user"], n)
+    from aspire_si_gates import closed_form_options
+    letter = variant["key"]["answer"]
+    keyed = closed_form_options(variant["user"]).get(letter, "")
+    rest = "\n".join(line for line in variant["user"].splitlines()
+                     if not (line.lstrip().lstrip("(").startswith(letter) and keyed and keyed in line))
+    key_point_spans: set = set()
+    for kp in (item.get("quiz") or {}).get("key_points") or []:
+        key_point_spans |= receipts.spans(kp, n)
+    return receipts.spans(rest, n) | (receipts.spans(keyed, n) - key_point_spans)
 
 
 def load_variants(paths) -> dict:
@@ -158,7 +184,7 @@ def load_variants(paths) -> dict:
 
 
 def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count, rule: dict, write,
-        only: list | None = None) -> dict:
+        only: list | None = None, spent_rule: dict | None = None) -> dict:
     """One quiz sitting. `generate(messages, seed)` returns the harness's generate dict; `count(text)` counts
     tokens; `write(fields)` records one receipt row. `items` is the whole training set (the spent check reads
     every trained turn); `only` limits the asking to those ids (tests). Returns the readout."""
@@ -171,7 +197,8 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         else:
             ledger.enrol(r["id"], r["lesson"], session)
     import receipts
-    trained = trained_spans(items)
+    rule_s = {**SPENT_RULE_DEFAULT, **(spent_rule or {})}
+    trained = trained_spans(items, rule_s["span"])
     spent: list = []
     asked = []
     for base in ledger.due(session):
@@ -179,14 +206,15 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         if r is None:
             continue
         family = {0: r["variant"], **store.get(base, {})}
-        shown_on_purpose = material_spans([r])  # only the asked item's own material is shown with it
+        shown_on_purpose = material_spans([r], rule_s["span"])  # only the asked item's own material is shown
         n = ledger.next_variant(base, sorted(family))
         while n is not None:
             why = None
             if quiz_type(r, family[n]) == "free_text":
                 why = "free text, not yet testable"  # a written variant can only be quizzed in closed form
-            elif (receipts.spans(family[n]["user"]) - shown_on_purpose) & trained:
-                why = "shares an 8-word span with a trained turn"
+            elif (checked_spans(r, family[n], rule_s) - shown_on_purpose) & trained:
+                why = ("shares an 8-word span with a trained turn" if rule_s["span"] == 8
+                       else f"shares a {rule_s['span']}-word span with a trained turn")
             if why is None:
                 break
             ledger.spend(base, n, why)
@@ -221,11 +249,12 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
                    "wall_s": g["seconds"], "answer_tokens": count(answer), "total_tokens": g["new_tokens"],
                    "truncated": g["truncated"],
                    **stuck_fields(thinking, material, r["tier"], target, g["new_tokens"], count, rule),
-                   "answer": answer})
+                   "answer": answer, "spent_rule": rule_s})
         asked.append({"base": base, "lesson": r["lesson"], "n": n, "right": right,
                       "stuck": sum(1 for *_, s in samples if s.get("stuck"))})
     out = readout(asked, excluded, refused, ledger)
     out["spent_variants"] = spent
+    out["spent_rule"] = rule_s
     return out
 
 
@@ -261,6 +290,9 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--out-root", default=str(Path(__file__).resolve().parents[3] / "outputs" / "stage1-train"))
     ap.add_argument("--sealed", default=None, help="the frozen sealed file, for the receipt firewall")
+    ap.add_argument("--spent-span", type=int, default=SPENT_RULE_DEFAULT["span"])
+    ap.add_argument("--exempt-keyed-key-points", action="store_true",
+                    help="a closed-form keyed option may repeat the item's own key points (off by default)")
     a = ap.parse_args(argv)
 
     import hashlib
@@ -295,7 +327,8 @@ def main(argv=None):
             pass  # counted in w.refused, reported below
 
     ledger = Ledger.load(a.ledger)
-    out = sit(items, ledger, a.session, load_variants(a.variants), generate, count, rule, write)
+    out = sit(items, ledger, a.session, load_variants(a.variants), generate, count, rule, write,
+              spent_rule={"span": a.spent_span, "exempt_keyed_key_points": a.exempt_keyed_key_points})
     out["ledger_sha256"] = ledger.save(a.ledger)
     out["receipts_refused"] = w.refused
     (w.dir.parent / f"quiz-readout-session{a.session}.json").write_text(json.dumps(out, indent=1), encoding="utf-8")

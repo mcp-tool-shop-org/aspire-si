@@ -306,6 +306,14 @@ def main(argv=None):
     ap.add_argument("--ckpt-every", type=int, default=25)
     ap.add_argument("--order", choices=ORDERS, default="shuffled", help="the training order (see the docstring)")
     ap.add_argument("--lesson-order", help="comma-separated lesson ids, for --order listed or round-robin")
+    ap.add_argument("--closed-form-carry", choices=("verbatim", "paraphrase", "either"),
+                    help="how a closed-form written variant's keyed option carries the key point (default: the gates' "
+                         "default, R&D's ruling: paraphrase)")
+    ap.add_argument("--closed-form-share", type=float, help="the keyed option's least content-word share")
+    ap.add_argument("--closed-form-distractor-max", type=float, help="the near-copy guard: no distractor reaches it")
+    ap.add_argument("--closed-form-distractor-margin", type=float,
+                    help="every distractor's share is below the keyed share minus this")
+    ap.add_argument("--closed-form-span", type=int, help="the span length no option may share with a trained turn")
     ap.add_argument("--partial-set", action="store_true",
                     help="train on part of the data (a smoke or a test): the whole-dataset freeze checks are reported "
                          "in the manifest instead of refusing; every other check still refuses")
@@ -318,7 +326,11 @@ def main(argv=None):
     rows = [r for rs in files.values() for r in rs]
     # Per item and per lesson over everything, the batch checks per batch file, and the whole-dataset freeze
     # checks (the Dataset Specialist's ruling, 2026-10-11).
-    freeze = data.validate_training_set(files, require_freeze=not a.partial_set)
+    closed_form = data.closed_form_settings({k: v for k, v in (
+        ("carry", a.closed_form_carry), ("share", a.closed_form_share),
+        ("distractor_max", a.closed_form_distractor_max), ("distractor_margin", a.closed_form_distractor_margin),
+        ("span", a.closed_form_span)) if v is not None})
+    freeze = data.validate_training_set(files, require_freeze=not a.partial_set, closed_form=closed_form)
     held = [h for p in a.held_out for h in data.load(p)]
     from interview import QUESTIONS  # the pre-interview's 12 questions are off-limits to training
     leaks = data.leakage(rows, held, QUESTIONS)
@@ -336,7 +348,8 @@ def main(argv=None):
                 "near_length_caps": near_caps(seqs, OPT["max_len"], OPT["max_target"]),
                 "order": {"mode": a.order, "seed": OPT["seed"],
                           "lessons": None if a.order == "shuffled" else lesson_sequence(seqs, lesson_order)},
-                "freeze_report": freeze,
+                "freeze_report": freeze, "closed_form": closed_form,
+                "closed_form_figures": data.closed_form_figures(rows),
                 "init_adapter": a.init_adapter}
     if a.dry_run:
         print(json.dumps({k: v for k, v in manifest.items() if k != "student"}, indent=1))
