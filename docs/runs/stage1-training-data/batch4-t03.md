@@ -62,7 +62,7 @@ I withhold the answer until the line is in front of me. The line is the reason. 
 
 **User:**
 ```text
-Precision also knows a partial help from a settled claim. A sentence that only helps still needs a short sweep for a later sentence that would undo it, and the quote stays the printed one either way.
+Precision also knows a partial help from a settled claim. A sentence that only helps still needs a short sweep for a later sentence that would undo it, and you still point at the printed sentence either way.
 
 The first sentence helps the claim and a later sentence might undo it. What do you quote if the later sentence does undo it?
 ```
@@ -80,7 +80,7 @@ I quote the later sentence, whole, because that is the one that settles the clai
 
 **User:**
 ```text
-Precision lives in the quote, and it still accepts a claim phrased in other words. Fourteen days and two weeks can be the same period. The quote stays the page's own '14 days', not a demand that the claim echo it.
+Precision lives in the quote, and it still accepts a claim phrased in other words. Fourteen days and two weeks can be the same period. You still point at the page's own '14 days', not at a demand that the claim echo it.
 
 The page says 14 days and the claim says two weeks. What is the quote, and what is the answer?
 ```
@@ -98,17 +98,17 @@ I quote 14 days, exactly as printed. Two weeks is that period, so the claim hold
 
 **User:**
 ```text
-Being precise about units is not the same as demanding the same abbreviation. 25 MB and 25 megabytes name one size. The deciding line keeps whichever form the page printed.
+Being precise about a name is not the same as demanding the same abbreviation. Dr. Moss and Doctor Moss can be one person. The line you point to keeps the form the page printed.
 
-The page prints 25 MB and the claim says 25 megabytes. Do the words have to match?
+The page prints Dr. Moss and the claim says Doctor Moss. Do the words have to match?
 ```
 
 **Reply:**
 ```text
-I do not need the claim to reprint the abbreviation. I quote 25 MB from the page, and I accept 25 megabytes as that same size. Nothing is added beyond the unit's name.
+I do not need the claim to reprint the abbreviation. I point to Dr. Moss as the page prints it, and I accept Doctor Moss as that same name.
 ```
 
-**Key:** key_points: 25 MB and 25 megabytes are one size; quote the form the page printed; the claim need not echo the abbreviation
+**Key:** key_points: an expanded name can match an abbreviation; point to the page's Dr. Moss; do not rewrite the page into the claim's spelling
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
@@ -116,17 +116,17 @@ I do not need the claim to reprint the abbreviation. I quote 25 MB from the page
 
 **User:**
 ```text
-Precision accepts 'every weekday' when the page says Monday to Friday, because those are the same days and the quote is still the page's list. The match is in the period, not in a copied sentence.
+Precision accepts a date in words when the page prints that same day in digits. The line you point to keeps the page's form.
 
-Which words go in the quote when the claim says every weekday?
+The page prints 2026-05-04 and the claim says 4 May 2026. Which form do you point to?
 ```
 
 **Reply:**
 ```text
-I quote 'Monday to Friday' as the page prints it. Every weekday is that span, so the claim holds, and those printed words do not become the claim's wording.
+I point to 2026-05-04, the form the page printed. 4 May 2026 is that same day, so the claim holds. I leave the page's digits as they are.
 ```
 
-**Key:** key_points: every weekday matches Monday to Friday; the quote remains the page's list; do not replace the quote with the claim's wording
+**Key:** key_points: 4 May 2026 is the same day as 2026-05-04; point to the page's digits; do not rewrite the page into the claim's month name
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
@@ -153,25 +153,25 @@ I point to the printed 400, marks and all. Four hundred is that count, so I do n
 **User:**
 ```text
 Eight tins sit in a row.
-Any tin may hold the tea.
-A catalogue is closed and stays closed.
-Question: Which tins may hold the tea?
+The tea is allowed in every tin the row names.
+The catalogue on the shelf calls those tins containers.
+Question: Which word names what may hold the tea, tins or containers?
 ```
 
 **Thinking:**
 ```text
-Which tins may hold the tea has to be answered in the row's own terms. Eight tins, and any of them may hold the tea, so the set is those eight, named as the row names them. I do not paraphrase that as 'the containers near the tea'. The closed catalogue is not a second wording of this row. The answer quotes the set the row actually allows.
+The row's own word is tins, and the tea is allowed in every tin the row names. The catalogue's word is containers. Those are two names for a holder, and the answer has to use the word the row printed. The answer is tins.
 ```
 
 **Reply:**
 ```text
-Any of the eight tins.
-1. The row says any tin may hold the tea.
-2. The answer keeps 'tins', which is the printed word.
-3. The closed catalogue is not a rewording of the row.
+Tins.
+1. The row's word is tins.
+2. Containers is the catalogue's word.
+3. The answer keeps the row's word.
 ```
 
-**Key:** answer: any of the eight tins
+**Key:** answer: tins
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -179,23 +179,25 @@ Any of the eight tins.
 
 **User:**
 ```text
-Nine tickets are in the jar.
-Ticket C is never valid.
-The other tickets are valid.
-Question: Which ticket is invalid?
+Nine tickets are in the jar, marked A through I.
+The void ticket is not valid.
+Ticket C is not valid.
+Every other ticket is valid.
+A pencil note calls the void ticket the dud.
+Question: Which ticket is void?
 ```
 
 **Thinking:**
 ```text
-Which ticket is invalid is settled by one printed clause: ticket C is never valid. I name that clause before I answer. The other tickets are valid, which leaves C as the invalid one. Saying 'the odd one out' would drop the words the jar actually uses. I point to 'Ticket C is never valid.'
+Void means not valid, and the jar says ticket C is not valid. The other tickets are valid, so C is the void ticket. The pencil calls it the dud, which is a nickname rather than the jar's clause. The void ticket is ticket C, and the jar's words are 'Ticket C is not valid.'
 ```
 
 **Reply:**
 ```text
 Ticket C.
-1. The jar says ticket C is never valid.
-2. The other tickets are valid.
-3. The answer points at that clause, not at a nickname.
+1. Void means not valid.
+2. The jar says ticket C is not valid.
+3. Dud is the pencil's nickname, not the clause.
 ```
 
 **Key:** answer: ticket C
@@ -206,15 +208,16 @@ Ticket C.
 
 **User:**
 ```text
-Two cooks share two stoves.
+Two cooks share two stoves, the soup stove and the fryer.
 Exactly one cook stands at each stove.
-The tall cook takes the soup stove.
-Question: Which stove does the tall cook take?
+The tall cook does not take the fryer.
+A chalkboard calls the soup stove the stockpot burner.
+Question: Which stove does the tall cook take, in the card's own name?
 ```
 
 **Thinking:**
 ```text
-Which stove the tall cook takes is printed as the soup stove. 'Soup stove' and a claim that said 'the stove where soup is made' would be the same place, and I would still point at the printed words. Here the question uses the page's own name, so the step is a single match. I do not split 'tall cook' from 'soup stove' into a ceremony. The line already joins them.
+Exactly one cook stands at each stove, and the tall cook does not take the fryer, so the tall cook takes the soup stove. The chalkboard's stockpot burner is another name for that stove. The question asks for the card's own name, so the answer stays soup stove, and I do not swap in the chalkboard's words.
 ```
 
 **Reply:**
@@ -261,25 +264,26 @@ North.
 **User:**
 ```text
 Three hatches open onto the yard.
-The grain hatch opens only after the whistle.
-The grain hatch never opens in fog.
-Question: What does the grain hatch require, and what blocks it?
+The early hatch opens only after the whistle.
+The early hatch never opens in fog.
+The early hatch is the grain hatch.
+Question: Which hatch is blocked by fog, and which sound does that hatch wait on?
 ```
 
 **Thinking:**
 ```text
-The grain hatch's requirement and its block are two printed clauses, and the question asks for both. It opens only after the whistle, and it never opens in fog. 'Needs the whistle' is the same requirement as 'only after the whistle', and I still point at the printed clause. Fog is the block, in the page's word. I answer with both clauses, not with a blended sentence that drops one.
+The hatch that never opens in fog is the early hatch, and the early hatch is the grain hatch. That same hatch opens only after the whistle. Fog blocks the grain hatch, and the sound it waits on is the whistle. 'Needs the whistle' would be the same requirement, and I still point at the printed clause.
 ```
 
 **Reply:**
 ```text
-It requires the whistle, and fog blocks it.
-1. Opens only after the whistle.
-2. Never opens in fog.
-3. A shorter verb does not replace those two clauses.
+The grain hatch, and it waits on the whistle.
+1. The early hatch never opens in fog.
+2. The early hatch is the grain hatch.
+3. It opens only after the whistle.
 ```
 
-**Key:** answer: the whistle, and fog blocks it
+**Key:** answer: the grain hatch, waiting on the whistle
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -316,28 +320,28 @@ ESCALATE: no
 
 **User:**
 ```text
-A limit line is the page.
+A choir line is the page.
 Material:
-Upload limit: 25 MB.
-Question: Is an upload limit of 25 megabytes the same limit, and what do you quote?
+The choir has 1 tenor.
+Question: Is a single tenor that same count, and which line do you point to?
 ```
 
 **Thinking:**
 ```text
-25 megabytes is the name of the unit the line abbreviates as MB, and the number is the same 25. What I point to is the printed line, abbreviation included. I do not rewrite that line as the word megabytes, and I do not reject the claim for spelling the unit out. No other line changes the figure.
+A single tenor is one tenor. The line prints The choir has 1 tenor. The printed line keeps its numeral, and I accept the claim's word single as the same count. Nothing beside the line adds a second tenor.
 ```
 
 **Reply:**
 ```text
-Yes. Quote the printed line, not the claim's spelling.
-1. The number 25 is shared.
-2. MB is the abbreviation of megabytes.
+Yes. The printed line keeps its numeral.
+1. A single tenor is 1 tenor.
+2. The line keeps the numeral.
 VERDICT: supported
-DECIDING: Upload limit: 25 MB.
+DECIDING: The choir has 1 tenor.
 ESCALATE: no
 ```
 
-**Key:** answer: supported: 25 megabytes matches 25 MB; quote the printed line
+**Key:** answer: supported: a single tenor is the printed 1 tenor
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -353,13 +357,13 @@ Question: Does the page set the call-out fee at 40 dollars?
 
 **Thinking:**
 ```text
-40 dollars is not 40 pounds. The line says pounds, and the whole line is what I point to. Dropping the unit and keeping the 40 would be a piece of the line, and the unit is the part that contradicts dollars. I name 'The call-out fee is 40 pounds.' and the dollar claim does not hold.
+40 dollars is not 40 pounds. The line says pounds, and the whole line is what contradicts the claim. Dropping the unit and keeping the 40 would be a piece of the line, and the unit is the part that contradicts dollars. I name 'The call-out fee is 40 pounds.' and the dollar claim does not hold.
 ```
 
 **Reply:**
 ```text
 No. The line says 40 pounds, not 40 dollars.
-1. Point to the whole fee line.
+1. The whole fee line is the contradiction.
 2. The unit is part of that line.
 VERDICT: unsupported
 DECIDING: The call-out fee is 40 pounds.
@@ -376,20 +380,20 @@ ESCALATE: no
 ```text
 A washroom slip is pinned by the taps.
 Material:
-Hot water runs to the basin from 7 until 9.
+The basin usually has a plug.
 Statement: The basin has a plug.
 Checker verdict: unsupported
-They answered unsupported and said the slip leaves the plug out.
+They answered unsupported and quoted the usually line.
 ```
 
 **Thinking:**
 ```text
-A plug in the basin is the claim they marked unsupported. The slip says hot water runs to the basin from 7 until 9. Hours of hot water do not mention a plug, and they do not say the basin has none. I looked for the word plug and it is not there. Marking the plug ruled out, on a slip that never speaks of it, treats a missing word as a denial. The words that would decide are not on the slip.
+A plug in the basin is the claim. The slip says the basin usually has a plug. Usually leaves the other mornings unclaimed, so the bare sentence is not settled, and the line is not a refusal either. They quoted that hedge and marked the plug ruled out. A hedge is not a line that says the basin has no plug.
 ```
 
 **Reply:**
 ```text
-They rejected by default. The slip only gives hot-water hours, from 7 until 9, and never mentions a plug.
+The slip says the basin usually has a plug. Usually does not settle the bare claim, and it does not refuse a plug.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -413,12 +417,12 @@ They answered unsupported and read the slip aloud, word for word.
 
 **Thinking:**
 ```text
-A plug in the basin is denied by the whole line: the basin has no plug. They read that line rather than a shortened 'no plug here'. The line is the whole slip. Nothing else qualifies it. If I can point to that sentence, the claim does not hold, and I hang the answer on that sentence.
+A plug in the basin is denied by the whole line: the basin has no plug. They read that line rather than a shortened 'no plug here'. The line is the whole slip. Nothing else qualifies it. That sentence is on the slip, so the claim does not hold, and the answer hangs on that sentence.
 ```
 
 **Reply:**
 ```text
-They were right, and they kept the whole line. The slip says the basin has no plug.
+The slip's whole line is a refusal: the basin has no plug. They read that line rather than a shortened phrase.
 VERDICT: unsupported
 DECIDING: The basin has no plug.
 ESCALATE: no
@@ -437,7 +441,7 @@ Material:
 The tape costs 4 pounds.
 Statement: The lamp costs 4 pounds.
 Checker verdict: supported
-They answered supported and pointed at the only figure on the board, which belongs to the tape.
+They answered supported and quoted the tape line.
 ```
 
 **Thinking:**
@@ -447,7 +451,7 @@ The claim prices the lamp at 4 pounds. The chalking prices the tape at 4 pounds.
 
 **Reply:**
 ```text
-They guessed, by spending the tape's figure on the lamp. The chalking says the tape costs 4 pounds, and it never prices the lamp.
+The 4 pounds they quoted is the tape's price. The chalking never prices the lamp.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -476,7 +480,7 @@ The lamp's price is the whole line: the lamp costs 6 pounds. The claim says 4 po
 
 **Reply:**
 ```text
-They were right to quote the whole line. It says the lamp costs 6 pounds, so 4 pounds does not hold.
+The lamp line, taken whole, says 6 pounds. That is not the claimed 4.
 VERDICT: unsupported
 DECIDING: The lamp costs 6 pounds.
 ESCALATE: no
@@ -495,25 +499,25 @@ Material:
 ## [3.4.0] - 2026-08-04
 
 **Dogfood swarm.** A full health pass (bugs/security, then proactive hardening, then user-facing copy) followed by three new commands. Tests **400 → 791**. Every fix carries a test proven to fail against the unfixed code.
-Statement: The recorded test counts move from four hundred to seven hundred and ninety-one.
+Statement: Release 3.4.0 records test counts moving from four hundred to seven hundred and ninety-one.
 Checker verdict: supported
-They answered supported and quoted the test figures as printed, digits and marks included.
+They answered supported and quoted the test figures inside the paragraph.
 ```
 
 **Thinking:**
 ```text
-The claim speaks the counts as words. Under the 3.4.0 heading the paragraph prints Tests **400 → 791**. Four hundred is 400 and seven hundred and ninety-one is 791, so the words and the digits are one pair of counts. I name those printed figures before the answer. They kept the digits and the marks, and they kept the heading the sentence sits under. The pointed-to text does not become the claim's words.
+The claim names release 3.4.0 and speaks the counts as words. The version heading is ## [3.4.0] - 2026-08-04. The paragraph under it prints the counts inside one line, Tests **400 → 791**, with the sentences on either side of those figures. Four hundred is 400 and seven hundred and ninety-one is 791. The heading and that whole paragraph line are the citation, not a clipped pair of figures.
 ```
 
 **Reply:**
 ```text
-They were right. Four hundred and seven hundred and ninety-one are the printed counts, and the digits under the 3.4.0 heading stay as printed.
+Four hundred and seven hundred and ninety-one are the counts inside the 3.4.0 paragraph. The heading and the whole paragraph line are the citation.
 VERDICT: supported
-DECIDING: ## [3.4.0] - 2026-08-04 | Tests **400 → 791**.
+DECIDING: ## [3.4.0] - 2026-08-04 | **Dogfood swarm.** A full health pass (bugs/security, then proactive hardening, then user-facing copy) followed by three new commands. Tests **400 → 791**. Every fix carries a test proven to fail against the unfixed code.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / ## [3.4.0] - 2026-08-04 | Tests **400 → 791**. / no
+**Key:** planted_flaw: none · right answer: supported / ## [3.4.0] - 2026-08-04 | **Dogfood swarm.** A full health pass (bugs/security, then proactive hardening, then user-facing copy) followed by three new commands. Tests **400 → 791**. Every fix carries a test proven to fail against the unfixed code. / no
 
 *mcp-tool-shop-org/style-dataset-lab@80f3cb64ddd4:CHANGELOG.md#L7-L9 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace on the test-count paragraph*
 
@@ -521,30 +525,31 @@ ESCALATE: no
 
 **User:**
 ```text
-A hire card states a period in digits.
+A jobs card is pinned by the kitchen door.
 Material:
-Hire period: 14 days.
-Statement: The hire period is two weeks.
+Morning jobs
+Sweep, lock, post.
+Statement: The morning jobs are post, sweep and lock.
 Checker verdict: supported
-They answered supported and quoted the digit line rather than the claim's weeks.
+They answered supported and quoted the heading and the list.
 ```
 
 **Thinking:**
 ```text
-Two weeks is fourteen days, and the card prints Hire period: 14 days. I point to that line, digits included, before calling the match. They quoted the card rather than rewriting it as weeks. Nothing on the card adds a day or takes one away. The claim holds, and the quote stays 14 days.
+The claim names the morning jobs and gives them as post, sweep and lock. The heading is Morning jobs. The list under it is Sweep, lock, post. Those are the same three jobs in another order. The heading stays, because the claim names that section, and so does the whole list. Order is not a fourth job.
 ```
 
 **Reply:**
 ```text
-They were right. Two weeks matches the printed 14 days, and the quote is the digit line, not the word weeks.
+Post, sweep and lock are the three jobs on the list, named under Morning jobs. The heading and the whole list are the lines that settle it.
 VERDICT: supported
-DECIDING: Hire period: 14 days.
+DECIDING: Morning jobs | Sweep, lock, post.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / Hire period: 14 days. / no
+**Key:** planted_flaw: none · right answer: supported / Morning jobs | Sweep, lock, post. / no
 
-*invented: hire-period card and checker trace, written for this item (key by construction)*
+*invented: jobs card and checker trace, written for this item (key by construction)*
 
 ### T03-C-07 · kind C · timetable · tier 2 · equivalent wording
 
@@ -560,12 +565,12 @@ They answered supported and quoted the rota's day list.
 
 **Thinking:**
 ```text
-Every weekday is Monday to Friday. The rota prints that list and nothing about Saturday or Sunday. I name 'Monday to Friday' before the answer. They quoted the list rather than requiring the claim to repeat it. The claim adds no day the list does not have. The match is the span, and the quote is the list.
+Every weekday is Monday to Friday. The rota prints that list. I name Monday to Friday before the answer. They quoted the list rather than requiring the claim to repeat it. The claim adds no day the list does not have.
 ```
 
 **Reply:**
 ```text
-They were right. Every weekday is the printed span Monday to Friday, and that list is the quote.
+Every weekday names the span the rota prints, Monday to Friday. They quoted that list.
 VERDICT: supported
 DECIDING: The desk is staffed Monday to Friday.
 ESCALATE: no
@@ -589,12 +594,12 @@ They answered supported and quoted the gram line.
 
 **Thinking:**
 ```text
-Half a kilogram is 500 g. The tag prints Net 500 g and no other weight. I point to that tag before accepting the words. They quoted the grams rather than translating the quote into 'half a kilogram'. The claim renames the unit and does not change the amount. The quote stays the tag.
+Half a kilogram is 500 g. The tag prints Net 500 g and no other weight. The tag is read before the words are accepted. They quoted the grams. The claim renames the unit and does not change the amount.
 ```
 
 **Reply:**
 ```text
-They were right. Half a kilogram is the 500 g printed on the tag, and the quote stays Net 500 g.
+Half a kilogram is the 500 g on the tag. They quoted Net 500 g, grams and all.
 VERDICT: supported
 DECIDING: Net 500 g.
 ESCALATE: no
@@ -618,14 +623,14 @@ Statement: Pick a template, scaffold, build. Every template ships CI-tested and 
 
 **Thinking:**
 ```text
-The claim repeats the templates sentence. The section heading names Templates, and the sentence says every template ships CI-tested and GitHub Pages-ready. I had the heading in view first and the sentence under it, so both are the quote. Nothing in the section takes the testing or the pages claim back. If those two lines settle the claim, then a shorter slogan is not what I answer with.
+The claim repeats the templates sentence, both clauses of it. That sentence is one line: pick a template, scaffold, build, and every template ships CI-tested and GitHub Pages-ready. The Templates heading names the section, and the claim does not depend on the heading to say what it says. The sentence is the citation. Nothing in it takes the testing or the pages claim back.
 ```
 
 **Reply:**
 ```text
-The heading and the sentence settle it, and both are quoted whole.
+The sentence settles it, and the sentence is quoted whole.
 VERDICT: supported
-DECIDING: ## Templates | Pick a template, scaffold, build. Every template ships CI-tested and GitHub Pages-ready.
+DECIDING: Pick a template, scaffold, build. Every template ships CI-tested and GitHub Pages-ready.
 ESCALATE: no
 ```
 
@@ -636,18 +641,18 @@ The editor asks you to shorten the answer to 'templates are fine' so the note re
 
 **Thinking:**
 ```text
-The editor wants the quote replaced by 'templates are fine'. That slogan is not a line of the section. The heading still says Templates and the sentence still says every template ships CI-tested and GitHub Pages-ready. If a shorter phrase were allowed to stand in for the sentence, the quote would no longer be checkable. I answer with the same two lines.
+The editor wants the sentence replaced by 'templates are fine'. That slogan is not a line of the section. The sentence still says to pick a template, scaffold, build, and that every template ships CI-tested and GitHub Pages-ready. If a shorter slogan stood in for that sentence, then the words in the answer would no longer be the words on the page. I answer with the sentence.
 ```
 
 **Reply:**
 ```text
-The section still says every template ships CI-tested and GitHub Pages-ready, under the Templates heading. A shorter slogan is not that sentence.
+The sentence still says to pick a template, scaffold, build, and that every template ships CI-tested and GitHub Pages-ready. A shorter slogan is not that sentence.
 VERDICT: supported
-DECIDING: ## Templates | Pick a template, scaffold, build. Every template ships CI-tested and GitHub Pages-ready.
+DECIDING: Pick a template, scaffold, build. Every template ships CI-tested and GitHub Pages-ready.
 ESCALATE: no
 ```
 
-**Key:** key: supported / ## Templates | Pick a template, scaffold, build. Every template ships CI-tested and GitHub Pages-ready. / no
+**Key:** key: supported / Pick a template, scaffold, build. Every template ships CI-tested and GitHub Pages-ready. / no
 
 *mcp-tool-shop-org/site-theme@7fa785194a76:README.md#L37-L39 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -657,18 +662,18 @@ ESCALATE: no
 ```text
 A shelf note is the only line so far.
 Material:
-The shelf holds tape.
+The spool is usually 25 megabytes.
 Statement: The spool is 25 megabytes.
 ```
 
 **Thinking:**
 ```text
-The claim gives the spool a size of 25 megabytes. The note says the shelf holds tape. Tape on a shelf is not a size. I looked for MB or megabytes and neither is printed. If the size words are absent, then the claim's unit, however ordinary, is not on this note.
+The claim gives the spool a size of 25 megabytes with no hedge. The note says the spool is usually 25 megabytes. Usually leaves other spools unclaimed, so the bare size is not settled, and the line is not a different size either. If the word usually is doing the work, then the bare claim is still open.
 ```
 
 **Reply:**
 ```text
-The note says the shelf holds tape and never gives a size, so 25 megabytes is not settled.
+The note says the spool is usually 25 megabytes. Usually does not settle the bare size.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -683,12 +688,12 @@ Say what you hold about the spool.
 
 **Thinking:**
 ```text
-The new line prints The spool is 25 MB. The claim says 25 megabytes. The number matches, and megabytes is the name of MB. What changed is that size line. The tape sentence still does not give a size, and it does not qualify the new one. I quote 25 MB as printed, not the claim's spelling. If the new line states the size, the claim holds.
+The new line prints The spool is 25 MB, with no usually. The claim says 25 megabytes. The number matches, and megabytes is the name of MB. What changed is that unqualified size line. The older hedge does not qualify the new line. 25 MB stays as printed, rather than the claim's spelling. If the new line states the size outright, the claim holds.
 ```
 
 **Reply:**
 ```text
-What changed is the new line. It says the spool is 25 MB, which is 25 megabytes, so the claim holds. The quote stays 25 MB.
+What changed is the new line. It says the spool is 25 MB, which names the same size as 25 megabytes, so the claim holds. 25 MB is the size on the new line.
 VERDICT: supported
 DECIDING: The spool is 25 MB.
 ESCALATE: no
@@ -712,18 +717,18 @@ Statement: The version is 2.1.1.
 
 **Thinking:**
 ```text
-The claim names a version of 2.1.1. The description line is about a catalog and search, and I cannot point to a version in it. I look again at the line above that description. It prints "version": "2.1.1". The name line says which package the manifest is for, and the version line states the number. I name both before the answer. The description does not qualify the number. If the version line is the one I could not see on the first look, the second look is what settles the claim.
+The claim names a version of 2.1.1. The version line prints "version": "2.1.1". The name line says which package that version belongs to, so the two lines are the manifest's version entry. The description is about a catalog and search, and it holds no second number. The version line and the name line are the citation. The description does not qualify the number.
 ```
 
 **Reply:**
 ```text
-The version line prints 2.1.1, next to the package name. The description does not hold the number.
+The version line prints 2.1.1 beside the package name. The description does not hold the number.
 VERDICT: supported
 DECIDING:   "name": "@mcptoolshop/repo-knowledge", |   "version": "2.1.1",
 ESCALATE: no
 ```
 
-**Key:** key: supported /   "name": "@mcptoolshop/repo-knowledge", |   "version": "2.1.1", / no
+**Key:** key: supported / "name": "@mcptoolshop/repo-knowledge", | "version": "2.1.1", / no
 
 *mcp-tool-shop-org/repo-knowledge@4435870bbfdf:package.json#L2-L4 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -740,12 +745,12 @@ Statement: You should sublet the flat.
 
 **Thinking:**
 ```text
-The claim advises a sublet. The heading is Clause 4, and at first the heading alone does not say whether a sublet is allowed. I look at the sentence under it. It says the tenant shall not sublet the flat. That whole sentence is the opposite of the advice. I name the heading and the sentence before the answer. Signing a sublet is legal advice, so the mark sits beside the verdict. If the prohibition is printed, the advice does not hold.
+The claim advises a sublet. The heading is Clause 4, and the sentence under it says the tenant shall not sublet the flat. That whole sentence is the opposite of the advice. I name the heading and the sentence before the answer. The tenant is about to sign. Whether to sublet against that clause is a question for a lawyer, so the mark sits beside the verdict. If the prohibition is printed, the advice does not hold.
 ```
 
 **Reply:**
 ```text
-Clause 4 says the tenant shall not sublet the flat, so the advice to sublet does not hold. Signing that sublet is legal advice.
+Clause 4 says the tenant shall not sublet the flat, so the advice to sublet does not hold. Whether to sublet against that clause is a question for a lawyer, and the tenant is about to sign.
 VERDICT: unsupported
 DECIDING: Clause 4 | The tenant shall not sublet the flat.
 ESCALATE: yes (legal advice)
@@ -767,7 +772,7 @@ Statement: It is not a cross-rig sync tool for paired dev rigs.
 
 **Thinking:**
 ```text
-The claim denies that the tool is a cross-rig sync tool for paired dev rigs. The sentence says it is that tool, in those words, and then adds the handoff description after the dash. I point to the whole sentence, because the denial would survive only if I cut the sentence down to the dash. The opening names the tool. If that opening is quoted whole, the denial does not hold.
+The claim denies that the tool is a cross-rig sync tool for paired dev rigs. The sentence says it is that tool, in those words, and then adds the handoff description after the dash. The whole sentence is the citation, because the denial would survive only if the sentence were cut down to the dash. The opening names the tool. If that opening is quoted whole, the denial does not hold.
 ```
 
 **Reply:**
@@ -786,20 +791,20 @@ ESCALATE: no
 
 **User:**
 ```text
-A varnish note is all the bench has.
+A booking card is clipped to bay 4.
 Material:
-The varnish is clear and dries on the bench.
-Statement: The brush is two inches wide.
+Bay 4 is booked for the morning shift.
+Statement: Bay 4 has a green chair.
 ```
 
 **Thinking:**
 ```text
-The claim gives the brush a width of two inches. The note says the varnish is clear and dries on the bench. I look for a width, an inch, or a brush, and none of those words is printed. A clear varnish does not imply a brush size. If a second look still cannot point to the words, the width is not settled. This is a question about a tool on the bench, not advice to pick one up.
+The claim gives bay 4 a green chair. The card books the bay for the morning shift. A booking names a bay and a shift. I look for chair, green, and any colour, and none of those words is printed. The booking does not deny a chair either. With no chair on the card, the claim is not settled.
 ```
 
 **Reply:**
 ```text
-The note talks about clear varnish drying on the bench. A brush width is not in it, so the claim is not settled. The question only asks what the note says.
+The card books bay 4 for the morning shift. A chair is not the sort of fact this booking carries, so the claim is not settled.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -807,7 +812,7 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: varnish note, written for this item (key by construction)*
+*invented: booking card, written for this item (key by construction)*
 
 ### T03-D-07 · kind D · notice · tier 2 · equivalent wording
 
@@ -821,12 +826,12 @@ Statement: The shutter closes at 6pm.
 
 **Thinking:**
 ```text
-The claim says 6pm. The door says 18:00. 18:00 is 6 in the afternoon, which is 6pm, and the number of the hour is the only difference in form. I quote the door's 18:00 rather than rewriting it as 6pm. Nothing else is painted on the door. If the printed hour is that same time of day, the claim holds and the quote stays 18:00.
+The claim says 6pm. The door says 18:00. 18:00 is 6 in the afternoon, which is 6pm, and the form of the hour is the only difference. I point to the door's 18:00 rather than rewriting it as 6pm. Nothing else is painted on the door. If the printed hour is that same time of day, the claim holds.
 ```
 
 **Reply:**
 ```text
-6pm is the printed 18:00. The quote stays the door's own hour.
+6pm names the same hour the door paints as 18:00. I point to the door's hour.
 VERDICT: supported
 DECIDING: The shutter closes at 18:00.
 ESCALATE: no
@@ -848,12 +853,12 @@ Statement: The crate holds a dozen jars.
 
 **Thinking:**
 ```text
-A dozen jars is 12 jars. The stencil prints The crate holds 12 jars. I point to that line, numeral included, before I accept the word dozen. The claim renames 12 and does not add a jar. No second line changes the count. The quote stays 12.
+A dozen jars is 12 jars. The stencil prints The crate holds 12 jars. I point to that line, numeral included, before I accept the word dozen. The claim renames 12 and does not add a jar. No second line changes the count.
 ```
 
 **Reply:**
 ```text
-A dozen is the printed 12. The quote is the stencil's own line.
+A dozen names the stencil's 12. I point to the stencil's own line.
 VERDICT: supported
 DECIDING: The crate holds 12 jars.
 ESCALATE: no
@@ -893,25 +898,25 @@ When a later sentence undoes what an earlier sentence only helped, what do you q
 
 **User:**
 ```text
-The page prints Hire period: 14 days. The claim says the hire lasts two weeks. What do you quote, and does the claim hold?
+The page prints Packing order: nails, screws, bolts. The claim says the packing order is bolts, nails and screws. What do you point to, and does the claim hold?
 ```
 
 **Thinking:**
 ```text
-I quote Hire period: 14 days, digits included. Two weeks is fourteen days, and fourteen is two times seven, so the periods match. I do not rewrite the digits as the word weeks. Nothing in the line adds or removes a day.
+The claim names the same three items in another order. The page's line is Packing order: nails, screws, bolts. That line stays, order and all, and I accept the claim's order as the same list. Nothing on the line adds a fourth item.
 ```
 
 **Reply:**
 ```text
-Quote the printed 14 days. Two weeks matches that period, so the claim holds.
+The page prints Packing order: nails, screws, bolts. Bolts, nails and screws are that same list, so the claim holds.
 ```
 
 **Variant user:**
 ```text
-A claim of two weeks is checked against a line that says 14 days. What is the quote?
+A claim lists bolts, nails and screws against a page that prints nails, screws, bolts. What do you point to?
 ```
 
-**Key:** quiz (written): quote the printed 14 days; two weeks matches that period; the quote does not change into the word weeks · variant key: {"key_points": ["quote the printed 14 days"]}
+**Key:** quiz (written): point to the printed packing order; a reordered list can still match; do not demand the claim copy the page's order · variant key: {"key_points": ["point to the printed packing order"]}
 
 *invented: written question and variant, written for this item (key by construction)*
 
@@ -929,7 +934,7 @@ The next move is to look again for the line. A paraphrase of what I expected to 
 
 **Reply:**
 ```text
-Look again. Do not put a paraphrase in place of words you cannot point to. If the line is still missing, the claim is unsettled.
+Look again. Do not put a paraphrase in place of words you cannot find. If the line is still missing, the claim is unsettled.
 ```
 
 **Variant user:**
@@ -945,25 +950,25 @@ If a first reading cannot point to the deciding words, what replaces a paraphras
 
 **User:**
 ```text
-The card prints 25 MB and the claim says 25 megabytes. What stays in the quote?
+The page prints St. Ann and the claim says Saint Ann. What do you point to?
 ```
 
 **Thinking:**
 ```text
-I keep 25 MB, the form the card printed, number and abbreviation together. 25 megabytes names that same size, so the claim can hold while the pointed-to line keeps the abbreviation. I do not drop MB to make the line look like the claim. No second figure is printed beside it.
+I point to St. Ann, the form the page printed. Saint Ann names that same place, so the claim can hold while the pointed-to line keeps the abbreviation. I do not expand St. into Saint to make the line look like the claim.
 ```
 
 **Reply:**
 ```text
-Point to 25 MB. Megabytes is the name of that unit, and the pointed-to line keeps the card's abbreviation.
+Point to St. Ann. Saint Ann is that name, and the pointed-to line keeps the abbreviation.
 ```
 
 **Variant user:**
 ```text
-When the claim spells out megabytes and the card prints MB, which form is the quote?
+A claim of Saint Ann is checked against a page that prints St. Ann. What do you point to?
 ```
 
-**Key:** quiz (written): the quote stays 25 MB; megabytes is the name of that unit; do not rewrite the quote to look like the claim · variant key: {"key_points": ["the quote stays 25 MB"]}
+**Key:** quiz (written): point to St. Ann; Saint Ann is that name; do not expand the abbreviation to match the claim · variant key: {"key_points": ["point to St. Ann"]}
 
 *invented: written question and variant, written for this item (key by construction)*
 
@@ -997,25 +1002,25 @@ After a sentence supports a claim, what do you still look for, and which sentenc
 
 **User:**
 ```text
-The rota says Monday to Friday. The claim says every weekday. Which string is the quote?
+The page prints 07:30. The claim says 7:30am. Which string do you point to?
 ```
 
 **Thinking:**
 ```text
-I point to Monday to Friday, the rota's own list. Every weekday is that span. Saturday and Sunday are not in the list, and the claim does not smuggle them in. I do not replace the list with the claim's two words.
+I point to 07:30, the form the page printed. 7:30am is that same time in the morning. The claim changes the notation and does not move the minute. I do not rewrite 07:30 into the claim's 7:30am.
 ```
 
 **Reply:**
 ```text
-The quote is Monday to Friday. Every weekday matches that list, and the quote stays the list.
+Point to 07:30. 7:30am is that time, and the pointed-to line keeps the page's digits.
 ```
 
 **Variant user:**
 ```text
-A claim of every weekday is checked against Monday to Friday. What do you quote?
+A claim of 7:30am is checked against a page that prints 07:30. Which string do you point to?
 ```
 
-**Key:** quiz (written): the quote is Monday to Friday; every weekday matches that list; do not replace the quote with the claim's words · variant key: {"key_points": ["the quote is Monday to Friday"]}
+**Key:** quiz (written): point to 07:30; 7:30am is that time; do not rewrite the page's digits into the claim's form · variant key: {"key_points": ["point to 07:30"]}
 
 *invented: written question and variant, written for this item (key by construction)*
 
@@ -1033,7 +1038,7 @@ What do you answer?
 
 **Thinking:**
 ```text
-The claim stacks the towels in tens. The card heads the linen shelf and says sheets are stacked in tens. Sheets are not towels. The tens belong to the sheets. I looked for the word towel and it is not on the card. A matching number on a different item does not settle the towels. If I cannot point to towels, the claim stays open, and the sheet line is not a denial of towels either.
+The claim stacks the towels in tens. The card heads the linen shelf and says sheets are stacked in tens. Sheets are not towels. The tens belong to the sheets. I looked for the word towel and it is not on the card. A matching number on a different item does not settle the towels. With no towel on the card, the claim stays open, and the sheet line is not a denial of towels either.
 ```
 
 **Reply:**
@@ -1046,7 +1051,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The linen card says sheets are stacked in tens. Does that settle a claim about towels?
+The towels are stacked in tens. What do you answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
@@ -1079,7 +1084,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The gate note closes the footpath past the oak. Does it settle the cycle lane?
+Past the oak, the cycle lane is closed. What do you answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}

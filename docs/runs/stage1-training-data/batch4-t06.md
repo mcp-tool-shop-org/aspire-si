@@ -26,17 +26,17 @@ I separate the apples from the pears. The apples are fresh, and that half holds.
 
 **User:**
 ```text
-Breaking things down also keeps a supported claim from swallowing one the page never mentions. The printed half can be checked. The unprinted half stays open, and a blank is not a denial.
+Breaking things down also keeps a supported claim from swallowing one the page never prints. The printed half can be checked. The unprinted half is still open.
 
 The cloakroom list says the coats are hung. The statement says the coats are hung and the scarves are wool. What do you do with the scarves?
 ```
 
 **Reply:**
 ```text
-I check the coats first, and the list does hang them. The scarves are not on the list, and the coat line does not say the scarves are something else. The bundle stays open because of the scarves.
+I check the coats first, and the list does hang them. The scarves are not on the list, and the coat line does not give the scarves a fibre. The scarves stay unresolved.
 ```
 
-**Key:** key_points: check each claim; a printed claim does not settle an unprinted one; a blank is not a denial
+**Key:** key_points: check each claim; a printed claim does not settle an unprinted one; an unprinted scarf is not a refusal
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
@@ -51,7 +51,7 @@ The board says the bread is sliced and the butter is rancid. The statement says 
 
 **Reply:**
 ```text
-I take the bread first, and it is sliced. The butter is rancid, so fresh butter fails. I stop on the butter. The jam was never printed, and I do not need it once the butter has failed.
+I take the bread first, and it is sliced. The butter is rancid, so fresh butter fails. The butter is where the statement fails. The jam was never printed, and it does not need a look after the butter.
 ```
 
 **Key:** key_points: a failing claim beats a silent one; stop on the failing claim; a later silence is not required once a claim has failed
@@ -62,14 +62,14 @@ I take the bread first, and it is sliced. The butter is rancid, so fresh butter 
 
 **User:**
 ```text
-Someone who can break it down does not stop on the first claim that merely helps. That claim gets a short look through the rest of the page for a later claim that would undo the sentence, and the later one is the one that decides if it does.
+Breaking things down does not finish on the first line that helps. A short look through the rest of the page is still owed, in case a later line undoes the sentence.
 
-The first line helps the statement and a later line contradicts it. Which line decides, and do you owe the rest of the page a look?
+The board's first line says the kiln is hot. A later line says the kiln is cold. The statement says the kiln is hot. Which line decides?
 ```
 
 **Reply:**
 ```text
-I give the helpful line its check, then I look for a line that would undo it. When that later line contradicts the statement, it is the one that decides. I do not hang the answer on the line that only helped.
+I check the first line, then I read on. The later line says the kiln is cold, so that is the line I answer from. I do not hang the answer on the line that only helped.
 ```
 
 **Key:** key_points: a helpful claim still gets a look at the rest; a later contradiction is the claim that decides; do not hang the answer on the line that only helped
@@ -80,14 +80,18 @@ I give the helpful line its check, then I look for a line that would undo it. Wh
 
 **User:**
 ```text
-Once you break things down, a sentence that is already one claim does not get a ceremonial split. Inventing a second claim, about the shop or the handwriting, is not what the sentence asked.
+Once you break things down, a sentence that is already one claim does not get a ceremonial split. Several lines can sit on the card while the statement still asserts one fact.
 
-The stall card says the pie is 4 pounds, and the statement says the pie is 4 pounds. How many claims are you checking?
+The stall card reads:
+Pies
+The left pie is 4 pounds.
+Tea is 1 pound.
+The statement says the left-hand pie costs 4 pounds. How many claims are you checking?
 ```
 
 **Reply:**
 ```text
-I am checking one claim. The card and the statement name the same price, so a second claim about the stall would be mine, not the sentence's. The price line settles it, and nothing else on the card takes that price back.
+I am checking one claim. Left-hand and the price are one fact about that pie, and the tea line is a different item. The price of the left pie settles it, and the tea does not split that sentence.
 ```
 
 **Key:** key_points: one claim gets one check; do not invent a second claim; a settled line that nothing else undoes is enough
@@ -98,14 +102,19 @@ I am checking one claim. The card and the statement name the same price, so a se
 
 **User:**
 ```text
-Breaking things down is for a sentence that has parts. A single colour, stated once, is not two tasks just because it has a noun and an adjective.
+Breaking things down is for a sentence that has separate claims. A colour and a kind can still be one fact when the sentence only says which tin is which.
 
-The tin says the paint is green. The statement says the paint is green. What do you refuse to split?
+The shelf reads:
+Paint
+The green tin is enamel.
+The red tin is primer.
+Brushes are extra.
+The statement says the enamel paint is the green one. What do you refuse to split?
 ```
 
 **Reply:**
 ```text
-I refuse to split green paint into a colour task and an object task. The statement is that one fact, the tin prints it, and no later line names a different colour. One check is the whole job.
+I refuse to split enamel from green. The statement is one fact, which tin is the enamel, and the primer line and the brushes are other items. One check covers the green tin.
 ```
 
 **Key:** key_points: a single colour is one claim; a noun and an adjective are not two claims; one check is enough when nothing else qualifies the line
@@ -134,14 +143,18 @@ I check the one bell. Noon on the card is noon in the statement, and I do not di
 
 **User:**
 ```text
-To break it down properly, you also know when the sweep comes back empty. One settled line, with nothing after it that would undo the claim, does not sprout a second claim for the sake of a longer answer.
+To break it down properly, you also know when one fact is the whole statement. Extra lines on the same shelf can tempt a second claim the sentence never made.
 
-The shelf label says the nails are in the blue tin. The statement says the nails are in the blue tin, and the label has no second line. What do you add?
+The shelf reads:
+Nails sit in the blue tin.
+Screws sit in the red tin.
+The blue tin is closed.
+The statement says the nails' tin is the blue one. What do you add?
 ```
 
 **Reply:**
 ```text
-I add nothing. The label settles the nails, I look for a line that would move them, and there is no second line. Splitting tin from nails would be a second claim the statement never made.
+I add nothing. The nails' tin being blue is one fact, and the closed lid does not make a second claim. The screws are a different item. One check places the nails.
 ```
 
 **Key:** key_points: sweep a settled line for one that would undo it; an empty sweep adds no claim; do not split a single settled fact
@@ -179,22 +192,23 @@ Any of the ten pegs.
 
 **User:**
 ```text
-Five buoys sit in the channel.
-Red is ahead of blue.
-The rest are unplaced.
-Question: Which of red and blue is ahead?
+Five buoys sit in the channel: red, blue, green, amber and white.
+The pilot follows the buoy ahead of blue.
+The buoy ahead of blue is not green, not amber, not white and not blue.
+Question: Which buoy does the pilot follow?
 ```
 
 **Thinking:**
 ```text
-Which of red and blue is ahead is one comparison. Red is ahead of blue, and that single line answers it. The other buoys are unplaced, and the question does not ask me to place them. I do not turn one comparison into a tour of the channel.
+The pilot follows the buoy ahead of blue, and that buoy is not green, not amber, not white and not blue. Of the five, the remaining buoy is red. The other buoys are a tour the question does not ask for. One comparison picks the buoy.
 ```
 
 **Reply:**
 ```text
-| Buoy | Place |
+Red.
+| Role | Buoy |
 | --- | --- |
-| red | ahead of blue |
+| pilot's buoy | red |
 ```
 
 **Key:** answer: red
@@ -232,22 +246,24 @@ red
 
 **User:**
 ```text
-Four gates face the lane.
-The west gate opens only after the bell.
+Four gates face the lane: west, east, north and south.
+The gate the cart uses opens only after the bell.
+The cart uses the west gate.
+The east gate opens only after the horn.
 Question: When does the west gate open?
 ```
 
 **Thinking:**
 ```text
-When the west gate opens is one question, answered by one line: it opens only after the bell. I do not open a second question about the other three gates, because the question never names them as the thing to settle. The bell is the whole condition the line gives.
+The cart uses the west gate, and the gate the cart uses opens only after the bell. So the west gate opens only after the bell. The east gate's horn is a second condition, and the question does not ask about the east gate. One condition answers the west gate.
 ```
 
 **Reply:**
 ```text
 Only after the bell.
-1. The west gate is the gate the question names.
-2. Its line gives one condition, the bell.
-3. The other gates are not part of that question.
+1. The cart uses the west gate.
+2. That gate opens only after the bell.
+3. The horn belongs to the east gate.
 ```
 
 **Key:** answer: only after the bell
@@ -259,6 +275,7 @@ Only after the bell.
 **User:**
 ```text
 Three cups are blue, red and white.
+The green pen is in one of the three cups.
 The green pen is never in the blue cup.
 The green pen is never in the red cup.
 Exactly one pen sits in each cup.
@@ -267,7 +284,7 @@ Question: Which of the blue, red and white cups holds the green pen?
 
 **Thinking:**
 ```text
-The question asks for one cup. The green pen is never in the blue cup and never in the red cup, and exactly one pen sits in each cup, so the green pen is in the white cup. I do not go on to ask who owns the cups. One cup is the whole question.
+The green pen is in one of the three cups. It is never in the blue cup and never in the red cup, and exactly one pen sits in each cup, so the green pen is in the white cup. The question asks for one cup. I do not go on to ask who owns the cups.
 ```
 
 **Reply:**
@@ -291,19 +308,19 @@ A pantry pair is the page.
 Material:
 The oats are in the jar.
 The rice is in the sack.
-Question: The oats are in the jar and the rice is on the step. Which part fails?
+Question: The oats are in the jar and there is no rice. Which part fails?
 ```
 
 **Thinking:**
 ```text
-Two claims. The oats are in the jar, and that line holds. The rice is in the sack, not on the step, so the rice claim fails. The rice line is the one that decides. I do not need a third claim, because there is none, and the oats cannot move the rice onto the step.
+Two claims. The oats are in the jar, and that line holds. The rice is in the sack, so a claim that there is no rice fails. Being in the sack excludes there being no rice. The rice line is the one that decides, and the oats cannot empty the sack.
 ```
 
 **Reply:**
 ```text
 The rice part fails.
 1. Oats in the jar holds.
-2. Rice is in the sack, so 'on the step' fails.
+2. Rice is in the sack, so 'no rice' fails.
 VERDICT: unsupported
 DECIDING: The rice is in the sack.
 ESCALATE: no
@@ -317,28 +334,31 @@ ESCALATE: no
 
 **User:**
 ```text
-A pump line is the page.
+A pump board is the page.
 Material:
-The pump stops at dusk.
-Question: Does the pump stop at dusk?
+The pump by the shed stops at dusk.
+The night pump is by the shed.
+The day pump is by the lane.
+The cistern is covered.
+Question: Which pump stops at dusk, the night pump or the day pump?
 ```
 
 **Thinking:**
 ```text
-One claim, the pump at dusk. The line says the pump stops at dusk, which is the whole question. I do not split pump from dusk, and I do not invent a second fact about who switches it off. Nothing else is on the page.
+The pump that stops at dusk is the one by the shed, and the night pump is by the shed, so the night pump is the one that stops at dusk. The day pump is by the lane, which is a different place, and the cistern's cover is a third line. One pairing answers the question. I do not tour the cistern.
 ```
 
 **Reply:**
 ```text
-Yes. The line is the whole question.
-1. One pump, one time of day.
-2. No second fact is printed.
+The night pump.
+1. The pump by the shed stops at dusk.
+2. The night pump is by the shed.
 VERDICT: supported
-DECIDING: The pump stops at dusk.
+DECIDING: The pump by the shed stops at dusk. | The night pump is by the shed.
 ESCALATE: no
 ```
 
-**Key:** answer: supported: the pump stops at dusk
+**Key:** answer: supported: the night pump
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -349,25 +369,26 @@ ESCALATE: no
 A counter line is the page.
 Material:
 The scone costs 2 pounds.
+Butter is free in most cases.
 Question: The scone costs 2 pounds and butter is free. What do you hold?
 ```
 
 **Thinking:**
 ```text
-Two claims. The scone costs 2 pounds, and the line says so. Butter is not on the line, so free butter is unprinted. A priced scone does not deny butter and does not grant it. The bundle stays open on the butter.
+Two claims. The scone costs 2 pounds, and that line holds. Butter is free in most cases, and the question drops 'in most cases'. The hedge does not settle free butter on this counter, and it does not refuse butter either. The scone's price cannot close the butter.
 ```
 
 **Reply:**
 ```text
-The scone holds and the butter is unprinted.
-1. The price line covers the scone only.
-2. Butter is absent, not refused.
+The scone's price holds. Butter is only free in most cases, so the bare butter claim stays unresolved.
+1. The price line covers the scone.
+2. The hedge does not settle this counter.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** answer: cannot_tell: butter is unprinted
+**Key:** answer: cannot_tell: the butter hedge does not settle the bare claim
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -375,22 +396,22 @@ ESCALATE: no
 
 **User:**
 ```text
-A hall notice names Tuesday and nothing else.
+A pool notice is taped to the gate.
 Material:
-The hall is open on Tuesday.
-Statement: The hall is open on Tuesday, the piano is tuned, and tea is free.
+The pool is open on Tuesday.
+Statement: The pool is open on Tuesday, the filter is clean, and towels are free.
 Checker verdict: unsupported
-They answered unsupported and read the missing piano and the missing tea as refusals.
+They answered unsupported and quoted the Tuesday line.
 ```
 
 **Thinking:**
 ```text
-The statement has three claims: the hall is open on Tuesday, the piano is tuned, and tea is free. The notice prints only the first. Tuesday opening holds, and it does not mention a piano or tea. I looked for tuned, out of tune, and tea, and none of those words is on the notice. A missing piano is not a statement that the piano is untuned. They treated the blanks as nos. The Tuesday line does not fail, so the blanks leave the bundle open.
+The statement has three claims: the pool is open on Tuesday, the filter is clean, and towels are free. The notice prints only the first. Tuesday's opening holds. I looked for a filter and for towels, and neither word is on the notice. A missing filter is not a clogged filter. The Tuesday line does not fail, so the other two claims are still open.
 ```
 
 **Reply:**
 ```text
-They rejected by default. Tuesday's opening holds, and the notice never mentions a piano or tea, so those blanks are not refusals.
+Tuesday's opening holds. The notice never mentions a filter or towels, so those gaps are not refusals.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -398,39 +419,39 @@ ESCALATE: no
 
 **Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: hall notice and checker trace, written for this item (key by construction)*
+*invented: pool notice and checker trace, written for this item (key by construction)*
 
 ### T06-C-02 · kind C · record · tier 3 · splits the claim
 
 **User:**
 ```text
-A second hall sheet gives the piano its own heading.
+A filter sheet gives the filter its own heading.
 Material:
-Hall
-The hall is open on Tuesday.
-Piano
-The piano is out of tune.
-Statement: The hall is open on Tuesday, the piano is tuned, and tea is free.
+Pool
+The pool is open on Tuesday.
+Filter
+The filter is clogged.
+Statement: The pool is open on Tuesday, the filter is clean, and towels are free.
 Checker verdict: supported
-They answered supported and pointed at the Tuesday opening.
+They answered supported and quoted the Tuesday opening.
 ```
 
 **Thinking:**
 ```text
-The same three claims. The hall line holds: the hall is open on Tuesday. Under the piano heading the sheet says the piano is out of tune, so the tuned claim fails. Tea is still unprinted. If the piano line fails the tuned claim, then tea does not have to be settled, because a failure already decides the bundle. They let Tuesday carry the piano. The piano heading and the out-of-tune line are what I point to.
+The same three claims. The pool line holds: the pool is open on Tuesday. Under the filter heading the sheet says the filter is clogged, so the clean-filter claim fails. Towels are still unprinted. If the filter line fails the clean claim, then towels do not have to be settled, because a failure already decides the whole statement. They let Tuesday carry the filter.
 ```
 
 **Reply:**
 ```text
-They rubber-stamped the bundle on Tuesday's opening. The piano line says the piano is out of tune, so the tuned claim fails, and tea did not need a look.
+Tuesday's opening is real, and it does not clean the filter. The filter line says the filter is clogged, so that claim fails, and the towels were not needed.
 VERDICT: unsupported
-DECIDING: Piano | The piano is out of tune.
+DECIDING: Filter | The filter is clogged.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Piano | The piano is out of tune. / no
+**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Filter | The filter is clogged. / no
 
-*invented: hall sheet and checker trace, written for this item (key by construction)*
+*invented: filter sheet and checker trace, written for this item (key by construction)*
 
 ### T06-C-03 · kind C · timetable · tier 3 · splits the claim
 
@@ -441,7 +462,7 @@ Material:
 The van leaves at 7.
 Statement: The van leaves at 7 and the fare is 4 pounds.
 Checker verdict: unsupported
-They answered unsupported and wrote that the fare could not be 4 pounds.
+They answered unsupported and quoted the departure line.
 ```
 
 **Thinking:**
@@ -451,7 +472,7 @@ The statement joins a departure to a fare. The chalking says the van leaves at 7
 
 **Reply:**
 ```text
-They guessed a contradiction. The chalking gives the van's 7 and never mentions a fare, so a missing price is not a false one.
+The departure they quoted is 7. The chalking never mentions a fare, so a missing price is not a false one.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -473,7 +494,7 @@ Fares
 The fare is 2 pounds.
 Statement: The van leaves at 7 and the fare is 4 pounds.
 Checker verdict: supported
-They answered supported and said the departure was enough.
+They answered supported and quoted the departure line.
 ```
 
 **Thinking:**
@@ -483,7 +504,7 @@ The departure holds: the van leaves at 7. The fare claim says 4 pounds. Under Fa
 
 **Reply:**
 ```text
-They rubber-stamped the fare because the van does leave at 7. The fare line says 2 pounds, so 4 pounds fails, and nothing after that price was waiting.
+The van does leave at 7, and that half is not the fare. The fare line says 2 pounds, so 4 pounds fails, and nothing after that price was waiting.
 VERDICT: unsupported
 DECIDING: Fares | The fare is 2 pounds.
 ESCALATE: no
@@ -507,18 +528,18 @@ They answered supported and quoted the opening about what a repo is.
 
 **Thinking:**
 ```text
-The statement has two claims inside one sentence. The opening holds: registries and GitHub tell you what a repo is. The same sentence then says they don't tell you whether it passed your last security audit. That denial is the audit claim failing, not a paraphrase I am adding. The clauses about a thesis and about relationships come later in the sentence. Once the audit words have failed the second claim, those later clauses are not required. They let the opening stand for the whole sentence.
+The statement has two claims. The opening sentence holds: registries and GitHub tell you what a repo is. The next sentence says they don't tell you whether it passed your last security audit, along with purpose, relationships and a thesis. That next sentence is where the audit claim fails. The sentence after it, about filling a gap, was not needed once the audit words had failed.
 ```
 
 **Reply:**
 ```text
-They let the true opening carry the sentence. The same line says they don't tell you whether it passed your last security audit, so that claim fails.
+The opening sentence holds. The next sentence says they don't tell you whether it passed your last security audit, so that claim fails.
 VERDICT: unsupported
-DECIDING: Package registries and GitHub APIs tell you what a repo _is_. They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit. repo-knowledge fills that gap: a single local database that holds thesis, architecture, audit evidence, relationships, and full-text search across all of it.
+DECIDING: They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Package registries and GitHub APIs tell you what a repo _is_. They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit. repo-knowledge fills that gap: a single local database that holds thesis, architecture, audit evidence, relationships, and full-text search across all of it. / no
+**Key:** planted_flaw: rubber_stamp · right answer: unsupported / They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit. / no
 
 *mcp-tool-shop-org/repo-knowledge@4435870bbfdf:README.md#L24 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace on the registries paragraph*
 
@@ -531,17 +552,17 @@ Material:
 Write your visual rules. Generate art. Judge every image against those rules. Ship the results as versioned, auditable training data — then put trained models to work in real production workflows and feed the best outputs back into your corpus.
 Statement: The page says to write your visual rules, generate art, and judge every image against those rules, and the studio is closed on Sunday.
 Checker verdict: unsupported
-They answered unsupported and said Sunday was ruled out because the paragraph never mentions it.
+They answered unsupported and quoted the first three sentences.
 ```
 
 **Thinking:**
 ```text
-The statement's pipeline half is printed: write your visual rules, generate art, and judge every image against those rules. The Sunday half says the studio is closed on Sunday. I looked for Sunday, closed, and a day name, and the paragraph has none of them. Shipping results and feeding outputs back is not a calendar. They turned a missing day into a denial. The pipeline half holds and the Sunday half is unprinted, and nothing in the paragraph says the studio is open that day either, so the bundle stays open.
+The statement's pipeline half is printed: write your visual rules, generate art, and judge every image against those rules. The Sunday half says the studio is closed on Sunday. I looked for Sunday, closed, and a day name, and the paragraph has none of them. Shipping results is not a calendar. They turned a missing day into a denial. The pipeline half holds and the Sunday half is unprinted, so the statement is not settled and not refused.
 ```
 
 **Reply:**
 ```text
-They rejected by default. The pipeline sentences are printed, and Sunday is not on the page, so a missing day is not a closure the page denied.
+The pipeline sentences are printed. Sunday is not on the page, so a missing day is not a closure the page denied.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -555,22 +576,24 @@ ESCALATE: no
 
 **User:**
 ```text
-Tuesday's soup is the only bowl named.
+A kitchen board hangs by the hatch.
 Material:
-Tuesday's soup is lentil.
-Statement: Wednesday's soup is lentil.
+The lentil pot is the Tuesday pot if the kitchen is open.
+The bread is sliced.
+The tea is poured.
+Statement: The lentil pot is the Tuesday pot.
 Checker verdict: unsupported
-They answered unsupported and said Wednesday's soup was not lentil.
+They answered unsupported and quoted the bread line.
 ```
 
 **Thinking:**
 ```text
-The statement is one claim, about Wednesday. The board names Tuesday's soup as lentil. Wednesday is a different day, and the board does not say what that day holds. Lentil on Tuesday neither serves Wednesday nor refuses it. There is no second claim inside the statement for me to peel off. They read a different day's bowl as a no against this one. One look, at Wednesday, finds no words.
+The statement is one claim, that the lentil pot is the Tuesday pot. The board gives that identity only if the kitchen is open, and it never says the kitchen is open. Bread and tea are other lines. They are not a second claim inside the statement, and the bread line does not speak about the pot. Marking the identity unsupported treats the missing condition as a no. One look, at the pot line, is the whole check.
 ```
 
 **Reply:**
 ```text
-They rejected by default. Tuesday's lentil does not speak about Wednesday, so the Wednesday claim is open, and there was only one claim to check.
+The pot line keeps its condition, and the bread line is a different item. The bare identity is not settled, and there was only one claim to check.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -578,7 +601,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: soup board and checker trace, written for this item (key by construction)*
+*invented: kitchen board and checker trace, written for this item (key by construction)*
 
 ### T06-C-08 · kind C · code · tier 2 · one step is enough
 
@@ -599,7 +622,7 @@ The statement is one claim about one command. The line prints roll 8d6cs>=5 and 
 
 **Reply:**
 ```text
-They were right to keep this as one claim. The line shows roll 8d6cs>=5 as the WoD-style dice pool.
+The command and its comment are one claim on one line. The line shows roll 8d6cs>=5 as the WoD-style dice pool.
 VERDICT: supported
 DECIDING: roll 8d6cs>=5                     # WoD-style dice pool
 ESCALATE: no
@@ -762,26 +785,29 @@ ESCALATE: yes (safety advice)
 
 **User:**
 ```text
-A hook list by the door names where the gate key hangs.
+A hook list by the door names the keys.
 Material:
-The gate key is on the third hook.
-Statement: The gate key is on the third hook.
+Hooks
+The gate key hangs on the third hook.
+The shed key hangs on the first hook.
+A spare ring is empty.
+Statement: The gate key's place is the third hook.
 ```
 
 **Thinking:**
 ```text
-The statement is one fact, the key's hook. The list prints that same fact and no other hook. If I split key from hook, then I would be making two claims the sentence does not make. I read the rest of the list in case the key is given another hook, and the list ends on this sentence. The match is the whole line, and one check covers it.
+The statement is one fact, where the gate key belongs. The list prints that place, and it also prints a shed key and an empty ring. If I split the key from its hook, then I would be making two claims the sentence does not make. The empty ring tempts a second check, and it does not move the gate key. One check covers the gate key's place.
 ```
 
 **Reply:**
 ```text
-One claim, and the list prints it. The key is on the third hook.
+One claim. The gate key's place is the third hook, and the empty ring is a different item.
 VERDICT: supported
-DECIDING: The gate key is on the third hook.
+DECIDING: The gate key hangs on the third hook.
 ESCALATE: no
 ```
 
-**Key:** key: supported / The gate key is on the third hook. / no
+**Key:** key: supported / The gate key hangs on the third hook. / no
 
 *invented: hook list, written for this item (key by construction)*
 
@@ -839,56 +865,53 @@ ESCALATE: no
 
 *invented: bin patch, written for this item (key by construction)*
 
-### T06-D-08 · kind D · changelog · tier 3 · splits the claim
+### T06-D-08 · kind D · changelog · tier 3 · one step is enough
 
 **User:**
 ```text
-A release note records the 2.1.0 addition.
+A release note names one added server.
 Material:
-## [2.1.0] - 2026-06-16
-
-### Added
 - **front-door MCP server** — an agent-callable surface for the verifier. `front-door mcp` starts a hand-rolled, zero-dependency MCP server (newline-delimited JSON-RPC over stdio) exposing `front_door_verify` (returns the structured scorecard) and `front_door_standard`. Also exported at `@mcptoolshop/site-theme/front-door/mcp`. The core package stays zero-dep — no MCP SDK / `zod`.
-Statement: Release 2.1.0 adds a front-door MCP server.
+Statement: The note names a front-door MCP server.
 ```
 
 **Thinking:**
 ```text
-The statement has three parts that all have to hold: the release is 2.1.0, it adds something, and that something is a front-door MCP server. The version heading names 2.1.0. The next heading says Added. The bullet names the front-door MCP server. If I stopped at the version heading I would not yet have the server, and if I stopped at Added I would not yet have its name. None of the three undoes another. All three lines are needed, and the statement holds.
+The statement is one fact, the name of the server in the note. The bullet names a front-door MCP server and then describes how it starts. If I split the name from the transport and the exports, then I would be cutting one bullet into claims the statement never made. The name is the whole of what the statement asked. One line covers it.
 ```
 
 **Reply:**
 ```text
-The 2.1.0 heading, the Added heading, and the bullet all hold, so the statement holds. Stopping after the version line would drop the server.
+One claim. The bullet names a front-door MCP server, and the rest of that bullet is the same entry.
 VERDICT: supported
-DECIDING: ## [2.1.0] - 2026-06-16 | ### Added | - **front-door MCP server** — an agent-callable surface for the verifier. `front-door mcp` starts a hand-rolled, zero-dependency MCP server (newline-delimited JSON-RPC over stdio) exposing `front_door_verify` (returns the structured scorecard) and `front_door_standard`. Also exported at `@mcptoolshop/site-theme/front-door/mcp`. The core package stays zero-dep — no MCP SDK / `zod`.
+DECIDING: - **front-door MCP server** — an agent-callable surface for the verifier. `front-door mcp` starts a hand-rolled, zero-dependency MCP server (newline-delimited JSON-RPC over stdio) exposing `front_door_verify` (returns the structured scorecard) and `front_door_standard`. Also exported at `@mcptoolshop/site-theme/front-door/mcp`. The core package stays zero-dep — no MCP SDK / `zod`.
 ESCALATE: no
 ```
 
-**Key:** key: supported / ## [2.1.0] - 2026-06-16 | ### Added | - **front-door MCP server** — an agent-callable surface for the verifier. `front-door mcp` starts a hand-rolled, zero-dependency MCP server (newline-delimited JSON-RPC over stdio) exposing `front_door_verify` (returns the structured scorecard) and `front_door_standard`. Also exported at `@mcptoolshop/site-theme/front-door/mcp`. The core package stays zero-dep — no MCP SDK / `zod`. / no
+**Key:** key: supported / - **front-door MCP server** — an agent-callable surface for the verifier. `front-door mcp` starts a hand-rolled, zero-dependency MCP server (newline-delimited JSON-RPC over stdio) exposing `front_door_verify` (returns the structured scorecard) and `front_door_standard`. Also exported at `@mcptoolshop/site-theme/front-door/mcp`. The core package stays zero-dep — no MCP SDK / `zod`. / no
 
-*mcp-tool-shop-org/site-theme@7fa785194a76:CHANGELOG.md#L28-L31 (MIT (first line of LICENSE: 'MIT License'))*
+*mcp-tool-shop-org/site-theme@7fa785194a76:CHANGELOG.md#L31 (MIT (first line of LICENSE: 'MIT License'))*
 
 ### T06-E-01 · kind E · teaching · tier 1 · splits the claim
 
 **User:**
 ```text
-A pantry lists two foods. The oats are in the jar and the rice is in the sack. The statement says the oats are in the jar and the rice is on the step. Which food decides your answer?
+A pantry lists two foods. The oats are in the jar and the rice is in the sack. The statement says the oats are in the jar and there is no rice. Which food decides your answer?
 ```
 
 **Thinking:**
 ```text
-The oats match the jar, so that food holds. The rice is in the sack, and the statement puts it on the step, so the rice fails. The rice is the food that decides. The oats being right does not move the rice. There is no third food on the list, so once the rice has failed I have nothing further to open.
+The oats match the jar, so that food holds. The rice is in the sack, and the statement says there is no rice, so the rice fails. The rice is the food that decides. The oats being in the jar does not empty the sack. There is no third food, so once the rice has failed I have nothing further to open.
 ```
 
 **Reply:**
 ```text
-The rice decides. It is in the sack, not on the step, so the statement fails there. The oats do not carry it.
+The rice decides. It is in the sack, so 'no rice' fails there. The oats do not carry it.
 ```
 
 **Variant user:**
 ```text
-Oats in the jar are right, and the statement also puts the rice on the step while the list keeps the rice in the sack. What decides?
+The list puts oats in the jar and rice in the sack. The statement says the oats are in the jar and there is no rice. What decides?
 ```
 
 **Key:** quiz (written): the rice decides; a matching food does not carry a failing one; stop when the rice fails · variant key: {"key_points": ["the rice decides"]}
@@ -899,25 +922,25 @@ Oats in the jar are right, and the statement also puts the rice on the step whil
 
 **User:**
 ```text
-A peg rail lists hats and says nothing about gloves. The statement says the hats are on the rail and the gloves are wool. What is settled, and what is open?
+A peg rail lists hats. The statement says the hats are on the rail and the gloves are wool. What is settled, and what is open?
 ```
 
 **Thinking:**
 ```text
-The hats are settled, because the rail lists them. The gloves are open, because wool is not on the rail and the hat line does not refuse wool either. I looked for the word wool and for any glove, and the rail has neither. A settled hat claim does not close an unprinted glove claim. The bundle stays open on the gloves.
+The hats are settled, because the rail lists them. The gloves are open, because wool is not on the rail and the hat line does not refuse wool either. I looked for the word wool and for any glove, and the rail has neither. A settled hat claim does not close an unprinted glove claim.
 ```
 
 **Reply:**
 ```text
-The hats are settled and the gloves are open. A blank about wool is not a denial, so the bundle stays open.
+The hats are settled and the gloves are open. Wool on the gloves is unprinted, not refused.
 ```
 
 **Variant user:**
 ```text
-Hats are listed on the rail and gloves are never mentioned. The statement says the hats are hung and the gloves are wool. Which half is open?
+A peg rail lists hats. The statement says the hats are hung and the gloves are wool. Which half is open?
 ```
 
-**Key:** quiz (written): the hats are settled; the gloves are open; a blank is not a denial · variant key: {"key_points": ["the gloves are open"]}
+**Key:** quiz (written): the hats are settled; the gloves are open; an unprinted glove is not a refusal · variant key: {"key_points": ["the gloves are open"]}
 
 *invented: written question and variant, written for this item (key by construction)*
 
@@ -940,7 +963,7 @@ Stop on the plates. They are chipped, so the whole-plate claim fails, and the sp
 
 **Variant user:**
 ```text
-Mugs are stacked, plates are chipped, and the statement also says the spoons are free. Where do you stop?
+Mugs are stacked and plates are chipped. The statement says the mugs are stacked, the plates are whole, and the spoons are free. Where do you stop?
 ```
 
 **Key:** quiz (written): stop on the plates; a failed claim beats an unprinted one; the spoons do not need a separate answer · variant key: {"key_points": ["stop on the plates"]}
@@ -951,22 +974,26 @@ Mugs are stacked, plates are chipped, and the statement also says the spoons are
 
 **User:**
 ```text
-A drawer label says the tape is in the left drawer. The statement says the tape is in the left drawer. How many claims are in that statement?
+A drawer label reads:
+Tape sits in the left drawer.
+Receipts sit in the right drawer.
+A spare roll is unplaced.
+The statement says the tape's drawer is the left one. How many claims does the statement make?
 ```
 
 **Thinking:**
 ```text
-There is one claim. The label and the statement name the same drawer, and splitting tape from drawer would invent a second claim the sentence never made. The label ends on that drawer, with no further sentence giving the tape a second home. One check is the whole of it.
+There is one claim, where the tape belongs. Tape and drawer look like two words and they name one place. Receipts are a different item, and the spare roll is unplaced. Splitting tape from drawer would invent a second claim the sentence never made.
 ```
 
 **Reply:**
 ```text
-One claim. The label places the tape in the left drawer, and there is nothing further to divide.
+One claim. The tape's drawer is the left one, and the spare roll is not part of that sentence.
 ```
 
 **Variant user:**
 ```text
-The label and the statement both put the tape in the left drawer. Do you divide that into two checks?
+A label puts tape in the left drawer and receipts in the right. The statement says the tape belongs in the left drawer. How many claims does the statement make?
 ```
 
 **Key:** quiz (written): one claim; do not invent a second claim; one check places the tape · variant key: {"key_points": ["one claim"]}
@@ -1003,22 +1030,26 @@ After one shelf line matches the statement and nothing follows it, what do you r
 
 **User:**
 ```text
-A hatch card says the grain hatch opens at dusk. The statement says the grain hatch opens at dusk. Why is a second step about the yard a mistake?
+A hatch card reads:
+The grain hatch opens at dusk.
+The salt hatch opens at dawn.
+The yard gate is on the next card.
+The statement says dusk is the grain hatch's opening. What does the statement ask you to check?
 ```
 
 **Thinking:**
 ```text
-The statement is the hatch at dusk, one fact. A step about the yard is a different claim the card never made and the statement never asked. The card's one line settles the hatch, and nothing on the card moves dusk. The yard step is the mistake of inventing work.
+The statement is one fact, the grain hatch's opening. Dusk and the hatch look like two pieces and they are one fact. The salt hatch is a different hatch. A step about the yard gate is a claim the statement never made and this card never asked. The statement asks for the grain hatch's opening, and that is the whole of it.
 ```
 
 **Reply:**
 ```text
-A yard step invents a claim. The card's one line is the hatch at dusk, and that is the whole statement.
+The statement asks for the grain hatch's opening. A yard step invents a claim, and the salt hatch is a different line.
 ```
 
 **Variant user:**
 ```text
-The card and the statement both say the grain hatch opens at dusk. What is wrong with a further step about the yard?
+A card says the grain hatch opens at dusk and the salt hatch opens at dawn. The statement says the grain hatch opens at dusk. Someone adds a question about the yard gate. What did the statement ask?
 ```
 
 **Key:** quiz (written): a yard step invents a claim; the hatch at dusk is one fact; the card's one line is enough · variant key: {"key_points": ["a yard step invents a claim"]}
@@ -1038,12 +1069,12 @@ What do you answer?
 
 **Thinking:**
 ```text
-The statement joins the reading lamp to a spare. The card says the reading lamp takes a 40 watt bulb, so that half holds. The spare is given as 60 watt. I look for spare and for 60, and the card has neither. The lamp's 40 watt figure belongs to the reading lamp, not to a spare the card never names. That figure does not deny a spare and it does not give the spare a size. The spare half stays open, so the bundle stays open. The question is what the card prints.
+The statement joins the reading lamp to a spare. The card says the reading lamp takes a 40 watt bulb, so that half holds. The spare is given as 60 watt. I look for spare and for 60, and the card has neither. The lamp's 40 watt figure belongs to the reading lamp, not to a spare the card never names. That figure does not deny a spare and it does not give the spare a size. The spare half is unresolved.
 ```
 
 **Reply:**
 ```text
-The lamp's 40 watt bulb is printed. A 60 watt spare is not on the card, so that half stays open and the bundle stays open.
+The lamp's 40 watt bulb is printed. A 60 watt spare is not on the card, so that half is unresolved and the statement is not settled.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1051,7 +1082,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The cupboard card gives the reading lamp a 40 watt bulb and never mentions a spare. Does a 60 watt spare stay open?
+The spare bulb is a 60 watt one, and the reading lamp's bulb is 40 watt. What do you answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
@@ -1072,12 +1103,12 @@ What do you answer?
 
 **Thinking:**
 ```text
-The statement is two claims, and both are printed as their own lines. The boat takes six. The lake is open. If I stopped after the boat I would be ignoring a line that the statement also made and that the paint also printed. I look for a third line that would close the lake or change the six, and there is none. Both lines are needed because both claims hold, and neither one stands in for the other.
+The statement is two claims, and both are printed as their own lines. The boat takes six. The lake is open. Leaving the lake unread would drop a claim the statement made and the paint printed. I look for a third line that would close the lake or change the six, and there is none. Both lines are needed because both claims hold.
 ```
 
 **Reply:**
 ```text
-Both lines hold. The boat takes six and the lake is open, and stopping after the boat would drop the lake.
+Both lines hold. The boat takes six and the lake is open, and leaving the lake unread would drop a claim.
 VERDICT: supported
 DECIDING: The boat takes six. | The lake is open.
 ESCALATE: no
@@ -1085,7 +1116,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The paint says the boat takes six and the lake is open. Does the boat line alone settle both claims?
+Six is what the boat takes, and the lake is open. What do you answer?
 ```
 
 **Key:** quiz (verdict): supported / The boat takes six. | The lake is open. / no · variant key: {"verdict": "supported"}
