@@ -1051,12 +1051,10 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Material:
-Workshop induction: helmets must be worn past the yellow line; the viewing gallery is helmet-free.
-Statement: Past the yellow line, anyone may go bare-headed.
+Restated: nobody may stand in the viewing gallery without a helmet on. What do you answer?
 ```
 
-**Key:** quiz (verdict): unsupported / the viewing gallery is helmet-free. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["helmets must be worn past the yellow line"], "escalate": "no"}
+**Key:** quiz (verdict): unsupported / the viewing gallery is helmet-free. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["the viewing gallery is helmet-free."], "escalate": "no"}
 
 *invented: question and variant, written for this item (key by construction)*
 
@@ -1083,11 +1081,9 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Material:
-Olive oil, 750 ml. Extra virgin. Product of Italy.
-Statement: The oil is 75 cl of extra-virgin olive oil from Italy.
+Said another way, this bottle holds 75 cl of Spanish extra-virgin olive oil. Your answer?
 ```
 
-**Key:** quiz (verdict): supported / Olive oil, 750 ml. Extra virgin. | Product of Spain. / no · variant key: {"type": "verdict", "verdict": "supported", "deciding": ["Olive oil, 750 ml. Extra virgin.", "Product of Italy."], "escalate": "no"}
+**Key:** quiz (verdict): supported / Olive oil, 750 ml. Extra virgin. | Product of Spain. / no · variant key: {"type": "verdict", "verdict": "supported", "deciding": ["Olive oil, 750 ml. Extra virgin.", "Product of Spain."], "escalate": "no"}
 
 *invented: question and variant, written for this item (key by construction)*

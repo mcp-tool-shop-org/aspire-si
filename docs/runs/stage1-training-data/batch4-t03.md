@@ -1076,7 +1076,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The towels are stacked in tens. What do you answer?
+The same claim in new words: every pile of towels has ten in it. What do you answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
@@ -1111,7 +1111,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Read the gate note once more. It says the footpath is closed past the oak when the river is high. Statement: The footpath is closed past the oak. What do you answer?
+Here is the claim again, phrased differently: beyond the oak, the footpath is shut. What is your answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}

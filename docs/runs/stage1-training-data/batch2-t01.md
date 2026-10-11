@@ -1070,12 +1070,10 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Material:
-Requires Node.js >= 22. Zero runtime dependencies.
-Statement: Roll depends on four runtime packages.
+Asked another way: Node.js 20 is a version Roll will run on. What is your answer?
 ```
 
-**Key:** quiz (verdict): unsupported / Requires Node.js >= 22. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["Zero runtime dependencies."], "escalate": "no"}
+**Key:** quiz (verdict): unsupported / Requires Node.js >= 22. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["Requires Node.js >= 22."], "escalate": "no"}
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:README.md#L26 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -1105,11 +1103,9 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Material:
-Maintenance card, pump 3: bearings greased 7 May; filter replaced 7 May.
-Statement: The bearings on pump 3 were greased on the seventh of May.
+Put differently, the claim is that pump 3 got a new filter on the seventh of May. Your answer?
 ```
 
-**Key:** quiz (verdict): supported / filter replaced 7 May / no · variant key: {"type": "verdict", "verdict": "supported", "deciding": ["bearings greased 7 May"], "escalate": "no"}
+**Key:** quiz (verdict): supported / filter replaced 7 May / no · variant key: {"type": "verdict", "verdict": "supported", "deciding": ["filter replaced 7 May"], "escalate": "no"}
 
 *invented: question and variant, written for this item (key by construction)*
