@@ -649,7 +649,8 @@ def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, lessons=None) -> 
             "reused_materials": len(reused_material(rows, skip)),
             "puzzle_signatures": {f"{k[0]} / {'+'.join(k[1])}": [i for _, i in v]
                                   for k, v in puzzle_repeats(rows, skip).items()},
-            "repeated_framings": len(framing_repeats(rows, skip))}
+            "repeated_framings": len(framing_repeats(rows, skip)),
+            "closed_form_letters": closed_form_letters(rows)}
     if lessons:
         ranks = a_lesson_ranks(rows, lessons)
         rep["a_lesson_rank"] = {
@@ -658,6 +659,18 @@ def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, lessons=None) -> 
             "items": len(ranks),
             "outside_top3": sorted([i, x["rank"], x["nearest"]] for i, x in ranks.items() if x["rank"] > 3)}
     return rep
+
+
+def closed_form_letters(rows: list[dict]) -> dict:
+    """{lesson: {letter: count}} of the keyed letters of closed-form written variants (amendment 5: vary the
+    keyed letter across a lesson's items). A figure for review, refusing nothing."""
+    out: dict = {}
+    for r in rows:
+        v = r.get("variant") or {}
+        if r.get("kind") == "E" and isinstance(v.get("key"), dict) and "answer" in v["key"]:
+            d = out.setdefault(r.get("lesson"), {})
+            d[v["key"]["answer"]] = d.get(v["key"]["answer"], 0) + 1
+    return {k: dict(sorted(v.items())) for k, v in sorted(out.items())}
 
 
 def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
