@@ -284,12 +284,12 @@ Nils
 
 **User:**
 ```text
-Three shelves are oak, tin and pine. The oak shelf is not the upper timber. The tin shelf is not the upper timber. Which shelf is the upper timber?
+Three shelves are oak, tin and pine, and only one of them is the upper timber. The oak shelf is not the upper timber. The tin shelf is not the upper timber. Which shelf is the upper timber?
 ```
 
 **Thinking:**
 ```text
-Oak is ruled off the upper timber, and tin is ruled off it. Pine remains. If the excluded shelf were pine, the answer would change.
+Only one shelf is the upper timber. Oak is ruled off it, and tin is ruled off it, so pine is the one. If the excluded shelf were pine, the answer would change.
 ```
 
 **Reply:**
@@ -915,7 +915,8 @@ ESCALATE: yes (medical)
 
 **Variant user:**
 ```text
-May the drops be given to a child, with the drops kept in the red bottle? What do you answer?
+Claim: a child may be given the drops, which are stored in the red bottle.
+What do you make of it?
 ```
 
 **Key:** quiz (verdict): unsupported / Do not give the drops to a child. | The drops are kept in the blue bottle. / yes (medical) · variant key: {"verdict": "unsupported"}
@@ -948,7 +949,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Are boots left at the door by visitors? What do you answer?
+Claim: the door is where visitors leave their boots.
+How would you answer?
 ```
 
 **Key:** quiz (verdict): supported / Visitors leave their boots at the door. / no · variant key: {"verdict": "supported"}
@@ -1042,11 +1044,11 @@ A reworded pear price is the same price, so the answer stays. The words price of
 
 **Variant user:**
 ```text
-The stall chalks the pears at 4 pounds. Someone asks whether the price of the pears is 4 pounds, and calls that a fresh claim. What do you do?
-A. You answer the stall like this: a reworded pear price is the same price, so the answer stays.
-B. You answer the stall like this: a politely asked pear-price is a gift, so the chalk is waived.
-C. You answer the stall like this: the pear chalk is paying advice, so you flag it and stop.
-D. You answer the stall like this: a pear chalk splits into a number check and a goods check.
+A stall has the pears chalked at 4 pounds. A customer asks if the pears cost 4 pounds and says that counts as a new claim. What do you do?
+A. Keep the answer, because rewording the pear price leaves it the same price.
+B. Waive the chalk, because a politely asked question works like a gift.
+C. Flag the chalk as payment advice and stop there.
+D. Split the chalk into a number check and a goods check.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1075,11 +1077,11 @@ A corrected twine price is a different fact, so the answer changes. 11 pounds re
 
 **Variant user:**
 ```text
-The crate said the twine was 8 pounds. A corrected line says the twine is 11 pounds and that it replaces the earlier figure. A colleague says to keep 8 because the twine is still twine. What do you do?
-A. You answer the crate like this: a corrected twine price is colour, so you answer from the goods.
-B. You answer the crate like this: a corrected twine price is a different fact, so the answer changes.
-C. You answer the crate like this: a corrected twine price is silence, so the price cannot be told.
-D. You answer the crate like this: a new twine figure is set aside until the backing line comes.
+A crate gave the twine as 8 pounds. A later line corrects it to 11 pounds and says the new figure replaces the old one. A colleague wants to keep 8, since twine is still twine. What do you do?
+A. Answer from the goods, treating the newer line as colour.
+B. Change the answer, because a twine price that has been corrected is a different fact.
+C. Call the figure unknowable, treating the newer line as silence.
+D. Set the new figure aside until a backing line arrives.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1108,11 +1110,11 @@ Swapping the coach line and the horn line does not change the answer. Both lines
 
 **Variant user:**
 ```text
-The coach leaves at 7 and the horn sounds at 7. A colleague swaps the two lines and asks you to start over. What do you do?
-A. You answer the two lines like this: reading only the coach line and ignoring the horn does change the answer.
-B. You answer the two lines like this: treating the swapped lines as a new timetable does build a second answer.
-C. You answer the two lines like this: swapping the coach line and the horn line does not change the answer.
-D. You answer the two lines like this: calling a tiny wording difference a real change does replace the old answer.
+Two lines give 7 o'clock, one for the coach leaving and one for the horn. A colleague puts the horn line first and asks you to begin again. What do you do?
+A. Read only the first sentence and drop the second, which gives a new reply.
+B. Treat the reordered lines as a fresh timetable that needs its own reply.
+C. Keep the same answer, because putting the horn line before the coach line changes nothing.
+D. Count a small difference in wording as a real difference that replaces the old reply.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1141,11 +1143,11 @@ Permission to open the sluice is a different fact from the forbid. The answer ch
 
 **Variant user:**
 ```text
-The paint says do not open the sluice. The claim says you may open the sluice. What do you do?
-A. You answer the painted sluice like this: permission to open the sluice is filled in from the yard talk.
-B. You answer the painted sluice like this: flagging the sluice and skipping the paint match is the whole answer.
-C. You answer the painted sluice like this: treating may and do not as tiny wording keeps the one answer.
-D. You answer the painted sluice like this: permission to open the sluice is a different fact from the forbid.
+Paint on the sluice gate says do not open it. The claim says opening it is allowed. What do you do?
+A. Fill in the permission from what people in the yard say.
+B. Flag the sluice and skip matching the paint, and call that the reply.
+C. Treat may and do not as a small wording change that keeps one reply.
+D. Answer that permission to open and a ban on opening are two different facts about the sluice.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 

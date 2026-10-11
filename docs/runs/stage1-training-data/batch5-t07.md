@@ -29,7 +29,7 @@ I leave the annex closed. The dusk sentence is the claim I was given, and the an
 
 **User:**
 ```text
-The third bin is painted tin, and someone asks which word the row itself uses. A colleague slides the catalogue across and says stopping at the paint is out of proportion. What does proportion ask of the catalogue?
+The third bin is painted tin, and someone asks which word the row itself uses. A colleague slides the catalogue across, sure that a careful reader checks it too. Is the catalogue a step this question needs, if you keep the work in proportion?
 ```
 
 **Thinking:**
@@ -71,7 +71,7 @@ I take the 4 pounds from the window card and I do not ask the driver to remember
 
 **User:**
 ```text
-The servery board chalks bread at 2 pounds, which is the claim. A passer-by points down the passage at another board and says you are out of proportion if you stay here. What does proportion do with the passage board?
+The servery board chalks bread at 2 pounds, which is the claim. A passer-by mentions a second board down the passage and asks whether you ought to compare the two. How much reading does keeping this in proportion call for?
 ```
 
 **Thinking:**
@@ -113,7 +113,7 @@ I read all three bolt lines. A sealed cover is not settled by the first tight bo
 
 **User:**
 ```text
-Refunds are capped at 30 pounds, except gift cards, which are never refunded. A colleague says the cap line is enough for a gift-card refund and calls the exception out of proportion. What does proportion do with the exception?
+Refunds are capped at 30 pounds, except gift cards, which are never refunded. The claim is about a gift-card refund, and a colleague wants to save time by quoting the cap alone. What does keeping the work in proportion require here?
 ```
 
 **Thinking:**
@@ -155,7 +155,7 @@ I read the latch line as well. A hatch that must be both shut and latched is not
 
 **User:**
 ```text
-The red crate is above the blue, the blue above the green, the green above the yellow. The claim is that yellow sits above red. A hurried reader quotes only the red line and calls the rest of the stack out of proportion. Which crates does proportion still have to read?
+The red crate is above the blue, the blue above the green, the green above the yellow. The claim is that yellow sits above red. You have read the first line and feel the answer coming. How many of the lines does a reading kept in proportion still need?
 ```
 
 **Thinking:**
@@ -263,12 +263,12 @@ anise
 
 **User:**
 ```text
-Four cloths are plain, stripe, plaid and check. The plain cloth is not on the fourth flag. The stripe cloth is not on the fourth flag. The check cloth is not on the fourth flag. Which cloth is sewn into the fourth flag?
+Four cloths are plain, stripe, plaid and check, and only one of them is sewn into the fourth flag. The plain cloth is not on the fourth flag. The stripe cloth is not on the fourth flag. The check cloth is not on the fourth flag. Which cloth is sewn into the fourth flag?
 ```
 
 **Thinking:**
 ```text
-Plain, stripe and check are each ruled off the fourth flag. If I stop after the plain cloth, three cloths remain and the flag is not yet named. All three exclusions belong in the naming.
+Only one cloth is on the fourth flag, and plain, stripe and check are each ruled off it. If I stop after the plain cloth, three cloths remain and the flag is not yet named. All three exclusions belong in the naming.
 ```
 
 **Reply:**
@@ -933,7 +933,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The sluice is shut and pinned. What do you answer?
+Claim: the sluice is closed, with its pin in place.
+How do you rule on it?
 ```
 
 **Key:** quiz (verdict): unsupported / The sluice is shut. | The pin is out. / no · variant key: {"verdict": "unsupported"}
@@ -981,7 +982,7 @@ A yard label is nailed to the gate.
 Material:
 The gate opens at 9 if the frost has lifted.
 Statement: The gate opens at 9.
-What do you answer?
+Which verdict does the label support?
 ```
 
 **Thinking:**
@@ -999,7 +1000,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-The gate opens at 9. What do you answer?
+Claim: nine o'clock is when the gate opens.
+Which verdict fits?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
@@ -1032,7 +1034,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Is the default template a project landing page with 1 page? What do you answer?
+Claim: the default template gives you a single-page project landing page.
+What is your verdict?
 ```
 
 **Key:** quiz (verdict): supported / | **default** | Project landing page with hero, features, and code examples | 1 | / no · variant key: {"verdict": "supported"}
@@ -1060,11 +1063,11 @@ When the dock sentence already names the tide, leave the tide tables closed. The
 
 **Variant user:**
 ```text
-The dock sentence already names the tide, and a colleague offers the tide tables. What do you do?
-A. You do one thing with the offered tables: when the dock sentence already names the tide, leave the tide tables closed.
-B. You do one thing with the offered tables: when a neighbouring berth already names the tide, open up the month's tables.
-C. You do one thing with the offered tables: when the dock sentence names place and time, split those checks apart first.
-D. You do one thing with the offered tables: when the dock sentence already names the tide, read that same sentence again.
+A clerk's one sentence gives the tide, and the month's tables are offered too. The tide in that sentence is what you are checking. What do you do?
+A. Keep the tables shut, because the clerk's dock sentence has named the tide already.
+B. Open the month's tables, because a neighbouring berth also mentions a tide.
+C. Split the clerk's sentence into a place check and a time check before deciding.
+D. Go over the clerk's sentence once more before letting the offer go.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1093,11 +1096,11 @@ Placing Quin last takes every handover from Nia through to Quin. The Nia handove
 
 **Variant user:**
 ```text
-Nia finished before Omar, Omar before Pia, and Pia before Quin. Someone says the Nia handover places Quin last. What do you do?
-A. You settle Quin's place in one sentence: stopping at the Nia handover treats Quin as already placed there.
-B. You settle Quin's place in one sentence: placing Quin last takes every handover from Nia through to Quin.
-C. You settle Quin's place in one sentence: searching for Quin ahead of Nia comes before reading the chain.
-D. You settle Quin's place in one sentence: breaking the place of Quin into three claims answers each claim.
+Four couriers pass a parcel along: Nia to Omar, Omar to Pia, Pia to Quin. Someone says the opening pass is enough to put Quin at the end. What do you do?
+A. Treat the opening pass as settling where the last courier finishes, since the chain starts there.
+B. Read each handover from Nia's onward, since only the whole run puts Quin last.
+C. Search the list for anyone ahead of the first courier before deciding anything.
+D. Break the final position into three separate claims and answer each one in turn.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1126,11 +1129,11 @@ The gift-card exception is part of the refund's depth, along with the cap. The c
 
 **Variant user:**
 ```text
-Refunds are capped at 30 pounds, except gift cards, which are never refunded. A gift-card refund is the claim, and a colleague quotes only the cap. What do you do?
-A. You take the refund page like this: the gift-card line remains colour beside the cap, and the cap is enough.
-B. You take the refund page like this: the silence on store credit is what marks the gift-card refund unsupported here.
-C. You take the refund page like this: the gift-card exception is part of the refund's depth, along with the cap.
-D. You take the refund page like this: the refund passes to a person unread, and neither printed line is said.
+A refund page sets a 30 pound ceiling and says gift cards are never refunded. You are checking a gift-card refund, and a colleague cites only the ceiling. What do you do?
+A. Use the ceiling alone, treating the sentence about cards as background.
+B. Mark it unsupported, because the page says nothing about store credit.
+C. Use the gift-card exception together with the cap, since both set how deep this refund goes.
+D. Pass the case to someone else without stating what either sentence says.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1159,11 +1162,11 @@ A chalked oil price finishes the price claim without the crate list. The crate l
 
 **Variant user:**
 ```text
-The drum chalk says lamp oil is 2 pounds, which is the whole claim. A passer-by points at a crate list in the alley. What do you do?
-A. You answer the drum like this: a chalked oil price awaits the separate crate list down the alley.
-B. You answer the drum like this: an attractive 2 pound figure is set aside pending some backing line.
-C. You answer the drum like this: a tiny wording difference inside the chalk sends you to that list.
-D. You answer the drum like this: a chalked oil price finishes the price claim without the crate list.
+On the drum, lamp oil is chalked at 2 pounds, and that figure is all you are asked to check. A passer-by gestures toward a list in the alley. What do you do?
+A. Hold off on answering until the alley's other records have been looked at.
+B. Set the attractive 2 pound figure aside until a backing line turns up.
+C. Treat a small difference in the chalk's wording as a reason to go and look.
+D. Answer from the chalked oil price alone, since it settles the claim without the crates.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
