@@ -1,0 +1,949 @@
+"""The Stage 1 data gates: schema, per-kind parts, amendments, diversity, floors, the leakage guard against
+given held-out sets, and the batch and freeze reports. Standard library only.
+
+validate(rows) = check_item on every row, then check_batch on the whole set. check_against(row, accepted)
+gives the incremental refusals a generator can hand back to its writer.
+"""
+
+import json
+import re
+import sys
+from pathlib import Path
+
+from .answer_format import parse_answer
+import math
+
+from .constants import LESSON_HEADING, LESSONS, PRE_AMENDMENT_LESSONS, ROLE_WORDS, TRAIT_NAMES  # noqa: F401
+
+KINDS = {"A", "B", "C", "D", "E"}
+VERDICTS = {"supported", "unsupported", "cannot_tell"}
+FLAWS = {"rubber_stamp", "guess", "loop", "nitpick", "fix", "obeyed_material", "caved", "reject_by_default", "none"}
+ESC = re.compile(r"^(no|yes \((medical|legal|safety|money)[^)]*\))$")
+REQUIRED = {"id": str, "lesson": str, "trait": str, "kind": str, "side": str, "content_kind": str, "tier": int,
+            "turns": list, "sources": list, "invented": bool, "key_basis": str}
+
+
+class DataError(ValueError):
+    pass
+
+
+REPO_CITATION = re.compile(r"\b[\w.-]+/[\w.-]+@[0-9a-f]{7,40}\b|github\.com/")
+DRAWN = [re.compile(r"[├└│]|\bROOT\b"), re.compile(r"(?m)^\s*\|.*\|\s*$"), re.compile(r"(?m)^\s*\d+[.)]\s")]
+
+
+TIME_WORDS = re.compile(r"\b(today|now|currently|current|at the moment|these days|right now|this (week|month|year)|"
+                        r"latest|recently|yesterday|tomorrow)\b", re.I)
+DATED = re.compile(r"\b(19|20)\d\d\b|\b\d{1,2} (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)", re.I)
+
+
+def _statement(user: str) -> str:
+    m = re.search(r"statement\s*:\s*(.+)", user, re.I)
+    return m.group(1).strip() if m else ""
+
+
+def _sentences(text: str) -> int:
+    return len(re.findall(r"[.!?](?:\s|$)", text))
+
+
+def _source_ok(src) -> tuple[bool, bool]:
+    """(well-formed, real). A real source names a repo and commit; an invented part says so."""
+    if isinstance(src, str):
+        return bool(src.strip()), bool(re.search(r"@[0-9a-f]{7,40}", src)) and not src.lower().startswith("invented")
+    if isinstance(src, dict):
+        if src.get("invented"):
+            return True, False
+        return bool(src.get("repo") and src.get("commit")), bool(src.get("repo") and src.get("commit"))
+    return False, False
+
+
+def _shingles(text: str, n: int = 8) -> set:
+    w = re.findall(r"[a-z']+", text.lower())
+    return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+
+
+def _key_points(k) -> list[str]:
+    if isinstance(k, dict):
+        return [norm(str(x)).lower() for x in (k.get("key_points") or [k.get("verdict", "")]) if x]
+    if isinstance(k, list):
+        return [norm(str(x)).lower() for x in k if x]
+    return [norm(str(k)).lower()] if k else []
+
+
+def ws(x: str) -> str:
+    """Whitespace collapsed, markup kept: a quoted line may wrap, but `**` must stay as printed."""
+    return re.sub(r"\s+", " ", x).strip()
+
+
+def norm(x: str) -> str:
+    return re.sub(r"\s+", " ", x.replace("**", "").replace("__", "")).strip()
+
+
+HEADING = re.compile(r"^\s*(#{1,6})\s")
+VERSIONED = re.compile(r"\bv?\d+\.\d+(?:\.\d+)?\b|\b(?:19|20)\d\d-\d\d-\d\d\b|"
+                       r"\b\d{1,2} (?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (?:19|20)\d\d\b", re.I)
+MIN_MULTI_LINE_SHARE = 0.25
+
+
+def _version_heading_above(lines: list[str], idx: int):
+    """The version or date heading a material line sits under, or None. A plain heading at the same level or
+    higher closes the version section above it."""
+    current = None  # (level, line)
+    for line in lines[:idx]:
+        m = HEADING.match(line)
+        if not m:
+            continue
+        level = len(m.group(1))
+        if VERSIONED.search(line):
+            current = (level, line.strip())
+        elif current and level <= current[0]:
+            current = None
+    return current[1] if current else None
+
+
+def _check_quoting(where, keys, material, content_kind):
+    """Amendment 1, rules 2 and 3: a table row is quoted whole; in a changelog, a line under a version or date
+    heading carries that heading as its own DECIDING line."""
+    lines = (material or "").splitlines()
+    for d in keys["deciding"]:
+        wd = ws(d)
+        rows = [ws(x) for x in lines if x.strip().startswith("|") and wd in ws(x)]
+        prose = [x for x in lines if not x.strip().startswith("|") and wd in ws(x)]
+        if rows and not prose and wd not in rows:
+            raise DataError(f"{where}: quote the whole table row, not part of it: {d!r} is inside {rows[0]!r}")
+    if content_kind != "changelog":
+        return
+    given = {ws(x) for x in keys["deciding"]}
+    for d in keys["deciding"]:
+        if HEADING.match(d):
+            continue
+        idx = next((i for i, x in enumerate(lines) if ws(d) in ws(x)), None)
+        head = _version_heading_above(lines, idx) if idx is not None else None
+        if head and ws(head) not in given:
+            raise DataError(f"{where}: {d!r} sits under the version heading {head!r}; quote the heading as its "
+                            f"own DECIDING line")
+
+
+def check_multi_line_share(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    """Amendment 1, rule 4: per lesson, at least a quarter of the verdict-bearing items (supported or
+    unsupported) have 2 to 4 DECIDING lines."""
+    per: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip:
+            continue
+        keys = r if r.get("kind") in ("C", "D") else (r.get("quiz") if r.get("kind") == "E" else None)
+        if not isinstance(keys, dict) or keys.get("verdict") not in ("supported", "unsupported"):
+            continue
+        n = per.setdefault(r["lesson"], [0, 0])
+        n[0] += 1
+        n[1] += 2 <= len(keys.get("deciding") or []) <= 4
+    for lesson, (total, multi) in sorted(per.items()):
+        if multi < MIN_MULTI_LINE_SHARE * total:
+            raise DataError(f"{lesson}: {multi} of {total} verdict-bearing items ({multi / total:.0%}) have 2-4 "
+                            f"DECIDING lines; at least {MIN_MULTI_LINE_SHARE:.0%} are needed")
+
+
+MIN_VERDICT_SHARE = 0.25  # amendment 2, point 1: cannot_tell and supported each at least a quarter
+
+
+def _verdict_keys(r: dict):
+    """The final-turn keys of a verdict-bearing item (C, D, or a verdict-type E), or None."""
+    if r.get("kind") in ("C", "D"):
+        return r
+    q = r.get("quiz")
+    return q if r.get("kind") == "E" and isinstance(q, dict) and q.get("type") == "verdict" else None
+
+
+def _turn_verdicts(where, r: dict) -> list:
+    """Each turn's verdict for a multi-turn kind D item: turn_keys where given, else the reply's own VERDICT line.
+    Amendment 2: every turn is a complete answer with its own three lines."""
+    out = []
+    for i, t in enumerate(r["turns"], 1):
+        p = parse_answer(t["reply"])
+        if not (p["verdict"] and p["deciding"] is not None and p["escalate"] is not None):
+            raise DataError(f"{where} turn {i}: a multi-turn kind D reply needs its own three lines "
+                            f"(VERDICT, DECIDING, ESCALATE)")
+        keyed = (r.get("turn_keys") or {}).get(str(i)) if i < len(r["turns"]) else r
+        out.append(keyed["verdict"] if keyed else p["verdict"])
+    return out
+
+
+def check_floors(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    """Amendment 2, per lesson: (e) cannot_tell and supported each at least 25% of the verdict-bearing items;
+    (f) at least one ESCALATE yes (...) item and one cannot_tell item with ESCALATE no; (g) at least two
+    multi-turn kind D items, one whose last verdict differs from its first and one whose verdict stands."""
+    per: dict = {}
+    for n, r in enumerate(rows, 1):
+        if r.get("lesson") in skip:
+            continue
+        keys = _verdict_keys(r)
+        if not isinstance(keys, dict):
+            continue
+        st = per.setdefault(r["lesson"], {"n": 0, "cannot_tell": 0, "supported": 0, "esc_yes": 0,
+                                          "ct_esc_no": 0, "multi": 0, "changed": 0, "stood": 0})
+        st["n"] += 1
+        v = keys.get("verdict")
+        st["cannot_tell"] += v == "cannot_tell"
+        st["supported"] += v == "supported"
+        esc = keys.get("escalate") or ""
+        st["esc_yes"] += esc.startswith("yes (")
+        st["ct_esc_no"] += v == "cannot_tell" and esc == "no"
+        if r["kind"] == "D" and len(r["turns"]) >= 2:
+            vs = _turn_verdicts(f"line {n} ({r.get('id', '?')})", r)
+            st["multi"] += 1
+            st["changed"] += vs[-1] != vs[0]
+            st["stood"] += vs[-1] == vs[0]
+    for lesson, st in sorted(per.items()):
+        n = st["n"]
+        for v in ("cannot_tell", "supported"):
+            if st[v] < MIN_VERDICT_SHARE * n:
+                raise DataError(f"{lesson}: {st[v]} of {n} verdict-bearing items ({st[v] / n:.0%}) are keyed {v}; "
+                                f"at least {MIN_VERDICT_SHARE:.0%} are needed")
+        if st["esc_yes"] < 1:
+            raise DataError(f"{lesson}: 0 of {n} verdict-bearing items are keyed ESCALATE yes (...); at least 1 is needed")
+        if st["ct_esc_no"] < 1:
+            raise DataError(f"{lesson}: 0 of {st['cannot_tell']} cannot_tell items are keyed ESCALATE no; "
+                            f"at least 1 is needed")
+        if st["multi"] < 2 or not st["changed"] or not st["stood"]:
+            raise DataError(f"{lesson}: {st['multi']} multi-turn kind D items ({st['changed']} with a changed "
+                            f"verdict, {st['stood']} where it stands); at least 2 are needed, with at least 1 of each")
+
+
+def check_pairs(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, min_pairs: int = 2) -> None:
+    """Amendment 2, contrast pairs: items sharing a `pair` id are exactly one cannot_tell and one unsupported
+    verdict-bearing item of one lesson (the same statement against silent and against contradicting material);
+    every lesson has at least `min_pairs` of them."""
+    pairs: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip or r.get("pair") is None:
+            continue
+        if not isinstance(r["pair"], str) or not r["pair"].strip():
+            raise DataError(f"{r.get('id', '?')}: pair must be a non-empty string id")
+        keys = _verdict_keys(r)
+        if not isinstance(keys, dict):
+            raise DataError(f"{r.get('id', '?')}: pair {r['pair']!r} is on an item without a verdict")
+        pairs.setdefault((r["lesson"], r["pair"]), []).append((r["id"], keys.get("verdict")))
+    count: dict = {}
+    for (lesson, pid), members in sorted(pairs.items()):
+        if sorted(v for _, v in members) != ["cannot_tell", "unsupported"]:
+            raise DataError(f"{lesson}: pair {pid!r} is {members}; it needs exactly one cannot_tell and one "
+                            f"unsupported item")
+        count[lesson] = count.get(lesson, 0) + 1
+    lessons = sorted({r["lesson"] for r in rows if r.get("lesson") not in skip and _verdict_keys(r)})
+    for lesson in lessons:
+        if count.get(lesson, 0) < min_pairs:
+            raise DataError(f"{lesson}: {count.get(lesson, 0)} contrast pairs (shared `pair` id); at least "
+                            f"{min_pairs} are needed")
+
+
+# ---------------------------------------------------------------- the diversity gate (after batch 3)
+THREE_LINE = re.compile(r"^\s*(VERDICT|DECIDING|ESCALATE)\s*:", re.I)
+SPAN_WORDS = 8
+
+
+def _content_lines(r: dict) -> str:
+    """Every material line of an item (its material and every turn's new_material), whitespace-normalised."""
+    return ws((r.get("material") or "") + "\n" + "\n".join(
+        x for t in r["turns"] for x in t.get("new_material", []))).lower()
+
+
+def _spans(r: dict) -> set:
+    """8-word spans of an item's user turns, thinking and replies, outside material lines, the Statement line
+    and the three-line block. A bracketed quote of the material counts as one token, so a skeleton sentence
+    with different quotes in it is still the same span."""
+    content = _content_lines(r)
+    out = set()
+    for t in r["turns"]:
+        for text in (t["user"], t["thinking"], t["reply"]):
+            for line in text.splitlines():
+                bare = ws(line).replace('\\"', '"').strip("\"'“” ").lower()
+                if not bare or THREE_LINE.match(line) or STATEMENT_RE.match(line) or bare in content:
+                    continue
+                words = re.findall(r"[a-z0-9']+|\[q\]", re.sub(r"\[[^\]]*\]", " [q] ", line.lower()))
+                out |= {" ".join(words[i:i + SPAN_WORDS]) for i in range(len(words) - SPAN_WORDS + 1)}
+    return out
+
+
+STATEMENT_RE = re.compile(r"^\s*statement\s*:", re.I)
+
+
+def shared_spans(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_items: int = 2) -> dict:
+    """{(lesson, span): [ids]} for every 8-word span in more than max_items items of a lesson."""
+    seen: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip:
+            continue
+        for sp in _spans(r):
+            seen.setdefault((r["lesson"], sp), []).append(r["id"])
+    return {k: v for k, v in seen.items() if len(v) > max_items}
+
+
+def check_spans(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    st = shared_spans(rows, skip)
+    if st:
+        (lesson, span), ids = min(st.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        raise DataError(f"{lesson}: the span {span!r} appears in {len(ids)} items ({', '.join(ids[:8])}); "
+                        f"{len(st)} shared 8-word span(s) in all; none may appear in 3 or more items")
+
+
+# Framing words that name a kind of material, and the content kinds each clearly does NOT fit. Conservative: only
+# clear mismatches are refused (a board over code, rules over a changelog); ambiguous words ("note", "file",
+# "entry", "text", "record") are not checked.
+PHYSICAL = {"board", "card", "slip", "panel", "sign", "poster", "sheet", "menu", "leaflet", "flyer", "rules",
+            "notice", "label", "timetable", "memo", "minutes", "plaque", "tag", "ticket"}
+CODE_WORDS = {"code", "snippet", "function", "script", "module", "config"}
+CHANGELOG_WORDS = {"changelog", "release notes", "release note"}
+README_WORDS = {"readme"}
+NOT_FIT = {
+    "code": PHYSICAL | CHANGELOG_WORDS,
+    "changelog": PHYSICAL | CODE_WORDS,
+    "design-note": PHYSICAL - {"memo"},
+}
+for _k in ("notice", "policy", "label", "timetable", "record"):
+    NOT_FIT[_k] = CODE_WORDS | CHANGELOG_WORDS | README_WORDS
+
+
+def framing_mismatch(r: dict) -> str:
+    """The framing word that clearly doesn't fit the item's content_kind, or ''."""
+    if r.get("kind") not in ("C", "D"):
+        return ""
+    user = r["turns"][0]["user"]
+    at = user.find("Material:")
+    framing = user[:at].lower() if at > 0 else ""
+    bad = NOT_FIT.get(r.get("content_kind", ""), set())
+    for w in sorted(bad, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(w)}s?\b", framing):
+            return w
+    return ""
+
+
+def check_framing_fits(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    bad = [(r["id"], framing_mismatch(r), r.get("content_kind")) for r in rows
+           if r.get("lesson") not in skip and framing_mismatch(r)]
+    if bad:
+        i, w, k = bad[0]
+        raise DataError(f"{i}: the framing calls the material a {w!r} but its content_kind is {k!r}; "
+                        f"{len(bad)} mismatched framing(s) in all")
+
+
+def reused_material(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> list:
+    """(lesson, ids) for each material used by more than one item of a lesson, unless by exactly two items that
+    share a `pair` id."""
+    seen: dict = {}
+    for r in rows:
+        m = ws(r.get("material") or "").lower()
+        if r.get("lesson") in skip or not m:
+            continue
+        seen.setdefault((r["lesson"], m), []).append(r)
+    bad = []
+    for (lesson, _), items in seen.items():
+        pairs = {it.get("pair") for it in items}
+        if len(items) == 1 or (len(items) == 2 and len(pairs) == 1 and None not in pairs):
+            continue
+        bad.append((lesson, [it["id"] for it in items]))
+    return bad
+
+
+def check_material_reuse(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    bad = reused_material(rows, skip)
+    if bad:
+        lesson, ids = max(bad, key=lambda x: len(x[1]))
+        raise DataError(f"{lesson}: the same material in {len(ids)} items ({', '.join(ids[:6])}); a material may "
+                        f"appear in at most 2 items, and only as a contrast pair; {len(bad)} reused material(s) in all")
+
+
+COUNT_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+ORDER_CUE = re.compile(r"\b(left of|right of|above|below|ahead of|behind|before|after|less than|more than|"
+                       r"\w+er than|higher than|lower than|purer than|faster than|older than|younger than)\b", re.I)
+GATE_CUE = re.compile(r"\bonly after\b|\bonly before\b", re.I)
+NOT_CUE = re.compile(r"\b(not|never)\b", re.I)
+ONE_EACH = re.compile(r"\b(one each|exactly one|one per)\b", re.I)
+
+
+def puzzle_signature(r: dict) -> tuple:
+    """A non-verification B puzzle's structure: (entity count, constraint form). The count is the first count word
+    or numeral before a plural noun (else the number of distinct capitalised names); the form is which cues the
+    clue sentences use (order, gate, negation, one-each) and whether the order clues chain (one clue's object is
+    the next clue's subject)."""
+    text = r["turns"][0]["user"]
+    m = re.search(r"\b(two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\b(?:\s+[a-z-]+){0,2}?\s+[a-z]+s\b",
+                  text, re.I)
+    if m:
+        g = m.group(1).lower()
+        n = int(g) if g.isdigit() else COUNT_WORDS[g]
+    else:
+        n = len(set(re.findall(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-z]+\b", text)))
+    sents = [x for x in re.split(r"(?<=[.!?])\s+|\n", text) if x.strip()]
+    order = []
+    for x in sents:
+        mo = ORDER_CUE.search(x)
+        if mo and not GATE_CUE.search(x) and "?" not in x:
+            order.append((set(re.findall(r"[a-z]{3,}", x[:mo.start()].lower())),
+                          set(re.findall(r"[a-z]{3,}", x[mo.end():].lower()))))
+    stop = {"the", "and", "than", "one", "its", "has", "have", "you", "may", "are", "is"}
+    chain = any((order[i][1] - stop) & (order[i + 1][0] - stop) for i in range(len(order) - 1))
+    form = tuple(name for name, ok in (("order", bool(order)), ("chain", chain),
+                                       ("gate", bool(GATE_CUE.search(text))),
+                                       ("negation", bool(NOT_CUE.search(text))),
+                                       ("one-each", bool(ONE_EACH.search(text)))) if ok)
+    return n, form
+
+
+def _is_puzzle(r: dict) -> bool:
+    return r.get("kind") == "B" and not re.search(r"(?m)^\s*VERDICT\s*:", r["turns"][-1]["reply"])
+
+
+def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
+    """{signature: [(lesson, id)]} for the non-verification B puzzles."""
+    seen: dict = {}
+    for r in rows:
+        if r.get("lesson") not in skip and _is_puzzle(r):
+            seen.setdefault(puzzle_signature(r), []).append((r["lesson"], r["id"]))
+    return seen
+
+
+def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int = 2) -> None:
+    """No two puzzles of one lesson share a structure signature; across the rows given (a batch), at most
+    per_batch share one."""
+    for sig, items in puzzle_repeats(rows, skip).items():
+        by_lesson: dict = {}
+        for lesson, i in items:
+            by_lesson.setdefault(lesson, []).append(i)
+        dup = next(((l, ids) for l, ids in by_lesson.items() if len(ids) > 1), None)
+        if dup:
+            raise DataError(f"{dup[0]}: puzzles {', '.join(dup[1])} share the structure {sig[0]} entities, "
+                            f"{' + '.join(sig[1]) or 'no cues'}; vary the puzzle shape")
+        if len(items) > per_batch:
+            raise DataError(f"{len(items)} puzzles share the structure {sig[0]} entities, "
+                            f"{' + '.join(sig[1]) or 'no cues'} ({', '.join(i for _, i in items)}); at most "
+                            f"{per_batch} per batch")
+
+
+def framing_of(r: dict) -> str:
+    """A C or D item's framing: its first user turn before "Material:", case and whitespace normalised."""
+    if r.get("kind") not in ("C", "D"):
+        return ""
+    user = r["turns"][0]["user"]
+    at = user.find("Material:")
+    return re.sub(r"\s+", " ", user[:at]).strip().lower() if at > 0 else ""
+
+
+def framing_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
+    seen: dict = {}
+    for r in rows:
+        f = framing_of(r) if r.get("lesson") not in skip else ""
+        if f:
+            seen.setdefault(f, []).append(r["id"])
+    return {f: ids for f, ids in seen.items() if len(ids) > 1}
+
+
+# Articles, prepositions, pronouns, auxiliaries and conjunctions: a phrase made only of these is exempt.
+FUNCTION_WORDS = set("""
+a an the this that these those each every some any no
+of in on at to for from by with about into onto over under after before between through during without within
+along across against among around behind beside up down out off near than as per via
+i me my mine we us our you your he him his she her it its they them their what which who whom whose
+is are was were be been being am do does did done have has had having will would shall should can could may
+might must and or but if so nor yet then not
+""".split())
+# The nouns of the task itself: a phrase made only of these and function words ("the claim", "the material") is
+# the subject matter, not a stamp.
+TASK_WORDS = {"claim", "claims", "statement", "statements", "material", "line", "lines", "verdict", "text",
+              "deciding", "escalate", "answer"}
+MAX_PHRASE_SHARE = 0.40
+MAX_FORMULA_SHARE = 0.25
+DETERMINERS = {"the", "a", "an", "this", "that", "these", "those", "each", "every", "its", "their", "his", "her",
+               "my", "our", "your"}
+
+
+def _target_lines(r: dict):
+    """(turn index, line) for each line of the assistant turns, outside material lines, the Statement line and
+    the three lines; bracketed quotes collapsed to one token."""
+    content = _content_lines(r)
+    for i, t in enumerate(r["turns"]):
+        for text in (t["thinking"], t["reply"]):
+            for line in text.splitlines():
+                bare = ws(line).replace('\\"', '"').strip("\"'“” ").lower()
+                if not bare or THREE_LINE.match(line) or STATEMENT_RE.match(line) or bare in content:
+                    continue
+                yield i, re.sub(r"\[[^\]]*\]", " [q] ", line.lower())
+
+
+def frequent_phrases(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_share: float = MAX_PHRASE_SHARE) -> dict:
+    """{(lesson, phrase): (turns with it, turns in lesson)} for 2-7 word phrases (with at least one word that is
+    not a function word) in more than max_share of a lesson's assistant turns. Only the longest such phrase of
+    an overlapping family is kept."""
+    per: dict = {}
+    turns: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip:
+            continue
+        lesson = r["lesson"]
+        grams_by_turn: dict = {}
+        for i, line in _target_lines(r):
+            w = re.findall(r"[a-z0-9']+|\[q\]", line)
+            g = grams_by_turn.setdefault(i, set())
+            for n in range(2, 8):
+                for k in range(len(w) - n + 1):
+                    ph = w[k:k + n]
+                    if any(x not in FUNCTION_WORDS and x not in TASK_WORDS and x != "[q]" for x in ph):
+                        g.add(" ".join(ph))
+        turns[lesson] = turns.get(lesson, 0) + len(r["turns"])
+        for g in grams_by_turn.values():
+            for ph in g:
+                per[(lesson, ph)] = per.get((lesson, ph), 0) + 1
+    hits = {k: (v, turns[k[0]]) for k, v in per.items() if v > max_share * turns[k[0]]}
+    return {k: v for k, v in hits.items()
+            if not any(o[0] == k[0] and o[1] != k[1] and f" {k[1]} " in f" {o[1]} " and hits[o][0] == v[0]
+                       for o in hits)}
+
+
+def check_phrases(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    fp = frequent_phrases(rows, skip)
+    if fp:
+        (lesson, ph), (n, total) = min(fp.items(), key=lambda kv: (-kv[1][0] / kv[1][1], kv[0]))
+        raise DataError(f"{lesson}: the phrase {ph!r} is in {n} of {total} turns ({n / total:.0%}); at most "
+                        f"{MAX_PHRASE_SHARE:.0%}; {len(fp)} over-used phrase(s) in all")
+
+
+def _template(sentence: str) -> str:
+    """A sentence with numerals as N and each determiner's noun phrase (up to two words after it) as X, and a
+    leading list number dropped: "2. Step 2 is the decisive step." -> "step n is the x"."""
+    w = re.findall(r"[a-z0-9']+|\[q\]", re.sub(r"^\s*\d+[.)]\s*", "", sentence.lower()))
+    out: list[str] = []
+    skip = 0
+    for k, x in enumerate(w):
+        if skip:
+            skip -= 1
+            continue
+        if x.isdigit():
+            out.append("n")
+        elif x in DETERMINERS:
+            out += [x, "x"]
+            skip = min(2, sum(1 for y in w[k + 1:k + 3] if y not in FUNCTION_WORDS and not y.isdigit()))
+            skip = skip if skip else 0
+        else:
+            out.append(x)
+    return " ".join(out)
+
+
+def formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, max_share: float = MAX_FORMULA_SHARE) -> dict:
+    """{(lesson, template): (B items with it, B items in lesson)} for sentence templates of 4+ tokens in more than
+    max_share of a lesson's kind B items."""
+    per: dict = {}
+    count: dict = {}
+    for r in rows:
+        if r.get("lesson") in skip or r.get("kind") != "B":
+            continue
+        count[r["lesson"]] = count.get(r["lesson"], 0) + 1
+        temps = set()
+        for _, line in _target_lines(r):
+            for sent in re.split(r"(?<=[.!?:])\s+", line):
+                t = _template(sent).split()
+                if len(t) >= 4:
+                    temps.add(" ".join(t))
+                # the opener: a grafted formula keeps its first words while the rest varies ("Step N is …")
+                opener = t[:2] if "n" in t[:2] else t[:3]
+                if len(opener) >= 2 and any(x not in FUNCTION_WORDS and x not in ("n", "x", "[q]") for x in opener):
+                    temps.add(" ".join(opener) + " …")
+        for t in temps:
+            per[(r["lesson"], t)] = per.get((r["lesson"], t), 0) + 1
+    return {k: (v, count[k[0]]) for k, v in per.items() if v > max_share * count[k[0]] and v >= 2}  # a formula repeats
+
+
+def check_formulas(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> None:
+    fm = formulas(rows, skip)
+    if fm:
+        (lesson, t), (n, total) = min(fm.items(), key=lambda kv: (-kv[1][0], kv[0]))
+        raise DataError(f"{lesson}: the sentence template {t!r} is in {n} of {total} kind B items; at most "
+                        f"{MAX_FORMULA_SHARE:.0%}; {len(fm)} formula(s) in all")
+
+
+# ---------------------------------------------------------------- kind A lesson drift (a figure, never a refusal)
+# Term overlap with the trait lessons was probed on the pilot, batch 2 and batch 3 (280 items): an item's own
+# lesson was strictly nearest for only 15%, mostly by design (C teaches through another trait's failure; B and D
+# talk about the material). So it is reported for kind A only, as a reviewer's ranking, and refuses nothing.
+_DRIFT_STOP = {"verifier", "verifiers", "trait", "also", "just", "only", "one", "two"}
+
+
+def trait_sections(markdown: str) -> dict:
+    """{lesson: text} from the trait-lesson file, split at its numbered headings."""
+    heads = list(LESSON_HEADING.finditer(markdown))
+    out = {}
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(markdown)
+        out[f"T{int(m.group(1)):02d}"] = markdown[m.start():end].split("\n## What a verifier doesn't do")[0]
+    return out
+
+
+def _drift_terms(text: str) -> list:
+    out = []
+    for w in re.findall(r"[a-z][a-z']+", text.lower()):
+        w = w.strip("'")
+        if len(w) < 3 or w in FUNCTION_WORDS or w in TASK_WORDS or w in _DRIFT_STOP:
+            continue
+        for suf in ("ing", "ed", "es", "s", "ly"):
+            if w.endswith(suf) and len(w) - len(suf) >= 4:
+                w = w[: -len(suf)]
+                break
+        out.append(w)
+    return out
+
+
+def _tfidf(counts: dict, idf: dict, default: float) -> dict:
+    v = {w: (1 + math.log(n)) * idf.get(w, default) for w, n in counts.items()}
+    norm = math.sqrt(sum(x * x for x in v.values())) or 1.0
+    return {w: x / norm for w, x in v.items()}
+
+
+def _count(terms: list) -> dict:
+    c: dict = {}
+    for t in terms:
+        c[t] = c.get(t, 0) + 1
+    return c
+
+
+def a_lesson_ranks(rows: list[dict], lessons: dict) -> dict:
+    """For each kind A item: the rank (1 = nearest) of its own lesson among the trait lessons by TF-IDF cosine of
+    its passage and reply, and the nearest lesson. A figure for reviewers, never a refusal."""
+    docs = {k: _count(_drift_terms(v)) for k, v in lessons.items()}
+    n = len(docs)
+    df: dict = {}
+    for c in docs.values():
+        for w in c:
+            df[w] = df.get(w, 0) + 1
+    idf = {w: math.log((1 + n) / (1 + d)) + 1 for w, d in df.items()}
+    default = math.log(1 + n) + 1
+    vecs = {k: _tfidf(c, idf, default) for k, c in docs.items()}
+    out = {}
+    for r in rows:
+        if r.get("kind") != "A" or r.get("lesson") not in vecs:
+            continue
+        text = "\n".join(t["user"] + "\n" + t["reply"] for t in r["turns"])
+        v = _tfidf(_count(_drift_terms(text)), idf, default)
+        sims = sorted(((sum(v.get(w, 0.0) * x for w, x in lv.items()), k) for k, lv in vecs.items()),
+                      key=lambda p: (-p[0], p[1]))
+        order = [k for _, k in sims]
+        out[r["id"]] = {"rank": order.index(r["lesson"]) + 1, "nearest": order[0]}
+    return out
+
+
+def batch_report(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, lessons=None) -> dict:
+    """Every diversity figure for a set of rows, refusing nothing (for review and for briefs). With `lessons`
+    ({lesson: text}), it adds the kind A lesson-drift ranking."""
+    rep = {"shared_spans": len(shared_spans(rows, skip)),
+            "framing_mismatches": sum(bool(framing_mismatch(r)) for r in rows if r.get("lesson") not in skip),
+            "reused_materials": len(reused_material(rows, skip)),
+            "puzzle_signatures": {f"{k[0]} / {'+'.join(k[1])}": [i for _, i in v]
+                                  for k, v in puzzle_repeats(rows, skip).items()},
+            "repeated_framings": len(framing_repeats(rows, skip))}
+    if lessons:
+        ranks = a_lesson_ranks(rows, lessons)
+        rep["a_lesson_rank"] = {
+            "own_nearest": sum(1 for x in ranks.values() if x["rank"] == 1),
+            "own_in_top3": sum(1 for x in ranks.values() if x["rank"] <= 3),
+            "items": len(ranks),
+            "outside_top3": sorted([i, x["rank"], x["nearest"]] for i, x in ranks.items() if x["rank"] > 3)}
+    return rep
+
+
+def freeze_report(rows: list[dict], exempt=PRE_AMENDMENT_LESSONS) -> dict:
+    """The whole-dataset check before the freeze, over every file together. Across all lessons: cannot_tell and
+    supported each at least 25% of verdict-bearing items, and the multi-line share (2-4 DECIDING lines among
+    supported/unsupported) at least 25%; every lesson has an ESCALATE yes item (the exempt lessons are reported,
+    not refused). Returns the figures; raises DataError listing every shortfall."""
+    n = ct = sup = vb = multi = 0
+    esc: dict = {}
+    for r in rows:
+        keys = _verdict_keys(r)
+        if not isinstance(keys, dict):
+            continue
+        v = keys.get("verdict")
+        n += 1
+        ct += v == "cannot_tell"
+        sup += v == "supported"
+        if v in ("supported", "unsupported"):
+            vb += 1
+            multi += 2 <= len(keys.get("deciding") or []) <= 4
+        esc[r["lesson"]] = esc.get(r["lesson"], 0) + (keys.get("escalate") or "").startswith("yes (")
+    rep = {"verdict_bearing": n, "cannot_tell": ct, "supported": sup, "supported_or_unsupported": vb,
+           "multi_line": multi, "escalate_yes_per_lesson": dict(sorted(esc.items())),
+           "lessons_without_escalate_yes": sorted(k for k, v in esc.items() if not v)}
+    short = []
+    for name, k, total in (("cannot_tell", ct, n), ("supported", sup, n), ("multi-line share", multi, vb)):
+        if total and k < MIN_VERDICT_SHARE * total:
+            need = -(-int(MIN_VERDICT_SHARE * 100) * total // 100) - k
+            short.append(f"{name} {k} of {total} ({k / total:.0%}); {need} more needed for 25%")
+    refused = [x for x in rep["lessons_without_escalate_yes"] if x not in exempt]
+    if refused:
+        short.append(f"no ESCALATE yes item in {', '.join(refused)}")
+    rep["exempt_without_escalate_yes"] = [x for x in rep["lessons_without_escalate_yes"] if x in exempt]
+    repeats = framing_repeats(rows, exempt)
+    rep["repeated_framings"] = len(repeats)
+    if repeats:
+        f, ids = next(iter(repeats.items()))
+        short.append(f"{len(repeats)} framing line(s) repeated across files, e.g. {f!r} in {', '.join(ids[:5])}")
+    rep["shortfalls"] = short
+    if short:
+        raise DataError("freeze: " + "; ".join(short) + f" (figures: {json.dumps(rep)})")
+    return rep
+
+
+def role_words_in_prompt(r: dict) -> list[str]:
+    """Banned words in a C, D or verdict-type E item's user turns, outside the material, new material and the
+    statement line (those are the content being checked, shared by both arms as they are)."""
+    if not (r.get("kind") in ("C", "D") or (r.get("kind") == "E" and (r.get("quiz") or {}).get("type") == "verdict")):
+        return []
+    content = {x.strip() for x in (r.get("material") or "").splitlines() if x.strip()}
+    found = []
+    prompts = [(t["user"], t.get("new_material", [])) for t in r["turns"]]
+    if r.get("kind") == "E" and isinstance(r.get("variant"), dict):
+        prompts.append((r["variant"].get("user") or "", []))  # the re-asked variant is a prompt too
+    for user, new in prompts:
+        content |= {x.strip() for x in new if x.strip()}
+        for line in user.splitlines():
+            bare = ws(line).replace('\\"', '"').strip("\"'“” ")
+            if line.strip() in content or re.match(r"\s*statement\s*:", line, re.I) or \
+                    (bare and bare in ws("\n".join(content))):  # a material line, possibly quoted
+                continue
+            found += [m.group(0) for m in ROLE_WORDS.finditer(line)]
+    return found
+
+
+def _check_keys(where, keys, material):
+    if keys.get("verdict") not in VERDICTS:
+        raise DataError(f"{where}: verdict {keys.get('verdict')!r}")
+    deciding = keys.get("deciding")
+    if not isinstance(deciding, list) or len(deciding) > 4:
+        raise DataError(f"{where}: deciding must be a list of at most 4 lines")
+    if (keys["verdict"] == "cannot_tell") != (not deciding):
+        raise DataError(f"{where}: cannot_tell exactly when deciding is empty")
+    for d in deciding:
+        if not isinstance(d, str) or not d.strip() or ws(d) not in ws(material or ""):
+            raise DataError(f"{where}: deciding line not verbatim in the material (markup such as ** kept): {d!r}")
+    if not isinstance(keys.get("escalate"), str) or not ESC.match(keys["escalate"]):
+        raise DataError(f"{where}: escalate {keys.get('escalate')!r} (only no, or yes (medical|legal|safety|money ...))")
+
+
+def _reply_matches(where, reply, keys):
+    p = parse_answer(reply)
+    if p["verdict"] != keys["verdict"]:
+        raise DataError(f"{where}: reply's VERDICT {p['verdict']!r} != key {keys['verdict']!r}")
+    raw = (p["deciding"] or "").strip()
+    parts = [x.strip() for x in raw.split(" | ") if x.strip()]
+    if len(parts) > 1 and any(x.upper() == "NONE" for x in parts):
+        raise DataError(f"{where}: reply's DECIDING puts NONE beside other lines; NONE stands alone, for cannot_tell only")
+    last_key = keys["deciding"][-1].strip() if keys["deciding"] else ""
+    if raw.endswith("|") and not last_key.endswith("|"):
+        raise DataError(f"{where}: reply's DECIDING ends with a trailing separator \"|\"")
+    given = "" if raw.upper() == "NONE" else ws(raw)
+    if given != ws(" | ".join(keys["deciding"])):
+        raise DataError(f"{where}: reply's DECIDING differs from the key (exact, markup kept)")
+    if (p["escalate"] or "").strip() != keys["escalate"]:
+        raise DataError(f"{where}: reply's ESCALATE {p['escalate']!r} != key {keys['escalate']!r}")
+
+
+def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=None) -> None:
+    """Every check on one row that needs no other row. `n` is its line number in the file (for messages);
+    `seen`, when given, is the set of ids before it (the duplicate-id check)."""
+    where = f"line {n} ({r.get('id', '?')})"
+    for k, typ in REQUIRED.items():
+        if not isinstance(r.get(k), typ):
+            raise DataError(f"{where}: field {k} missing or not {typ.__name__}")
+    if seen is not None:
+        if r["id"] in seen:
+            raise DataError(f"{where}: duplicate id")
+        seen.add(r["id"])
+    if r["lesson"] not in LESSONS or r["kind"] not in KINDS:
+        raise DataError(f"{where}: unknown lesson {r['lesson']} or kind {r['kind']}")
+    if r["tier"] < 1 or r["key_basis"] not in ("construction", "source") or not r["turns"]:
+        raise DataError(f"{where}: tier, key_basis or turns")
+    material = r.get("material") or ""
+    available = []  # material available at each turn: the item's material plus new lines brought so far
+    for i, t in enumerate(r["turns"], 1):
+        for k in ("user", "thinking", "reply"):
+            if not isinstance(t.get(k), str):
+                raise DataError(f"{where} turn {i}: field {k} missing")
+        if not t["reply"].strip() or "<think>" in t["thinking"] + t["reply"] or "</think>" in t["thinking"] + t["reply"]:
+            raise DataError(f"{where} turn {i}: empty reply or <think> tags")
+        for nm in t.get("new_material", []):
+            if nm not in t["user"]:
+                raise DataError(f"{where} turn {i}: new_material not in the user message")
+        material = material + "\n" + "\n".join(t.get("new_material", []))
+        available.append(material)
+    last = r["turns"][-1]["reply"]
+    kind = r["kind"]
+    first_user = r["turns"][0]["user"]
+    # provenance on every item: real material cited, invented parts marked (the handoff's table)
+    if not r["sources"]:
+        raise DataError(f"{where}: sources is empty (cite real material; mark invented parts as invented)")
+    checked = [_source_ok(x) for x in r["sources"]]
+    if not all(ok for ok, _ in checked):
+        raise DataError(f"{where}: a sources entry is neither repo@commit nor marked invented")
+    has_real = any(real for _, real in checked)
+    stmt = _statement(first_user)
+    if kind in ("C", "D", "E") and stmt and TIME_WORDS.search(stmt) and not DATED.search(r.get("material") or ""):
+        raise DataError(f"{where}: undated time word in the statement ({TIME_WORDS.search(stmt).group(0)!r})")
+    if kind == "A":
+        question_at = first_user.rfind("?")
+        before = first_user[:first_user.rfind(".", 0, question_at) + 1] if question_at > 0 else first_user
+        if _sentences(before) < 2:
+            raise DataError(f"{where}: kind A needs a teaching passage of at least 2 sentences before the question")
+        names = TRAIT_NAMES.get(r["lesson"], [])
+        if names and not any(n in first_user.lower() for n in names):
+            raise DataError(f"{where}: kind A's passage doesn't name its trait ({r['lesson']})")
+        if not re.match(r"^\W*(as a verifier,? i\b|i\b|i'm\b|i've\b|my\b)", last.strip().lower()):
+            raise DataError(f"{where}: kind A's reply isn't in the first person")
+        if re.search(r"(?m)^\s*VERDICT\s*:", last):
+            raise DataError(f"{where}: kind A's reply has a VERDICT line")
+    if kind == "B":
+        drawn = "\n".join(t["thinking"] + "\n" + t["reply"] for t in r["turns"])
+        if not any(rx.search(drawn) for rx in DRAWN):
+            raise DataError(f"{where}: kind B draws no pattern (tree glyphs, a grid table or numbered elimination)")
+    if kind == "C":
+        if not re.search(r"\b(verdict|supported|unsupported|cannot_tell|can't tell)\b", first_user, re.I):
+            raise DataError(f"{where}: kind C's user turn has no checker verdict")
+        if REPO_CITATION.search((r.get("material") or "") + "\n" + first_user) and not has_real:
+            raise DataError(f"{where}: kind C cites a repository but sources has no real (non-invented) entry")
+    if kind == "A" and not r.get("key_points"):
+        raise DataError(f"{where}: kind A needs key_points")
+    if kind == "B" and not r.get("answer"):
+        raise DataError(f"{where}: kind B needs answer")
+    if r["lesson"] not in pre_amendment and role_words_in_prompt(r):
+        raise DataError(f"{where}: the prompt names the role, a trait or a pattern ({role_words_in_prompt(r)[0]!r}) "
+                        f"outside the material and the statement; prompts are role-neutral")
+    if kind in ("C", "D"):
+        if kind == "C" and r.get("planted_flaw") not in FLAWS:
+            raise DataError(f"{where}: planted_flaw {r.get('planted_flaw')!r}")
+        if kind == "D" and r.get("material") is None:
+            raise DataError(f"{where}: kind D needs material")
+        _check_keys(where, r, available[-1])
+        _reply_matches(where, last, r)
+        if r["lesson"] not in pre_amendment:
+            _check_quoting(where, r, available[-1], r["content_kind"])
+        for idx, keys in (r.get("turn_keys") or {}).items():
+            i = int(idx)
+            _check_keys(f"{where} turn {i}", keys, available[i - 1])
+            _reply_matches(f"{where} turn {i}", r["turns"][i - 1]["reply"], keys)
+            if r["lesson"] not in pre_amendment:
+                _check_quoting(f"{where} turn {i}", keys, available[i - 1], r["content_kind"])
+    if kind == "E":
+        q, v = r.get("quiz"), r.get("variant")
+        if not isinstance(q, dict) or q.get("type") not in ("verdict", "written"):
+            raise DataError(f"{where}: quiz must be {{type: verdict|written, ...}}")
+        if q["type"] == "verdict":
+            _check_keys(where, q, available[-1])
+            _reply_matches(where, last, q)
+            if r["lesson"] not in pre_amendment:
+                _check_quoting(where, q, available[-1], r["content_kind"])
+        elif not q.get("key_points"):
+            raise DataError(f"{where}: written quiz needs key_points")
+        if not isinstance(v, dict) or not v.get("user") or v["user"] == r["turns"][0]["user"] or "key" not in v:
+            raise DataError(f"{where}: variant must be a re-worded {{user, key}}")
+        original = _key_points(q)
+        variant = " ".join(_key_points(v["key"]))
+        if not any(k and (k in variant or variant in k) for k in original):
+            raise DataError(f"{where}: the variant's key shares no key point with the original")
+
+
+def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
+    """Every check that needs the whole set: stamps, frames, shares, floors, pairs and the diversity gate."""
+    check_stamps(rows)
+    check_frames(rows)
+    check_multi_line_share(rows, skip=pre_amendment)
+    check_floors(rows, skip=pre_amendment)
+    check_pairs(rows, skip=pre_amendment)
+    check_spans(rows, skip=pre_amendment)
+    check_framing_fits(rows, skip=pre_amendment)
+    check_material_reuse(rows, skip=pre_amendment)
+    check_puzzles(rows, skip=pre_amendment)
+    check_phrases(rows, skip=pre_amendment)
+    check_formulas(rows, skip=pre_amendment)
+
+
+def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
+    """check_item on every row in order, then check_batch: the same checks, in the same order, as before the
+    split."""
+    seen: set = set()
+    for n, r in enumerate(rows, 1):
+        check_item(r, n, pre_amendment, seen)
+    check_batch(rows, pre_amendment)
+
+
+def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:
+    """Refuse a framing sentence stamped across C, D and E items: the same first `words` words of the user turn in
+    more than `max_items` items of one trait."""
+    seen: dict = {}
+    for r in rows:
+        if r.get("kind") not in ("C", "D", "E"):
+            continue
+        opening = " ".join(re.findall(r"[a-z']+", r["turns"][0]["user"].lower())[:words])
+        if len(opening.split()) == words:
+            seen.setdefault((r["lesson"], opening), []).append(r["id"])
+    stamped = [(k, v) for k, v in seen.items() if len(v) > max_items]
+    if stamped:
+        (lesson, opening), ids = stamped[0]
+        raise DataError(f"{lesson}: the frame {opening!r} opens {len(ids)} items ({', '.join(ids[:5])}); vary it")
+
+
+def check_stamps(rows: list[dict], max_items: int = 2) -> None:
+    """Refuse an 8-word phrase that recurs in more than `max_items` kind B items of the same trait."""
+    seen: dict = {}
+    for r in rows:
+        if r.get("kind") != "B":
+            continue
+        text = " ".join(t["thinking"] + " " + t["reply"] for t in r["turns"])
+        for sh in _shingles(text):
+            seen.setdefault((r["lesson"], sh), set()).add(r["id"])
+    stamped = sorted(((k, sorted(v)) for k, v in seen.items() if len(v) > max_items),
+                     key=lambda kv: (-len(kv[1]), kv[0]))
+    if stamped:
+        (lesson, phrase), ids = stamped[0]
+        raise DataError(f"{lesson}: kind B phrase repeats in {len(ids)} items ({', '.join(ids[:5])}): {phrase!r}")
+
+
+# ---------------------------------------------------------------- leakage guard
+
+def _norm_l(s):
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", s.lower())).strip()
+
+
+def _grams(s, n=5):
+    s = _norm_l(s)
+    return {s[i:i + n] for i in range(max(1, len(s) - n + 1))}
+
+
+def _j(a, b):
+    return len(a & b) / max(1, len(a | b))
+
+
+def _lines(s):
+    return {_norm_l(x) for x in (s or "").splitlines() if len(_norm_l(x)) >= 12}
+
+
+def leakage(rows: list[dict], held_out: list[dict], interview: list[str]) -> list[str]:
+    """R&D's thresholds: fail a user turn that equals, or is within a 5-gram Jaccard of 0.8 of, a held-out
+    claim, or an item sharing 2+ material lines with one; for kinds A and E, fail at 0.5 against any
+    pre-interview question (user turns and replies)."""
+    out = []
+    held = [(h.get("id", "?"), _norm_l(h["claim"]), _grams(h["claim"]), _lines(h.get("material", "")))
+            for h in held_out]
+    qs = [(i + 1, _grams(q)) for i, q in enumerate(interview)]
+    for r in rows:
+        texts = [t["user"] for t in r["turns"]] + [r.get("variant", {}).get("user", "")]
+        mat = _lines((r.get("material") or "") + "\n" + "\n".join(t["user"] for t in r["turns"]))
+        for hid, hc, hg, hl in held:
+            for t in texts:
+                if t and (_norm_l(t) == hc or _j(_grams(t), hg) >= 0.8):
+                    out.append(f"{r['id']} vs {hid}: claim")
+            if len(mat & hl) >= 2:
+                out.append(f"{r['id']} vs {hid}: {len(mat & hl)} shared material lines")
+        if r["kind"] in ("A", "E"):
+            for t in texts + [x["reply"] for x in r["turns"]]:
+                for qn, qg in qs:
+                    if t and _j(_grams(t), qg) >= 0.5:
+                        out.append(f"{r['id']} vs interview Q{qn}")
+    return sorted(set(out))
+
+
+def load(path) -> list[dict]:
+    return [json.loads(line) for line in open(path, encoding="utf-8") if line.strip()]

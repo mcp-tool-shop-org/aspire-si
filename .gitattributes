@@ -5,4 +5,5 @@
 docs/runs/receipts/** -text
 docs/runs/stage1-eval/** -text
 docs/runs/stage1-train/** -text
+packages/aspire-si-gates/** -text
 docs/runs/stage1-stuck-rule.json -text

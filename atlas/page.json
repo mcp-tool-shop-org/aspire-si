@@ -40,11 +40,11 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 2,
-      "changed": 3,
+      "added": 9,
+      "changed": 8,
       "moved": 0,
-      "parts": 1,
-      "removed": 0
+      "parts": 2,
+      "removed": 1
     },
     "items": [
       {
@@ -57,13 +57,13 @@
       },
       {
         "kind": "counts",
-        "sentence": "2 files added and 3 changed content, across 1 part.",
+        "sentence": "9 files added, 1 removed and 8 changed content, across 2 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "2e399d0c6fbe78666fd8f38d6903a4d7b13c631f",
-      "generatedAt": "2026-10-10T20:28:07.227Z"
+      "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
+      "generatedAt": "2026-10-10T20:17:45.908Z"
     },
     "unchanged": false
   },
@@ -105,9 +105,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "4bf6384feba79628347bc37db73cb0e8026c469a",
+  "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (203 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (211 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -280,13 +280,14 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-10T20:36:22.353Z",
+  "generatedAt": "2026-10-11T01:43:05.326Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/data.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; and 8 more.",
+    "11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 8 more.",
     "5 writes and 33 reads use paths built at run time and are not named here.",
-    "59 writes and 70 reads go to a path their caller passes, not to this repository.",
+    "59 writes and 69 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
+    "9 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 6 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
   ],
   "mainDoor": ".github/workflows/ci.yml",
@@ -336,7 +337,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 84,
+  "testFiles": 87,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
@@ -355,7 +356,7 @@
   "unreadNote": [],
   "untested": [],
   "untestedNote": [
-    "6 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 3 more."
+    "8 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 5 more."
   ],
   "written": 2
 }
