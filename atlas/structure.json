@@ -1812,10 +1812,10 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 11,
+      "dynamicReads": 12,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
-      "dynamicWrites": 2,
+      "dynamicWrites": 12,
       "entryPoints": [],
       "externals": 0,
       "files": [
@@ -1884,7 +1884,7 @@
           "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
         },
         {
-          "hash": "96a91e8edbb7d67f4583c53604c0caabd11dd615216630a3275f984b183d3e1c",
+          "hash": "e63ba18390af5d7a6056096e5173c0a34f3699088efb19f3c22cf46190aa40b4",
           "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
         },
         {
@@ -1916,7 +1916,7 @@
           "path": "docs/runs/2026-10-10-stage1-sealed-freeze.md"
         },
         {
-          "hash": "c6cb60bb11a83be86c9505ce742c3f5fd54db665b74c272d13273fd438c69fb6",
+          "hash": "098498456a1ceea8c2b1fa64e5941c8943d57653fa88082eb16bc230cf831880",
           "path": "docs/runs/2026-10-10-stage1-training-data-grok-handoff.md"
         },
         {
@@ -2315,6 +2315,177 @@
         },
         {
           "exports": [
+            "ids_in",
+            "interview_questions",
+            "sha256_file",
+            "spans",
+            "strings",
+            "words"
+          ],
+          "failurePaths": [
+            {
+              "in": "interview_questions",
+              "kind": "raise",
+              "line": 105
+            },
+            {
+              "in": "interview_questions",
+              "kind": "raise",
+              "line": 107
+            },
+            {
+              "in": "load",
+              "kind": "raise",
+              "line": 125
+            },
+            {
+              "in": "load",
+              "kind": "raise",
+              "line": 128
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 145
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 147
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 150
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 153
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 155
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 158
+            },
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 165
+            },
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 167
+            },
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 169
+            },
+            {
+              "in": "write",
+              "kind": "raise",
+              "line": 182
+            },
+            {
+              "in": "write",
+              "kind": "except",
+              "line": 187
+            },
+            {
+              "in": "write",
+              "kind": "raise",
+              "line": 189
+            }
+          ],
+          "hash": "864a2f8ab5d74aae5e1edf68e3aad05d40e5f22449d83bec1ea85f4af4bc2ba9",
+          "path": "docs/runs/stage1-train/receipts.py"
+        },
+        {
+          "exports": [
+            "file_probe",
+            "main",
+            "now_iso",
+            "nvidia_smi",
+            "own_children",
+            "parse",
+            "parse_iso",
+            "sha256_file",
+            "write_atomic"
+          ],
+          "failurePaths": [
+            {
+              "in": "write_atomic",
+              "kind": "except",
+              "line": 89
+            },
+            {
+              "in": "nvidia_smi",
+              "kind": "except",
+              "line": 104
+            },
+            {
+              "in": "probe",
+              "kind": "except",
+              "line": 113
+            },
+            {
+              "in": "killed_since",
+              "kind": "except",
+              "line": 138
+            },
+            {
+              "in": "kill",
+              "kind": "except",
+              "line": 166
+            },
+            {
+              "in": "own_children",
+              "kind": "raise",
+              "line": 212
+            },
+            {
+              "in": "own_children",
+              "kind": "raise",
+              "line": 214
+            },
+            {
+              "in": "read_progress",
+              "kind": "except",
+              "line": 259
+            },
+            {
+              "in": "read_progress",
+              "kind": "except",
+              "line": 272
+            },
+            {
+              "in": "run",
+              "kind": "raise",
+              "line": 417
+            },
+            {
+              "in": "backup",
+              "kind": "except",
+              "line": 523
+            }
+          ],
+          "hash": "a51b8c82a67c426032ea75015c2f5244fbdb148961c14c3c5976234bb4d8d320",
+          "importsFiles": [
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/train.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
+          ],
+          "path": "docs/runs/stage1-train/run.py"
+        },
+        {
+          "exports": [
             "burst_profile",
             "hedge_profile",
             "hedge_token_positions",
@@ -2419,6 +2590,67 @@
         },
         {
           "exports": [
+            "fw",
+            "imports_of",
+            "test_a_clean_row_lands_at_the_path_its_header_names",
+            "test_an_evaluation_record_is_refused",
+            "test_sources_and_arms_are_closed",
+            "test_the_evaluation_code_never_imports_the_receipt_writer",
+            "test_the_firewall_refuses",
+            "test_the_firewall_refuses_to_arm_on_a_changed_or_missing_file",
+            "test_the_interview_questions_are_read_without_importing_interview_py",
+            "writer"
+          ],
+          "hash": "547a17eea3e77fb1a9fa243597f65fd6c289d0e9b9dc2427af6ca599f34fc326",
+          "importsFiles": [
+            "docs/runs/stage1-train/receipts.py"
+          ],
+          "names": [
+            "docs/runs/stage1-train/eval_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/test_receipts.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "losses",
+            "plain_run",
+            "rig",
+            "run_runner",
+            "runner_args",
+            "test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run",
+            "test_a_stall_stops_with_the_trainers_own_stack",
+            "test_a_transient_io_error_is_retried_and_logged",
+            "test_a_watchdog_kill_is_never_resumed",
+            "test_heat_pauses_between_steps_and_resumes",
+            "test_killing_the_runner_ends_the_trainer",
+            "test_no_resume_when_the_card_is_not_empty",
+            "test_refuses_to_start_without_a_live_watchdog_or_after_the_grant",
+            "test_the_trainer_stops_itself_when_the_heartbeat_goes_stale",
+            "test_the_vram_self_stop_is_never_resumed",
+            "test_three_resumes_then_stop",
+            "tokenizer_available",
+            "trainer_processes",
+            "unmounted_drive"
+          ],
+          "hash": "0f380749bba572f3602966178ce31196369ae23b3b560d36b9f6a1f91dce379e",
+          "importOrder": [
+            "docs/runs/stage1-train/run.py",
+            "docs/runs/stage1-eval/student.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-eval/student.py",
+            "docs/runs/stage1-train/run.py"
+          ],
+          "names": [
+            "docs/runs/stage1-train/tiny_train.py",
+            "docs/runs/stage1-train/train.py"
+          ],
+          "path": "docs/runs/stage1-train/test_runner.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "test_critic_mismatch",
             "test_scorer_copies_are_identical_to_the_frozen_scorer"
           ],
@@ -2459,33 +2691,117 @@
         },
         {
           "exports": [
-            "build",
-            "code_hash",
-            "machine",
+            "install_faults",
             "main",
-            "sha256_file"
+            "out_dir",
+            "resumed_from",
+            "tiny_student"
           ],
           "failurePaths": [
             {
-              "in": "build",
+              "in": "flaky",
               "kind": "raise",
-              "line": 76
+              "line": 80
             },
             {
-              "in": "main",
+              "in": "_oom_hook",
               "kind": "raise",
-              "line": 97
-            },
-            {
-              "in": "main",
-              "kind": "raise",
-              "line": 155
+              "line": 99
             }
           ],
-          "hash": "9964a5a80767bb7e200ad394ae81cffaa8bec9b38fe6af66f5e504625c950b16",
+          "hash": "6e3e1774780f57d463cf18916d193d3c0795452d1d5bffc5d4f65789e9a830a6",
+          "importsFiles": [
+            "docs/runs/stage1-train/train.py"
+          ],
+          "path": "docs/runs/stage1-train/tiny_train.py"
+        },
+        {
+          "exports": [
+            "build",
+            "code_hash",
+            "find_checkpoint",
+            "machine",
+            "main",
+            "near_caps",
+            "save_checkpoint",
+            "sha256_file",
+            "train",
+            "trim_loss_log",
+            "with_retry",
+            "write_atomic"
+          ],
+          "failurePaths": [
+            {
+              "in": "with_retry",
+              "kind": "except",
+              "line": 114
+            },
+            {
+              "in": "with_retry",
+              "kind": "raise",
+              "line": 117
+            },
+            {
+              "in": "with_retry",
+              "kind": "raise",
+              "line": 120
+            },
+            {
+              "in": "build",
+              "kind": "raise",
+              "line": 139
+            },
+            {
+              "in": "_read",
+              "kind": "except",
+              "line": 210
+            },
+            {
+              "in": "check",
+              "kind": "raise",
+              "line": 223
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 255
+            },
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 273
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 330
+            },
+            {
+              "in": "train",
+              "kind": "except",
+              "line": 379
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 381
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 387
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 392
+            }
+          ],
+          "hash": "80c2cf936876700e556f144173b3ce6a940dfe6aaa0280905a5569789b7d3e61",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py",
-            "docs/runs/stage1-train/data.py"
+            "docs/runs/stage1-train/data.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
           ],
           "path": "docs/runs/stage1-train/train.py"
         },
@@ -2978,17 +3294,17 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 6,
+          "reads": 14,
           "where": [
             "caller"
           ],
-          "writes": 2
+          "writes": 8
         }
       ],
-      "outsideReads": 6,
-      "outsideWrites": 2,
+      "outsideReads": 14,
+      "outsideWrites": 8,
       "role": "docs",
-      "testedBy": 8,
+      "testedBy": 10,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
@@ -3006,7 +3322,7 @@
           "why": "unplaced"
         }
       ],
-      "unresolvedSites": 10
+      "unresolvedSites": 11
     },
     {
       "dynamicReads": 14,
@@ -6403,8 +6719,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "4ba99b28d3dd24cbdd9eb18d411425d9d543572b",
-    "tracked": 347
+    "commit": "65fc4e5c3096452b3c5e4514cbb8cb190618add1",
+    "tracked": 352
   },
   "landings": [
     {
@@ -6491,6 +6807,18 @@
           "confidence": "ast"
         },
         {
+          "by": "docs/runs/stage1-train/test_receipts.py",
+          "call": "glob",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "docs/runs/stage1-train/test_runner.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
           "by": "docs/runs/stage1-training-data/_fix_batch2_r6.py",
           "call": "literal",
           "confidence": "ast"
@@ -6518,6 +6846,22 @@
         }
       ],
       "target": "docs/runs/stage1-eval/interview.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/run.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-train/run.py",
+          "call": "open",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-stuck-rule.json",
       "writers": []
     },
     {
@@ -6600,9 +6944,32 @@
           "by": "docs/runs/stage1-train/eval_adapter.py",
           "call": "read_bytes",
           "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-train/test_receipts.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
         }
       ],
       "target": "docs/runs/stage1-train/eval_adapter.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/run.py",
+          "call": "open",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-train/test_runner.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "docs/runs/stage1-train/run.py",
       "writers": []
     },
     {
@@ -6614,6 +6981,29 @@
         }
       ],
       "target": "docs/runs/stage1-train/stuck.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/test_runner.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "docs/runs/stage1-train/tiny_train.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/run.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-train/train.py",
       "writers": []
     },
     {
@@ -7014,7 +7404,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 88,
+  "testFiles": 90,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
@@ -7022,6 +7412,8 @@
     "docs/runs/stage1-train/test_answer_format.py",
     "docs/runs/stage1-train/test_data.py",
     "docs/runs/stage1-train/test_no_role.py",
+    "docs/runs/stage1-train/test_receipts.py",
+    "docs/runs/stage1-train/test_runner.py",
     "docs/runs/stage1-train/test_scorer_rules.py",
     "docs/runs/stage1-train/test_stuck.py",
     "packages/aspire-si-gates/tests/test_package.py"
