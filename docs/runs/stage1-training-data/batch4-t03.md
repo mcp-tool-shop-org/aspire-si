@@ -245,15 +245,20 @@ Question: Which of North, East and South is ahead of the other two?
 
 **Thinking:**
 ```text
-Which dock is ahead of the other two is a chain of two printed comparisons. North is ahead of East, and East is ahead of South, so North is ahead of both. I keep both sentences, because each is a link, and I do not collapse them into 'North wins'. West is named and never placed, and the question does not ask about West. The words that decide are the two ahead-of lines.
+Which of North, East and South is ahead of the other two.
+The deciding words are two sentences, each taken whole: "North is ahead of East." and "East is ahead of South."
+Those exact lines place North ahead of East and East ahead of South, so North is ahead of both.
+West is named and never placed, and the question does not ask about West.
 ```
 
 **Reply:**
 ```text
-North is ahead of the other two, and both comparisons stay.
+North is ahead of the other two.
+The deciding lines, each whole, are "North is ahead of East." and "East is ahead of South."
 ROOT North
-├─ ahead of East
-└─ East ahead of South
+├─ North is ahead of East.
+└─ East is ahead of South.
+North
 ```
 
 **Key:** answer: North
@@ -311,12 +316,10 @@ At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
 | Clock | Rate |
 | --- | --- |
 | before 6pm, which covers 4pm | 2 pounds an hour |
-VERDICT: supported
-DECIDING: Before 6pm it costs 2 pounds an hour.
-ESCALATE: no
+2 pounds an hour
 ```
 
-**Key:** answer: supported: 2 pounds an hour, from the before-6pm line
+**Key:** answer: 2 pounds an hour
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -341,12 +344,10 @@ Yes. A single tenor is that count, and the line I cite keeps the numeral.
 | Line | Count |
 | --- | --- |
 | The choir has 1 tenor. | 1 tenor |
-VERDICT: supported
-DECIDING: The choir has 1 tenor.
-ESCALATE: no
+yes
 ```
 
-**Key:** answer: supported: a single tenor is the printed 1 tenor
+**Key:** answer: yes
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -371,12 +372,10 @@ No. The page sets the fee in pounds, so a dollar figure does not hold.
 | Printed | Claimed |
 | --- | --- |
 | 40 pounds | 40 dollars |
-VERDICT: unsupported
-DECIDING: The call-out fee is 40 pounds.
-ESCALATE: no
+no
 ```
 
-**Key:** answer: unsupported: the line says 40 pounds
+**Key:** answer: no
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -399,13 +398,13 @@ A plug in the basin is the claim. The slip says the basin usually has a plug. Us
 
 **Reply:**
 ```text
-The slip says the basin usually has a plug. A usual plug leaves the bare sentence open, and the slip does not refuse a plug.
+They guessed. The slip says the basin usually has a plug. A usual plug leaves the bare sentence open, and the slip does not refuse a plug.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
 *invented: washroom slip and checker trace, written for this item (key by construction)*
 
@@ -1078,19 +1077,21 @@ The towels are stacked in tens. What do you answer?
 ```text
 A path note is stuck to the gate.
 Material:
-The footpath is closed past the oak.
-Statement: The cycle lane is closed past the oak.
+The footpath is closed past the oak when the river is high.
+Statement: The footpath is closed past the oak.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-The claim closes the cycle lane. The note closes the footpath, past the oak. A footpath and a cycle lane are different ways, even when they pass the same oak. I looked for the words cycle lane and the note does not have them. The footpath sentence does not say the cycle lane is closed, and it does not say the cycle lane is open. If the named way is the footpath only, the cycle-lane claim stays open on this note.
+The statement copies the opening of the line and leaves off the river.
+The line says the closure holds when the river is high.
+A matching opening is not the whole line, so the closure is not settled.
 ```
 
 **Reply:**
 ```text
-The note closes the footpath past the oak. It does not mention a cycle lane, so a cycle lane sits outside this note.
+The note closes the footpath past the oak when the river is high. The statement stops before that condition, so the matching words do not settle the closure.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1098,7 +1099,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Past the oak, the cycle lane is closed. What do you answer?
+Read the gate note once more. It says the footpath is closed past the oak when the river is high. Statement: The footpath is closed past the oak. What do you answer?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}

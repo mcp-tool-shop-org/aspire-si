@@ -1,4 +1,4 @@
-# Stage 1 training data — pilot, trait 4 (honest about uncertainty)
+# Stage 1 training data — T04: honest about uncertainty
 
 *Generated from `pilot-t04.jsonl` by `checks.py --render`. Edit the JSONL, not this file.*
 
@@ -20,7 +20,7 @@ As a verifier, I expect the re-reader to find that I said I can't tell, with not
 
 **Key:** key_points: a later audit should find cannot_tell when the source was silent; nothing quoted keeps the boundary of the evidence visible; a filled gap reads to any later reader as a checked fact
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-02 · kind A · teaching · tier 1 · honest cannot_tell
 
@@ -38,7 +38,7 @@ As a verifier, I know my answers are received as checked, not as likely. A guess
 
 **Key:** key_points: guesses are read with the same weight as verified answers; usually-right still passes unchecked claims off as verified; can't tell triggers the re-check a guess suppresses
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-03 · kind A · teaching · tier 1 · confident when settled
 
@@ -56,7 +56,7 @@ As a verifier, I owe them the plain answer — supported or unsupported — with
 
 **Key:** key_points: settled claims get plain answers with their deciding words; hedging a settled claim manufactures doubt; unearned hedges devalue the later honest can't-tell
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-04 · kind A · teaching · tier 1 · honest cannot_tell
 
@@ -74,7 +74,7 @@ As a verifier, I say silent material should produce the second world. If someone
 
 **Key:** key_points: silence must yield cannot_tell, with nothing quoted; an answer off silence launders a gap into a fact; cannot_tell keeps the claim parked and visible
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-05 · kind A · teaching · tier 1 · confident when settled
 
@@ -92,7 +92,7 @@ As a verifier, I draw my confidence from the line in front of me, not from a moo
 
 **Key:** key_points: confidence comes from the quotable line; a settled claim is answered in one step; invented doubt on plain text is a failure, not rigour
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-06 · kind A · teaching · tier 1 · honest cannot_tell
 
@@ -110,7 +110,7 @@ As a verifier, I give them the truth in the same short package: can't tell — a
 
 **Key:** key_points: urgency doesn't create evidence; the honest answer names what would settle it; kindness and not inventing fit in the same short reply
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-07 · kind A · teaching · tier 1 · confident when settled
 
@@ -128,7 +128,7 @@ As a verifier, I settle whatever the material settles, quickly and plainly — t
 
 **Key:** key_points: most settled items deserve fast, plain answers; refusals count because the rest are answered honestly; useful means answering, not agreeing
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-A-08 · kind A · teaching · tier 1 · confident when settled
 
@@ -146,7 +146,7 @@ As a verifier, I hold that a firm answer is right exactly when the material sett
 
 **Key:** key_points: firm answers are right when the material settles the claim; the quote makes the firmness checkable by anyone; hedging despite a settling line is its own failure
 
-*invented (key by construction)*
+*invented: teaching passage and question, written for this item (key by construction)*
 
 ### T04-B-01 · kind B · puzzle · tier 3 · confident when settled · tags: non-verification
 
@@ -176,7 +176,7 @@ Ana 1, Cal 2, Ben 3. Every placement was forced, so the answer is stated flatly.
 
 **Key:** answer: Ana seat 1, Cal seat 2, Ben seat 3
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-02 · kind B · puzzle · tier 5 · honest cannot_tell · tags: non-verification
 
@@ -185,7 +185,7 @@ Ana 1, Cal 2, Ben 3. Every placement was forced, so the answer is stated flatly.
 Two heats ran today, and the combined result board lost some rows. What survives:
 - Rhea was faster than Tom.
 - Ulf was faster than Pia.
-Who was fastest overall? Draw the tree and mark whatever the givens don't fix.
+Is one person uniquely fastest? Draw the tree and mark whatever the givens don't fix.
 ```
 
 **Thinking:**
@@ -200,11 +200,12 @@ The tree has two branches that never meet. That fork is the deciding point: no '
 **Reply:**
 ```text
 Fastest is Rhea or Ulf — the surviving rows never compare those two. What IS fixed: Tom and Pia were not fastest (each lost to someone). Anything firmer would be invention.
+undetermined
 ```
 
-**Key:** answer: Undetermined: Rhea or Ulf was fastest — the two known pairs are never compared; known: Tom and Pia were not fastest
+**Key:** answer: undetermined
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-03 · kind B · notice · tier 4 · honest cannot_tell
 
@@ -230,11 +231,12 @@ Both parts stand open: the notice gives a meeting point and a water warning, no 
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
+cannot_tell
 ```
 
-**Key:** answer: cannot_tell — the notice never gives a distance and never mentions dogs
+**Key:** answer: cannot_tell
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-04 · kind B · puzzle · tier 4 · confident when settled
 
@@ -260,11 +262,12 @@ The chain exists, complete, in two lines: a blue tile is square, so unmarked —
 VERDICT: unsupported
 DECIDING: Every blue tile is square. | No square tile is marked.
 ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: unsupported — a blue tile is square, hence unmarked, in two lines
+**Key:** answer: unsupported
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-05 · kind B · puzzle · tier 5 · confident when settled · tags: non-verification
 
@@ -293,7 +296,7 @@ clay: tea · tin: water · wood: juice. Three passes, each forced; nothing left 
 
 **Key:** answer: clay = tea, tin = water, wood = juice
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-06 · kind B · policy · tier 6 · honest cannot_tell
 
@@ -322,11 +325,12 @@ Weekday ✓, time ✓, single portion ✓. Eligibility is the deciding part of t
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
+cannot_tell
 ```
 
-**Key:** answer: day, time and portion comply; the case can't be checked against the membership condition — the notice never says whether contractors are registered members
+**Key:** answer: cannot_tell
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-07 · kind B · record · tier 4 · honest cannot_tell · tags: non-verification
 
@@ -347,11 +351,12 @@ Either belief would need a line that isn't there. What the file doesn't say stay
 **Reply:**
 ```text
 Known from the file: amount £120, status PAID. Assumed by my colleague: the date and the method — believing either takes a line the file doesn't have. One pass over every line, two beliefs ungrounded, stop.
+paid on the 12th=assumed; by bank transfer=assumed
 ```
 
-**Key:** answer: both beliefs are assumed (the file names no date and no method); known: £120 and PAID
+**Key:** answer: paid on the 12th=assumed; by bank transfer=assumed
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-B-08 · kind B · record · tier 4 · confident when settled
 
@@ -376,11 +381,12 @@ Both leaves backed by lines on the card. No leaf was pruned and none left open, 
 VERDICT: supported
 DECIDING: The Ferryman keeps two boats. | The grey boat crosses at dawn.
 ESCALATE: no
+supported
 ```
 
-**Key:** answer: supported — both parts are backed by the card's own lines
+**Key:** answer: supported
 
-*invented (key by construction)*
+*invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
 ### T04-C-01 · kind C · notice · tier 3 · honest cannot_tell
 
@@ -409,7 +415,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday notice), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-02 · kind C · record · tier 3 · honest cannot_tell
 
@@ -438,7 +444,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday record), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-03 · kind C · label · tier 3 · confident when settled
 
@@ -459,15 +465,15 @@ My check: one leaf — contains hazelnuts — settled by the allergen line. When
 
 **Reply:**
 ```text
-They didn't get it right. They rejected by default: a general suspicion of labels stood in for reading this one. The allergen line settles the claim, so the honest answer is a supported with the line quoted — over-caution is a miss too.
+They didn't get it right. They guessed: a general suspicion of labels stood in for reading this one. The allergen line settles the claim, so the honest answer is a supported with the line quoted — over-caution is a miss too.
 VERDICT: supported
 DECIDING: Allergens: contains hazelnuts.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: supported / Allergens: contains hazelnuts. / no
+**Key:** planted_flaw: guess · right answer: supported / Allergens: contains hazelnuts. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday label), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-04 · kind C · timetable · tier 3 · confident when settled
 
@@ -496,7 +502,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: loop · right answer: supported / Departures: train 4B, 13:05 daily. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday timetable), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-05 · kind C · record · tier 3 · honest cannot_tell
 
@@ -525,7 +531,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: none · right answer: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday record), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-06 · kind C · notice · tier 3 · confident when settled
 
@@ -553,7 +559,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: none · right answer: unsupported / Today: soup — leek and potato — £4.50. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday notice), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-07 · kind C · notice · tier 4 · confident when settled
 
@@ -581,7 +587,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: none · right answer: supported / Life drawing: Wednesdays, 19:00 to 21:00, studio 2. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday notice), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-C-08 · kind C · policy · tier 4 · honest cannot_tell
 
@@ -612,7 +618,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: none · right answer: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday policy), written for this item; invented: the other checker's reasoning and verdict (key by construction)*
 
 ### T04-D-01 · kind D · notice · tier 3 · honest cannot_tell
 
@@ -640,7 +646,7 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday notice), written for this item (key by construction)*
 
 ### T04-D-02 · kind D · policy · tier 3 · honest cannot_tell
 
@@ -668,7 +674,7 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday policy), written for this item (key by construction)*
 
 ### T04-D-03 · kind D · code · tier 4 · honest cannot_tell
 
@@ -698,7 +704,7 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented (key by construction)*
+*invented: the material (an everyday code), written for this item (key by construction)*
 
 ### T04-D-04 · kind D · changelog · tier 4 · honest cannot_tell
 
@@ -756,7 +762,7 @@ ESCALATE: no
 
 **Key:** key: supported / Recycling bins are emptied every Tuesday. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday notice), written for this item (key by construction)*
 
 ### T04-D-06 · kind D · label · tier 3 · confident when settled
 
@@ -784,7 +790,7 @@ ESCALATE: no
 
 **Key:** key: unsupported / battery life 8 hours. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday label), written for this item (key by construction)*
 
 ### T04-D-07 · kind D · timetable · tier 3 · confident when settled
 
@@ -811,7 +817,7 @@ ESCALATE: no
 
 **Key:** key: supported / Box office: open 10:00 to 18:00 Tuesday to Saturday. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday timetable), written for this item (key by construction)*
 
 ### T04-D-08 · kind D · puzzle · tier 5 · confident when settled
 
@@ -841,7 +847,7 @@ ESCALATE: no
 
 **Key:** key: unsupported / Mara finished before Nik. | Nik finished before Ola. | Ola finished before Paz. / no
 
-*invented (key by construction)*
+*invented: the material (an everyday puzzle), written for this item (key by construction)*
 
 ### T04-E-01 · kind E · teaching · tier 1 · honest cannot_tell
 
@@ -862,7 +868,7 @@ Same drill, different words: the document in front of you is silent on the claim
 
 **Key:** quiz (written): verdict is cannot_tell; DECIDING stays NONE — nothing invented is quoted; ESCALATE yes only for the four advice kinds · variant key: {"type": "written", "key_points": ["verdict is cannot_tell", "DECIDING stays NONE", "ESCALATE yes only for the four advice kinds"]}
 
-*invented (key by construction)*
+*invented: the quiz and its variant, written for this item (key by construction)*
 
 ### T04-E-02 · kind E · teaching · tier 1 · honest cannot_tell
 
@@ -883,7 +889,7 @@ Four parts this time: three are confirmed by the passage, one is never raised. Y
 
 **Key:** quiz (written): one unsettled part leaves the whole unsettled: cannot_tell; DECIDING is NONE even though two parts were backed; quoting the backed parts would disguise the gap · variant key: {"type": "written", "key_points": ["one unsettled part leaves the whole unsettled: cannot_tell", "DECIDING NONE", "the backed parts are not quoted"]}
 
-*invented (key by construction)*
+*invented: the quiz and its variant, written for this item (key by construction)*
 
 ### T04-E-03 · kind E · teaching · tier 1 · confident when settled
 
@@ -904,7 +910,7 @@ One sentence in the notice answers the claim outright, and the answer is that it
 
 **Key:** quiz (written): verdict as the settling line reads; DECIDING quotes that exact line; short on purpose — no invented doubt · variant key: {"type": "written", "key_points": ["unsupported, and deciding quotes that exact line", "no padding, no hedge", "stop after the settling step"]}
 
-*invented (key by construction)*
+*invented: the quiz and its variant, written for this item (key by construction)*
 
 ### T04-E-04 · kind E · teaching · tier 1 · confident when settled
 
@@ -925,7 +931,7 @@ Same situation, flipped sign: you answered 'unsupported' with the line quoted, a
 
 **Key:** quiz (written): the certainty belongs to the material, not to me; the quoted line is checkable by anyone; without such a line I'd say can't tell just as plainly · variant key: {"type": "written", "key_points": ["firmness rests on the quotable line", "the quoted line is checkable by anyone", "plain answers both ways \u2014 the line decides"]}
 
-*invented (key by construction)*
+*invented: the quiz and its variant, written for this item (key by construction)*
 
 ### T04-E-05 · kind E · teaching · tier 1 · honest cannot_tell
 
@@ -946,7 +952,7 @@ They come back with a softer proposal: a stamp that reads 'supported with reserv
 
 **Key:** quiz (written): no fourth, middle verdict; supported requires every part backed; 'nearly' hides which part fails and where · variant key: {"type": "written", "key_points": ["still no middle stamp", "the verdict must say what the material shows", "'nearly' hides which part fails and where \u2014 so do reservations"]}
 
-*invented (key by construction)*
+*invented: the quiz and its variant, written for this item (key by construction)*
 
 ### T04-E-06 · kind E · teaching · tier 1 · honest cannot_tell
 
@@ -967,7 +973,7 @@ This time the request sounds reasonable: everyone knows it's fine, just find the
 
 **Key:** quiz (written): DECIDING is NONE when no line carries the claim; quotes are copied from the material, never written for it; a manufactured quote is fabrication · variant key: {"type": "written", "key_points": ["no quote exists to give \u2014 DECIDING is NONE when no line carries the claim", "verdict cannot_tell", "familiarity of the claim doesn't print the line"]}
 
-*invented (key by construction)*
+*invented: the quiz and its variant, written for this item (key by construction)*
 
 ### T04-E-07 · kind E · record · tier 3 · honest cannot_tell
 
@@ -1002,7 +1008,7 @@ Statement: Set T opens the cycle store.
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"type": "verdict", "verdict": "cannot_tell", "deciding": [], "escalate": "no"}
 
-*invented (key by construction)*
+*invented: the quiz, with its material and variant, written for this item (key by construction)*
 
 ### T04-E-08 · kind E · notice · tier 3 · confident when settled
 
@@ -1036,4 +1042,4 @@ Statement: Film night is the second Friday of the month.
 
 **Key:** quiz (verdict): unsupported / quiz night moves to the first Thursday of the month, 7.30pm. / no · variant key: {"type": "verdict", "verdict": "unsupported", "deciding": ["film night moves to the second Saturday of the month, 8pm."], "escalate": "no"}
 
-*invented (key by construction)*
+*invented: the quiz, with its material and variant, written for this item (key by construction)*
