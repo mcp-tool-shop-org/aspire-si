@@ -448,6 +448,50 @@ what the baseline missed.
    amendment here first, and it may draw on DEV (pilot-30) results only. The round-1 sealed scores stay
    unopened until round F, as already registered.
 
+## Amendment, 2026-10-10: the self-learning generator's store and DEV
+
+**The setup.** The role-set generator weights future training slots toward questions the model gets stuck on,
+read from a store that the training runner writes. Sealed and pre-interview results are firewalled out in code.
+
+**Ruling: no DEV data in the store during a stage (option b), and DEV aggregates only between stages, with a
+fresh DEV after (option c, conditioned).**
+- **Why aggregates aren't coarse enough.** DEV (pilot-30) is this stage's learning curve and its stop rule.
+  Thirty tasks across lesson × kind × tier makes most cells hold one to three tasks. So a cell's stuck rate is
+  effectively an item's result, and steering on it trains toward DEV. That inflates g_r, delays the plateau,
+  and makes the curve measure the curriculum's targeting rather than learning.
+- **During a stage:** the store holds training-time observations only (the quiz ledger and rehearsals: id,
+  trace, timings, answer). No DEV ids, text, traces or aggregates.
+- **Between stages:** once this stage's stop rule has fired, F is fixed and the sealed set is scored at F,
+  DEV aggregates may inform the next stage's generator, by a dated amendment. DEV is then spent for steering,
+  so the next stage's stop rule runs on a fresh DEV set built to the same rules and key-checked.
+- **Sealed and pre-interview:** nothing, ever, as designed.
+
+**The stuck thresholds.** They're frozen once from the untrained pilot-30 baseline (p95 thinking tokens per
+tier, over its 3 samples) before round 1. That's a property of the untrained model and doesn't track DEV
+afterwards, so it's allowed. Two rules:
+- a tier with fewer than 20 DEV samples pools with its neighbour tier;
+- tiers that DEV doesn't cover (tier 1, the A and written-E items) use the pooled p95 of all tiers.
+
+The thresholds and their sha256 are pinned in the run note.
+
+**The steering rule itself is pre-registered, not tuned in flight.** It's written down before round 1:
+- the weighting formula;
+- the floor-preserving constraint (every amendment-2 floor and share holds in every round's data);
+- the maximum share any one weakness can take.
+
+Changing it later needs a dated amendment.
+
+**Both arms and the seeds.**
+- **The arms:** NO-ROLE items are derived one for one from ROLE items, so steering on the ROLE model alone
+  would hand the NO-ROLE arm a curriculum aimed at the other model's weak spots. The steering signal is
+  therefore **pooled**: the mean stuck rate from both arms' runners, per lesson, kind and tier. One item stream
+  serves both arms, and composition stays matched by construction.
+- **The seeds:** each training seed runs its own steering stream, so the between-seed spread includes
+  curriculum divergence, which is the honest variance for the stop rule's band.
+
+**Reporting.** Round-by-round gains are reported as the effect of the steered curriculum, and the
+amendment-of-2026-10-10 disclosure for targeted behaviours applies.
+
 ## The pre-interview (descriptive, plus one tested measure)
 
 The pre-interview's 12 questions are given at every sitting: the baseline, after Stage 1, and after domain
@@ -549,6 +593,37 @@ against after (the same resampling as Phase A). It shows the size of the change 
 would be warranted only if a later decision rests on "training made thinking cheaper". That claim would need
 its own amendment written before the data it's tested on.
 
+## Hedge phrases (a recorded measure at every sitting; amendment 2026-10-10)
+
+**The maintainer's decision:** hedge phrases are among the most valuable data points. They're recorded
+everywhere, whether or not they trigger "stuck". Separately, the R&D ruling adopted them as a trigger, inside
+(C) of the frozen stuck rule (long AND (re-read rate > 8.09 OR hedge rate > 8.32)).
+
+**The phrase list** is the one fixed in `stage1-stuck-rule.json` (its sha256 is pinned in the run note) and
+never changes between rounds or sittings, so counts compare across them. The same exclusions apply
+everywhere:
+- sentences opening "If …, then I …";
+- a planned-step "check";
+- material lines, by the lenient quote matching.
+
+**Recorded per trace** (training observations, receipts, and every eval sitting's outputs):
+- the count per phrase, and the total rate per 1,000 thinking tokens;
+- the positions of the first and last hedge, as fractions of the trace's thinking tokens;
+- **end clustering:** the share of the trace's hedges that fall in its final 30% of thinking tokens. This is
+  reported only when the trace has 2 or more hedges, and is null otherwise.
+
+**Where it goes:**
+- **Training-time observations** (quiz ledger and rehearsals) go to the store, as already ruled.
+- **DEV, sealed and pre-interview sittings** stay in their own output files and **never** reach the store.
+  The firewall is unchanged.
+
+**How it's reported:** descriptive only, with no test, beside thinking tokens.
+- per sitting and arm, the hedge rate's median, p90 and p95, the share of traces with any hedge, and the
+  top phrases;
+- before against after (Phase A), and ROLE against NO-ROLE (Phase B), as a task-level paired bootstrap
+  interval of the per-task mean rate, the same resampling as thinking tokens;
+- end clustering, as the mean share over traces with 2 or more hedges.
+
 ## What's reported
 
 Each number is reported **separately**, per phase and per arm, by seed and as a mean with its interval:
@@ -560,6 +635,8 @@ Each number is reported **separately**, per phase and per arm, by seed and as a 
   shares.
 - time and thinking cost: seconds and tokens per task, by tier, category and right against wrong; accuracy
   per minute per sitting; and training time per round.
+- hedge phrases: the rate, the share of traces with any, the top phrases and end clustering, per sitting and
+  arm, with paired intervals.
 
 - **time, as its own measure** (the maintainer's request, 2026-10-10):
   - **per task:** wall-clock seconds and new tokens (thinking plus answer), with the median and spread per

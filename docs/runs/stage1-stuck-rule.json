@@ -1,0 +1,207 @@
+{
+ "name": "Stage 1 stuck rule (frozen before round 1; eval plan amendments a7b336b and 4bf6384, R&D's rulings of 2026-10-10)",
+ "amended": "2026-10-10, dated amendment before round 1: the hedge-burst clause added to (C), by R&D's pre-registered decision rule",
+ "rule": [
+  "An answer is stuck when any of these holds:",
+  "(A) the same 8-word span appears 3 or more times in the thinking trace;",
+  "(B) the generation reaches the 16,384-token cap;",
+  "(C) the thinking is long AND not progressing. Long = thinking tokens > max(the tier's p95 below, 2 x the item's own target thinking tokens in its arm). Not progressing = a re-read rate above 8.09 per 1,000 thinking tokens, OR at least one burst: 3 or more hedges within 200 thinking tokens.",
+  "Length over the p95 and over 2x the target, the hedge rate and every hedge and burst field are recorded on every trace, never triggers on their own.",
+  "Detection is passive (it reads a finished answer). The trigger applies to training-time questions only (the quiz ledger and rehearsals); the recorded measures also go into every eval sitting's own outputs, never into the store."
+ ],
+ "definitions": {
+  "quote": "a material line is quoted where any 5 consecutive words of it appear in the trace (the whole line if shorter, at least 3 words), after lenient normalising (case folded; **, __, backticks and straight/curly quotes removed; punctuation dropped); a 5-word window shared by two or more material lines is not counted; hits on one line within 5 words of each other are one quote",
+  "re-read": "a quote of a material line already quoted earlier in the same trace",
+  "material": "the item's material plus the new_material brought by earlier turns",
+  "code": "docs/runs/stage1-train/stuck.py",
+  "hedge": "a phrase from hedge_phrases, matched case-insensitively at word boundaries (curly apostrophes normalised), except (1) inside a sentence opening 'If ..., then I ...' (a taught self-check frame), (2) a planned-step 'check' ('I check line 3'; moot for this list, kept for the record), (3) inside a quoted material line (the same lenient 5-word window matching as quotes, shared windows included)",
+  "burst": "3 or more hedges whose first and last fall within 200 thinking tokens of each other (last - first < 200); overlapping bursts merge",
+  "burst_before_answer": "the last hedge of a burst falls in the final 10% of the trace's thinking tokens",
+  "gap_unit": "tokens (no streaming timestamps): the stage-1 harness calls model.generate once and records only total seconds per turn"
+ },
+ "hedge_phrases": [
+  "wait",
+  "hmm",
+  "actually",
+  "hold on",
+  "let me re-check",
+  "let me recheck",
+  "let me check again",
+  "let me reconsider",
+  "let me re-read",
+  "let me reread",
+  "on second thought",
+  "i'm not sure",
+  "i am not sure",
+  "maybe i",
+  "or maybe",
+  "did i",
+  "am i missing",
+  "that doesn't seem right",
+  "that can't be right",
+  "let me start over",
+  "going back",
+  "again,"
+ ],
+ "hedge_phrases_note": "fixed by R&D before any count was seen; not pruned after measuring, although 'wait' carries 54 of the 64 untrained hits",
+ "burst_parameters": {
+  "window_tokens": 200,
+  "k": 3,
+  "fixed": "a priori, before measuring: 64 hedge hits in 102 untrained traces are too few to tune two parameters without fitting noise",
+  "recorded_only": "max_in_window for W in 100, 200 and 400"
+ },
+ "p95_thinking_tokens_by_tier": {
+  "1": 575,
+  "2": 575,
+  "3": 572,
+  "4": 572,
+  "5": 453,
+  "6": 453,
+  "7+": 575
+ },
+ "p95_pooling": {
+  "3": "with 4 (n 9 < 20), pooled n 63",
+  "6": "with 5 (n 3 < 20), pooled n 39",
+  "1, 2, 7+": "all tiers pooled (not covered by DEV), n 102"
+ },
+ "p95_raw_by_tier": {
+  "3": [
+   327,
+   9
+  ],
+  "4": [
+   617,
+   54
+  ],
+  "5": [
+   270,
+   36
+  ],
+  "6": [
+   623,
+   3
+  ]
+ },
+ "reread_rate_p95": 8.09,
+ "reread_baseline_provenance": {
+  "source": "untrained pilot-30 baseline traces, seeds 0-2 (no sealed data)",
+  "turns": 102,
+  "p50": 0.0,
+  "p75": 4.2,
+  "p90": 6.89,
+  "p95": 8.09,
+  "max": 10.79,
+  "tokens": "the student's tokenizer"
+ },
+ "measured": {
+  "hedge_rate": {
+   "status": "measured; replaced as a trigger by the burst clause, recorded as a measure",
+   "untrained_pilot30": {
+    "turns": 102,
+    "zero_share": 0.745,
+    "p50": 0.0,
+    "p75": 1.75,
+    "p90": 5.35,
+    "p95": 8.32,
+    "max": 12.32,
+    "by_phrase": {
+     "wait": 54,
+     "hmm": 4,
+     "again,": 2,
+     "actually": 2,
+     "or maybe": 1,
+     "let me recheck": 1
+    }
+   },
+   "role_D_targets": {
+    "n": 48,
+    "zero_share": 0.979,
+    "p50": 0.0,
+    "p95": 0.0,
+    "max": 7.09,
+    "note": "the one hit is taught falsifier phrasing ('What does the comparison bullet actually list?')"
+   },
+   "no_role_D_targets": {
+    "n": 20,
+    "zero_share": 1.0,
+    "max": 0.0,
+    "note": "one 'actually' inside a quoted material line, excluded by rule (3)"
+   },
+   "overlap": "6 untrained traces above 8.32: 1 also above the re-read baseline, 4 fire (A), 2 caught by neither (1 of them long)"
+  },
+  "burst": {
+   "untrained_pilot30": {
+    "traces_with_a_burst": "7/102",
+    "max_in_window_W200": {
+     "0": 76,
+     "1": 15,
+     "2": 4,
+     "3": 3,
+     "4": 3,
+     "5": 1
+    },
+    "burst_before_answer": 1
+   },
+   "role_D_targets": "0/48 with a burst (max_in_window 0 in 47, 1 in 1)",
+   "no_role_D_targets": "0/20",
+   "untrained_burst_traces": [
+    [
+     "pl-05e8c65a45",
+     689,
+     "long",
+     "(A)"
+    ],
+    [
+     "pl-04721b05cb",
+     579,
+     "long",
+     "hedge rate"
+    ],
+    [
+     "pl-05e8c65a45",
+     839,
+     "long",
+     "(A), hedge rate"
+    ],
+    [
+     "pl-cfc57dfb00",
+     692,
+     "long",
+     "(A), hedge rate"
+    ],
+    [
+     "pl-cfc57dfb00",
+     278,
+     "short",
+     "(A), re-read, hedge rate; burst before answer"
+    ],
+    [
+     "pl-f023f4754e",
+     509,
+     "short",
+     "(A), hedge rate"
+    ],
+    [
+     "pl-05e8c65a45",
+     406,
+     "short",
+     "hedge rate"
+    ]
+   ],
+   "decision": "join as a third signal: (a) pass, (b) pass, (c) fail (every long burst trace already caught); replace the hedge-rate clause: passes (catches all 3 long traces the rate catches; 0 ROLE / 0 NO-ROLE false positives, as for the rate)",
+   "note": "on this baseline the long-trace catch is identical to the hedge rate's; the burst is the sharper definition on trained models"
+  }
+ },
+ "dropped_before_freezing": {
+  "branch": "not progressing = no new material line first quoted in the final 30% of the trace",
+  "why": "it held for almost every trace, so (C) would have collapsed to 'long'",
+  "measured": {
+   "untrained_pilot_turns": "98/102",
+   "role_D_targets_batch2_batch3": "48/48"
+  }
+ },
+ "pending": {
+  "eval_record_firewall_test": "an eval-sitting record carries the hedge fields but is refused by the store's write path; lands with run.py's receipts module (owner: ASPIRE)"
+ },
+ "supersedes": "63928fea9c7ad264acda27d911ea8cf1c1285704c81babe1c95c85b86e432918"
+}

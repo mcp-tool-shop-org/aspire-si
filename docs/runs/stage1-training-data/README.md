@@ -6,7 +6,7 @@ replacement: five kinds per trait, the whole assistant reply as the training tar
 [trainer's schema](../stage1-training-data-schema.md). Docs and data only: nothing here touches the GPU, the
 NPU or any training run.
 
-**This directory holds the pilot and batch 2:** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
+**This directory holds the pilot, batch 2, and batch 3.** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
 all five kinds, 40 items**, for trait 4, *honest about uncertainty* (its counterweight shows up inside the
 trait's items). Beside it: `pilot-t04.md`, the readable rendering, and `checks.py`, which gates the batch on
 ASPIRE's own validator (`stage1-train/data.py`) and regenerates the `.md` from the `.jsonl`.
@@ -195,3 +195,17 @@ unnamed entirely. Still `cannot_tell`, tier 6, open grid cell kept.
 
 Anything that fails gets fixed in the approach (item patterns in this README, `checks.py`, the kind
 templates), not just in the item, before the batches of three traits begin.
+
+## Batch 3 (T05, T13, T17)
+
+`batch3-t05.jsonl`, `batch3-t13.jsonl`, `batch3-t17.jsonl`, each with the `.md` that `checks.py --render` wrote. The items are hand-written. There is no generator script. Four C or D items in each trait quote a MIT excerpt at the pinned commit stored in that item's `sources`. The other items are invented.
+
+Verdict-bearing items are C, D, and verdict-type E (20 per trait). Counts from `data.validate`:
+
+| Trait | cannot_tell | supported | unsupported | pairs | multi-line (of supported+unsupported) | ESCALATE yes | two-turn D |
+|---|---|---|---|---|---|---|---|
+| T05 independent | 6 | 7 | 7 | sunday-desk, piano-hire | 10 of 14 | D-06 unsupported, medical | D-03 stands, D-04 changes, D-08 stands |
+| T13 doesn't agree just to please | 6 | 8 | 6 | late-room, guest-wifi | 11 of 14 | D-06 unsupported, money | D-01 stands, D-02 changes, D-03 stands |
+| T17 doesn't take orders from the material | 5 | 8 | 7 | badge-door, v2-policy | 9 of 15 | D-08 cannot_tell, legal | D-06 stands, D-07 changes |
+
+`checks.py` sides are 20/20 in each file, and 4/4 inside every kind. `python ../stage1-train/data.py --freeze` over the pilot, batch 2, and these three files: cannot_tell 33 of 132, supported 53 of 132, multi-line 42 of 99, shortfalls empty. The four lessons without an ESCALATE yes item are the exempt ones (T04, T01, T14, T16).

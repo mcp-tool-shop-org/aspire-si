@@ -40,24 +40,39 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 0,
-      "changed": 3,
+      "added": 11,
+      "changed": 5,
       "moved": 0,
-      "parts": 0,
+      "parts": 2,
       "removed": 0
     },
     "items": [
       {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-train/stuck.py is now read by docs/runs/stage1-stuck-rule.json.",
+        "subjects": [
+          "docs/runs/stage1-train/stuck.py",
+          "docs/runs/stage1-stuck-rule.json"
+        ]
+      },
+      {
+        "kind": "unassigned",
+        "sentence": "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py is new and belongs to no part, so atlas check fails on it against the previous map.",
+        "subjects": [
+          "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py"
+        ]
+      },
+      {
         "kind": "counts",
-        "sentence": "Nothing structural changed since 2026-10-10; 3 files changed content.",
+        "sentence": "11 files added and 5 changed content, across 2 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "dd0323009f2cc65d8d1f28f0f6e1e0ca9a9515cc",
-      "generatedAt": "2026-10-10T20:17:45.908Z"
+      "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
+      "generatedAt": "2026-10-10T20:58:09.965Z"
     },
-    "unchanged": true
+    "unchanged": false
   },
   "changesTogether": [
     {
@@ -97,9 +112,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "802fc8737265bfe1b5724a7955b764fb8096eb60",
+  "commit": "4ba99b28d3dd24cbdd9eb18d411425d9d543572b",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (209 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (213 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -272,14 +287,14 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-10T20:58:09.965Z",
+  "generatedAt": "2026-10-11T01:44:01.290Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "11 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 8 more.",
+    "12 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 9 more.",
     "5 writes and 33 reads use paths built at run time and are not named here.",
-    "59 writes and 67 reads go to a path their caller passes, not to this repository.",
+    "59 writes and 69 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
-    "9 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 6 more.",
+    "10 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 7 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
   ],
   "mainDoor": ".github/workflows/ci.yml",
@@ -329,7 +344,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 86,
+  "testFiles": 88,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
@@ -348,7 +363,7 @@
   "unreadNote": [],
   "untested": [],
   "untestedNote": [
-    "7 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 4 more."
+    "9 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 6 more."
   ],
   "written": 2
 }
