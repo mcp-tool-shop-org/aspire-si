@@ -40,42 +40,72 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 17,
-      "changed": 24,
+      "added": 9,
+      "changed": 25,
       "moved": 0,
-      "parts": 1,
+      "parts": 2,
       "removed": 0
     },
     "items": [
       {
         "kind": "landing",
-        "sentence": "docs/runs/stage1-eval/ is now also read by docs/runs/stage1-training-data/_audit_drift.py.",
+        "sentence": "docs/runs/stage1-eval/ is now also read by docs/runs/stage1-train/test_order.py.",
         "subjects": [
           "docs/runs/stage1-eval/",
-          "docs/runs/stage1-training-data/_audit_drift.py"
+          "docs/runs/stage1-train/test_order.py"
         ]
       },
       {
         "kind": "landing",
-        "sentence": "docs/runs/stage1-train/ is now also read by docs/runs/stage1-training-data/_audit_drift.py.",
+        "sentence": "docs/runs/stage1-train/tiny_train.py is now also read by docs/runs/stage1-train/test_order.py.",
         "subjects": [
-          "docs/runs/stage1-train/",
-          "docs/runs/stage1-training-data/_audit_drift.py"
+          "docs/runs/stage1-train/tiny_train.py",
+          "docs/runs/stage1-train/test_order.py"
         ]
       },
       {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-training-data/ is now also read by docs/runs/stage1-train/test_order.py, docs/runs/stage1-train/test_quiz.py and docs/runs/stage1-train/test_validate_union.py.",
+        "subjects": [
+          "docs/runs/stage1-training-data/",
+          "docs/runs/stage1-train/test_order.py",
+          "docs/runs/stage1-train/test_quiz.py",
+          "docs/runs/stage1-train/test_validate_union.py"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "And 1 more new writer or reader of a place.",
+        "subjects": []
+      },
+      {
         "kind": "counts",
-        "sentence": "17 files added and 24 changed content, across 1 part.",
+        "sentence": "9 files added and 25 changed content, across 2 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "1a25b97cd834d0b50b4952f1d4506b8c27fa6c45",
-      "generatedAt": "2026-10-11T05:30:48.792Z"
+      "commit": "e36a30d3c79d7f27fcc1ec2997e4e3a5c8f0d3be",
+      "generatedAt": "2026-10-11T19:13:33.343Z"
     },
     "unchanged": false
   },
   "changesTogether": [
+    {
+      "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+      "b": "packages/aspire-si-gates/tests/test_package.py",
+      "either": 6,
+      "partLabels": [
+        null,
+        null
+      ],
+      "parts": [
+        null,
+        null
+      ],
+      "relation": "unassigned",
+      "shared": 6
+    },
     {
       "a": "examples/sft-experiment/critic_heads.py",
       "b": "examples/sft-experiment/critic_heads_run.py",
@@ -90,6 +120,36 @@
       ],
       "relation": "inside",
       "shared": 8
+    },
+    {
+      "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+      "b": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
+      "either": 6,
+      "partLabels": [
+        null,
+        null
+      ],
+      "parts": [
+        null,
+        null
+      ],
+      "relation": "unassigned",
+      "shared": 5
+    },
+    {
+      "a": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
+      "b": "packages/aspire-si-gates/tests/test_package.py",
+      "either": 6,
+      "partLabels": [
+        null,
+        null
+      ],
+      "parts": [
+        null,
+        null
+      ],
+      "relation": "unassigned",
+      "shared": 5
     },
     {
       "a": "aspire/config.py",
@@ -113,9 +173,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "e36a30d3c79d7f27fcc1ec2997e4e3a5c8f0d3be",
+  "commit": "cfcabcd0db9268efc5f0d51b1e347a92e15e1cae",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (220 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (229 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -288,12 +348,12 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-11T19:13:33.343Z",
+  "generatedAt": "2026-10-11T19:52:43.343Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "12 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 9 more.",
-    "15 writes and 34 reads use paths built at run time and are not named here.",
-    "65 writes and 77 reads go to a path their caller passes, not to this repository.",
+    "15 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 12 more.",
+    "16 writes and 35 reads use paths built at run time and are not named here.",
+    "66 writes and 82 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "11 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 8 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
@@ -345,26 +405,19 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 92,
+  "testFiles": 98,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
     "integrations": 21
   },
-  "unnamedWrites": 15,
-  "unread": [
-    {
-      "place": "docs/runs/stage1-training-data/",
-      "writers": [
-        "docs (7 files)"
-      ]
-    }
-  ],
+  "unnamedWrites": 16,
+  "unread": [],
   "unreadFiles": 0,
   "unreadNote": [],
   "untested": [],
   "untestedNote": [
-    "13 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 10 more."
+    "19 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 16 more."
   ],
   "written": 2
 }

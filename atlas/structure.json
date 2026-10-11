@@ -1812,10 +1812,10 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 12,
+      "dynamicReads": 13,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
-      "dynamicWrites": 12,
+      "dynamicWrites": 13,
       "entryPoints": [],
       "externals": 0,
       "files": [
@@ -2171,19 +2171,19 @@
           "path": "docs/runs/stage1-student-weights.md"
         },
         {
-          "hash": "6db74657a50d59be229f7ea81e5a55170b5a76d8856eb23797540822996b967b",
+          "hash": "b7b8f22fcae6458d5fabbfa3775bf181e866d7b7e61285a535dc751793813a50",
           "path": "docs/runs/stage1-taskset/taskset-pilot-20.jsonl"
         },
         {
-          "hash": "801387fcb5f74cd086d7534c8af060d80312684b200902106df9a94744cd7ea6",
+          "hash": "8dfe4057aeac733f36df518e0cf5741cfa3d939c4a64a18206232eab5601e4eb",
           "path": "docs/runs/stage1-taskset/taskset-pilot-20.md"
         },
         {
-          "hash": "b97652353deb1d674d1542dbf4b5fe582c8934297153c87cbfada71760ea7771",
+          "hash": "5f8961dd364fab4a69223c4fc2cc28ba634f361f472830fc246e487e05bb0fa1",
           "path": "docs/runs/stage1-taskset/taskset-review-10.jsonl"
         },
         {
-          "hash": "87353b55ccf1d265982a4efd7120edf0941e54572afe9a5af863d1877376497f",
+          "hash": "f185603c4c72f23b25fce557bb7d84aea8746d761279bdf106a7d298b7932491",
           "path": "docs/runs/stage1-taskset/taskset-review-10.md"
         },
         {
@@ -2219,20 +2219,37 @@
         {
           "exports": [
             "main",
+            "sealed_read_allowed",
             "sha256_file"
           ],
           "failurePaths": [
             {
               "in": "main",
               "kind": "raise",
-              "line": 53
+              "line": 66
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 76
             }
           ],
-          "hash": "eb03bb2d400b9ec620205684a4ce7df477d3ec39669e6d1fc5f8ead221c86b6d",
+          "hash": "52a300dbc9f28a3f33ef25dbf2b0484518e7407af1a35b83fff0d7e8d8db9614",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py"
           ],
           "path": "docs/runs/stage1-train/eval_adapter.py"
+        },
+        {
+          "failurePaths": [
+            {
+              "in": "record",
+              "kind": "raise",
+              "line": 86
+            }
+          ],
+          "hash": "a594e7e1b44a4bf750f7181978d61ba4fcddc3987dd4586de8cb2998abb518d3",
+          "path": "docs/runs/stage1-train/ledger.py"
         },
         {
           "exports": [
@@ -2315,6 +2332,63 @@
         },
         {
           "exports": [
+            "base_key",
+            "load_variants",
+            "main",
+            "material_spans",
+            "prompt_for",
+            "quiz_type",
+            "readout",
+            "score_sample",
+            "sit",
+            "stuck_fields",
+            "trained_spans"
+          ],
+          "failurePaths": [
+            {
+              "in": "prompt_for",
+              "kind": "raise",
+              "line": 74
+            },
+            {
+              "in": "load_variants",
+              "kind": "raise",
+              "line": 155
+            },
+            {
+              "in": "sit",
+              "kind": "except",
+              "line": 193
+            },
+            {
+              "in": "write",
+              "kind": "except",
+              "line": 286
+            }
+          ],
+          "hash": "f1fda80a82fa4191169b087c52e82356e69579f9ce9d455a043318e20d02d75c",
+          "importOrder": [
+            "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/stuck.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "docs/runs/stage1-train/ledger.py",
+            "docs/runs/stage1-train/receipts.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/ledger.py",
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/stuck.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
+          ],
+          "path": "docs/runs/stage1-train/quiz.py"
+        },
+        {
+          "exports": [
             "ids_in",
             "interview_questions",
             "sha256_file",
@@ -2326,17 +2400,12 @@
             {
               "in": "interview_questions",
               "kind": "raise",
-              "line": 105
+              "line": 108
             },
             {
               "in": "interview_questions",
               "kind": "raise",
-              "line": 107
-            },
-            {
-              "in": "load",
-              "kind": "raise",
-              "line": 125
+              "line": 110
             },
             {
               "in": "load",
@@ -2344,14 +2413,14 @@
               "line": 128
             },
             {
-              "in": "check",
+              "in": "load",
               "kind": "raise",
-              "line": 145
+              "line": 131
             },
             {
               "in": "check",
               "kind": "raise",
-              "line": 147
+              "line": 148
             },
             {
               "in": "check",
@@ -2366,7 +2435,7 @@
             {
               "in": "check",
               "kind": "raise",
-              "line": 155
+              "line": 156
             },
             {
               "in": "check",
@@ -2374,37 +2443,42 @@
               "line": 158
             },
             {
-              "in": "__init__",
+              "in": "check",
               "kind": "raise",
-              "line": 165
+              "line": 161
             },
             {
               "in": "__init__",
               "kind": "raise",
-              "line": 167
+              "line": 168
             },
             {
               "in": "__init__",
               "kind": "raise",
-              "line": 169
+              "line": 170
+            },
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 172
             },
             {
               "in": "write",
               "kind": "raise",
-              "line": 182
+              "line": 185
             },
             {
               "in": "write",
               "kind": "except",
-              "line": 187
+              "line": 190
             },
             {
               "in": "write",
               "kind": "raise",
-              "line": 189
+              "line": 192
             }
           ],
-          "hash": "864a2f8ab5d74aae5e1edf68e3aad05d40e5f22449d83bec1ea85f4af4bc2ba9",
+          "hash": "7ba59027339e99dfc245de5e7f38d7e1f56fb1fd9b28642af3d133803d358b4b",
           "path": "docs/runs/stage1-train/receipts.py"
         },
         {
@@ -2473,10 +2547,10 @@
             {
               "in": "backup",
               "kind": "except",
-              "line": 544
+              "line": 545
             }
           ],
-          "hash": "bf17623b7ebc6242ffac5f1a6df93bc907b1a5ad8c5e375aea65ec41a58a5642",
+          "hash": "fea8f7d686a6bfa2d429a7d2ebcd9ff9b143bef1ad9cd24d6a0560474dcb28be",
           "importsFiles": [
             "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/train.py",
@@ -2498,6 +2572,24 @@
           ],
           "hash": "8097b0398ade5e57989ee78f4d9a74a134f2aaefef358c19be0daaad8df13afa",
           "path": "docs/runs/stage1-train/stuck.py"
+        },
+        {
+          "exports": [
+            "load_frozen",
+            "rule_for_judge"
+          ],
+          "failurePaths": [
+            {
+              "in": "load_frozen",
+              "kind": "raise",
+              "line": 28
+            }
+          ],
+          "hash": "9adcaadbcd481356875c199b9d2afc878613a79d6c8e10dcfe9cfe43dd789dde",
+          "importsFiles": [
+            "docs/runs/stage1-train/stuck.py"
+          ],
+          "path": "docs/runs/stage1-train/stuck_adapter.py"
         },
         {
           "exports": [
@@ -2562,6 +2654,40 @@
         },
         {
           "exports": [
+            "setup",
+            "test_a_frozen_set_adapter_may_sit_the_sealed_set",
+            "test_a_partial_set_adapter_is_refused_on_the_sealed_set",
+            "test_an_adapter_without_a_manifest_is_refused_on_the_sealed_set",
+            "test_any_adapter_may_sit_tasks_other_than_the_sealed_set"
+          ],
+          "hash": "15ebf50999f5b62352c53333c0d126949a61b743e9fe44149e73d50a8f21de74",
+          "importsFiles": [
+            "docs/runs/stage1-train/eval_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/test_eval_adapter.py"
+        },
+        {
+          "exports": [
+            "ask",
+            "fresh",
+            "test_a_wrong_answer_returns_to_box_1_next_session_and_counts_a_forgetting_event",
+            "test_a_wrong_twin_breaks_the_streak",
+            "test_mastery_needs_a_three_streak_over_two_boxes_then_a_right_twin",
+            "test_quality_mastery_needs_95_percent_of_items_and_90_percent_on_twins",
+            "test_right_answers_climb_the_boxes_with_doubling_intervals",
+            "test_save_and_load_round_trip",
+            "test_variants_are_never_repeated_and_an_exhausted_family_is_closed",
+            "test_variants_go_in_order_from_the_items_own"
+          ],
+          "hash": "663c7edf8dcf45dc76cd2b91888dec7717d659482d8a5024a029b4c0c5b634ff",
+          "importsFiles": [
+            "docs/runs/stage1-train/ledger.py"
+          ],
+          "path": "docs/runs/stage1-train/test_ledger.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "by_id",
             "count",
             "rows",
@@ -2590,18 +2716,82 @@
         },
         {
           "exports": [
+            "seqs_of",
+            "test_a_lesson_order_must_name_every_lesson_once",
+            "test_a_resume_under_another_order_is_refused",
+            "test_a_variants_text_never_appears_in_a_training_sequence",
+            "test_every_order_trains_every_sequence_once",
+            "test_listed_trains_one_lesson_at_a_time_in_the_given_order",
+            "test_round_robin_takes_one_from_each_lesson_in_turn",
+            "test_shuffled_draws_exactly_as_the_trainer_always_has",
+            "test_the_order_is_reproducible_from_the_seed_and_changes_with_it"
+          ],
+          "hash": "2faa2c718ca3a4a0e2c4adbcb34b338037c3c6449c7958dc06c28e7f79e83b96",
+          "importOrder": [
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/train.py",
+            "docs/runs/stage1-eval/student.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-eval/student.py",
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/train.py"
+          ],
+          "names": [
+            "docs/runs/stage1-train/tiny_train.py"
+          ],
+          "path": "docs/runs/stage1-train/test_order.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "count",
+            "model",
+            "sit",
+            "test_a_miss_returns_next_session_with_a_fresh_variant_from_the_store",
+            "test_a_variant_that_was_trained_on_is_spent_not_asked",
+            "test_a_verdict_variant_passes_only_when_all_three_lines_pass",
+            "test_an_item_whose_material_is_not_in_its_turn_is_refused_not_approximated",
+            "test_closed_form_is_scored_by_the_letter_and_free_text_written_items_stay_out",
+            "test_majority_of_three_decides_and_every_sample_is_a_row",
+            "test_readout_reports_n0_beside_n_ge_1_and_star_off",
+            "test_the_first_ask_is_the_items_own_variant_with_its_material_never_the_trained_turn",
+            "three_lines"
+          ],
+          "hash": "d8a1cb9e6bdf377bab47c13372c49fc775e815461a106cf8faeb6f408b176c21",
+          "importOrder": [
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/quiz.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "docs/runs/stage1-train/ledger.py",
+            "docs/runs/stage1-train/receipts.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/ledger.py",
+            "docs/runs/stage1-train/quiz.py",
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/stuck_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/test_quiz.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "fw",
             "imports_of",
             "test_a_clean_row_lands_at_the_path_its_header_names",
+            "test_a_crlf_checkout_of_a_held_out_file_still_arms_the_firewall",
             "test_an_evaluation_record_is_refused",
             "test_sources_and_arms_are_closed",
             "test_the_evaluation_code_never_imports_the_receipt_writer",
             "test_the_firewall_refuses",
             "test_the_firewall_refuses_to_arm_on_a_changed_or_missing_file",
             "test_the_interview_questions_are_read_without_importing_interview_py",
+            "test_the_repository_dev_files_match_their_pins_however_they_are_checked_out",
             "writer"
           ],
-          "hash": "547a17eea3e77fb1a9fa243597f65fd6c289d0e9b9dc2427af6ca599f34fc326",
+          "hash": "ea7e7e067ca3181238b801a2f90f24506a9583a40614d00c55b73349aca88902",
           "importsFiles": [
             "docs/runs/stage1-train/receipts.py"
           ],
@@ -2635,13 +2825,15 @@
             "trainer_processes",
             "unmounted_drive"
           ],
-          "hash": "5bc48921737bf7a193943cc88478fd242e248407c69192eef0df602a80c23a28",
+          "hash": "237ec9d6418976764dcba86af49abf9d9a53a08d292ecc0e16ad32312d1c1eed",
           "importOrder": [
+            "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/run.py",
             "docs/runs/stage1-eval/student.py"
           ],
           "importsFiles": [
             "docs/runs/stage1-eval/student.py",
+            "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/run.py"
           ],
           "names": [
@@ -2693,6 +2885,37 @@
         },
         {
           "exports": [
+            "test_the_frozen_file_passed_straight_to_judge_fails",
+            "test_the_mapped_frozen_rule_judges"
+          ],
+          "hash": "786af9083acda2e4ff29361960a936b5a681fa2522ba23fd35e6bd93d05265b9",
+          "importsFiles": [
+            "docs/runs/stage1-train/stuck.py",
+            "docs/runs/stage1-train/stuck_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/test_stuck_adapter.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "test_batches_that_each_pass_are_accepted_together_when_only_a_batch_cap_would_fail",
+            "test_files_group_into_batches_by_their_prefix",
+            "test_part_of_the_data_is_refused_unless_marked_as_a_partial_set",
+            "test_the_batch_cap_still_holds_inside_one_batch",
+            "test_the_whole_current_dataset_validates_for_training",
+            "three_lessons_share_a_signature"
+          ],
+          "hash": "d79c8cfa13a9a94913a9a593a012ecb855a1d0d981feebdd9197d5edafb4dd11",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+          ],
+          "path": "docs/runs/stage1-train/test_validate_union.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "install_faults",
             "main",
             "out_dir",
@@ -2711,7 +2934,7 @@
               "line": 103
             }
           ],
-          "hash": "121f74317b3a0d099a3705395ae6b86352fab1b0fa58d615450decb1acce3457",
+          "hash": "d0a5d73ad967c2bfe8e582111cf839f671ccd333896a5ff06f13f4595efc1d2a",
           "importsFiles": [
             "docs/runs/stage1-train/train.py"
           ],
@@ -2722,12 +2945,14 @@
             "build",
             "code_hash",
             "find_checkpoint",
+            "lesson_sequence",
             "machine",
             "main",
             "near_caps",
             "save_checkpoint",
             "sha256_file",
             "train",
+            "training_order",
             "trim_loss_log",
             "with_retry",
             "write_atomic"
@@ -2736,82 +2961,77 @@
             {
               "in": "with_retry",
               "kind": "except",
-              "line": 120
+              "line": 130
             },
             {
               "in": "with_retry",
               "kind": "raise",
-              "line": 123
+              "line": 133
             },
             {
               "in": "with_retry",
               "kind": "raise",
-              "line": 126
+              "line": 136
             },
             {
               "in": "build",
               "kind": "raise",
-              "line": 145
+              "line": 155
+            },
+            {
+              "in": "lesson_sequence",
+              "kind": "raise",
+              "line": 168
+            },
+            {
+              "in": "lesson_sequence",
+              "kind": "raise",
+              "line": 173
+            },
+            {
+              "in": "training_order",
+              "kind": "raise",
+              "line": 182
             },
             {
               "in": "_read",
               "kind": "except",
-              "line": 216
+              "line": 268
             },
             {
               "in": "check",
               "kind": "raise",
-              "line": 229
-            },
-            {
-              "in": "check",
-              "kind": "raise",
-              "line": 231
-            },
-            {
-              "in": "main",
-              "kind": "raise",
-              "line": 263
-            },
-            {
-              "in": "main",
-              "kind": "except",
               "line": 281
             },
             {
-              "in": "train",
+              "in": "check",
+              "kind": "raise",
+              "line": 283
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 326
+            },
+            {
+              "in": "main",
               "kind": "except",
-              "line": 296
-            },
-            {
-              "in": "train",
-              "kind": "raise",
-              "line": 297
-            },
-            {
-              "in": "train",
-              "kind": "raise",
-              "line": 341
-            },
-            {
-              "in": "train",
-              "kind": "except",
-              "line": 371
-            },
-            {
-              "in": "train",
-              "kind": "raise",
-              "line": 378
+              "line": 347
             },
             {
               "in": "train",
               "kind": "except",
-              "line": 400
+              "line": 362
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 402
+              "line": 363
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 406
             },
             {
               "in": "train",
@@ -2820,11 +3040,36 @@
             },
             {
               "in": "train",
+              "kind": "except",
+              "line": 438
+            },
+            {
+              "in": "train",
               "kind": "raise",
-              "line": 413
+              "line": 445
+            },
+            {
+              "in": "train",
+              "kind": "except",
+              "line": 467
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 469
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 475
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 480
             }
           ],
-          "hash": "f7197f2f68826d6bba01ce3ca4a51c7c0868d0429de729d42296b618d1d4fa08",
+          "hash": "d164ec2c14eb53fe03464057c862dfbfd2472d237e7334112b90b333962b5099",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py",
             "docs/runs/stage1-train/data.py",
@@ -3232,15 +3477,15 @@
           "path": "docs/runs/stage1-training-data/_verify_sources.py"
         },
         {
-          "hash": "14569bf40f898103076d54fb831ee0b004e8dd472bcc3ecbc077344c6659936a",
+          "hash": "ccfe86c0099332794c39653704ea95fcabda51b76a230da686d550297ae0f97e",
           "path": "docs/runs/stage1-training-data/batch2-t01.jsonl"
         },
         {
-          "hash": "f74e57388f16fcdef31882cb1c17b9636473177f9fd64e467d5accaf44c3f7e8",
+          "hash": "05354e5580b98794a87c98731c9dac579cb62f04e1995133b3fc68aa3fe95b18",
           "path": "docs/runs/stage1-training-data/batch2-t01.md"
         },
         {
-          "hash": "d32ac0bef8c0de6b707cc469ad3a78bc8053bd9cd3595546565e1910f5d40ee9",
+          "hash": "b047a2e3808e5cf5367ca3c489819733d1162393d9bc1a779cbbafcd385a0d6b",
           "path": "docs/runs/stage1-training-data/batch2-t01.models.jsonl"
         },
         {
@@ -3256,15 +3501,15 @@
           "path": "docs/runs/stage1-training-data/batch2-t14.models.jsonl"
         },
         {
-          "hash": "78d7e81a464ac440bb304dbd514d250aa2fb6e9f1c92d356dffb547b0c7bf2dd",
+          "hash": "07263ff6489e63f0acc2e93e5e0503905ab812cea6a6bce8f63c814709171195",
           "path": "docs/runs/stage1-training-data/batch2-t16.jsonl"
         },
         {
-          "hash": "056ceb234d3256710fa340133e2bc261efdb8eafae5a731c69e76e9a39558863",
+          "hash": "2410a49f9838a21e05c99f15a7bd50d6b2d9500ce9b7622ee32241e4aefb302b",
           "path": "docs/runs/stage1-training-data/batch2-t16.md"
         },
         {
-          "hash": "5c2b98b4355645df35b153a3d22af6417cf863001a59e49479a69dbd067dbaf2",
+          "hash": "e4362f9bc1886f14ab2fc453c3170c28c70573301ec3b65a9acdfbcce08a0641",
           "path": "docs/runs/stage1-training-data/batch2-t16.models.jsonl"
         },
         {
@@ -3304,15 +3549,15 @@
           "path": "docs/runs/stage1-training-data/batch3-t17.models.jsonl"
         },
         {
-          "hash": "d17133799b8c86a45e46c996baa5704ce7b4c0ff6a439bfcded7af5d1f78288d",
+          "hash": "2fe1621f6eba347a915e80de90eefa07587ea87f9e68f9028eea73d40222a7c5",
           "path": "docs/runs/stage1-training-data/batch4-t02.jsonl"
         },
         {
-          "hash": "36fe19d880818c354ebb036c3c2951ee662d0c0415045a35ac3af2eedf68313b",
+          "hash": "2c29dcb47f132df3551eb2c6a17b6d0ce736504347eae22c6997fe95bdbced06",
           "path": "docs/runs/stage1-training-data/batch4-t02.md"
         },
         {
-          "hash": "3d6f5d54285d67a5847088ca8cfecfff34ed44a2487632992ca0168f8d51f37e",
+          "hash": "f36c8ccc0ff15a5d8de14684b8e9c1509059a1c8b9111fb7f32a8ee4ee3e1624",
           "path": "docs/runs/stage1-training-data/batch4-t02.models.jsonl"
         },
         {
@@ -3401,17 +3646,17 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 14,
+          "reads": 19,
           "where": [
             "caller"
           ],
-          "writes": 8
+          "writes": 9
         }
       ],
-      "outsideReads": 14,
-      "outsideWrites": 8,
+      "outsideReads": 19,
+      "outsideWrites": 9,
       "role": "docs",
-      "testedBy": 11,
+      "testedBy": 17,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
@@ -3429,7 +3674,7 @@
           "why": "unplaced"
         }
       ],
-      "unresolvedSites": 10
+      "unresolvedSites": 13
     },
     {
       "dynamicReads": 14,
@@ -4889,7 +5134,7 @@
       "externals": 0,
       "files": [
         {
-          "hash": "8dfdef09ac96ca7fc68e61ef8683251cc9e4a0e8ac3e692e59c60c6e9da5fbc9",
+          "hash": "3be27c946a6943fe1a93a828fc8d49b49df7fc092b081dbf15ac98cac4b0d38a",
           "path": ".gitattributes"
         },
         {
@@ -6826,8 +7071,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "e36a30d3c79d7f27fcc1ec2997e4e3a5c8f0d3be",
-    "tracked": 370
+    "commit": "cfcabcd0db9268efc5f0d51b1e347a92e15e1cae",
+    "tracked": 379
   },
   "landings": [
     {
@@ -6912,6 +7157,12 @@
           "by": "docs/runs/stage1-train/_evaldir.py",
           "call": "literal",
           "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-train/test_order.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
         },
         {
           "by": "docs/runs/stage1-train/test_receipts.py",
@@ -7103,6 +7354,12 @@
     {
       "readers": [
         {
+          "by": "docs/runs/stage1-train/test_order.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
           "by": "docs/runs/stage1-train/test_runner.py",
           "call": "literal",
           "confidence": "ast",
@@ -7125,6 +7382,24 @@
     },
     {
       "readers": [
+        {
+          "by": "docs/runs/stage1-train/test_order.py",
+          "call": "glob",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "docs/runs/stage1-train/test_quiz.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "docs/runs/stage1-train/test_validate_union.py",
+          "call": "glob",
+          "confidence": "ast",
+          "fromTests": true
+        },
         {
           "by": "docs/runs/stage1-training-data/_fix_batch2.py",
           "call": "read_text",
@@ -7202,6 +7477,18 @@
         }
       ],
       "target": "docs/runs/stage1-training-data/batch2-t16.jsonl",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/test_quiz.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "docs/runs/stage1-training-data/batch3-t05.jsonl",
       "writers": []
     },
     {
@@ -7521,18 +7808,24 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 92,
+  "testFiles": 98,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
     "docs/runs/stage1-eval/test_score_v2.py",
     "docs/runs/stage1-train/test_answer_format.py",
     "docs/runs/stage1-train/test_data.py",
+    "docs/runs/stage1-train/test_eval_adapter.py",
+    "docs/runs/stage1-train/test_ledger.py",
     "docs/runs/stage1-train/test_no_role.py",
+    "docs/runs/stage1-train/test_order.py",
+    "docs/runs/stage1-train/test_quiz.py",
     "docs/runs/stage1-train/test_receipts.py",
     "docs/runs/stage1-train/test_runner.py",
     "docs/runs/stage1-train/test_scorer_rules.py",
     "docs/runs/stage1-train/test_stuck.py",
+    "docs/runs/stage1-train/test_stuck_adapter.py",
+    "docs/runs/stage1-train/test_validate_union.py",
     "docs/runs/stage1-training-data/test_checks.py",
     "packages/aspire-si-gates/tests/test_closed_form.py",
     "packages/aspire-si-gates/tests/test_package.py"
@@ -7543,14 +7836,14 @@
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "1338c5e4b6652fc995d4800ebaccf0db35172de07acd5ed54579f1e0f66085f8",
+      "hash": "dd2405182f3e3f2a173147813aeadb41e43df23ca040031508959da48bb9688c",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "8871a07d957743b8914caf4d11efc402beaca5f391448ac3a192cb4838bd5a6f",
+      "hash": "b8664ba4a40cdcff8782642d38769f21d7d4d3547b237dde2d1e3301094b1c64",
       "importOrder": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
         "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py",
@@ -7594,6 +7887,7 @@
     {
       "exports": [
         "a_lesson_ranks",
+        "batch_of",
         "batch_report",
         "check_batch",
         "check_floors",
@@ -7608,6 +7902,7 @@
         "check_puzzles",
         "check_spans",
         "check_stamps",
+        "closed_form_letters",
         "closed_form_options",
         "formulas",
         "framing_mismatch",
@@ -7626,6 +7921,7 @@
         "shared_spans",
         "trait_sections",
         "validate",
+        "validate_training_set",
         "ws"
       ],
       "failurePaths": [
@@ -7727,82 +8023,62 @@
         {
           "in": "freeze_report",
           "kind": "raise",
-          "line": 701
+          "line": 714
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 728
+          "line": 741
         },
         {
           "in": "_check_keys",
-          "kind": "raise",
-          "line": 731
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 733
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 736
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 738
-        },
-        {
-          "in": "_reply_matches",
           "kind": "raise",
           "line": 744
         },
         {
-          "in": "_reply_matches",
+          "in": "_check_keys",
           "kind": "raise",
-          "line": 748
+          "line": 746
         },
         {
-          "in": "_reply_matches",
+          "in": "_check_keys",
+          "kind": "raise",
+          "line": 749
+        },
+        {
+          "in": "_check_keys",
           "kind": "raise",
           "line": 751
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 754
+          "line": 757
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 756
+          "line": 761
+        },
+        {
+          "in": "_reply_matches",
+          "kind": "raise",
+          "line": 764
+        },
+        {
+          "in": "_reply_matches",
+          "kind": "raise",
+          "line": 767
+        },
+        {
+          "in": "_reply_matches",
+          "kind": "raise",
+          "line": 769
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 765
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 768
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 771
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 773
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 779
+          "line": 778
         },
         {
           "in": "check_item",
@@ -7817,47 +8093,42 @@
         {
           "in": "check_item",
           "kind": "raise",
+          "line": 786
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
           "line": 792
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 795
+          "line": 794
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 799
+          "line": 797
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 804
+          "line": 805
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 807
+          "line": 808
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 809
+          "line": 812
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 811
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 815
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 818
+          "line": 817
         },
         {
           "in": "check_item",
@@ -7877,90 +8148,140 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 826
+          "line": 828
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 830
+          "line": 831
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 832
+          "line": 833
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 846
+          "line": 835
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 853
+          "line": 837
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 855
+          "line": 839
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 862
+          "line": 843
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 845
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 859
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 866
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 868
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 875
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 891
+          "line": 904
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 893
+          "line": 906
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 897
+          "line": 910
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 899
+          "line": 912
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 902
+          "line": 915
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 905
+          "line": 918
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 911
+          "line": 924
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 914
+          "line": 927
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 985
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "except",
+          "line": 986
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 987
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "except",
+          "line": 990
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 992
         },
         {
           "in": "check_frames",
           "kind": "raise",
-          "line": 954
+          "line": 1009
         },
         {
           "in": "check_stamps",
           "kind": "raise",
-          "line": 973
+          "line": 1028
         }
       ],
-      "hash": "1d5f4beaa0ba19ee16c5b5a3828d15762a53df8a1de8f0fafcc956ffbf9ad1c6",
+      "hash": "267e00db8ab24d468d5b19cdfdcc40aff4bf3f70b95c53d8ebec0b885dc32951",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/answer_format.py",
         "packages/aspire-si-gates/src/aspire_si_gates/constants.py"
@@ -8015,7 +8336,7 @@
         "test_scorer_rules_are_exposed",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "3aa3e7236b7ed50a7a1000bb702cf2cf049ed8e017b73827ddcbe63ab5ada9c5",
+      "hash": "e7b20250fef61ff5b390cab106b7efcd2837f0c4036d9d68527ba1d8391b2ae7",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
