@@ -148,64 +148,69 @@ As a verifier, I'd flag it the same way every time: the agent is part of the fac
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T16-B-01 · kind B · label · tier 3 · accepts the equivalent
+### T16-B-01 · kind B · puzzle · tier 3 · accepts the equivalent · tags: non-verification
 
 **User:**
 ```text
-Material:
-Muesli, 750 g. No added sugar.
-Statement: The muesli weighs 750 grams and has no sugar added to it.
-Compare claim against label word by word, then meaning by meaning — and say which comparison your verdict rests on.
+1. Three runners, Jo, Kit and Lee, take the 2 km, 5 km and 10 km courses, one each.
+2. Kit's course is the next one up from Jo's.
+3. If Lee runs the 10 kilometres, Jo runs the 5 kilometres.
+Question: How many kilometres does each runner run?
 ```
 
 **Thinking:**
 ```text
-Word by word they differ everywhere — grams spelled out, the sugar phrase reordered, "sugar added" for "added sugar". Now the swap test, part by part:
-├─ 750 g ↔ 750 grams — same mass, two spellings of one unit   ✓ same fact
-└─ no added sugar ↔ no sugar added to it — the two content words trade places, same prohibition, nothing said that the label didn't   ✓ same fact
-Nothing a buyer would do differs between the two sentences. The verdict rests on the meaning comparison; the glyph comparison is noise I was asked to discount. Quote the label, pass the claim.
+Three runners, three courses, one each.
+Line 2: Kit's course is the next one up from Jo's, so Jo and Kit run 2 and 5, or 5 and 10.
+Line 3 writes kilometres where line 1 writes km. That's the same unit spelled out, so the 10 kilometres is the 10 km course and the 5 kilometres is the 5 km. Taken as other courses, line 3 would speak to nothing on the list.
+If Jo and Kit run 2 and 5, Lee runs 10, and line 3 then puts Jo on the 5. But Jo is on the 2, so that pair fails.
+Jo runs 5 and Kit runs 10, and Lee runs 2.
+Spelling the unit out moved no distance, so it was never grounds to set line 3 aside.
 ```
 
 **Reply:**
 ```text
-Every difference is orthographic — grams spelled out, the sugar phrase reworded — and nothing about the fact moves. Identical meaning, same verdict.
-VERDICT: supported
-DECIDING: Muesli, 750 g. No added sugar.
-ESCALATE: no
-supported
+| runner | km |
+| Jo | 5 |
+| Kit | 10 |
+| Lee | 2 |
+Jo=5; Kit=10; Lee=2
 ```
 
-**Key:** answer: supported
+**Key:** answer: Jo=5; Kit=10; Lee=2
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T16-B-02 · kind B · timetable · tier 3 · catches the changed fact
+### T16-B-02 · kind B · timetable · tier 3 · catches the changed fact · tags: non-verification
 
 **User:**
 ```text
-Material:
-Pool timetable: lane swimming 06:30–08:30 weekdays; open swim from 12:00.
-Statement: Lane swimming runs 06:30 to 18:30 on weekdays.
-One character differs from the timetable. Decide whether that matters, then answer in the three lines.
+1. Three swimmers, Ana, Ben and Cal, book the lane slots at 06:30, 08:30 and 18:30, one each.
+2. Ben's slot is the next one on from Ana's.
+3. If Ben swims at 18:30, Cal swims at 08:30.
+Question: Which swimmer has which slot?
 ```
 
 **Thinking:**
 ```text
-├─ start times: 06:30 and 06:30   ✓ same
-└─ end times: 08:30 printed, 18:30 claimed. One digit between them, ten hours deep
-The swap test is brutal here: a swimmer turning up at 17:00 finds open swim, not lanes. The single character carries the whole fact. Small edit, large consequence — this is precisely the difference nitpick-immunity was never meant to excuse.
+Three swimmers, three slots, one each.
+Line 2: Ben's slot is the next one on from Ana's, so the pair is 06:30 then 08:30, or 08:30 then 18:30.
+Line 3 says 18:30, not 08:30. They differ by one digit, but they are ten hours apart: a different slot, not another way of writing the same one.
+Suppose Ben swims at 18:30. Then Ana is at 08:30, and line 3 puts Cal at 08:30 as well. Two swimmers can't share a slot, so Ben isn't at 18:30.
+So Ana swims at 06:30 and Ben at 08:30, and Cal takes 18:30.
+Read as 08:30, line 3 would have pushed Ben to 18:30 instead. That one digit decides the answer.
 ```
 
 **Reply:**
 ```text
-The digit matters: 08:30 and 18:30 are ten different hours of pool time. One character, but the character is the fact.
-VERDICT: unsupported
-DECIDING: Pool timetable: lane swimming 06:30–08:30 weekdays; open swim from 12:00.
-ESCALATE: no
-unsupported
+| swimmer | slot |
+| Ana | 06:30 |
+| Ben | 08:30 |
+| Cal | 18:30 |
+Answer: Ana=06:30; Ben=08:30; Cal=18:30
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: Ana=06:30; Ben=08:30; Cal=18:30
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -302,34 +307,35 @@ supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T16-B-06 · kind B · notice · tier 3 · accepts the equivalent
+### T16-B-06 · kind B · puzzle · tier 3 · accepts the equivalent · tags: non-verification
 
 **User:**
 ```text
-Material:
-Lift out of service until further notice. Stairs remain open — 96 steps, two flights.
-Statement: The lift is out of action, and the stairs — ninety-six steps — remain open.
-The claim rewords the notice twice. Test each rewording, then answer.
+1. Three stalls, on Main Street, Park Road and Bridge Street, open at 8am, 9am and 10am, one each. The steward's notes below write the street names short.
+2. The Main St stall does not open at 8am.
+3. The Main St stall and the Park Rd stall do not open in neighbouring hours.
+Question: Which street's stall opens at which hour?
 ```
 
 **Thinking:**
 ```text
-Two rewordings, both tested:
-├─ out of service ↔ out of action — both name the same working state; nobody rides either version   ✓ free
-└─ 96 steps ↔ ninety-six steps — numeral to words, same count   ✓ free
-The rest lands verbatim: stairs, remain, open. Two equivalences, no added advice, no moved fact — the claim is the notice wearing spoken English. Pass it and quote the notice.
+Three stalls, three hours, one each. The notes say Main St and Park Rd, and the list says Main Street and Park Road. St is Street and Rd is Road, so these are the same stalls under short names. Read as two other stalls, lines 2 and 3 would be about nothing on the list, and the hours would stay open.
+Line 2: the Main Street stall does not open at 8am, so it opens at 9am or 10am.
+Line 3: Main and Park are not in neighbouring hours, so one of them opens at 8am and the other at 10am. Main isn't the 8am stall, so Main opens at 10am and Park at 8am.
+Bridge Street takes 9am.
+The short forms never changed which stall was meant, so they were never a reason to doubt the notes.
 ```
 
 **Reply:**
 ```text
-Both rewrites keep the fact: out of action is out of service, ninety-six is 96. The count and the closure survive the swap whole, and nothing the notice didn't say sneaks in.
-VERDICT: supported
-DECIDING: Lift out of service until further notice. Stairs remain open — 96 steps, two flights.
-ESCALATE: no
-supported
+| stall | hour |
+| Main | 10am |
+| Park | 8am |
+| Bridge | 9am |
+Main=10am; Park=8am; Bridge=9am
 ```
 
-**Key:** answer: supported
+**Key:** answer: Main=10am; Park=8am; Bridge=9am
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 

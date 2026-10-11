@@ -42,7 +42,7 @@ python checks.py pilot-t04.jsonl --render
 
 # R&D's leakage_check.py (rnd v1.1.4.4.10, which reads inside `turns`): gold corpora + --against
 # the DEV task sets and the pre-interview
-python "E:\AI\Research and Development\experiments\verifier-gold\leakage_check.py" pilot-t04.jsonl \
+python <rnd checkout>/experiments/verifier-gold/leakage_check.py pilot-t04.jsonl \
     --against ..\stage1-taskset\taskset-pilot-20.jsonl \
     --against ..\stage1-taskset\taskset-review-10.jsonl \
     --against ..\2026-10-10-stage1-pre-interview-draft.md

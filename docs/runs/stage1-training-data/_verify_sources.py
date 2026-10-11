@@ -10,19 +10,17 @@ Reconstructs the cited lines from the local clones and requires
 Run: python _verify_sources.py batch2-t14.jsonl ...
 """
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-REPO_DIR = {
-    "mcp-tool-shop-org/rig-bridge": r"E:/AI/rig-bridge",
-    "mcp-tool-shop-org/roll": r"E:/AI/roll",
-    "mcp-tool-shop-org/style-dataset-lab": r"E:/AI/style-dataset-lab",
-    "mcp-tool-shop-org/polyglot-mcp": r"E:/AI/polyglot-mcp",
-    "mcp-tool-shop-org/repo-knowledge": r"E:/AI/repo-knowledge",
-    "mcp-tool-shop-org/site-theme": r"E:/AI/site-theme",
-}
+# Local clones of the cited repos sit side by side in one directory, named as on GitHub. STAGE1_CLONES names that
+# directory; by default it's the one holding this aspire-si checkout.
+CLONES = Path(os.environ.get("STAGE1_CLONES") or Path(__file__).resolve().parents[4])
+REPO_DIR = {f"mcp-tool-shop-org/{name}": str(CLONES / name)
+            for name in ("rig-bridge", "roll", "style-dataset-lab", "polyglot-mcp", "repo-knowledge", "site-theme")}
 
 
 def ws(x):
@@ -38,9 +36,14 @@ def cited_text(src):
     repo = REPO_DIR[src["repo"]]
     blob = subprocess.run(["git", "-C", repo, "show", f"{src['commit']}:{src['path']}"],
                           capture_output=True, check=True).stdout.decode("utf-8")
-    lo_hi = re.fullmatch(r"L(\d+)(?:-L(\d+))?", src["lines"])
-    lo, hi = int(lo_hi.group(1)), int(lo_hi.group(2) or lo_hi.group(1))
-    return "\n".join(blob.splitlines()[lo - 1:hi])
+    # One range ("L79-L86") or several, comma-separated ("L7, L21-L25"); the cited window is their lines in order.
+    lines = blob.splitlines()
+    window = []
+    for part in src["lines"].split(","):
+        lo_hi = re.fullmatch(r"L(\d+)(?:-L(\d+))?", part.strip())
+        lo, hi = int(lo_hi.group(1)), int(lo_hi.group(2) or lo_hi.group(1))
+        window += lines[lo - 1:hi]
+    return "\n".join(window)
 
 
 def main(paths):

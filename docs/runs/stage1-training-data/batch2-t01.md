@@ -248,34 +248,35 @@ cannot_tell
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T01-B-04 · kind B · timetable · tier 3 · rightly accepts
+### T01-B-04 · kind B · timetable · tier 3 · rightly accepts · tags: non-verification
 
 **User:**
 ```text
-Material:
-Ferries from North Quay: 08:15, 12:15, 16:15, weekdays. Tickets from the harbour kiosk.
-Statement: A ferry leaves North Quay at 12:15 on weekdays.
-Check it like a skeptic — which includes knowing when to stop doubting.
+1. Three ferries, the Tern, the Gull and the Puffin, leave North Quay at 08:15, 12:15 and 16:15, one each. A regular on the quay says, sure as anything, that the Gull is the 12:15 and always has been.
+2. The Gull does not leave at 16:15.
+3. The Puffin leaves before the Gull.
+Question: Which ferry leaves at which time?
 ```
 
 **Thinking:**
 ```text
-ROOT  a 12:15 weekday sailing from North Quay exists
-├─ the timetable's sailing list: 08:15, 12:15, 16:15, weekdays — the claimed time is in the list, on the claimed day-group   ✓
-└─ falsifier sweep: does any line qualify or remove it (“except holidays”, “suspended”)? Two sentences total; the second is about tickets. Nothing undercuts the line
-The search was three steps, and the first two closed it. Skepticism that keeps circling after this stops being a standard and becomes a stall — the line is decisive, so the answer is yes, quoted, done.
+The Tern, the Gull and the Puffin, one time each. The regular is sure the Gull is the 12:15. That's a pull: a confident voice and a long habit. It isn't a line I can quote, so I set it aside and look for the lines that would back it or sink it.
+Line 2: the Gull does not leave at 16:15, so the Gull is the 08:15 or the 12:15.
+Line 3: the Puffin leaves before the Gull, so the Gull can't be the 08:15. The Gull is the 12:15.
+The Puffin goes before it, at 08:15, and the Tern takes 16:15.
+The regular was right. Lines 2 and 3 are the reason I accept it; the certainty never was.
 ```
 
 **Reply:**
 ```text
-The sailing is printed in the timetable's own list, in the claimed day-group, and no line qualifies it away. Earned yes, immediately.
-VERDICT: supported
-DECIDING: Ferries from North Quay: 08:15, 12:15, 16:15, weekdays.
-ESCALATE: no
-supported
+| ferry | time |
+| Tern | 16:15 |
+| Gull | 12:15 |
+| Puffin | 08:15 |
+Answer: Tern=16:15; Gull=12:15; Puffin=08:15
 ```
 
-**Key:** answer: supported
+**Key:** answer: Tern=16:15; Gull=12:15; Puffin=08:15
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 

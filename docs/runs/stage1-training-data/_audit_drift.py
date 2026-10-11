@@ -1,8 +1,10 @@
 import json, re, sys
-sys.path.insert(0, r"E:/AI/aspire-si/docs/runs/stage1-train")
-sys.path.insert(0, r"E:/AI/aspire-si/docs/runs/stage1-eval")
-import data as D
 from pathlib import Path
+# The validator from this checkout (beside this directory), never from another clone.
+RUNS = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RUNS / "stage1-train"))
+sys.path.insert(0, str(RUNS / "stage1-eval"))
+import data as D
 
 def ws(x): return re.sub(r"\s+", " ", x).strip()
 
