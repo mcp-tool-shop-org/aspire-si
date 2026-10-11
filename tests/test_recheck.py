@@ -74,6 +74,11 @@ class TestCombine:
         }
         r = rc.combine(verdicts, ["a", "b", "c", "d"], old_dropped={"a", "c"})
         assert r["kept_ids"] == ["a"] and r["judges_disagree"] == 2
+        assert [(d["pair_id"], d["kept_by"]) for d in r["disagreements"]] == [
+            ("b", "mistral"),
+            ("d", "gemma"),
+        ]
+        assert r["disagreements"][0]["gemma"]["outcome"] == "changed"
         assert r["agreement"] == {"both_keep": 1, "only_mistral": 1, "only_gemma": 1, "neither": 1}
         assert r["outcomes"]["mistral"] == {"same": 2, "changed": 1, "truncated": 1}
         assert r["against_first_check"] == {
