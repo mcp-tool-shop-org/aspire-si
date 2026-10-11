@@ -1928,11 +1928,11 @@
           "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
         },
         {
-          "hash": "acb6ea368b1bc05b1788025020531b4925d12ba48bfdbc73aa1dfe06ea5e303b",
+          "hash": "d499295f9e776d7169cd88e046dc31ac5b2d4f5a6bc311177c5be23e2ac3d455",
           "path": "docs/runs/2026-10-10-stage1-verifier-qualities-lessons-draft.md"
         },
         {
-          "hash": "6ca4430f525dd252af75a54335c948263c7113ffbd7833133413a646567178eb",
+          "hash": "3404194933be29f30fe422a7b660023d392171f5c4175accff70aadffb841b36",
           "path": "docs/runs/2026-10-10-stage1-verifier-trait-lessons-draft.md"
         },
         {
@@ -2837,7 +2837,7 @@
           "path": "docs/runs/stage1-training-data-schema.md"
         },
         {
-          "hash": "cb76216bd4053a628f9cec3ae5254659c4c8bf8ab3a95fe1ec9613d8360ae1f2",
+          "hash": "98e0f10327ef2284b98aaf2126308d662dc26ee1c50b98e8826250a6cc19e67e",
           "path": "docs/runs/stage1-training-data/README.md"
         },
         {
@@ -2847,10 +2847,13 @@
           "failurePaths": [
             {
               "kind": "except",
-              "line": 68
+              "line": 70
             }
           ],
-          "hash": "d28416dba0bfe35c3610103114b4c88a0a511bcab5576027d9cd3e828aeed7ae",
+          "hash": "1b76dcaa851f4c4b5b16f28aa796e8866d74346710defee4336d3a9870064cd3",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py"
+          ],
           "path": "docs/runs/stage1-training-data/_audit_drift.py"
         },
         {
@@ -3225,56 +3228,116 @@
             "main",
             "ws"
           ],
-          "hash": "3ac67ac2aa92688e870bdaa0618103d4fb71dd95dcdbb635d46b83c9aadfc2d5",
+          "hash": "1e52e389d287d308567ae28129f12a1fd3885209642378cf3adf469404da2454",
           "path": "docs/runs/stage1-training-data/_verify_sources.py"
         },
         {
-          "hash": "91596935ddf3f52a51a3290d5a27067a2fd4cb7021371eab53f761bdee56ecf5",
+          "hash": "14569bf40f898103076d54fb831ee0b004e8dd472bcc3ecbc077344c6659936a",
           "path": "docs/runs/stage1-training-data/batch2-t01.jsonl"
         },
         {
-          "hash": "8b4188a553b69de8a039f049f13ecc294e444312d8be22c2ce60bd29a9d29524",
+          "hash": "f74e57388f16fcdef31882cb1c17b9636473177f9fd64e467d5accaf44c3f7e8",
           "path": "docs/runs/stage1-training-data/batch2-t01.md"
         },
         {
-          "hash": "94d78ea08f50eab463671f95965d1610dba2f29f48b6fbe206cd8b0829f19d0f",
+          "hash": "d32ac0bef8c0de6b707cc469ad3a78bc8053bd9cd3595546565e1910f5d40ee9",
+          "path": "docs/runs/stage1-training-data/batch2-t01.models.jsonl"
+        },
+        {
+          "hash": "5486a1dc483fcae51c4497e411223fb6d661f5b61a1b2d905472c4d4a226c96d",
           "path": "docs/runs/stage1-training-data/batch2-t14.jsonl"
         },
         {
-          "hash": "a81c78d88fcf0dc7f92a257acea0142ba02733c9585d938879e94d67eb97efa8",
+          "hash": "1e21b81bdf1c003122bdc427804cff63a06ae5a7e749208d3f96de18d6648e3a",
           "path": "docs/runs/stage1-training-data/batch2-t14.md"
         },
         {
-          "hash": "6750c23b8b73bc349e6e3a3f892929fc4e3db7d9147b2c3f067c343890d1b38e",
+          "hash": "5fa2dc264a6dfe3211e4b1e4aa864dea3627e3102587dd48787884169e0fedec",
+          "path": "docs/runs/stage1-training-data/batch2-t14.models.jsonl"
+        },
+        {
+          "hash": "78d7e81a464ac440bb304dbd514d250aa2fb6e9f1c92d356dffb547b0c7bf2dd",
           "path": "docs/runs/stage1-training-data/batch2-t16.jsonl"
         },
         {
-          "hash": "4f74a6af76845a6670d3bdffcd959cb9b54c222002647596d0d5d023aedd5daf",
+          "hash": "056ceb234d3256710fa340133e2bc261efdb8eafae5a731c69e76e9a39558863",
           "path": "docs/runs/stage1-training-data/batch2-t16.md"
         },
         {
-          "hash": "831eeaef15063b4d197887426df0be92efe2c9c48c9f4e751c1dc6a4ad70a503",
+          "hash": "5c2b98b4355645df35b153a3d22af6417cf863001a59e49479a69dbd067dbaf2",
+          "path": "docs/runs/stage1-training-data/batch2-t16.models.jsonl"
+        },
+        {
+          "hash": "de5dc6d63a56147f24886c87c7394a32cf80dd732319d40b4baa8ee3b7419167",
           "path": "docs/runs/stage1-training-data/batch3-t05.jsonl"
         },
         {
-          "hash": "3fa8cf285689f83ad5050c82f3d287299795705d466fc33a06b45be01857ccf5",
+          "hash": "6f3db02fdfbb99240794a8decbaaeae3b09c7b827e6ec8daf94aa9c089437ccf",
           "path": "docs/runs/stage1-training-data/batch3-t05.md"
         },
         {
-          "hash": "ea80751516baa97efb1f5477e4935bf9c72f9af8b1105235f22b2ac6a7a00add",
+          "hash": "278bc31dab039d87e0245608746fe6ac7170684b6608d6c0779cb30cd951b0eb",
+          "path": "docs/runs/stage1-training-data/batch3-t05.models.jsonl"
+        },
+        {
+          "hash": "8423d3a6acc96750675bd0ab8f9b123b74f89dae1febcea5936b11e41b9f6fe4",
           "path": "docs/runs/stage1-training-data/batch3-t13.jsonl"
         },
         {
-          "hash": "7f313a1816d8df972f5ddb9c0590a52690326168877266bd2b26c73448237a23",
+          "hash": "79258b001709cdb7afa0bc251e0b63df44178a11010bea9d1ef40b6f6f5cd0ff",
           "path": "docs/runs/stage1-training-data/batch3-t13.md"
         },
         {
-          "hash": "f1abe7e740de8f4f5c2cb2b26f87ab225d0d74adb820c974b52a4d2acad72714",
+          "hash": "b02e6f6087dd6c1c09845d490ac3e37710552076f0bd0de570b7421f88639dfb",
+          "path": "docs/runs/stage1-training-data/batch3-t13.models.jsonl"
+        },
+        {
+          "hash": "2c3c041569b8755b42bde2e87f521357e2d5a942370ef6e0cb1d9e5bad791930",
           "path": "docs/runs/stage1-training-data/batch3-t17.jsonl"
         },
         {
-          "hash": "82bb049c0fbb334da682bfca7c7501174e2cc5788dc07064a405ae0664e83015",
+          "hash": "5c99e12acd270c9cd309a5afb0f69c0aa5d184882273c0a8af4553129396e379",
           "path": "docs/runs/stage1-training-data/batch3-t17.md"
+        },
+        {
+          "hash": "e902b3647f7bb0ee1a40a23f6bc7ee3f71b437a80c5418626921c63afe984660",
+          "path": "docs/runs/stage1-training-data/batch3-t17.models.jsonl"
+        },
+        {
+          "hash": "d17133799b8c86a45e46c996baa5704ce7b4c0ff6a439bfcded7af5d1f78288d",
+          "path": "docs/runs/stage1-training-data/batch4-t02.jsonl"
+        },
+        {
+          "hash": "36fe19d880818c354ebb036c3c2951ee662d0c0415045a35ac3af2eedf68313b",
+          "path": "docs/runs/stage1-training-data/batch4-t02.md"
+        },
+        {
+          "hash": "3d6f5d54285d67a5847088ca8cfecfff34ed44a2487632992ca0168f8d51f37e",
+          "path": "docs/runs/stage1-training-data/batch4-t02.models.jsonl"
+        },
+        {
+          "hash": "ac3077117b806e78f928eb4441c3fb7ac521f83b28316313411df1db7de2d796",
+          "path": "docs/runs/stage1-training-data/batch4-t03.jsonl"
+        },
+        {
+          "hash": "fa84209eb01cb31dfacb1650226effb9892205932ef53ddcbfe614c0852dfc3f",
+          "path": "docs/runs/stage1-training-data/batch4-t03.md"
+        },
+        {
+          "hash": "41e985c5b9151a753c490022dd5c4fae9a07492c2464854b1bfb7900cde1e914",
+          "path": "docs/runs/stage1-training-data/batch4-t03.models.jsonl"
+        },
+        {
+          "hash": "2b99a6f9b5eaa75a62931d5c48facb5a6c05dfab2e38eaf527a2ee5cbe8bdb3b",
+          "path": "docs/runs/stage1-training-data/batch4-t06.jsonl"
+        },
+        {
+          "hash": "5b5630efb5b11f09d660e0d1ec0a8f34e612856b93157b64be246201a8631e99",
+          "path": "docs/runs/stage1-training-data/batch4-t06.md"
+        },
+        {
+          "hash": "a71576fc156d0e9c37b589892d54d8b48caaf4eefa3172a946c6fdc9235add70",
+          "path": "docs/runs/stage1-training-data/batch4-t06.models.jsonl"
         },
         {
           "exports": [
@@ -3291,22 +3354,39 @@
             {
               "in": "main",
               "kind": "except",
-              "line": 216
+              "line": 219
             }
           ],
-          "hash": "d86c9289cf3a9c62305a83847163911a24f38a4527411c3aa4df38a86e0233f8",
+          "hash": "3442ea6fabc3933711e9e82fdf2c59dd044c593e4698587938685cd694fed1d1",
           "importsFiles": [
             "docs/runs/stage1-train/data.py"
           ],
           "path": "docs/runs/stage1-training-data/checks.py"
         },
         {
-          "hash": "df29c3a10b0d884283e7880ca3fb660a192e3ee9c58fb86cddb1d26a42fa813c",
+          "hash": "a82c7302b40ae323a853a34cd0ceb7b9adda4414536cd2549db08a4224c0e7e6",
           "path": "docs/runs/stage1-training-data/pilot-t04.jsonl"
         },
         {
-          "hash": "a95e9e01c47175e0a0b05380a49cac531387c5b10be83602f5a80d4fb51375d8",
+          "hash": "5fe75e786965a437d0f92257ff46f29c780640ba2b61defdd1fc86fca03649b4",
           "path": "docs/runs/stage1-training-data/pilot-t04.md"
+        },
+        {
+          "hash": "9c4c0a28ac4bf450b2258fb04785d2d5d7e7f1bc8d383113c29232e4e09dc7e6",
+          "path": "docs/runs/stage1-training-data/pilot-t04.models.jsonl"
+        },
+        {
+          "exports": [
+            "test_a_curly_apostrophe_is_not_a_quote",
+            "test_a_curly_quoted_phrase_is_balanced",
+            "test_an_opening_curly_quote_without_its_close_is_unbalanced",
+            "test_the_other_marks_are_unchanged"
+          ],
+          "hash": "7f3b448287f12c6218ef0d0038991fb9141f4ce703f6a7695fbb0bb387f22e76",
+          "importsFiles": [
+            "docs/runs/stage1-training-data/checks.py"
+          ],
+          "path": "docs/runs/stage1-training-data/test_checks.py"
         },
         {
           "hash": "168412b204d82fab976ee0eea3e0c27a64394acadd5a2cc6cb8a042a2cc21a7a",
@@ -3331,7 +3411,7 @@
       "outsideReads": 14,
       "outsideWrites": 8,
       "role": "docs",
-      "testedBy": 10,
+      "testedBy": 11,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
@@ -3349,7 +3429,7 @@
           "why": "unplaced"
         }
       ],
-      "unresolvedSites": 11
+      "unresolvedSites": 10
     },
     {
       "dynamicReads": 14,
@@ -6746,8 +6826,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "1a25b97cd834d0b50b4952f1d4506b8c27fa6c45",
-    "tracked": 353
+    "commit": "e36a30d3c79d7f27fcc1ec2997e4e3a5c8f0d3be",
+    "tracked": 370
   },
   "landings": [
     {
@@ -6846,6 +6926,11 @@
           "fromTests": true
         },
         {
+          "by": "docs/runs/stage1-training-data/_audit_drift.py",
+          "call": "literal",
+          "confidence": "ast"
+        },
+        {
           "by": "docs/runs/stage1-training-data/_fix_batch2_r6.py",
           "call": "literal",
           "confidence": "ast"
@@ -6928,6 +7013,11 @@
         {
           "by": "docs/runs/stage1-train/train.py",
           "call": "read_bytes",
+          "confidence": "ast"
+        },
+        {
+          "by": "docs/runs/stage1-training-data/_audit_drift.py",
+          "call": "literal",
           "confidence": "ast"
         },
         {
@@ -7431,7 +7521,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 91,
+  "testFiles": 92,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
@@ -7443,6 +7533,7 @@
     "docs/runs/stage1-train/test_runner.py",
     "docs/runs/stage1-train/test_scorer_rules.py",
     "docs/runs/stage1-train/test_stuck.py",
+    "docs/runs/stage1-training-data/test_checks.py",
     "packages/aspire-si-gates/tests/test_closed_form.py",
     "packages/aspire-si-gates/tests/test_package.py"
   ],
@@ -7452,14 +7543,14 @@
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "fad7a6a436ed23195a5197ee0bcfc30f1fcaef851dea33dcb6dcf2d1049fa3cd",
+      "hash": "1338c5e4b6652fc995d4800ebaccf0db35172de07acd5ed54579f1e0f66085f8",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "9e5b3e489d8fa9a5dd88714a0ad27807f4ff4b9e9990e9cbb508f5f1445a7092",
+      "hash": "8871a07d957743b8914caf4d11efc402beaca5f391448ac3a192cb4838bd5a6f",
       "importOrder": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
         "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py",
@@ -7626,87 +7717,67 @@
         {
           "in": "check_phrases",
           "kind": "raise",
-          "line": 504
+          "line": 518
         },
         {
           "in": "check_formulas",
           "kind": "raise",
-          "line": 557
+          "line": 571
         },
         {
           "in": "freeze_report",
           "kind": "raise",
-          "line": 687
+          "line": 701
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 714
+          "line": 728
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 717
+          "line": 731
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 719
+          "line": 733
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 722
+          "line": 736
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 724
+          "line": 738
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 730
+          "line": 744
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 734
+          "line": 748
         },
         {
           "in": "_reply_matches",
-          "kind": "raise",
-          "line": 737
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 740
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 742
-        },
-        {
-          "in": "check_item",
           "kind": "raise",
           "line": 751
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
           "line": 754
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
-          "line": 757
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 759
+          "line": 756
         },
         {
           "in": "check_item",
@@ -7716,17 +7787,22 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 767
+          "line": 768
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 770
+          "line": 771
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 778
+          "line": 773
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 779
         },
         {
           "in": "check_item",
@@ -7736,17 +7812,12 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 785
+          "line": 784
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 790
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 793
+          "line": 792
         },
         {
           "in": "check_item",
@@ -7756,12 +7827,7 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 797
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 801
+          "line": 799
         },
         {
           "in": "check_item",
@@ -7771,27 +7837,22 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 806
+          "line": 807
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 808
+          "line": 809
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 810
+          "line": 811
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 812
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 816
+          "line": 815
         },
         {
           "in": "check_item",
@@ -7801,47 +7862,52 @@
         {
           "in": "check_item",
           "kind": "raise",
+          "line": 820
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 822
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 824
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 826
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 830
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
           "line": 832
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 839
+          "line": 846
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 841
+          "line": 853
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 848
+          "line": 855
         },
         {
-          "in": "_check_closed_form",
+          "in": "check_item",
           "kind": "raise",
-          "line": 877
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 879
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 883
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 885
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 888
+          "line": 862
         },
         {
           "in": "_check_closed_form",
@@ -7851,25 +7917,50 @@
         {
           "in": "_check_closed_form",
           "kind": "raise",
+          "line": 893
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
           "line": 897
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 900
+          "line": 899
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 902
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 905
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 911
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 914
         },
         {
           "in": "check_frames",
           "kind": "raise",
-          "line": 940
+          "line": 954
         },
         {
           "in": "check_stamps",
           "kind": "raise",
-          "line": 956
+          "line": 973
         }
       ],
-      "hash": "d7ab115a0466e693930462e4c91f376c2849b5d1ee903225281c699d11e190d7",
+      "hash": "1d5f4beaa0ba19ee16c5b5a3828d15762a53df8a1de8f0fafcc956ffbf9ad1c6",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/answer_format.py",
         "packages/aspire-si-gates/src/aspire_si_gates/constants.py"
@@ -7911,17 +8002,20 @@
     },
     {
       "exports": [
+        "b_item",
         "d_item",
         "test_a_lesson_rank_is_a_figure_not_a_refusal",
+        "test_a_prose_phrase_across_three_items_is_still_refused",
         "test_check_against_puzzle_shapes",
         "test_check_against_spans_framing_material_and_ids",
         "test_check_item_needs_no_other_row",
+        "test_identical_closing_lines_are_not_a_stamp",
         "test_identity_is_stable_and_versioned",
         "test_reason_table_is_pinned",
         "test_scorer_rules_are_exposed",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "98b1419d1aea3345952acb7fe3d7ca19f1602023e041083c5a757181d217a107",
+      "hash": "3aa3e7236b7ed50a7a1000bb702cf2cf049ed8e017b73827ddcbe63ab5ada9c5",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
