@@ -284,7 +284,7 @@ class Runner:
                 if e["event"] == "io_retry":
                     self.act("transient I/O error", "retry", count=e["attempt"], cap=5, what=e["what"],
                              error=e["error"])
-                elif e["event"] in ("resumed", "restarted", "stop"):
+                elif e["event"] in ("resumed", "restarted", "stop", "checkpoint"):
                     self.act(f"trainer: {e['event']}", "recorded", **{k: v for k, v in e.items()
                                                                        if k not in ("t", "event")})
 

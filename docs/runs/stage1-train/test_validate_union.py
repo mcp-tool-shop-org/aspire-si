@@ -28,8 +28,8 @@ def test_batches_that_each_pass_are_accepted_together_when_only_a_batch_cap_woul
     rows = [r for rs in FILES.values() for r in rs]
     with pytest.raises(data.DataError, match="at most 2 per batch"):
         data.validate(rows)  # the old whole-set validation applied the batch cap across batches
-    report = data.validate_training_set(FILES, require_freeze=False)  # three lessons: not the whole dataset
-    assert report.get("shortfalls", []) == [] or report.get("partial_set")
+    report = data.validate_training_set(FILES)  # these three lessons also meet the freeze floors on their own
+    assert report["shortfalls"] == [] and "partial_set" not in report
 
 
 def test_the_batch_cap_still_holds_inside_one_batch(three_lessons_share_a_signature):

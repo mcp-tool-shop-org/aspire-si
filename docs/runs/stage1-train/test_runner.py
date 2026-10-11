@@ -115,6 +115,8 @@ def test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run(rig, tmp_pat
     assert status["state"] == "done" and status["resumes"] == 1
     got = losses(d)
     assert [s for s, _ in got] == list(range(1, 9))  # step 5 ran twice, and is logged once
+    saves = [x["step"] for x in actions if x["trigger"] == "trainer: checkpoint"]
+    assert saves == [2, 4, 6, 8]  # every save is in the run's actions: 2 and 4, the crash, then 6 and 8
     assert got == want  # RNG, optimizer and data order restored: identical losses
     resumed = [x for x in actions if x["action"] == "resume from the last checkpoint"]
     assert len(resumed) == 1 and resumed[0]["count"] == 1 and resumed[0]["cap"] == 3
