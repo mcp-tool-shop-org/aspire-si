@@ -414,6 +414,12 @@ using that baseline's **aggregate** results:
 - Amendment 2: cannot_tell at least 25% and supported at least 25% per trait; silent-vs-contradicted contrast
   pairs; ESCALATE as advice only, with an escalate-yes item and an everyday cannot_tell / escalate-no item per
   trait; and two two-turn correction items per trait.
+- Grok handoff amendment 4 (batch 4 onward): a different printed value of a single-valued attribute is keyed
+  unsupported. Such a value is cannot_tell only where the material plainly doesn't cover it, and there are no
+  adjacent-day near-miss cannot_tell items. This is a training-data convention. It was written from lesson 1's
+  verdict definitions before any batch-4 training, and not from any sealed, DEV or item-level result. The
+  evaluation's written rules don't rule on this case. It touches the cannot_tell/unsupported line, so it falls
+  under the targeted-behaviour disclosure below.
 
 No sealed item, wording or source repo reached the data lane. Leakage is checked mechanically on every batch
 against the sealed file.

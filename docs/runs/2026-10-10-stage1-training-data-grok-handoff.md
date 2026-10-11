@@ -403,3 +403,39 @@ when the user turn doesn't state exactly one verdict word for the other checker,
 - the verdict appears only in a form the builder can't read, such as "can't be sure".
 Without it, such an item is refused when the NO-ROLE arm is built. When the turn states one verdict plainly,
 leave the field out.
+
+## Amendment 4 (2026-10-10): different printed values, kind-E variants, lookup puzzles
+
+*Binding from batch 5 onward; batch 4 carries these through its brief. Settled by R&D and the Dataset Specialist
+on batch 4. Rules 1 and 3 are review rules: `data.py` doesn't check them.*
+
+**1. A different printed value is unsupported.** When the material prints one value of a single-valued attribute
+(a time, an hour, a price, a date, a count), a statement claiming a different value is `unsupported`, not
+`cannot_tell`: the material answers the question, and the answer is no. A different day or time is silent
+(`cannot_tell`) only when the material plainly doesn't cover it. For example, the opening hours are printed for
+weekdays only and the statement is about Sunday. Don't build `cannot_tell` items on the adjacent-day near-miss,
+where the material covers the neighbouring day and a reader could fairly take it to cover this one. That shape
+teaches the wrong line between silent and contradicted.
+
+*Where it comes from.* The evaluation's written rules don't rule on this case. The harness prompt names the
+three verdicts without defining them. The evaluation plan keys each task by the instant-agreement rule and
+R&D's key check, and its scorer only compares the result with the key. The rule applies lesson 1's definitions:
+**unsupported** means the material contradicts at least one part, and **cannot_tell** means the material
+doesn't settle it. A printed single value contradicts any other value. Lesson 1's Example A rules the same way
+(a café open 8am to 4pm and "closed at all other times" makes 5pm unsupported). So this is a **training-data
+convention**. It was written before any batch-4 training, from the written rules alone, not derived from sealed
+or DEV items or any item-level result. It is disclosed in the evaluation plan's amendment of 2026-10-10.
+
+**2. Kind-E variants.**
+- A **verdict-type** variant (`quiz.type` "verdict") is shown with its item's material, in the original turn's
+  position: the material block, then the variant's user text as the re-asked question. So `variant.user`
+  re-asks the statement in other words. It never summarises the material and never hints at the verdict. Its
+  key is a verdict, scored like the original's.
+- A **written** variant (`quiz.type` "written") is shown alone, with no material. It must be answerable without
+  the material. Its key is `key_points`.
+- A verdict variant on an item with no material is a data error. The quiz loop refuses it rather than treating
+  it as written.
+
+**3. Kind-B lookup puzzles: at most one per trait.** A lookup puzzle is one whose question restates a premise,
+so the answer is read off rather than worked out. Keep at most one per trait. The rest must need the drawn
+pattern to solve.
