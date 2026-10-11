@@ -71,16 +71,19 @@ def _outside_code(text: str) -> str:
 
 
 def quote_balance_errors(text: str) -> list[str]:
-    """Unbalanced backticks, straight double quotes, curly quotes, or **. Apostrophes are not counted.
-    `` ** `` inside a backtick span is a glob, not bold, and is not counted."""
+    """Unbalanced backticks, straight double quotes, curly double quotes, or **. Apostrophes are not counted.
+    `` ** `` inside a backtick span is a glob, not bold, and is not counted.
+
+    Curly double quotes balance when every opening “ has a closing ”. Each mark used to be required to appear an
+    even number of times, so a correctly quoted “x” failed and writers fell back to straight quotes. Curly single
+    quotes are not counted at all: ’ doubles as the apostrophe (it’s), so its count says nothing about balance."""
     errs = []
     if text.count("`") % 2:
         errs.append("unbalanced backtick")
     if text.count('"') % 2:
         errs.append("unbalanced straight double quote")
-    for ch in "“”‘’":
-        if text.count(ch) % 2:
-            errs.append(f"unbalanced curly quote {ch}")
+    if text.count("“") != text.count("”"):
+        errs.append(f"unbalanced curly double quotes ({text.count('“')} “ against {text.count('”')} ”)")
     if _outside_code(text).count("**") % 2:
         errs.append("unbalanced **")
     return errs
