@@ -5,6 +5,7 @@ per the [handoff of 2026-10-10](../2026-10-10-stage1-training-data-kimi-handoff.
 replacement: five kinds per trait, the whole assistant reply as the training target) and the
 [trainer's schema](../stage1-training-data-schema.md). Docs and data only: nothing here touches the GPU, the
 NPU or any training run.
+The `.models.jsonl` sidecars hold the solver's models of the B puzzles, for `role-set puzzle-check`, and the trainer never reads them.
 
 **This directory holds the pilot, batch 2, and batch 3.** `pilot-t04.jsonl` — the pilot defined by handoff §4.1: **one trait,
 all five kinds, 40 items**, for trait 4, *honest about uncertainty* (its counterweight shows up inside the

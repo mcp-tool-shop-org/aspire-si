@@ -152,25 +152,29 @@ As a verifier, I quote only the words that are there. "The log names who repaire
 
 **User:**
 ```text
-A config file reads:
-RETRY_LIMIT = 5
-QUEUE_NAME = "images"
-TIMEZONE = "UTC"
-A colleague asks: how long does the worker wait between retries? Hunt the setting that would answer them — falsifier first — and stop the moment you know whether it's there.
+1. Four settings are retry, queue, zone and wait. A setting is on the card or absent.
+2. Retry is on the card.
+3. Queue is on the card.
+4. Zone is on the card.
+Question: Is the wait on the card?
 ```
 
 **Thinking:**
 ```text
-What would decide his question? A retry-interval setting — a delay, backoff or seconds line.
-├─ RETRY_LIMIT = 5 → a count of attempts, not a wait between them
-├─ QUEUE_NAME = "images" → which queue, not when
-└─ TIMEZONE = "UTC" → the clock zone, not a duration
-No interval line exists. I could invent one — “five retries, so presumably spaced out” — but “presumably” is exactly the gap-filling the colleague needs protected against. The file simply doesn't say.
+Retry, queue, zone and wait are on the card or absent. The opening line files none of them.
+Retry is on the card.
+Queue is on the card.
+Zone is on the card.
+Wait has no line. Absent and on the card both still fit, so I do not invent a wait.
 ```
 
 **Reply:**
 ```text
-It can't be told from this file. The three settings pin a retry count, a queue name and a timezone; none of them is a wait time, and I won't derive one from how configs usually look. If an interval setting exists, it lives elsewhere — fetch that file and I'll quote it.
+ROOT wait on the card
+├─ retry is on the card
+├─ queue is on the card
+├─ zone is on the card
+└─ wait unnamed
 cannot_tell
 ```
 
@@ -182,28 +186,26 @@ cannot_tell
 
 **User:**
 ```text
-Three boxes — red, green, blue — sit on shelf 1, 2 and 3, one per shelf.
-Clues: the red box is left of the green box. The blue box is not on shelf 2.
-Do the clues force one arrangement of the boxes? Grid it out, and if the clues don't force a full answer, say so — that honesty is the exercise.
+1. Three boxes are red, green and blue. Shelves are shelf 1, shelf 2 and shelf 3, left to right.
+2. Red is before green.
+3. Red is adjacent to blue.
+Question: Is the shelf of the blue box unique?
 ```
 
 **Thinking:**
 ```text
-Constraint grid, all three placements open until forced:
-| clue | what it forces |
-|---|---|
-| red left of green | (red, green) can be (1,2), (1,3) or (2,3) |
-| blue not on 2 | blue ∈ {1, 3} |
-Walk the (red, green) options:
-├─ (1,2) → blue takes 3 ✓ fits both clues
-├─ (1,3) → blue would need 2 ✗ forbidden
-└─ (2,3) → blue takes 1 ✓ fits both clues
-Two arrangements survive: (1 red, 2 green, 3 blue) and (1 blue, 2 red, 3 green). Shelf 1 is red in one and blue in the other, and no clue breaks that tie. The open cell stays open — what the two survivors agree on: green is never on shelf 1, and blue is never in the middle. I report both arrangements rather than deal shelf 1 a colour the clues never dealt.
+Red, green and blue, shelves 1 to 3 left to right. The opening line shelves nobody.
+Red before green leaves three pairings.
+Red adjacent to blue drops the pairing where blue sits at the far end from red.
+Blue still lands on shelf 1 in one fitting row and shelf 2 in the other.
+Picking one shelf would fill a gap the clues leave open.
 ```
 
 **Reply:**
 ```text
-The clues leave shelf 1 undecided. Two arrangements fit: red–green–blue and blue–red–green. What the clues do pin down: green is never on shelf 1 and blue is never in the middle — but whether red or blue starts the row, the clues don't say. My answer is the pair, both of them, with the open shelf marked open.
+| blue shelf | row that fits |
+| shelf 1 | red in 2, green in 3 |
+| shelf 2 | red in 1, green in 3 |
 undetermined
 ```
 
@@ -215,27 +217,36 @@ undetermined
 
 **User:**
 ```text
-Five lab samples — P, Q, R, S, T — are ranked by purity, no ties.
-Clues: P is purer than Q. Q is purer than R. R is purer than S. S is purer than T.
-Give the full ranking via elimination, and say plainly whether anything stays open.
+1. Five samples are P, Q, R, S and T. Ranks are 1st, 2nd, 3rd, 4th and 5th.
+2. P is ahead of Q.
+3. Q is ahead of R.
+4. R is ahead of S.
+5. S is ahead of T.
+Question: Which sample has which rank?
 ```
 
 **Thinking:**
 ```text
-Elimination over five ranks:
-├─ R > S > T pins the tail: S and T fill ranks 4 and 5 in that order
-├─ P > Q and Q > R: P and Q both beat R, so R ∉ ranks 1–2
-└─ rank 3 is R's — below P and Q, above S and T. Ranks 1 and 2 go to P then Q, per the first clue.
-Every adjacent pair — P–Q, Q–R, R–S, S–T — is pinned by its own clue, so no cell is left open. Nothing here needs a guess: the clues happened to form a complete chain, and the answer is stated flatly because every link of it was given.
+P, Q, R, S and T, ranks 1st through 5th. The opening line ranks nobody.
+P ahead of Q.
+Q ahead of R.
+R ahead of S.
+S ahead of T.
+The chain runs P, Q, R, S, T with no slot left over. I add nothing between them.
 ```
 
 **Reply:**
 ```text
-P, Q, R, S, T, purest to least. Each neighbouring pair is pinned by its own clue, so the chain is complete — no slot depends on an assumption I slipped in. When the givens fully force the answer like this, the flat answer is the honest one.
-P, Q, R, S, T
+| sample | rank |
+| P | 1st |
+| Q | 2nd |
+| R | 3rd |
+| S | 4th |
+| T | 5th |
+P=1st; Q=2nd; R=3rd; S=4th; T=5th
 ```
 
-**Key:** answer: P, Q, R, S, T
+**Key:** answer: P=1st; Q=2nd; R=3rd; S=4th; T=5th
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -275,23 +286,28 @@ supported
 
 **User:**
 ```text
-Four cabins in a row, 1 to 4. Ada, Bea, Cid and Deb take one each.
-Clues: Deb has cabin 3. Bea's cabin number is higher than Cid's. Ada is not in cabin 1.
-Do the clues force one assignment of the cabins? Work it as a case split, and do not guess where the clues run out.
+1. Four cabins are cabin 1, cabin 2, cabin 3 and cabin 4, left to right, for Ada, Bea, Cid and Deb.
+2. Deb is in cabin 3.
+3. Bea is after Cid.
+4. Ada is not in cabin 1.
+Question: Is the person in cabin 2 unique?
 ```
 
 **Thinking:**
 ```text
-Grid, then branches on the one open clue:
-├─ Deb = 3 (given). Remaining cabins 1, 2, 4 for Ada, Bea, Cid; Ada ∈ {2, 4}
-├─ branch A: Ada = 2 → Bea and Cid take 1 and 4; Bea > Cid forces Bea = 4, Cid = 1
-└─ branch B: Ada = 4 → Bea and Cid take 1 and 2; Bea > Cid forces Bea = 2, Cid = 1
-Both branches satisfy every clue. Across both: Cid = 1 and Deb = 3 hold in each, so those are settled. Ada and Bea swap cabins 2 and 4 between the branches and no clue breaks the tie — so I don't break it either. Writing "Ada has cabin 4" would add a fact the clues never contained.
+Cabins 1 to 4 left to right, Ada, Bea, Cid, Deb. The opening line assigns nobody.
+Deb is in cabin 3.
+Bea after Cid puts Cid earlier than Bea.
+Ada is not in cabin 1.
+Cabin 2 is Ada when Ada takes it, and Bea when Bea takes it. Both rows fit. I do not pick.
 ```
 
 **Reply:**
 ```text
-Settled: Cid has cabin 1, Deb has cabin 3. Open: Ada and Bea hold cabins 2 and 4 in either order — both arrangements satisfy all three clues, so the honest answer is the pair, with the swap left open.
+ROOT cabin 2
+├─ Deb fixed in cabin 3
+├─ Ada in cabin 2, Bea later
+└─ Bea in cabin 2, Ada in cabin 4
 undetermined
 ```
 

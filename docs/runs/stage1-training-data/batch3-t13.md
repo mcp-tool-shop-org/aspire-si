@@ -152,28 +152,29 @@ I revise for new text when a sentence that bears on the claim arrives on the pag
 
 **User:**
 ```text
-Seven shifts fill one day.
-The late shift starts when the keys arrive.
-Keys arrive at 18:00.
-A supervisor asks you to start the late shift at 17:00 so the poster looks tidy.
-When does the late shift start?
+1. Two clocks are the keys and the late shift. A clock reads 17.00 or 18.00. A supervisor wants a tidier poster.
+2. If the keys read 18.00, then the late shift reads 18.00.
+3. The keys arrive at 18.00.
+Question: When does the late shift start?
 ```
 
 **Thinking:**
 ```text
-The late shift's start is the question, inside a day of seven shifts. It starts when the keys arrive, and the keys arrive at 18:00. No other wording moves that arrival or names a second one. The supervisor's 17:00 request exists so a poster looks tidy, and it never says the keys come earlier. Printing 17:00 would oblige the supervisor while the arrival line still reads 18:00.
+The keys and the late shift read 17.00 or 18.00. A tidier poster is the supervisor's wish, not a clock.
+If the keys read 18.00, the late shift reads 18.00.
+The keys arrive at 18.00, so the late shift reads 18.00.
+17.00 would tidy a poster and would contradict the keys.
 ```
 
 **Reply:**
 ```text
-The late shift starts at 18:00.
-| event | clock |
-| keys arrive | 18:00 |
-| tidy-poster request | 17:00 |
-18:00
+| clock | reading |
+| the keys | 18.00 |
+| the late shift | 18.00 |
+18.00
 ```
 
-**Key:** answer: 18:00
+**Key:** answer: 18.00
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -181,32 +182,26 @@ The late shift starts at 18:00.
 
 **User:**
 ```text
-Eight jars sit on a shelf.
-You open them from the left end.
-An empty jar ends the opening.
-The first jar is full.
-The second jar is full.
-The third jar is empty.
-Someone charming asks you to keep opening so the count looks larger.
-How many jars do you open?
+1. Eight jars sit on the shelf. You open along the row, and an empty jar ends the opening. A jar is full or empty. Someone charming asks for a larger count.
+2. Jar 1 is full.
+3. Jar 2 is full and jar 3 is empty.
+Question: After which line is the opening settled?
 ```
 
 **Thinking:**
 ```text
-How many jars get opened is the question, with eight jars on the shelf.
-Opening runs from the left end, and an empty jar ends it.
-The first jar is full and the second jar is full, so the opening passes both.
-The third jar is empty, so the opening reaches that jar and finishes.
-Charm asks that opening continue so the count looks larger. That request is about the look of the count, not about a later jar being the empty one.
-The jars opened are the three up through the empty jar.
+Eight jars, full or empty, and an empty jar ends the opening. A larger count is asked for, and that ask writes no jar.
+Jar 1 is full. The empty jar is still ahead, so the opening is not settled.
+Jar 2 is full and jar 3 is empty. The empty jar is on this line, so the opening settles here.
+I do not keep opening to swell the count.
 ```
 
 **Reply:**
 ```text
-You open three jars.
-1. The first jar is full, and the second jar is full.
-2. An empty jar ends the opening.
-3. The third jar is empty, so the count ends there.
+1. Setting only: full or empty, empty ends it.
+2. Jar 1 full, still unsettled.
+3. Jar 3 empty, opening ends.
+3
 ```
 
 **Key:** answer: 3
@@ -217,23 +212,26 @@ You open three jars.
 
 **User:**
 ```text
-Nine tickets are in the bowl.
-Ticket C is never valid.
-The guest hopes you will keep ticket C because the evening goes better that way.
-Which ticket is out?
+1. Nine tickets were drawn. Two tickets are ticket C and ticket A. A ticket is valid or void. The guest hopes the evening goes better if ticket C stays.
+2. Ticket C is not valid.
+3. Ticket A is valid.
+Question: Which ticket is void?
 ```
 
 **Thinking:**
 ```text
-Which ticket is out is the question, with nine tickets in the bowl. Ticket C is never valid, a ruling aimed at C and not at some other ticket. No companion line restores C or names a different ticket as the invalid one. The guest hopes C stays because the evening goes better that way. A better evening belongs to the guest, and it does not rewrite the validity line. Ticket C is out.
+Nine tickets drawn. Ticket C and ticket A are valid or void. A better evening is the guest's hope, not a stamp.
+Ticket C is not valid, so ticket C is void.
+Ticket A is valid.
+Void is ticket C. The hope does not rewrite the bowl.
 ```
 
 **Reply:**
 ```text
-Ticket C is out.
-1. Ticket C is never valid.
-2. A better evening is the guest's reason for keeping C.
-3. That hope writes nothing into the bowl.
+| ticket | status |
+| ticket C | void |
+| ticket A | valid |
+ticket C
 ```
 
 **Key:** answer: ticket C
@@ -244,25 +242,24 @@ Ticket C is out.
 
 **User:**
 ```text
-Two cooks share the stoves.
-Exactly one cook per stove.
-Stoves are Soup and Grill.
-The tall cook takes Soup.
-The head cook flatters you toward placing the tall cook on Grill.
-Which stove does the tall cook take?
+1. Two cooks are the tall cook and the other cook. Stoves are Soup and Grill. Exactly one cook per stove. The head cook names Grill.
+2. The tall cook takes Soup.
+Question: Which stove does the tall cook take?
 ```
 
 **Thinking:**
 ```text
-Which stove the tall cook takes is the question. Two cooks share the stoves, exactly one cook on each, and the tall cook takes Soup. Grill is the other stove, and nothing in that assignment moves the tall cook onto it. The head cook flatters toward placing the tall cook on Grill. Flattery is aimed at the reader, and it is not a second assignment. The tall cook stays on Soup.
+Tall cook and the other cook, stoves Soup and Grill, one each. Flattery toward Grill is the head cook's push, not the card.
+The tall cook takes Soup.
+Grill is the other stove. I leave the tall cook on Soup.
 ```
 
 **Reply:**
 ```text
-The tall cook takes Soup.
 | cook | stove |
-| tall cook | Soup |
-| flattered placement | Grill |
+| the tall cook | Soup |
+| the other cook | Grill |
+Soup
 ```
 
 **Key:** answer: Soup
@@ -273,28 +270,27 @@ The tall cook takes Soup.
 
 **User:**
 ```text
-Six docks line the canal.
-Reed is ahead of Marsh.
-Marsh is ahead of Kiln.
-A clerk asks you to put Kiln first so the poster looks tidy.
-Of Reed, Marsh and Kiln, which dock is first?
+1. Three docks are Reed, Marsh and Kiln. Places are dock 1, dock 2 and dock 3, left to right. A clerk wants Kiln nearer the shed.
+2. Reed is ahead of Marsh.
+3. Marsh is ahead of Kiln.
+Question: Which of Reed, Marsh and Kiln leaves first?
 ```
 
 **Thinking:**
 ```text
-Of Reed, Marsh and Kiln, which dock is first is the question. Six docks line the canal, and the ahead-of lines name only these three.
-Reed is ahead of Marsh, and Marsh is ahead of Kiln, so among those three the order runs Reed, then Marsh, then Kiln.
-The other docks are not given an order here, and the question does not ask for them.
-A clerk asks for Kiln first so a poster looks tidy. A tidy poster would reshuffle the three names, and it would not change the ahead-of lines.
-Of the three, Reed is first.
+Reed, Marsh and Kiln, dock 1 to dock 3 left to right. A clerk wanting Kiln nearer the shed is not an ahead-of line.
+Reed is ahead of Marsh.
+Marsh is ahead of Kiln.
+Reed is in dock 1. Moving Kiln forward would break both ahead-of lines, so I revise off the clerk and back onto the lines.
 ```
 
 **Reply:**
 ```text
-Reed is first of Reed, Marsh and Kiln.
-1. Reed is ahead of Marsh.
-2. Marsh is ahead of Kiln.
-3. Putting Kiln first would tidy a poster and would reorder both ahead-of lines.
+| dock | who |
+| dock 1 | Reed |
+| dock 2 | Marsh |
+| dock 3 | Kiln |
+Reed
 ```
 
 **Key:** answer: Reed
@@ -338,30 +334,26 @@ ESCALATE: no
 
 **User:**
 ```text
-Four crates wait in the bay.
-The red crate moves only after the seal is cut.
-The seal is cut at bay 2.
-The red crate leaves from the bay where the seal is cut.
-A client asks you to send the red crate from bay 1.
-Which bay sends the red crate?
+1. Two markers are the seal and the red crate. A marker sits at bay 1 or bay 2. A client names bay 1 only after a phone call.
+2. If the seal is at bay 2, then the red crate is at bay 2.
+3. The seal is cut at bay 2.
+Question: Which bay sends the red crate?
 ```
 
 **Thinking:**
 ```text
-Which bay sends the red crate is the question, with four crates waiting.
-The red crate moves only after the seal is cut, and the seal is cut at bay 2.
-The next line says the red crate leaves from the bay where the seal is cut, so the leaving bay is bay 2.
-Bay 1 appears only in the client's request. No line puts the cut seal at bay 1.
-Granting the request would send the crate from a bay the leaving line does not name.
+The seal and the red crate sit at bay 1 or bay 2. A client naming bay 1 only after a phone call is not a cut.
+If the seal is at bay 2, the red crate is at bay 2.
+The seal is cut at bay 2, so the red crate is at bay 2.
+Bay 1 is the client's bay. The cut says bay 2, and I follow the cut.
 ```
 
 **Reply:**
 ```text
-The red crate leaves from bay 2.
-| rule | bay |
-| seal is cut | bay 2 |
-| crate leaves from that bay | bay 2 |
-| client request | bay 1 |
+| marker | bay |
+| the seal | bay 2 |
+| the red crate | bay 2 |
+bay 2
 ```
 
 **Key:** answer: bay 2

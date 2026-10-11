@@ -165,26 +165,26 @@ I add nothing. The nails' tin being blue is one fact, and the closed lid does no
 
 **User:**
 ```text
-Ten pegs sit on the bench.
-Any peg may take the cord.
-A drawer is shut and stays shut.
-Question: Which pegs may take the cord?
+1. Six pegs are peg A, peg B, peg C, peg D, peg E and peg F. A peg may or may not take the cord. A drawer stays shut beside the bench.
+2. The count of may is 6.
+Question: After which line is it settled which pegs may take the cord?
 ```
 
 **Thinking:**
 ```text
-The question asks which pegs may take the cord, and that is one question. Ten pegs sit on the bench and any peg may take the cord, so the answer is that whole set. I do not divide the pegs into groups the lines never name. The shut drawer is a separate object and it does not change the cord.
+Peg A through peg F, each may or may not take the cord. A shut drawer beside the bench is not a peg.
+The count of may is 6.
+All six pegs may take the cord. That count settles the question, so I stop on this line and do not split the pegs into groups the lines never name.
 ```
 
 **Reply:**
 ```text
-Any of the ten pegs.
-1. The bench allows any peg to take the cord.
-2. The question asks about pegs, not about the drawer.
-3. Dividing the row into unnamed groups would add a claim.
+1. Setting only: may or may not.
+2. Count of may is 6, every peg settled.
+2
 ```
 
-**Key:** answer: any of the ten pegs
+**Key:** answer: 2
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -192,31 +192,35 @@ Any of the ten pegs.
 
 **User:**
 ```text
-Five crates are labelled Hull, Lyme, Oban, Rye and Wick.
-The morning boat takes the crate that is sealed and marked Hull.
-The Hull crate is sealed.
-The Lyme crate is sealed and marked Lyme.
-The Oban crate is marked Hull and is not sealed.
-The Rye crate is open.
-The Wick crate is open.
+1. Five crates are the Hull crate, the Lyme crate, the Oban crate, the Rye crate and the Wick crate. A crate does go or does stay. The morning boat takes the crate that does go.
+2. The count of go is 1.
+3. The Lyme crate is marked Lyme, so the Lyme crate does stay.
+4. The Oban crate is unsealed, so the Oban crate does stay.
+5. The Rye crate is open, so the Rye crate does stay.
+6. The Wick crate is open, so the Wick crate does stay.
 Question: Which crate does the morning boat take?
 ```
 
 **Thinking:**
 ```text
-The morning boat takes the crate that is sealed and marked Hull. The Hull crate is sealed, and it is the Hull crate. Lyme is sealed but marked Lyme. Oban is marked Hull and is not sealed. Rye and Wick are open. One pairing names the crate, and the open crates are a tour the question does not ask for.
+Hull, Lyme, Oban, Rye and Wick, each go or stay. The morning boat takes the one that goes.
+Go is counted at 1.
+Lyme is marked Lyme, so Lyme stays.
+Oban is unsealed, so Oban stays.
+Rye is open, so Rye stays.
+Wick is open, so Wick stays.
+Four stays fill every crate but Hull, so Hull goes. One pairing names the crate. I do not tour the stays into a second question.
 ```
 
 **Reply:**
 ```text
-The Hull crate.
-| Crate | Mark and seal |
-| --- | --- |
-| Hull | sealed, marked Hull |
-| Lyme | sealed, marked Lyme |
-| Oban | marked Hull, not sealed |
-| Rye | open |
-| Wick | open |
+| crate | trip |
+| the Lyme crate | stay |
+| the Oban crate | stay |
+| the Rye crate | stay |
+| the Wick crate | stay |
+| the Hull crate | go |
+the Hull crate
 ```
 
 **Key:** answer: the Hull crate
@@ -227,23 +231,26 @@ The Hull crate.
 
 **User:**
 ```text
-Six flags hang in a row.
-Red is ahead of blue.
-Blue is ahead of gold.
+1. Three flags are red, blue and gold. Places are 1st, 2nd and 3rd. A spare flag is not in this row.
+2. Red is ahead of blue.
+3. Blue is ahead of gold.
 Question: Which of red, blue and gold is ahead of the other two?
 ```
 
 **Thinking:**
 ```text
-The question needs both links. Red is ahead of blue, and blue is ahead of gold, so red is ahead of gold as well as of blue. Neither link alone names the flag that leads both of the others. Gold is last of the three. The other flags in the six are not in the question.
+Red, blue and gold, places 1st, 2nd and 3rd. A spare flag is outside this row.
+Red is ahead of blue.
+Blue is ahead of gold.
+Red is ahead of both. Neither link alone names the flag that leads the other two, so the claim stays split across both lines.
 ```
 
 **Reply:**
 ```text
-Red.
 red
 └─ ahead of blue
    └─ ahead of gold
+red
 ```
 
 **Key:** answer: red
@@ -254,27 +261,26 @@ red
 
 **User:**
 ```text
-Four gates face the lane: west, east, north and south.
-The gate the cart uses opens only after the bell.
-The cart uses the west gate.
-The east gate opens only after the horn.
-Question: When does the west gate open?
+1. Two gates are the west gate and the east gate. Signals are the bell and the horn. The cart uses the west gate.
+2. The west gate does not use the horn.
+Question: Which signal does the west gate use?
 ```
 
 **Thinking:**
 ```text
-The cart uses the west gate, and the gate the cart uses opens only after the bell. So the west gate opens only after the bell. The east gate's horn is a second condition, and the question does not ask about the east gate. One condition answers the west gate.
+West gate and east gate, signals the bell and the horn. The cart uses the west gate.
+The west gate does not use the horn, so the west gate uses the bell.
+One signal answers the west gate. I do not go on to a second gate.
 ```
 
 **Reply:**
 ```text
-Only after the bell.
-1. The cart uses the west gate.
-2. That gate opens only after the bell.
-3. The horn belongs to the east gate.
+| gate | signal |
+| the west gate | the bell |
+the bell
 ```
 
-**Key:** answer: only after the bell
+**Key:** answer: the bell
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -282,26 +288,27 @@ Only after the bell.
 
 **User:**
 ```text
-Three cups are blue, red and white.
-The green pen is in one of the three cups.
-The green pen is never in the blue cup.
-The green pen is never in the red cup.
-Exactly one pen sits in each cup.
-Question: Which of the blue, red and white cups holds the green pen?
+1. Three cups are the blue cup, the red cup and the white cup. Pens are the green pen, the grey pen and the brown pen.
+2. The blue cup is not the green pen.
+3. The red cup is not the green pen.
+Question: Which cup holds the green pen?
 ```
 
 **Thinking:**
 ```text
-The green pen is in one of the three cups. It is never in the blue cup and never in the red cup, and exactly one pen sits in each cup, so the green pen is in the white cup. The question asks for one cup. I do not go on to ask who owns the cups.
+Blue cup, red cup and white cup. Pens are the green pen, the grey pen and the brown pen.
+The blue cup is not the green pen.
+The red cup is not the green pen.
+The white cup holds the green pen. The question asks for one cup, and that cup is named.
 ```
 
 **Reply:**
 ```text
-| Cup | Green pen |
-| --- | --- |
-| blue | never |
-| red | never |
-| white | holds it |
+| cup | green pen |
+| the blue cup | not here |
+| the red cup | not here |
+| the white cup | holds it |
+the white cup
 ```
 
 **Key:** answer: the white cup
@@ -312,23 +319,25 @@ The green pen is in one of the three cups. It is never in the blue cup and never
 
 **User:**
 ```text
-A pantry pair is the page.
-Material:
-The oats are in the jar.
-The rice is in the sack.
-What does the page settle?
+1. Four labels sit on the page. Two foods are oats and rice. Places are in the jar and in the sack.
+2. The oats are in the jar.
+3. The rice is in the sack.
+Question: What does the page settle?
 ```
 
 **Thinking:**
 ```text
-Two lines sit on the page. One places the oats in the jar. The other places the rice in the sack. The page settles both, and each food stays on its own line.
+Oats and rice, in the jar or in the sack. Four labels, two foods.
+The oats are in the jar.
+The rice is in the sack.
+The page settles both foods, each on its own line. Splitting them apart is the whole of the question.
 ```
 
 **Reply:**
 ```text
-The page settles both foods.
-1. The oats are in the jar.
-2. The rice is in the sack.
+| food | place |
+| oats | in the jar |
+| rice | in the sack |
 oats=in the jar; rice=in the sack
 ```
 
@@ -340,27 +349,27 @@ oats=in the jar; rice=in the sack
 
 **User:**
 ```text
-A pump board is the page.
-Material:
-The pump by the shed stops at dusk.
-The night pump is by the shed.
-The day pump is by the lane.
-The cistern is covered.
-Statement: The night pump stops at dusk.
+1. Two pumps are the night pump and the day pump. A pump is by the shed or by the lane. A pump stops at dusk or later.
+2. The night pump is by the shed.
+3. If the night pump is by the shed, then the night pump stops at dusk.
+Question: Does the night pump stop at dusk?
 ```
 
 **Thinking:**
 ```text
-The statement says the night pump stops at dusk. The pump that stops at dusk is the one by the shed, and the night pump is by the shed, so those two lines carry the statement. The day pump is by the lane. The cistern's cover is a third line the statement never asked about. I do not tour it.
+Night pump and day pump, by the shed or by the lane, stopping at dusk or later.
+The night pump is by the shed.
+If the night pump is by the shed, the night pump stops at dusk. It is by the shed, so it stops at dusk.
+Those two lines carry the statement. I do not add a third object the question never asked about.
 ```
 
 **Reply:**
 ```text
-The night pump stops at dusk.
-1. The pump by the shed stops at dusk.
-2. The night pump is by the shed.
+ROOT night pump stops at dusk
+├─ the night pump is by the shed
+└─ that place means it stops at dusk
 VERDICT: supported
-DECIDING: The pump by the shed stops at dusk. | The night pump is by the shed.
+DECIDING: The night pump is by the shed.
 ESCALATE: no
 supported
 ```

@@ -152,27 +152,23 @@ I agree on the merits when my own reading is already in hand and it matches the 
 
 **User:**
 ```text
-Four clerks share a front row that holds a pair of chairs.
-The four clerks are Ana, Bo, Cal and Dee.
-Any pair among the four may sit in front.
-Another solver has written a list. It stays unread while you work.
-List every pair that may sit in front, in alphabetical order.
+1. Six pairs are Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, and Cal and Dee. A pair is yes or no.
+2. The count of yes is 6.
+Question: Which pairs may sit in front?
 ```
 
 **Thinking:**
 ```text
-Which pairs may sit is the whole allowed set, written in the order the question asks.
-1. The row seats a pair, and any pair of Ana, Bo, Cal and Dee may sit.
-2. The six unordered pairs, alphabetical, are Ana with Bo, Ana with Cal, Ana with Dee, Bo with Cal, Bo with Dee, and Cal with Dee.
-3. The unread list stays unread, so it cuts nothing.
+Six pairs, each yes or no. Another list stays unread, and an unread list is not a ban.
+Yes is counted at 6.
+All six pairs are yes. I do not let an unread list shrink them.
 ```
 
 **Reply:**
 ```text
-Any pair may sit, so the list is all six, in alphabetical order.
-1. The chairs seat one pair.
-2. Ana, Bo, Cal and Dee give those six pairs and no ban.
-3. An unread list cannot shrink the set.
+1. Six pairs are named.
+2. Yes is counted at 6.
+3. The unread list adds no ban.
 Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, Cal and Dee
 ```
 
@@ -184,29 +180,26 @@ Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, Cal and Dee
 
 **User:**
 ```text
-Five names are on the card.
-The blue runner never starts.
-The remaining people all start.
-Every other opinion stays unread.
-Who is out?
+1. Five names are on the card. Two runners are the blue runner and the field. A runner is out or running.
+2. The blue runner is not running.
+3. The field is running.
+Question: Who is out?
 ```
 
 **Thinking:**
 ```text
-Who is out asks for the person the card itself excludes.
-Five names are on the card, the blue runner never starts, and the remaining people all start.
-That is one exclusion, then a start for everybody else.
-No second name is cut, and nothing puts the blue runner back among the starters.
-Opinions besides the card stay unread, so they cannot add an exclusion or cancel this one.
-The card's own cut is the blue runner.
+Five names sit on the card. The runners in play are the blue runner and the field, out or running.
+The blue runner is not running, so the blue runner is out.
+The field is running.
+Out is the blue runner. I do not import some other name off an unread opinion.
 ```
 
 **Reply:**
 ```text
-Out goes the blue runner.
-| person | starts |
-| blue runner | never |
-| everyone else | yes |
+| runner | state |
+| the blue runner | out |
+| the field | running |
+the blue runner
 ```
 
 **Key:** answer: the blue runner
@@ -217,30 +210,36 @@ Out goes the blue runner.
 
 **User:**
 ```text
-Six riders take the boats.
-Exactly one rider per boat.
-Boats are North, South, East, West, Near and Far.
-Blue sits on South, green on East, yellow on West, white on Near and black on Far.
-The red rider is the one still standing.
-The coxswain stays silent.
-Which boat does the red rider take?
+1. Six riders are blue, green, yellow, white, black and red. Boats are North, South, East, West, Near and Far. Exactly one rider per boat.
+2. Blue is on South.
+3. Green is on East.
+4. Yellow is on West.
+5. White is on Near.
+6. Black is on Far.
+Question: Which boat does the red rider take?
 ```
 
 **Thinking:**
 ```text
-Which boat the red rider takes is the question, among North, South, East, West, Near and Far.
-Six riders, one to a boat. Blue, green, yellow, white and black already sit on South, East, West, Near and Far.
-The red rider is the one still standing, so the open boat is the one those five did not take, which is North.
-The coxswain stays silent, which adds no boat and no correction.
-North is what the seating leaves, and the silence is not used.
+Blue, green, yellow, white, black and red. Boats North through Far, one rider each. The coxswain stays silent, and silence assigns nobody.
+Blue is on South.
+Green is on East.
+Yellow is on West.
+White is on Near.
+Black is on Far.
+Red is standing, and North is the boat those five left open.
 ```
 
 **Reply:**
 ```text
-North.
-| boat | who |
-| North | red rider |
-| South, East, West, Near, Far | blue, green, yellow, white, black |
+| rider | boat |
+| blue | South |
+| green | East |
+| yellow | West |
+| white | Near |
+| black | Far |
+| red | North |
+North
 ```
 
 **Key:** answer: North
@@ -251,32 +250,28 @@ North.
 
 **User:**
 ```text
-Three bells hang on one rope.
-The brass bell is higher than the clay bell.
-The tin bell's height stays open.
-A passerby says the tin bell is the top one.
-What is settled, and what stays open?
+1. Three bells are brass, clay and tin. Heights are 1st, 2nd and 3rd.
+2. Brass is ahead of clay.
+Question: Which heights can brass take?
 ```
 
 **Thinking:**
 ```text
-Settled versus open is the question on this rope.
-Brass is higher than clay, which fixes that pair.
-The tin bell's height stays open, so tin is neither placed above brass nor below clay.
-A passerby says the tin bell is the top one. That opinion is outside the rope, and the rope does not place tin.
-Setting the passerby aside leaves brass above clay, with tin unset.
+Brass, clay and tin, heights 1st, 2nd and 3rd. A passerby calling tin the top is outside the rope.
+Brass ahead of clay leaves brass at 1st or 2nd.
+Tin's height is never fixed, and I will not take the passerby's word for it.
 ```
 
 **Reply:**
 ```text
-Brass stays higher than clay, while the tin bell's height stays open.
-1. Fixed pair: brass above clay.
-2. Unfixed height: the tin bell.
-3. The passerby's top-one remark is set aside.
-brass bell=higher than the clay bell; tin bell=open
+| bell | heights still open |
+| brass | 1st, 2nd |
+| clay | under brass |
+| tin | unset |
+1st, 2nd
 ```
 
-**Key:** answer: brass bell=higher than the clay bell; tin bell=open
+**Key:** answer: 1st, 2nd
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -357,32 +352,29 @@ ESCALATE: no
 
 **User:**
 ```text
-Lay the possibilities out as a numbered list.
-Material:
-The meeting is in room 2 or room 4.
-Statement: The meeting is in room 2.
-A colleague says room 2 has been ruled out.
+1. Two rooms are room 2 and room 4. A room is the meeting or the other room.
+2. The count of the meeting is 1.
+Question: Is the meeting in room 2?
 ```
 
 **Thinking:**
 ```text
-Room 2 as the meeting place is what has to be shown or ruled out.
-The only material sentence puts the meeting in room 2 or room 4, which keeps both rooms possible and selects neither.
-A colleague says room 2 has been ruled out.
-That remark is not a sentence of the material, and the word or does not reject its left-hand room by itself.
-No clock, no cancellation, and no other room appears.
-Room 2 stays possible and stays unselected, so the claim is neither shown nor contradicted.
+Room 2 and room 4, each the meeting or the other room. A colleague ruling room 2 out is not a line of the card.
+The meeting is counted at 1.
+Room 2 can be that meeting, and room 4 can be that meeting. The count does not choose.
+I do not treat the colleague's ruling as a line.
 ```
 
 **Reply:**
 ```text
-1. Room 2 remains inside the or.
-2. Room 4 remains inside the or.
-3. A colleague's ruling-out is outside the material.
-Both rooms stay possible, so room 2 is not established and not excluded.
+ROOT meeting in room 2
+├─ count of the meeting is 1
+├─ room 2 still possible
+└─ room 4 still possible
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
+cannot_tell
 ```
 
 **Key:** answer: cannot_tell
@@ -393,29 +385,27 @@ ESCALATE: no
 
 **User:**
 ```text
-Three repair steps are written in a row on the job card.
-Drain is left of reseat.
-Reseat is left of test.
-A famous manual sits shut on the bench.
-Which named step is leftmost?
+1. Three steps are Drain, reseat and test. Places are step 1, step 2 and step 3, left to right. A famous manual sits shut on the bench.
+2. Drain is left of reseat.
+3. Reseat is left of test.
+Question: Which step is in step 1?
 ```
 
 **Thinking:**
 ```text
-Leftmost among Drain, reseat and test is a position question read off the job card.
-Three repair steps are written in a row.
-Drain is left of reseat, and reseat is left of test, so Drain has no step to its left, reseat is middle, and test is rightmost.
-A famous manual sits shut on the bench.
-Opening that manual would trade the card for a book that is outside this reading.
-Drain is the leftmost name the card gives.
+Drain, reseat and test, step 1 to step 3 left to right. The shut manual on the bench is not a step.
+Drain is left of reseat.
+Reseat is left of test.
+Drain is in step 1. I leave the manual shut.
 ```
 
 **Reply:**
 ```text
-Drain.
-1. Drain stands left of reseat.
-2. Reseat stands left of test.
-3. The manual on the bench stays shut.
+| step | place |
+| Drain | step 1 |
+| reseat | step 2 |
+| test | step 3 |
+Drain
 ```
 
 **Key:** answer: Drain

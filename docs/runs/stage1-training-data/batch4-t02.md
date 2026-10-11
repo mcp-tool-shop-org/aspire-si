@@ -152,30 +152,33 @@ I answer from the photocopy. Waiting for the original would pretend the rule was
 
 **User:**
 ```text
-Four sheds stand on the lane: north, south, east and west.
-The lane note allows any shed it does not close.
-The lane note closes the east shed and the west shed.
-A rumour passed along the yard says the south shed was closed.
-Question: Which sheds does the lane note allow?
+1. Four sheds are north, south, east and west. A shed is open or shut. A rumour says the south shed was closed.
+2. East is shut.
+3. West is shut.
+4. The count of open is 2.
+Question: Which sheds are open?
 ```
 
 **Thinking:**
 ```text
-The lane note allows any shed it does not close, and the sheds it closes are east and west. North stays open on that note, and so does south. The yard rumour is talk from the yard, not the lane note, and the question asks what the note allows. I do not let the rumour close a shed the note left open.
+North, south, east and west, open or shut. A yard rumour about the south shed is not the lane note.
+East is shut.
+West is shut.
+Open is counted at 2, so north and south are open.
+The rumour does not close south. The note does.
 ```
 
 **Reply:**
 ```text
-North and south.
-| Shed | Lane note |
-| --- | --- |
-| north | allowed |
-| south | allowed |
-| east | closed |
-| west | closed |
+| shed | state |
+| north | open |
+| south | open |
+| east | shut |
+| west | shut |
+north, south
 ```
 
-**Key:** answer: north and south
+**Key:** answer: north, south
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -183,24 +186,35 @@ North and south.
 
 **User:**
 ```text
-Five lamps sit on the bench: red, blue, green, amber and white.
-The bench card says one of the five is the spare, and the spare never lights.
-The bench card says the spare is not blue, not green, not amber and not white.
-A passer-by says the blue lamp is the dark one.
-Question: Which of the five lamps is the spare?
+1. Five lamps are the red lamp, the blue lamp, the green lamp, the amber lamp and the white lamp. A lamp is spare or lit. A passer-by points at the blue lamp.
+2. The count of spare is 1.
+3. The blue lamp is not spare.
+4. The green lamp is not spare.
+5. The amber lamp is not spare.
+6. The white lamp is not spare.
+Question: Which lamp is the spare?
 ```
 
 **Thinking:**
 ```text
-The spare is the lamp that never lights, and the bench card says that lamp is not blue, not green, not amber and not white. Of the five, that leaves the red lamp. The passer-by's blue lamp is a report, not a line of the card. I name the spare from the card's own exclusions.
+Red, blue, green, amber and white lamps, spare or lit. A passer-by pointing at blue is not the bench card.
+Spare is counted at 1.
+Blue is not spare.
+Green is not spare.
+Amber is not spare.
+White is not spare.
+The red lamp is the spare. I name it from the card, not from the passer-by.
 ```
 
 **Reply:**
 ```text
-The red lamp.
-1. The card puts the spare among the five.
-2. The card excludes blue, green, amber and white.
-3. The passer-by's blue lamp is not the card.
+| lamp | role |
+| the blue lamp | not spare |
+| the green lamp | not spare |
+| the amber lamp | not spare |
+| the white lamp | not spare |
+| the red lamp | spare |
+the red lamp
 ```
 
 **Key:** answer: the red lamp
@@ -211,28 +225,31 @@ The red lamp.
 
 **User:**
 ```text
-Six pegs hang on the rail: red, blue, green, amber, white and black.
-Exactly one peg is on the end hook.
-Blue, green and amber never fit the end hook.
-White is already on the middle hook.
-Black is already on the first hook.
-A workshop sketch on the bench ranks the pegs by length.
+1. Six pegs are the red peg, the blue peg, the green peg, the amber peg, the white peg and the black peg. Hooks are the end hook, the middle hook and the near hook. A workshop sketch ranks pegs by length.
+2. The count of the end hook is 1.
+3. The blue peg, the green peg and the amber peg are not on the end hook.
+4. The white peg is the middle hook.
+5. The black peg is the near hook.
 Question: Which peg is on the end hook?
 ```
 
 **Thinking:**
 ```text
-Exactly one peg is on the end hook. Blue, green and amber never fit it, white is already on the middle hook, and black is already on the first hook. The peg still left is red. The workshop sketch ranks by length, and the rail has already named the end peg, so the sketch stays on the bench.
+Red, blue, green, amber, white and black pegs. Hooks are the end hook, the middle hook and the near hook. A length sketch is not a hook.
+The end hook is counted at 1.
+Blue, green and amber are not on the end hook.
+White is the middle hook.
+Black is the near hook.
+The red peg is on the end hook. The sketch stays on the bench. The rail has already named the peg.
 ```
 
 **Reply:**
 ```text
-The red peg.
-| Hook | Peg |
-| --- | --- |
-| end | red |
-| middle | white |
-| first | black |
+| peg | hook |
+| the white peg | the middle hook |
+| the black peg | the near hook |
+| the red peg | the end hook |
+the red peg
 ```
 
 **Key:** answer: the red peg
@@ -243,24 +260,28 @@ The red peg.
 
 **User:**
 ```text
-Three bells are brass, clay and tin.
-The noon strike uses the bell that is higher than clay.
-Brass is higher than clay.
-A weight chart under the card ranks the bells by weight.
-Question: Which of brass, clay or tin does the noon strike use?
+1. Three bells are brass, clay and tin. Heights are 1st, 2nd and 3rd. The noon strike uses the bell in 1st. A weight chart ranks bells by weight.
+2. Brass is ahead of clay.
+3. Tin is after clay.
+Question: Which bell does the noon strike use?
 ```
 
 **Thinking:**
 ```text
-The noon strike uses whichever bell is higher than clay. The card says brass is higher than clay, so the strike uses brass. Tin is named and never ranked against clay. The weight chart ranks by weight, and these two lines already name brass. Brass is already the bell the two lines pick.
+Brass, clay and tin, heights 1st, 2nd and 3rd. The noon strike uses 1st. A weight chart is not a height.
+Brass is ahead of clay.
+Tin is after clay.
+The order is brass, clay, tin, so 1st is brass.
+Both height lines are already in. I stop. The chart ranks weight.
 ```
 
 **Reply:**
 ```text
-Brass.
-1. The strike uses the bell higher than clay.
-2. Brass is that bell.
-3. The weight chart ranks by weight, and the two lines already name brass.
+| bell | height |
+| brass | 1st |
+| clay | 2nd |
+| tin | 3rd |
+brass
 ```
 
 **Key:** answer: brass
@@ -271,24 +292,26 @@ Brass.
 
 **User:**
 ```text
-Seven doors face the lane.
-The yard door opens only after the bell.
-No other door waits on the bell.
-A building plan is clipped to the back of the list.
-Question: Which door waits on the bell?
+1. Seven doors face the lane. Two of them are the yard door and the lane door. A door waits or opens. A building plan is clipped to the list.
+2. The yard door waits.
+3. The lane door opens.
+Question: Which door waits?
 ```
 
 **Thinking:**
 ```text
-The yard door opens only after the bell, and the list adds that no other door waits on the bell. Those two lines name one door. The plan draws wall thicknesses. The list has already named the yard door. The yard door is the door the list has already named.
+Seven doors, and the two in play are the yard door and the lane door, waits or opens. A building plan draws walls, not a bell.
+The yard door waits.
+The lane door opens.
+The door that waits is the yard door. The list has named it, so I stop.
 ```
 
 **Reply:**
 ```text
-The yard door.
-1. The yard door opens only after the bell.
-2. The list says no other door waits on the bell.
-3. The plan draws wall thicknesses, and the list has named the door.
+| door | state |
+| the yard door | waits |
+| the lane door | opens |
+the yard door
 ```
 
 **Key:** answer: the yard door
