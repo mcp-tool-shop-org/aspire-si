@@ -1145,7 +1145,8 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Six is what the boat takes, and the lake is open. What do you answer?
+Claim: six can ride in the boat, and the lake can be used.
+What is your answer?
 ```
 
 **Key:** quiz (verdict): supported / The boat takes six. | The lake is open. / no · variant key: {"verdict": "supported"}
