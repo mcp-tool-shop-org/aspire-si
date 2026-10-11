@@ -769,7 +769,7 @@ def _reply_matches(where, reply, keys):
         raise DataError(f"{where}: reply's ESCALATE {p['escalate']!r} != key {keys['escalate']!r}")
 
 
-def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=None) -> None:
+def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=None, closed_form=None) -> None:
     """Every check on one row that needs no other row. `n` is its line number in the file (for messages);
     `seen`, when given, is the set of ids before it (the duplicate-id check)."""
     where = f"line {n} ({r.get('id', '?')})"
@@ -868,7 +868,7 @@ def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=No
             raise DataError(f"{where}: variant must be a re-worded {{user, key}}")
         original = _key_points(q)
         if q["type"] == "written" and isinstance(v["key"], dict) and "answer" in v["key"]:
-            _check_closed_form(where, v, original)
+            _check_closed_form(where, v, original, r, closed_form_settings(closed_form))
             return
         variant = " ".join(_key_points(v["key"]))
         if not any(k and (k in variant or variant in k) for k in original):
@@ -895,10 +895,78 @@ def parse_choice(answer: str) -> str | None:
     return found[-1] if found else None
 
 
-def _check_closed_form(where: str, v: dict, original: list):
+# The closed-form settings (the maintainer: the configurable option wins; the defaults are R&D's ruling (b),
+# 2026-10-11). carry: how the keyed option carries the item's key point:
+#   "verbatim"   the keyed option contains a key point, or is contained in one, after normalising (amendment 5 as
+#                first written); no distractor does;
+#   "paraphrase" the keyed option holds at least `share` of a key point's content words (lightly stemmed, function
+#                and task words dropped; the keyed share is its best over the item's key points); every distractor's
+#                share on every key point is strictly below the keyed share minus `distractor_margin` (no closeness
+#                inversion) and below `distractor_max` (a near-copy guard); and no option shares a `span`-word span
+#                with a trained turn (the item's own here; any item's in check_closed_form_spans);
+#   "either"     the keyed option passes verbatim or paraphrase; distractors fail both; the span rule applies to
+#                every option except a keyed option that passes verbatim.
+# Provenance (R&D, 2026-10-11): share 0.5 and distractor_max 0.8 from batch 5's measured shares; distractor_margin
+# 0.15 from batch 5's paraphrased round (6a01c18): smallest keyed-to-top-distractor gap 0.21, median 0.50, set below
+# the minimum to leave headroom; re-measured after batch 6 and raised if the minimum gap stays above 0.2. There is
+# no floor on distractor share: on-topic near-misses can share none of the point's words (off-topic stays a
+# key-check judgement).
+CLOSED_FORM_DEFAULT = {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8, "distractor_margin": 0.15,
+                       "span": 8, "exempt_keyed_key_points": False}  # R&D, 2026-10-11, from batch 5's measured shares; the margin is set after its round
+CARRY_MODES = ("verbatim", "paraphrase", "either")
+
+
+def closed_form_settings(cfg=None) -> dict:
+    out = {**CLOSED_FORM_DEFAULT, **(cfg or {})}
+    if out["carry"] not in CARRY_MODES or not (0 < out["share"] <= 1) or not (0 < out["distractor_max"] <= 1) \
+            or not (0 <= out["distractor_margin"] < 1) or int(out["span"]) < 2:
+        raise ValueError(f"closed-form settings out of range: {out}")
+    out["span"] = int(out["span"])
+    return out
+
+
+SUFFIXES = ("ing", "ed", "es", "s", "ly")
+
+
+def content_stems(text: str) -> set:
+    """Content words, lightly stemmed: function words and the task's own nouns dropped, one common suffix cut."""
+    out = set()
+    for w in re.findall(r"[a-z0-9']+", text.lower()):
+        if w in FUNCTION_WORDS or w in TASK_WORDS:
+            continue
+        for suf in SUFFIXES:
+            if w.endswith(suf) and len(w) - len(suf) >= 3:
+                w = w[:-len(suf)]
+                break
+        out.add(w)
+    return out
+
+
+def key_point_share(key_point: str, option: str) -> float:
+    k = content_stems(key_point)
+    return len(k & content_stems(option)) / len(k) if k else 0.0
+
+
+def word_spans(text: str, n: int) -> set:
+    w = re.findall(r"[a-z0-9']+", text.lower())
+    return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+
+
+def trained_turn_spans(rows, n: int) -> set:
+    out: set = set()
+    for r in rows:
+        for t in r.get("turns") or []:
+            for k in ("user", "thinking", "reply"):
+                out |= word_spans(t.get(k) or "", n)
+    return out
+
+
+def _check_closed_form(where: str, v: dict, original: list, item: dict | None = None, cfg: dict | None = None):
     """A written E item's closed-form variant (R&D, 2026-10-11): 3 or 4 options labelled A, B, C(, D) on their
     own lines, an instruction to answer with an ANSWER line, key {"answer": "<letter>"}, exactly one option
-    carrying a key point of the original, and nothing else in the variant (no material: it stands alone)."""
+    carrying a key point of the original (as `cfg["carry"]` sets), and nothing else in the variant (no material:
+    it stands alone)."""
+    cfg = closed_form_settings(cfg)
     extra = set(v) - {"user", "key"}
     if extra:
         raise DataError(f"{where}: a closed-form variant is {{user, key}} only (it stands alone), not {sorted(extra)}")
@@ -917,17 +985,106 @@ def _check_closed_form(where: str, v: dict, original: list):
     if key not in opts:
         raise DataError(f"{where}: the closed-form key {key!r} isn't one of the options {letters}")
 
-    def carries(t):
+    def verbatim(t):
         t = norm(t).lower()
         return any(k and (k in t or t in k) for k in original)
-    if not carries(opts[key]):
-        raise DataError(f"{where}: the keyed option shares no key point with the original")
-    others = [x for x in letters if x != key and carries(opts[x])]
+
+    def share(t):
+        return max((key_point_share(k, t) for k in original), default=0.0)
+
+    mode = cfg["carry"]
+    keyed_verbatim, keyed_share = verbatim(opts[key]), share(opts[key])
+    keyed_ok = {"verbatim": keyed_verbatim, "paraphrase": keyed_share >= cfg["share"],
+                "either": keyed_verbatim or keyed_share >= cfg["share"]}[mode]
+    if not keyed_ok:
+        raise DataError(f"{where}: the keyed option doesn't carry a key point of the original "
+                        f"(carry {mode}: verbatim {keyed_verbatim}, content-word share {keyed_share:.2f}, "
+                        f"needed {cfg['share']})")
+    others = []
+    for x in letters:
+        if x == key:
+            continue
+        d = share(opts[x])
+        if (mode in ("verbatim", "either") and verbatim(opts[x])) or \
+                (mode in ("paraphrase", "either") and (d >= cfg["distractor_max"]
+                                                       or d >= keyed_share - cfg["distractor_margin"])):
+            others.append(x)
     if others:
-        raise DataError(f"{where}: options {others} also carry a key point of the original: exactly one is keyed")
+        raise DataError(f"{where}: options {others} also carry a key point of the original (carry {mode}: a "
+                        f"distractor's share must be under {cfg['distractor_max']} and under the keyed share "
+                        f"{keyed_share:.2f} minus {cfg['distractor_margin']}): exactly one is keyed")
+    if mode != "verbatim" and item is not None:
+        trained = trained_turn_spans([item], cfg["span"])
+        hit = [x for x in letters if not (mode == "either" and x == key and keyed_verbatim)
+               and word_spans(opts[x], cfg["span"]) & trained]
+        if hit:
+            raise DataError(f"{where}: options {hit} share a {cfg['span']}-word span with the item's trained turn")
 
 
-def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_caps: bool = True) -> None:
+def closed_form_figures(rows: list[dict]) -> list:
+    """Per closed-form item: the keyed option's share (its best over the key points) and the highest distractor
+    share, for the diagnostics; R&D sets distractor_margin from their distribution."""
+    out = []
+    for r in rows:
+        v = r.get("variant") or {}
+        if r.get("kind") != "E" or not isinstance(v.get("key"), dict) or "answer" not in v["key"]:
+            continue
+        kps = (r.get("quiz") or {}).get("key_points") or []
+        shares = {x: max((key_point_share(k, t) for k in kps), default=0.0)
+                  for x, t in closed_form_options(v["user"]).items()}
+        key = v["key"]["answer"]
+        out.append({"id": r["id"], "keyed_share": round(shares.get(key, 0.0), 3),
+                    "top_distractor_share": round(max((s_ for x, s_ in shares.items() if x != key), default=0.0), 3)})
+    return out
+
+
+def variant_checked_spans(r: dict, v: dict, cfg: dict) -> set:
+    """The spans of a variant that the spent check compares with trained turns (the same rule as quiz.py's): the
+    whole user text, minus the item's own material and new_material; with exempt_keyed_key_points on, a
+    closed-form keyed option is checked without the item's own key points (the stem and distractors in full)."""
+    n = cfg["span"]
+    text = v.get("user") or ""
+    if cfg["exempt_keyed_key_points"] and isinstance(v.get("key"), dict) and "answer" in v["key"]:
+        letter = v["key"]["answer"]
+        keyed = closed_form_options(text).get(letter, "")
+        rest = "\n".join(line for line in text.splitlines()
+                         if not (line.lstrip().lstrip("(").startswith(letter) and keyed and keyed in line))
+        kp_spans: set = set()
+        for kp in (r.get("quiz") or {}).get("key_points") or []:
+            kp_spans |= word_spans(kp, n)
+        out = word_spans(rest, n) | (word_spans(keyed, n) - kp_spans)
+    else:
+        out = word_spans(text, n)
+    material = word_spans(r.get("material") or "", n)
+    for t in r.get("turns") or []:
+        nm = t.get("new_material") or ""
+        material |= word_spans("\n".join(nm) if isinstance(nm, list) else nm, n)
+    return out - material
+
+
+def check_closed_form_spans(rows: list[dict], cfg=None) -> None:
+    """The quiz's spent check, run at authoring (R&D on #105): every quizzable kind-E variant (verdict, or written
+    in closed form) must share no `span`-word span with any trained turn of any item, outside the item's own
+    material (and, if exempt_keyed_key_points is on, the item's key points inside its keyed option). A variant
+    that fails would be spent at its first quiz, so it is refused here. Free-text written variants aren't quizzed
+    and are left out."""
+    cfg = closed_form_settings(cfg)
+    trained = trained_turn_spans(rows, cfg["span"])
+    for r in rows:
+        v = r.get("variant") or {}
+        if r.get("kind") != "E" or not v.get("user"):
+            continue
+        q = r.get("quiz") or {}
+        closed = isinstance(v.get("key"), dict) and "answer" in v["key"]
+        if q.get("type") == "written" and not closed:
+            continue
+        if variant_checked_spans(r, v, cfg) & trained:
+            raise DataError(f"{r['id']}: its variant shares a {cfg['span']}-word span with a trained turn, so it "
+                            "would be spent at its first quiz")
+
+
+def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_caps: bool = True,
+                closed_form=None) -> None:
     """Every check that needs the whole set: stamps, frames, shares, floors, pairs and the diversity gate.
     batch_caps=False leaves out the checks that are per batch by design (the puzzle-signature cap), for a set
     made of several batches; everything per lesson still runs."""
@@ -942,15 +1099,16 @@ def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_cap
     check_puzzles(rows, skip=pre_amendment, per_batch=2 if batch_caps else None)
     check_phrases(rows, skip=pre_amendment)
     check_formulas(rows, skip=pre_amendment)
+    check_closed_form_spans(rows, closed_form)
 
 
-def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
+def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, closed_form=None) -> None:
     """check_item on every row in order, then check_batch: the same checks, in the same order, as before the
     split."""
     seen: set = set()
     for n, r in enumerate(rows, 1):
-        check_item(r, n, pre_amendment, seen)
-    check_batch(rows, pre_amendment)
+        check_item(r, n, pre_amendment, seen, closed_form)
+    check_batch(rows, pre_amendment, closed_form=closed_form)
 
 
 def batch_of(path: str) -> str:
@@ -958,7 +1116,8 @@ def batch_of(path: str) -> str:
     return Path(path).name.split("-", 1)[0]
 
 
-def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, require_freeze: bool = True) -> dict:
+def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, require_freeze: bool = True,
+                          closed_form=None) -> dict:
     """The trainer's check of everything it trains on (the Dataset Specialist's ruling, 2026-10-11), given
     {path: rows} in file order:
     - check_item on every row;
@@ -972,8 +1131,8 @@ def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, requ
     rows = [r for rs in files.values() for r in rs]
     seen: set = set()
     for n, r in enumerate(rows, 1):
-        check_item(r, n, pre_amendment, seen)
-    check_batch(rows, pre_amendment, batch_caps=False)
+        check_item(r, n, pre_amendment, seen, closed_form)
+    check_batch(rows, pre_amendment, batch_caps=False, closed_form=closed_form)
     batches: dict = {}
     for path, rs in files.items():
         batches.setdefault(batch_of(path), []).extend(rs)

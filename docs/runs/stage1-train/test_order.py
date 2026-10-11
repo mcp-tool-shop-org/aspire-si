@@ -108,6 +108,8 @@ def test_a_resume_under_another_order_is_refused(tmp_path):
                    capture_output=True, timeout=600)
     man = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
     assert man["order"] == {"mode": "listed", "seed": 0, "lessons": ["T04", "T01"]}
+    assert man["closed_form"] == {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8,
+                                   "distractor_margin": 0.15, "span": 8, "exempt_keyed_key_points": False}
     p = subprocess.run(base + ["--max-steps", "2", "--order", "listed", "--lesson-order", "T01,T04"], env=env,
                        capture_output=True, text=True, timeout=600)
     assert p.returncode != 0 and "training order differs" in p.stderr

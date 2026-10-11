@@ -172,3 +172,48 @@ def test_a_free_text_store_variant_is_spent_and_the_next_closed_one_is_asked():
     assert {x["variant"] for x in rows} == {2}
     assert out["spent_variants"] == [{"base": c["id"], "n": 1, "reason": "free text, not yet testable"}]
     assert [h["variant"] for h in lg.items[c["id"]]["history"]] == [0, 2]
+
+
+def keyed_repeats_trained(c, stem_repeats=False):
+    """A closed-form item whose keyed option (and, if asked, its stem) repeats 10 words of its trained reply,
+    with those words as one of its key points."""
+    c = copy.deepcopy(c)
+    words = c["turns"][0]["reply"].split()
+    assert len(words) >= 10
+    phrase = " ".join(words[:10]).rstrip(".,;:")
+    c["quiz"]["key_points"] = [phrase] + c["quiz"]["key_points"]
+    stem = (" ".join(words[:10]) + "? ") if stem_repeats else "Which is the habit? "
+    c["variant"] = {"user": stem + "\nA. Count the approvals.\nB. " + phrase + ".\nC. Ask the senior reader.\n"
+                            "Give the letter as ANSWER: <letter>.", "key": {"answer": "B"}}
+    c["_marker"] = "A. Count the approvals."
+    return c
+
+
+def test_by_default_a_keyed_option_that_repeats_a_trained_key_point_is_spent():
+    c = keyed_repeats_trained(CLOSED[0])
+    out, rows, _ = sit([c], {0: True, 1: True, 2: True})
+    assert rows == [] and out["spent_variants"][0]["reason"] == "shares an 8-word span with a trained turn"
+    assert out["spent_rule"] == {"span": 8, "exempt_keyed_key_points": False}
+
+
+def test_the_keyed_key_point_exemption_is_a_setting_and_covers_only_the_keyed_option():
+    c = keyed_repeats_trained(CLOSED[0])
+    rows = []
+    gen = model({0: True, 1: True, 2: True})
+    out = quiz.sit(ITEMS_FOR_SPANS + [c], Ledger(), 1, {}, gen, count, RULE, rows.append, only=[c["id"]],
+                   spent_rule={"exempt_keyed_key_points": True})
+    assert {x["variant"] for x in rows} == {0} and rows[0]["spent_rule"]["exempt_keyed_key_points"] is True
+    stem = keyed_repeats_trained(CLOSED[0], stem_repeats=True)  # the stem repeats trained words: still spent
+    out = quiz.sit(ITEMS_FOR_SPANS + [stem], Ledger(), 1, {}, gen, count, RULE, [].append, only=[stem["id"]],
+                   spent_rule={"exempt_keyed_key_points": True})
+    assert out["spent_variants"] and out["spent_variants"][0]["n"] == 0
+
+
+def test_the_span_is_a_setting():
+    c = keyed_repeats_trained(CLOSED[0])  # 10 repeated words: spent at 8, not at 11
+    out, rows, _ = sit([c], {0: True, 1: True, 2: True})
+    assert rows == []
+    rows = []
+    out = quiz.sit(ITEMS_FOR_SPANS + [c], Ledger(), 1, {}, model({0: True, 1: True, 2: True}), count, RULE,
+                   rows.append, only=[c["id"]], spent_rule={"span": 11})
+    assert rows and out["spent_rule"]["span"] == 11
