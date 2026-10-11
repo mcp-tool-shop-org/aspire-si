@@ -384,18 +384,18 @@ cannot_tell
 
 **User:**
 ```text
-1. Three steps are Drain, reseat and test. Places are step 1, step 2 and step 3, left to right. A famous manual sits shut on the bench.
-2. Drain is left of reseat.
-3. Reseat is left of test.
+1. Three steps are Drain, reseat and test. Places are step 1, step 2 and step 3, left to right. Another solver's list puts test in step 1.
+2. Drain and reseat stand next to each other, Drain then reseat.
+3. Test is not next to Drain.
 Question: Which step is in step 1?
 ```
 
 **Thinking:**
 ```text
-Drain, reseat and test, step 1 to step 3 left to right. The shut manual on the bench is not a step.
-Drain is left of reseat.
-Reseat is left of test.
-Drain is in step 1. I leave the manual shut.
+Another solver's list puts test in step 1. That list stays unread.
+Drain and reseat stand next to each other, Drain then reseat.
+Test is not next to Drain. The pairing that puts Drain in step 2 would put test in step 1, next to Drain.
+Drain is in step 1.
 ```
 
 **Reply:**

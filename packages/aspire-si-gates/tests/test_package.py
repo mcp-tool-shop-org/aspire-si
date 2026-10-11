@@ -106,3 +106,31 @@ def test_scorer_rules_are_exposed():
     assert G.GATES_VERSION == "1.2.0"
     assert G.critic_mismatch(["a b c"], ["x y z"], "a b c\nx y z") is True
     assert G.deciding_covers(["a b c d"], ["a b c"], "a b c d") is True
+
+
+CLOSE = "VERDICT: cannot_tell\nDECIDING: NONE\nESCALATE: no\ncannot_tell"
+
+
+def b_item(iid, thinking, reply, lesson="T05"):
+    return {"id": iid, "lesson": lesson, "kind": "B",
+            "turns": [{"thinking": thinking, "reply": reply}]}
+
+
+def test_identical_closing_lines_are_not_a_stamp():
+    rows = [
+        b_item("a", "The file names an amount only.", "The date is absent.\n" + CLOSE),
+        b_item("b", "The notice names a time only.", "The distance is absent.\n" + CLOSE),
+        b_item("c", "The card names a boat only.", "The dusk line is extra.\n" + CLOSE),
+    ]
+    gates.check_stamps(rows)
+
+
+def test_a_prose_phrase_across_three_items_is_still_refused():
+    phrase = "the red lamp stays on the end hook tonight"
+    rows = [
+        b_item("a", phrase + ".", "one.\n" + CLOSE),
+        b_item("b", phrase + ".", "two.\n" + CLOSE),
+        b_item("c", phrase + ".", "three.\n" + CLOSE),
+    ]
+    with pytest.raises(G.DataError, match="kind B phrase repeats"):
+        gates.check_stamps(rows)

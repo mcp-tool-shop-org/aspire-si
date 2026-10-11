@@ -360,8 +360,8 @@ The file stops after the amount and the status. Silence neither confirms the cla
 **Reply:**
 ```text
 The claim asks for a date and a method. The file gives an amount and a status, and then stops.
-VERDICT: cannot_tell
 Nothing in the file picks a date or a method.
+VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 cannot_tell

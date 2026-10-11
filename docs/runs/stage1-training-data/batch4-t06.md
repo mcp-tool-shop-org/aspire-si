@@ -245,7 +245,7 @@ Question: Which pole holds red?
 
 **Thinking:**
 ```text
-The claim is which pole holds red, and that is one question.
+The question asks which pole holds red, and that is one question.
 Exactly one flag is on the door pole.
 Blue is not on the door pole.
 Gold is not on the door pole, so red is on the door pole.
@@ -296,7 +296,7 @@ the bell
 
 **User:**
 ```text
-1. Three sheds run from the oak shed to the ash shed: the oak shed, the pine shed and the ash shed. Keys are the brass key, the iron key and the tin key.
+1. Three sheds run from the oak shed to the ash shed: the oak shed, the pine shed and the ash shed. Keys are the brass key, the iron key and the tin key. One key per shed.
 2. The iron key is in the ash shed.
 3. The brass key is adjacent to the iron key.
 Question: Which shed holds the brass key?
