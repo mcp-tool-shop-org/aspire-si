@@ -297,7 +297,7 @@ Nils
 
 **User:**
 ```text
-1. Three shelves, oak, tin and pine, sit at the top, the middle and the bottom of the rack, each at its own level. An older label gave the oak shelf a different place, and lines 2 and 3 replace it.
+1. Three shelves, oak, tin and pine, sit at the top, the middle and the bottom of the rack, each at its own level. An older label put the oak shelf at the top, and lines 2 and 3 replace it.
 2. The pine shelf sits above the oak shelf.
 3. The oak shelf and the tin shelf sit at neighbouring levels.
 Question: Which shelf is at the top?
@@ -305,7 +305,7 @@ Question: Which shelf is at the top?
 
 **Thinking:**
 ```text
-The older label put the oak shelf somewhere else, but lines 2 and 3 replace it, and a replaced line is a different fact, so its answer doesn't carry over. Pine sits above oak, so oak isn't at the top and pine isn't at the bottom. Oak and tin sit at neighbouring levels: if tin were at the top, oak would be in the middle and pine at the bottom, below oak. So tin isn't at the top either, and pine is.
+The older label put the oak shelf at the top, and following it would answer oak. But lines 2 and 3 replace that label, and a replaced line is a different fact, so its answer doesn't carry over. Pine sits above oak, so oak isn't at the top and pine isn't at the bottom. Oak and tin sit at neighbouring levels: if tin were at the top, oak would be in the middle and pine at the bottom, below oak. So tin isn't at the top either, and pine is.
 ```
 
 **Reply:**
