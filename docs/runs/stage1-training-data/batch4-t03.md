@@ -245,15 +245,20 @@ Question: Which of North, East and South is ahead of the other two?
 
 **Thinking:**
 ```text
-Which dock is ahead of the other two is a chain of two printed comparisons. North is ahead of East, and East is ahead of South, so North is ahead of both. I keep both sentences, because each is a link, and I do not collapse them into 'North wins'. West is named and never placed, and the question does not ask about West. The words that decide are the two ahead-of lines.
+Which of North, East and South is ahead of the other two.
+The deciding words are two sentences, each taken whole: "North is ahead of East." and "East is ahead of South."
+Those exact lines place North ahead of East and East ahead of South, so North is ahead of both.
+West is named and never placed, and the question does not ask about West.
 ```
 
 **Reply:**
 ```text
-North is ahead of the other two, and both comparisons stay.
+North is ahead of the other two.
+The deciding lines, each whole, are "North is ahead of East." and "East is ahead of South."
 ROOT North
-├─ ahead of East
-└─ East ahead of South
+├─ North is ahead of East.
+└─ East is ahead of South.
+North
 ```
 
 **Key:** answer: North
@@ -314,9 +319,10 @@ At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
 VERDICT: supported
 DECIDING: Before 6pm it costs 2 pounds an hour.
 ESCALATE: no
+2 pounds an hour
 ```
 
-**Key:** answer: supported: 2 pounds an hour, from the before-6pm line
+**Key:** answer: 2 pounds an hour
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -344,9 +350,10 @@ Yes. A single tenor is that count, and the line I cite keeps the numeral.
 VERDICT: supported
 DECIDING: The choir has 1 tenor.
 ESCALATE: no
+yes
 ```
 
-**Key:** answer: supported: a single tenor is the printed 1 tenor
+**Key:** answer: yes
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -374,9 +381,10 @@ No. The page sets the fee in pounds, so a dollar figure does not hold.
 VERDICT: unsupported
 DECIDING: The call-out fee is 40 pounds.
 ESCALATE: no
+no
 ```
 
-**Key:** answer: unsupported: the line says 40 pounds
+**Key:** answer: no
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -399,13 +407,13 @@ A plug in the basin is the claim. The slip says the basin usually has a plug. Us
 
 **Reply:**
 ```text
-The slip says the basin usually has a plug. A usual plug leaves the bare sentence open, and the slip does not refuse a plug.
+They guessed. The slip says the basin usually has a plug. A usual plug leaves the bare sentence open, and the slip does not refuse a plug.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
 *invented: washroom slip and checker trace, written for this item (key by construction)*
 
@@ -718,23 +726,25 @@ Material:
   "name": "@mcptoolshop/repo-knowledge",
   "version": "2.1.1",
   "description": "Repo knowledge system — relational catalog with full-text search, audit evidence, and MCP access",
-Statement: The version is 2.1.1.
+Statement: The version is 2.1.1 and the license field says Apache-2.0.
 ```
 
 **Thinking:**
 ```text
-The claim names a version of 2.1.1. I look for that number on a version line. The version line prints "version": "2.1.1", so the claim has its line. The description beside it talks about a catalog and search, and it holds no second copy of the number. If the claim is the version, the version line is the line I cite. The description does not qualify the number.
+The version half has an exact line: the version field prints 2.1.1.
+The license half needs its own exact line, and none of the three lines is a license field.
+Both lines would be needed. I do not supply Apache-2.0 from outside the manifest.
 ```
 
 **Reply:**
 ```text
-The version line prints 2.1.1. The description does not carry that number.
-VERDICT: supported
-DECIDING:   "version": "2.1.1",
+I can quote the version line, which prints 2.1.1. No line prints a license field, so the second half has no exact words to point to. Both halves are needed, and I do not fill the missing one.
+VERDICT: cannot_tell
+DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** key: supported /   "version": "2.1.1", / no
+**Key:** key: cannot_tell / NONE / no
 
 *mcp-tool-shop-org/repo-knowledge@4435870bbfdf:package.json#L2-L4 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -1079,28 +1089,32 @@ The towels are stacked in tens. What do you answer?
 A path note is stuck to the gate.
 Material:
 The footpath is closed past the oak.
-Statement: The cycle lane is closed past the oak.
+The cycle lane stays open past the oak.
+Statement: The footpath is closed past the oak and the cycle lane stays open past the oak.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-The claim closes the cycle lane. The note closes the footpath, past the oak. A footpath and a cycle lane are different ways, even when they pass the same oak. I looked for the words cycle lane and the note does not have them. The footpath sentence does not say the cycle lane is closed, and it does not say the cycle lane is open. If the named way is the footpath only, the cycle-lane claim stays open on this note.
+The claim has two halves, and each half needs its own exact line.
+The footpath sentence says the footpath is closed past the oak.
+The cycle lane sentence says the cycle lane stays open past the oak.
+Both lines are needed, and both are quoted whole. Neither line covers the other way.
 ```
 
 **Reply:**
 ```text
-The note closes the footpath past the oak. It does not mention a cycle lane, so a cycle lane sits outside this note.
-VERDICT: cannot_tell
-DECIDING: NONE
+The note's exact words close the footpath past the oak and keep the cycle lane open past the oak. Both lines are needed, and both are quoted whole.
+VERDICT: supported
+DECIDING: The footpath is closed past the oak. | The cycle lane stays open past the oak.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Past the oak, the cycle lane is closed. What do you answer?
+Past the oak, the footpath is closed and the cycle lane stays open. What do you answer?
 ```
 
-**Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
+**Key:** quiz (verdict): supported / The footpath is closed past the oak. | The cycle lane stays open past the oak. / no · variant key: {"verdict": "supported"}
 
 *invented: verdict question and variant, written for this item (key by construction)*

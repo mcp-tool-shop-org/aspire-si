@@ -319,9 +319,10 @@ Yes. The card says soup is served at 12.
 VERDICT: supported
 DECIDING: Soup is served at 12.
 ESCALATE: no
+supported
 ```
 
-**Key:** answer: supported: soup is served at 12, from the card
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -349,9 +350,10 @@ No. The card says 12, so it does not say soup is served at 1.
 VERDICT: unsupported
 DECIDING: Soup is served at 12.
 ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: unsupported: the card says 12, not 1
+**Key:** answer: unsupported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -378,9 +380,10 @@ The card does not say. An hour of service is not a recipe.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
+cannot_tell
 ```
 
-**Key:** answer: cannot_tell: the card never mentions meat
+**Key:** answer: cannot_tell
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -403,13 +406,13 @@ A noon bell is the claim they marked unsupported. The note says the ferry bell u
 
 **Reply:**
 ```text
-The note says the ferry bell usually rings at noon. A usual ringing leaves the bare noon claim open, and it does not rule the bell out.
+They guessed. The note says the ferry bell usually rings at noon. A usual ringing leaves the bare noon claim open, and it does not rule the bell out.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
 *invented: quay bell note and checker trace, written for this item (key by construction)*
 
@@ -582,13 +585,13 @@ An 8 o'clock opening is the claim they marked supported. The card gives that ope
 
 **Reply:**
 ```text
-The card opens the counter at 8 only if the baker is in. The claim drops that condition, so the bare hour stays open.
+They guessed. The card opens the counter at 8 only if the baker is in. The claim drops that condition, so the bare hour stays open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
 *invented: bakery hour card and checker trace, written for this item (key by construction)*
 

@@ -69,7 +69,7 @@ The log's 3 March line says the dye vat is hot. The 4 March line says: correctio
 
 **Reply:**
 ```text
-I read the 3 March line and then the 4 March line. The 4 March line says it replaces the earlier one, and it says the dye vat is cold, so I answer from that correction. The vat's heat is one fact, and the hot line is the one that was replaced.
+I treat the vat's heat as one fact, so the replacing line is enough. I read the 3 March line and then the 4 March line. The 4 March line says it replaces the earlier one, and it says the dye vat is cold, so I answer from that correction. The vat's heat is one fact, and the hot line is the one that was replaced.
 ```
 
 **Key:** key_points: a dated line that says it replaces an earlier one is the line to answer from; the vat's heat is one claim; do not hang the answer on the line the correction replaced
@@ -333,9 +333,10 @@ The page settles the oats in the jar and the rice in the sack. 'No rice' does no
 VERDICT: unsupported
 DECIDING: The rice is in the sack.
 ESCALATE: no
+oats=in the jar; rice=in the sack
 ```
 
-**Key:** answer: unsupported: rice is in the sack, so 'no rice' does not hold
+**Key:** answer: oats=in the jar; rice=in the sack
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -365,9 +366,10 @@ The night pump stops at dusk.
 VERDICT: supported
 DECIDING: The pump by the shed stops at dusk. | The night pump is by the shed.
 ESCALATE: no
+supported
 ```
 
-**Key:** answer: supported: the night pump stops at dusk
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -395,9 +397,10 @@ The scone's price holds. Butter is only free in most cases, so the bare butter c
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
+cannot_tell
 ```
 
-**Key:** answer: cannot_tell: the butter hedge does not settle the bare claim
+**Key:** answer: cannot_tell
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -422,13 +425,13 @@ The statement has three claims: Tuesday's opening, clear vents, and free gloves.
 
 **Reply:**
 ```text
-The frost line keeps a condition on Tuesday, and the gloves line keeps its 'in most cases'. Quoting the frost line as a denial skips both.
+They guessed. The frost line keeps a condition on Tuesday, and the gloves line keeps its 'in most cases'. Quoting the frost line as a denial skips both.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
 *invented: greenhouse slate and checker trace, written for this item (key by construction)*
 
@@ -454,13 +457,13 @@ The same three claims. The greenhouse line holds: the greenhouse is open on Tues
 
 **Reply:**
 ```text
-Tuesday's opening is real, and it does not clear the vents. The vents line says the vents are jammed, so that claim fails, and the gloves were not needed.
+They guessed. Tuesday's opening is real, and it does not clear the vents. The vents line says the vents are jammed, so that claim fails, and the gloves were not needed.
 VERDICT: unsupported
 DECIDING: Vents | The vents are jammed.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Vents | The vents are jammed. / no
+**Key:** planted_flaw: guess · right answer: unsupported / Vents | The vents are jammed. / no
 
 *invented: vent sheet and checker trace, written for this item (key by construction)*
 
@@ -515,13 +518,13 @@ The departure holds: the coach leaves at 7. The toll claim says 4 pounds. Under 
 
 **Reply:**
 ```text
-The coach does leave at 7, and that half is not the toll. The toll line says 2 pounds, so 4 pounds fails.
+They guessed. The coach does leave at 7, and that half is not the toll. The toll line says 2 pounds, so 4 pounds fails.
 VERDICT: unsupported
 DECIDING: Tolls | The toll is 2 pounds.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Tolls | The toll is 2 pounds. / no
+**Key:** planted_flaw: guess · right answer: unsupported / Tolls | The toll is 2 pounds. / no
 
 *invented: coach toll label and checker trace, written for this item (key by construction)*
 
@@ -544,13 +547,13 @@ The statement has two claims. The opening sentence holds: registries and GitHub 
 
 **Reply:**
 ```text
-The opening sentence holds. The next sentence says they don't tell you whether it passed your last security audit, so that claim fails.
+They guessed. The opening sentence holds. The next sentence says they don't tell you whether it passed your last security audit, so that claim fails.
 VERDICT: unsupported
 DECIDING: They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit. / no
+**Key:** planted_flaw: guess · right answer: unsupported / They don't tell you what it's _for_, how it relates to your other repos, what its architectural thesis is, or whether it passed your last security audit. / no
 
 *mcp-tool-shop-org/repo-knowledge@4435870bbfdf:README.md#L24 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace on the registries paragraph*
 
@@ -604,13 +607,13 @@ The statement is one claim, that the lentil pot is the Tuesday pot. The board gi
 
 **Reply:**
 ```text
-The pot line keeps its condition, and the bread line speaks about bread. The bare identity stays conditional, and the pot line was the claim to check.
+They guessed. The pot line keeps its condition, and the bread line speaks about bread. The bare identity stays conditional, and the pot line was the claim to check.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
 *invented: kitchen board and checker trace, written for this item (key by construction)*
 

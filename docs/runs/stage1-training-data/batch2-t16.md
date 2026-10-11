@@ -172,9 +172,10 @@ Every difference is orthographic — grams spelled out, the sugar phrase reworde
 VERDICT: supported
 DECIDING: Muesli, 750 g. No added sugar.
 ESCALATE: no
+supported
 ```
 
-**Key:** answer: supported — "750 grams" and "no sugar added" are the label's facts with their clothes changed
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -201,9 +202,10 @@ The digit matters: 08:30 and 18:30 are ten different hours of pool time. One cha
 VERDICT: unsupported
 DECIDING: lane swimming 06:30–08:30 weekdays
 ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: unsupported — 08:30 and 18:30 differ by a single digit but ten hours; a digit change is a fact change, never a nitpick
+**Key:** answer: unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -228,9 +230,10 @@ All three pass, so the phone version is the scorecard in spoken clothes. Had she
 **Reply:**
 ```text
 She read it right. The spelled-out numbers match the printed figures; "tied" is what two equal scores are; and "leads by seven" is exact arithmetic on 71 and 64, not a gloss. The liberties that cost are the ones that touch the numbers — she didn't touch any.
+yes
 ```
 
-**Key:** answer: she read it right — spelled-out figures and the computed margin are the scorecard's facts restated
+**Key:** answer: yes
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -258,9 +261,10 @@ The digits match and the unit doesn't: the constant is 3,600 seconds; the claim 
 VERDICT: unsupported
 DECIDING: CACHE_TTL_S = 3600
 ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: unsupported — the constant is in seconds; 3,600 milliseconds is 3.6 s, a different fact by a thousandfold
+**Key:** answer: unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -285,9 +289,10 @@ Zero costing differences. The stub and the printout point at one chair. If she'd
 **Reply:**
 ```text
 Same booking. Both tokens are spoken-style renderings of the printed ones (5→five, 12→twelve) with the letter intact and the fields in order. Enumerating differences found two liberties and zero changes, so the two strings address one seat.
+yes
 ```
 
-**Key:** answer: same seat — row five is row 5, seat B twelve is B12; spoken style changes nothing about the seat
+**Key:** answer: yes
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -315,9 +320,10 @@ Both rewrites keep the fact: out of action is out of service, ninety-six is 96. 
 VERDICT: supported
 DECIDING: Lift out of service until further notice. Stairs remain open — 96 steps, two flights.
 ESCALATE: no
+supported
 ```
 
-**Key:** answer: supported — out of action = out of service, ninety-six = 96; both liberties are consequence-free
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -344,9 +350,10 @@ Warn versus throw is the difference between an advisory and a refusal — the br
 VERDICT: unsupported
 DECIDING: Readers still `checkManifestVersion()`-warn (never throw) on mismatch, so pre-3.3.0 manifests load fine.
 ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: unsupported — the printed behavior is warn-and-load; switching warn to throw reverses it
+**Key:** answer: unsupported
 
 *mcp-tool-shop-org/style-dataset-lab@9d91b77432a9:CHANGELOG.md#L58 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -372,9 +379,10 @@ Alarm verdict, incidentally, doesn't change: 21.5, 51.2 and now 25.1 all sit ove
 **Reply:**
 ```text
 Entries one to three are free (spelled-out forms of the same values). Entry four is a change: 51.2 came back as 25.1, and a rotation of the digits is a different reading, full stop. The alarm would still fire on the wrong value, but the rule's patience doesn't repair the log — the record differs, so the read-back is not the log.
+12.5=free; 21.5=free; 15.2=free; 51.2=change; alarm=no
 ```
 
-**Key:** answer: three of the four read-back values are free rewordings; the fourth rotates the digits (51.2 read as 25.1) — a real change even though both stay over the alarm threshold
+**Key:** answer: 12.5=free; 21.5=free; 15.2=free; 51.2=change; alarm=no
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -431,13 +439,13 @@ Compare the digits as printed: 400 → 791. The claim says 719 — that swaps th
 
 **Reply:**
 ```text
-The stamp came down too fast: they rubber-stamped a scrambled figure. The line prints 791 and the claim reads 719 — that swaps the tens and ones digits, and a test count is nothing but its digits. "-ish" is not a number; it's the sound of a stamp.
+The stamp came down too fast: they guessed a scrambled figure. The line prints 791 and the claim reads 719 — that swaps the tens and ones digits, and a test count is nothing but its digits. "-ish" is not a number; it's the sound of a stamp.
 VERDICT: unsupported
 DECIDING: Tests **400 → 791**.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Tests **400 → 791**. / no
+**Key:** planted_flaw: guess · right answer: unsupported / Tests **400 → 791**. / no
 
 *mcp-tool-shop-org/style-dataset-lab@9d91b77432a9:CHANGELOG.md#L9 (MIT (first line of LICENSE: 'MIT License')); invented: the other checker's reasoning and verdict*
 
@@ -548,13 +556,13 @@ Their "close enough" hides a number in unit fuzz: ~1 ms and about a minute diffe
 
 **Reply:**
 ```text
-That's a wave-through: they rubber-stamped the approximators and lost the number. ~1 ms and about a minute are both "loose" only if the units stop mattering, which is the claim's whole trick. Sixty thousand milliseconds is not roughly one millisecond.
+That's a wave-through: they guessed the approximators and lost the number. ~1 ms and about a minute are both "loose" only if the units stop mattering, which is the claim's whole trick. Sixty thousand milliseconds is not roughly one millisecond.
 VERDICT: unsupported
 DECIDING: returns a clean error in ~1 ms instead of exhausting memory.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / returns a clean error in ~1 ms instead of exhausting memory. / no
+**Key:** planted_flaw: guess · right answer: unsupported / returns a clean error in ~1 ms instead of exhausting memory. / no
 
 *mcp-tool-shop-org/roll@fbec7b5a99b2:CHANGELOG.md#L49-L52 (MIT (first line of LICENSE: 'MIT License')); invented: the other checker's reasoning and verdict*
 
