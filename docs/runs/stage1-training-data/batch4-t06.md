@@ -174,14 +174,14 @@ Is that claim earned?
 
 **Thinking:**
 ```text
-The question asks which pegs may take the cord, and that is one question. Ten pegs sit on the bench and any peg may take the cord, so the answer is that whole set. I do not divide the pegs into groups the lines never name. The shut drawer is a separate object and it does not change the cord.
+The claim is about which pegs may take the cord, and that is one question. Ten pegs sit on the bench and any peg may take the cord, so the answer is that whole set. I do not divide the pegs into groups the lines never name. The shut drawer is a separate object and it does not change the cord.
 ```
 
 **Reply:**
 ```text
 Any of the ten pegs.
 1. The bench allows any peg to take the cord.
-2. The question asks about pegs, not about the drawer.
+2. The claim is about pegs, not about the drawer.
 3. Dividing the row into unnamed groups would add a claim.
 VERDICT: supported
 DECIDING: Any peg may take the cord.
@@ -197,10 +197,10 @@ supported
 
 **User:**
 ```text
-1. Five crates are the Hull crate, the Lyme crate, the Oban crate, the Rye crate and the Wick crate. A crate does go or does stay. The morning boat takes the crate that does go.
+1. Five crates are the Hull crate, the Lyme crate, the Oban crate, the Rye crate and the Wick crate. A crate does go or does stay. The morning boat takes the crate that is sealed and marked Hull.
 2. Exactly one crate does go.
-3. The Lyme crate is marked Lyme, so the Lyme crate does stay.
-4. The Oban crate is unsealed, so the Oban crate does stay.
+3. The Lyme crate is sealed and marked Lyme, so the Lyme crate does stay.
+4. The Oban crate is marked Hull and is unsealed, so the Oban crate does stay.
 5. The Rye crate is open, so the Rye crate does stay.
 6. The Wick crate is open, so the Wick crate does stay.
 Question: Which crate does the morning boat take?
@@ -208,13 +208,13 @@ Question: Which crate does the morning boat take?
 
 **Thinking:**
 ```text
-Hull, Lyme, Oban, Rye and Wick, each go or stay. The morning boat takes the one that goes.
-Go is counted at 1.
-Lyme is marked Lyme, so Lyme stays.
-Oban is unsealed, so Oban stays.
+Hull, Lyme, Oban, Rye and Wick. The morning boat takes the crate that is sealed and marked Hull.
+Exactly one crate does go.
+Lyme is sealed and marked Lyme, so Lyme stays.
+Oban is marked Hull and is unsealed, so Oban stays.
 Rye is open, so Rye stays.
 Wick is open, so Wick stays.
-Four stays fill every crate but Hull, so Hull goes. One pairing names the crate. I do not tour the stays into a second question.
+Four stays leave the Hull crate. One pairing names the crate. I do not tour the stays into a second question.
 ```
 
 **Reply:**
@@ -236,24 +236,28 @@ the Hull crate
 
 **User:**
 ```text
-1. Three flags are red, blue and gold. Poles are the door pole, the gate pole and the yard pole.
-2. Red is not on the yard pole.
-3. Red is not on the gate pole.
+1. Three flags are red, blue and gold. Poles run from the door pole to the yard pole: the door pole, the gate pole and the yard pole. A flag may share a pole.
+2. Exactly one flag is on the door pole.
+3. Blue is not on the door pole.
+4. Gold is not on the door pole.
 Question: Which pole holds red?
 ```
 
 **Thinking:**
 ```text
-The question asks for one pole, so the claim splits into the poles red is not on.
-Red is not on the yard pole.
-Red is not on the gate pole, so red is on the door pole.
+The claim is which pole holds red, and that is one question.
+Exactly one flag is on the door pole.
+Blue is not on the door pole.
+Gold is not on the door pole, so red is on the door pole.
 Gold's pole is a further question, and this one is already answered.
 ```
 
 **Reply:**
 ```text
-| flag | pole |
-| red | the door pole |
+| flag | door pole |
+| blue | not on it |
+| gold | not on it |
+| red | on it |
 the door pole
 ```
 
@@ -292,26 +296,26 @@ the bell
 
 **User:**
 ```text
-1. Three sheds stand on the path: the oak shed, the pine shed and the ash shed, in that order. Keys are the brass key, the iron key and the tin key.
-2. The iron key is ahead of the brass key.
-3. The brass key is ahead of the tin key.
+1. Three sheds run from the oak shed to the ash shed: the oak shed, the pine shed and the ash shed. Keys are the brass key, the iron key and the tin key.
+2. The iron key is in the ash shed.
+3. The brass key is adjacent to the iron key.
 Question: Which shed holds the brass key?
 ```
 
 **Thinking:**
 ```text
-One question: which shed holds the brass key. The sheds run oak, pine, ash.
-The iron key is ahead of the brass key.
-The brass key is ahead of the tin key, so the brass key is in the pine shed.
-Who holds the iron key is the next question, and this one stops.
+One question: which shed holds the brass key. The sheds run from the oak shed to the ash shed.
+The iron key is in the ash shed.
+The brass key is adjacent to the iron key, so the brass key is in the pine shed.
+The tin key's shed is the next question, and this one stops.
 ```
 
 **Reply:**
 ```text
 | key | shed |
-| the iron key | the oak shed |
+| the iron key | the ash shed |
 | the brass key | the pine shed |
-| the tin key | the ash shed |
+| the tin key | the oak shed |
 the pine shed
 ```
 

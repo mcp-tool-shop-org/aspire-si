@@ -148,7 +148,7 @@ I point to the printed 250, marks and all. Two hundred and fifty is that count, 
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T03-B-01 · kind B · puzzle · tier 2 · quotes the words
+### T03-B-01 · kind B · puzzle · tier 2 · quotes the words · tags: non-verification
 
 **User:**
 ```text
@@ -168,7 +168,6 @@ The question asks for the paint, so the word is tin and the catalogue stays on t
 ```text
 | bin | paint |
 | the third bin | tin |
-| the catalogue | container |
 tin
 ```
 
@@ -176,30 +175,32 @@ tin
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T03-B-02 · kind B · puzzle · tier 2 · quotes the words
+### T03-B-02 · kind B · puzzle · tier 2 · quotes the words · tags: non-verification
 
 **User:**
 ```text
-1. Nine tickets are in the jar, marked A through I. Three of them are ticket A, ticket C and ticket E. Places in the draw are 1st, 2nd and 3rd. A pencil note calls ticket C the dud. The jar's own word for a void ticket is not valid.
-2. Ticket A is ahead of ticket C.
-3. Ticket C is ahead of ticket E.
+1. Nine tickets are in the jar. Three of them are ticket A, ticket C and ticket E. Places in the draw are 1st, 2nd and 3rd. A pencil note calls ticket C the dud. The jar's own word for a void ticket is not valid.
+2. Ticket A is adjacent to ticket C.
+3. Ticket E is ahead of ticket A.
+4. Ticket C is ahead of ticket A.
 Question: Which ticket is in 2nd place?
 ```
 
 **Thinking:**
 ```text
-Nine tickets. The pencil calls ticket C the dud, and the jar's own word for a void ticket is not valid.
-Ticket A is ahead of ticket C.
-Ticket C is ahead of ticket E, so ticket C is in 2nd place.
-The answer names ticket C. Dud is the pencil's nickname, not the jar's mark.
+Nine tickets. Three of them are ticket A, ticket C and ticket E, in places 1st, 2nd and 3rd. A pencil note calls ticket C the dud. The jar's own word for a void ticket is not valid, and that nickname is not a place.
+Ticket A is adjacent to ticket C.
+Ticket E is ahead of ticket A.
+Ticket C is ahead of ticket A, so ticket C is in 2nd.
+The dud is the pencil's word. The place comes from the three lines, in the jar's own names.
 ```
 
 **Reply:**
 ```text
 | place | ticket |
-| 1st | ticket A |
+| 1st | ticket E |
 | 2nd | ticket C |
-| 3rd | ticket E |
+| 3rd | ticket A |
 ticket C
 ```
 
@@ -207,27 +208,29 @@ ticket C
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T03-B-03 · kind B · puzzle · tier 2 · equivalent wording
+### T03-B-03 · kind B · puzzle · tier 2 · equivalent wording · tags: non-verification
 
 **User:**
 ```text
-1. Two cooks share the stoves. The cooks are the tall cook and the short cook. The stove card names the soup stove, the fryer and the grill. A chalkboard calls the soup stove the stockpot burner.
-2. The tall cook is not at the fryer.
-3. The tall cook is not at the grill.
+1. Three stoves run from the soup stove to the grill: the soup stove, the fryer and the grill. The cooks are the tall cook, the short cook and the night cook. A chalkboard calls the soup stove the stockpot burner.
+2. The short cook is at the grill.
+3. The tall cook is not adjacent to the short cook.
 Question: Which stove does the tall cook take, in the stove card's own name?
 ```
 
 **Thinking:**
 ```text
-The stove card names the soup stove, the fryer and the grill. The chalkboard's stockpot burner is another name for one of them.
-The tall cook is not at the fryer.
-The tall cook is not at the grill, so the card's own name is the soup stove.
-I do not swap in the chalkboard's words.
+Three stoves, from the soup stove to the grill. The chalkboard calls the soup stove the stockpot burner. The card's own name is the soup stove.
+The short cook is at the grill.
+The tall cook is not adjacent to the short cook, so the tall cook takes the soup stove.
+Stockpot burner is the chalkboard. The answer stays the card's name.
 ```
 
 **Reply:**
 ```text
 | cook | stove |
+| the short cook | the grill |
+| the night cook | the fryer |
 | the tall cook | the soup stove |
 the soup stove
 ```
@@ -266,31 +269,31 @@ North
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T03-B-05 · kind B · puzzle · tier 2 · equivalent wording
+### T03-B-05 · kind B · puzzle · tier 2 · equivalent wording · tags: non-verification
 
 **User:**
 ```text
-1. Three hatches open onto the yard: the grain hatch, the coal hatch and the mail hatch. A chalkboard calls one of them the silo hatch. The grain hatch opens only after the whistle.
-2. Exactly one hatch is fog-blocked.
-3. The coal hatch is clear.
-4. The mail hatch is clear.
+1. Three hatches open onto the yard: the grain hatch, the coal hatch and the mail hatch. A hatch opens or is blocked. A hatch is the early hatch, the midday hatch or the late hatch. A chalkboard calls one of them the silo hatch.
+2. The early hatch never opens in fog.
+3. The early hatch is the grain hatch.
+4. Exactly one hatch is blocked.
 Question: Which hatch is blocked by fog?
 ```
 
 **Thinking:**
 ```text
-Three hatches. A chalkboard says silo hatch. The page's clause for the grain hatch is that it opens only after the whistle, and I keep that clause whole.
-Exactly one hatch is fog-blocked.
-The coal hatch is clear, and the mail hatch is clear, so the grain hatch is the one fog blocks.
-Silo is the chalkboard. Needs-the-whistle would shorten the printed clause, and I do not.
+Three hatches. A chalkboard calls one the silo hatch. The page has two clauses and a count.
+The early hatch never opens in fog, so the early hatch is blocked.
+The early hatch is the grain hatch, so the blocked hatch is the grain hatch.
+Exactly one hatch is blocked, so no second hatch joins it.
+The silo hatch is the chalkboard. The page's two clauses name the hatch.
 ```
 
 **Reply:**
 ```text
-| hatch | state |
-| the coal hatch | clear |
-| the mail hatch | clear |
-| the grain hatch | fog-blocked |
+| page | what it names |
+| the early hatch never opens in fog | the early hatch is blocked |
+| the early hatch is the grain hatch | the grain hatch |
 the grain hatch
 ```
 
@@ -302,30 +305,27 @@ the grain hatch
 
 **User:**
 ```text
-1. Three clocks are 4pm, 5pm and 8pm. Rates run from 2 pounds an hour to 4 pounds an hour: 2 pounds an hour, 3 pounds an hour and 4 pounds an hour, one each. The page says before 6pm it costs 2 pounds an hour. A chalkboard calls that rate the afternoon rate.
-2. 5pm costs 3 pounds an hour.
-3. 8pm is after 4pm.
-Question: What does parking cost at 4pm, in the page's own words?
+The page is one parking line: Before 6pm it costs 2 pounds an hour.
+Claim: parking at 4pm costs 2 pounds an hour.
+Does the page support that claim, and which words decide it?
 ```
 
 **Thinking:**
 ```text
-Three clocks. Rates run from 2 pounds an hour to 4 pounds an hour. The page's own words are before 6pm it costs 2 pounds an hour. The chalkboard says afternoon rate.
-5pm costs 3 pounds an hour.
-8pm is after 4pm, so 4pm costs 2 pounds an hour.
-I answer in the page's words. Afternoon rate leaves those words behind.
+4pm is inside the hours before 6pm. The page gives one line, and that whole line decides the claim. A shorter name for the rate would leave the page's words behind.
 ```
 
 **Reply:**
 ```text
-| clock | rate |
-| 5pm | 3 pounds an hour |
-| 8pm | 4 pounds an hour |
-| 4pm | 2 pounds an hour |
-2 pounds an hour
+| claim | the page's line |
+| parking at 4pm costs 2 pounds an hour | Before 6pm it costs 2 pounds an hour. |
+VERDICT: supported
+DECIDING: Before 6pm it costs 2 pounds an hour.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: 2 pounds an hour
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 

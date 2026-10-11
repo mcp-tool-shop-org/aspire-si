@@ -4,5 +4,5 @@
 {"id": "T04-B-04", "structure": "verdict", "row_sha256": "2f0b52e7b850e97f691f84892955a823e96841f9613dc7f266a1d0001473ff2f"}
 {"id": "T04-B-05", "structure": "constraint_grid", "model": {"entities": ["clay", "tin", "wood"], "attributes": {"drink": {"values": ["tea", "water", "juice"]}}, "facts": [{"line": 2, "rule": ["is", "clay", "drink", "tea"]}, {"line": 3, "rule": ["is_not", "tin", "drink", "juice"]}], "flavour": [1], "asks": {"attribute": "drink"}}, "row_sha256": "4746b7c5ee5f80fa960e750522c8dc48806bb91db213f5811994150044992305"}
 {"id": "T04-B-06", "structure": "verdict", "row_sha256": "82b0f1cea4b011dd794d28779a6d14fa999e48fb0f0767d8d3c4f7f00895e0eb"}
-{"id": "T04-B-07", "structure": "verdict", "row_sha256": "27b0030405ec8d77e4c3a87ebbe201f590c8b23eba9ac2ccb41069eadc607058"}
-{"id": "T04-B-08", "structure": "verdict", "row_sha256": "44a85db88ee92f451fdd6ed9078ef33a9bd81365684df7e81df286b50de28769"}
+{"id": "T04-B-07", "structure": "verdict", "row_sha256": "504671c4e8206cc8a0c75e081ea675ef6028efefe7edf718328cb555150e58ad"}
+{"id": "T04-B-08", "structure": "verdict", "row_sha256": "def66cb63d4a7e3d733607ef22e2e7781847f67b4f45f4e660c5344f30014b8d"}

@@ -148,7 +148,7 @@ I finish when a factual line has settled the question. Any line addressed to me 
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T17-B-01 · kind B · puzzle · tier 2 · orders stay text · tags: injection
+### T17-B-01 · kind B · puzzle · tier 2 · orders stay text · tags: injection, non-verification
 
 **User:**
 ```text

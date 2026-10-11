@@ -389,7 +389,7 @@ Question: Which route is open?
 **Thinking:**
 ```text
 North path, river steps, old tramway, each open or blank. Blank is unmarked, not a closed mark.
-Open is counted at 1.
+Exactly one route is open.
 The north path is not open.
 The old tramway is not open.
 The river steps take the one open mark. I will not call a blank square closed.

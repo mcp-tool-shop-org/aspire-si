@@ -344,31 +344,30 @@ cannot_tell
 
 **User:**
 ```text
-Sort what's known from what's assumed.
 The file says: "Invoice 77 — amount £120, status: PAID."
-A colleague believes it was paid on the 12th, by bank transfer.
-Claim: the file shows the payment was on the 12th, by bank transfer.
-Can the file settle that claim? Draw the tree and mark what you'd have to invent.
+Claim: it was paid on the 12th, by bank transfer.
+Can the file settle that claim?
 ```
 
 **Thinking:**
 ```text
-ROOT  the colleague's two beliefs: the date + the method    [open]
-├─ paid on the 12th   ← the file names an amount and a stamp, no date anywhere   [?]
-└─ by bank transfer   ← no payment method is named anywhere                      [?]
-Either belief would need a line that isn't there. What the file doesn't say stays assumed: neither belief gets promoted just because it sounds like how invoices usually go. Known from the file: £120 and PAID.
+ROOT  it was paid on the 12th, by bank transfer     [open]
+├─ the 12th        ← amount and status are written, and no date is     [?]
+└─ bank transfer   ← no method is written                               [?]
+The file stops after the amount and the status. Silence neither confirms the claim nor contradicts it.
 ```
 
 **Reply:**
 ```text
-Known from the file: amount £120, status PAID. Assumed by my colleague: the date and the method — believing either takes a line the file doesn't have. One pass over every line, two beliefs ungrounded, stop.
-VERDICT: unsupported
-DECIDING: The file says: "Invoice 77 — amount £120, status: PAID."
+The claim asks for a date and a method. The file gives an amount and a status, and then stops.
+VERDICT: cannot_tell
+Nothing in the file picks a date or a method.
+DECIDING: NONE
 ESCALATE: no
-unsupported
+cannot_tell
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: cannot_tell
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
@@ -388,12 +387,13 @@ ROOT  two boats + grey crosses at dawn                    [open]
 ├─ B1 keeps two boats  ← "The Ferryman keeps two boats."        ✓
 └─ B2 grey at dawn     ← "The grey boat crosses at dawn."       ✓
 Both leaves backed by lines on the card. No leaf was pruned and none left open, so the root settles plainly — nothing hedged.
+The card is one line, so the deciding quote is that whole line, the dusk sentence included.
 ```
 
 **Reply:**
 ```text
 VERDICT: supported
-DECIDING: The Ferryman keeps two boats. | The grey boat crosses at dawn.
+DECIDING: The Ferryman keeps two boats. The grey boat crosses at dawn. The white boat crosses at dusk.
 ESCALATE: no
 supported
 ```

@@ -148,7 +148,7 @@ I answer from the photocopy. Waiting for the original would pretend the rule was
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T02-B-01 · kind B · puzzle · tier 2 · from the page
+### T02-B-01 · kind B · puzzle · tier 2 · from the page · tags: non-verification
 
 **User:**
 ```text
@@ -198,7 +198,7 @@ Question: Which lamp is the spare?
 **Thinking:**
 ```text
 Red, blue, green, amber and white lamps, spare or lit. A passer-by pointing at blue is not the bench card.
-Spare is counted at 1.
+Exactly one lamp is spare.
 Blue is not spare.
 Green is not spare.
 Amber is not spare.
@@ -228,7 +228,7 @@ the red lamp
 1. Six pegs are the red peg, the blue peg, the green peg, the amber peg, the white peg and the black peg. Hooks are the end hook, the middle hook and the near hook. A workshop sketch ranks pegs by length.
 2. Exactly one peg is on the end hook.
 3. The blue peg, the green peg and the amber peg are not on the end hook.
-4. The white peg is the middle hook.
+4. The white peg is on the middle hook.
 5. The black peg is the near hook.
 Question: Which peg is on the end hook?
 ```
@@ -238,7 +238,7 @@ Question: Which peg is on the end hook?
 Red, blue, green, amber, white and black pegs. Hooks are the end hook, the middle hook and the near hook. A length sketch is not a hook.
 Exactly one peg is on the end hook.
 Blue, green and amber are not on the end hook.
-White is the middle hook.
+White is on the middle hook.
 Black is the near hook.
 The red peg is on the end hook. The sketch stays on the bench. The rail has already named the peg.
 ```
@@ -288,7 +288,7 @@ brass
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T02-B-05 · kind B · puzzle · tier 2 · stops once decided
+### T02-B-05 · kind B · puzzle · tier 2 · stops once decided · tags: non-verification
 
 **User:**
 ```text

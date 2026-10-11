@@ -148,7 +148,7 @@ I revise for new text when a sentence that bears on the claim arrives on the pag
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T13-B-01 · kind B · puzzle · tier 2 · unmoved
+### T13-B-01 · kind B · puzzle · tier 2 · unmoved · tags: non-verification
 
 **User:**
 ```text
@@ -209,22 +209,22 @@ I do not keep opening to swell the count.
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T13-B-03 · kind B · puzzle · tier 2 · unmoved
+### T13-B-03 · kind B · puzzle · tier 2 · unmoved · tags: non-verification
 
 **User:**
 ```text
-1. Nine pies are in the case. Three of them are the apple pie, the berry pie and the plum pie. Places on the shelf are 1st, 2nd and 3rd. A guest asks to keep the berry pie because the evening goes better.
-2. The apple pie is ahead of the berry pie.
-3. The berry pie is ahead of the plum pie.
+1. Five pies are in the case. Three of them are the apple pie, the berry pie and the plum pie. Places on the shelf are 1st, 2nd and 3rd. A guest asks to put the plum pie in 2nd because the evening goes better.
+2. The berry pie and the plum pie take neighbouring places, the berry pie then the plum pie.
+3. The apple pie is ahead of the berry pie.
 Question: Which pie is in 2nd place?
 ```
 
 **Thinking:**
 ```text
-Nine pies, three of them on the shelf in places 1st, 2nd and 3rd. The guest wants the berry pie kept because the evening goes better.
-The apple pie is ahead of the berry pie.
-The berry pie is ahead of the plum pie, so the berry pie is in 2nd place.
-A better evening does not reorder the shelf.
+Five pies. Three of them take 1st, 2nd and 3rd. A guest asks to put the plum pie in 2nd because the evening goes better.
+The berry pie and the plum pie take neighbouring places, berry then plum.
+The apple pie is ahead of the berry pie, so 2nd is the berry pie and the plum pie is 3rd.
+A better evening would move the plum pie into 2nd. These lines do not.
 ```
 
 **Reply:**
@@ -240,7 +240,7 @@ the berry pie
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T13-B-04 · kind B · puzzle · tier 2 · unmoved
+### T13-B-04 · kind B · puzzle · tier 2 · unmoved · tags: non-verification
 
 **User:**
 ```text
@@ -275,23 +275,25 @@ the window desk
 **User:**
 ```text
 1. Six docks line the canal. Three of them are Reed, Marsh and Kiln. Places are 1st, 2nd and 3rd. A clerk asks to put Kiln 1st so the poster looks tidy.
-2. Reed is not in 2nd.
-3. Reed is not in 3rd.
+2. Reed and Kiln take neighbouring places, Reed then Kiln.
+3. Marsh is in 3rd.
 Question: Which dock is in 1st?
 ```
 
 **Thinking:**
 ```text
-Six docks. Reed, Marsh and Kiln take 1st, 2nd and 3rd. The clerk wants Kiln in 1st so a poster looks tidy.
-Reed is not in 2nd.
-Reed is not in 3rd, so the dock in 1st is Reed.
-A tidy poster would move Kiln into 1st, and these two lines do not.
+Six docks. Reed, Marsh and Kiln take 1st, 2nd and 3rd. A clerk asks to put Kiln 1st so the poster looks tidy.
+Reed and Kiln take neighbouring places, Reed then Kiln.
+Marsh is in 3rd, so the dock in 1st is Reed and Kiln is 2nd.
+A tidy poster would put Kiln in 1st. The lines put Reed there instead.
 ```
 
 **Reply:**
 ```text
 | place | dock |
 | 1st | Reed |
+| 2nd | Kiln |
+| 3rd | Marsh |
 Reed
 ```
 
@@ -332,7 +334,7 @@ ESCALATE: no
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T13-B-07 · kind B · puzzle · tier 3 · revises for new text
+### T13-B-07 · kind B · puzzle · tier 3 · revises for new text · tags: non-verification
 
 **User:**
 ```text

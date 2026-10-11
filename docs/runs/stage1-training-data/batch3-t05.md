@@ -182,29 +182,32 @@ supported
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T05-B-02 · kind B · puzzle · tier 2 · own reading
+### T05-B-02 · kind B · puzzle · tier 2 · own reading · tags: non-verification
 
 **User:**
 ```text
-1. Five names are on the card. Two runners are the blue runner and the field. Every other opinion stays unread.
-2. The blue runner is not running.
-3. The field is running.
+1. Five runners are the blue runner, the red runner, the green runner, the white runner and the black runner. A runner starts or is out. Every other opinion stays unread.
+2. The blue runner never starts.
+3. The red runner starts, the green runner starts, the white runner starts and the black runner starts.
 Question: Who is out?
 ```
 
 **Thinking:**
 ```text
-Five names are on the card. Opinions besides the card stay unread, so they cannot add a name or cancel one.
-The blue runner is not running.
-The field is running.
+Five runners are named on the card. Opinions besides the card stay unread, so they cannot add a name or cancel one.
+The blue runner never starts.
+The red runner, the green runner, the white runner and the black runner start.
 The card's own cut is the blue runner.
 ```
 
 **Reply:**
 ```text
-| runner | state |
-| the blue runner | out |
-| the field | running |
+| runner | starts |
+| the blue runner | never |
+| the red runner | yes |
+| the green runner | yes |
+| the white runner | yes |
+| the black runner | yes |
 the blue runner
 ```
 
@@ -348,15 +351,15 @@ ESCALATE: no
 
 **User:**
 ```text
-1. Two rooms are room 2 and room 4. A room is the meeting or the other room.
+1. Two rooms are room 2 and room 4. A room is the meeting or the other room. A colleague says room 2 has been ruled out.
 2. Exactly one room is the meeting.
 Question: Is the meeting in room 2?
 ```
 
 **Thinking:**
 ```text
-Room 2 and room 4, each the meeting or the other room. A colleague ruling room 2 out is not a line of the card.
-The meeting is counted at 1.
+Room 2 and room 4, each the meeting or the other room. A colleague says room 2 has been ruled out. That ruling is not a line of the card.
+Exactly one room is the meeting.
 Room 2 can be that meeting, and room 4 can be that meeting. The count does not choose.
 I do not treat the colleague's ruling as a line.
 ```
