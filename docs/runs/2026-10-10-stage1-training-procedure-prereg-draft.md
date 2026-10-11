@@ -162,11 +162,26 @@ change to the trainer and the runner, and it adds a way to fail that a separate 
 **What stays true.** Every lesson in the session trains before any lesson is quizzed, so every quiz follows
 training on the other lessons. That is the absorb gap.
 
-**One fact this records.** The trainer doesn't teach lessons one at a time in the listed order. It trains a
-session's sequences in one shuffled pass across all lessons (seeded, so the order is reproducible). So lessons
-1–3 aren't trained strictly first. Each lesson's items are spread through the session, and the absorb gap comes
-from the interleaving. Teaching lessons in order would need a different sampler, and that would be its own
-change. R&D is told of it here.
+## Amendment, 2026-10-11: one shuffled pass per session, not the listed lesson order
+
+*Dated before any Stage 1 training. The only training so far is a one-step pipeline smoke on six test items
+(2026-10-10), whose adapter was never evaluated or kept. So this is a plan, not a correction. Ruled by R&D.*
+
+**What changes.** "Order inside a session" above lists lessons 1–3 first, then the 18 trait lessons in the
+approved order. That order was never implemented. The trainer trains each session in **one seeded, shuffled
+pass over all of the session's lessons**: every sequence once, in an order fixed by the seed, so it can be
+reproduced. The text now matches what runs. The sampler isn't changed.
+
+**Why keep the shuffle (R&D):**
+- It's the same for both arms, so ROLE against NO-ROLE stays fair.
+- A listed order would put the last trait closest to the end of training, a recency effect the comparison
+  doesn't need.
+- Changing the sampler now adds risk for no measured gain.
+
+**What stays true.** The absorb gap holds. Each lesson's items are spread through the session, so every quiz
+(one sitting after training, per the amendment above) follows training on the other lessons.
+
+**Disclosure.** This goes on the disclosure list with the evaluation plan's amendments.
 
 ## Standards compliance
 

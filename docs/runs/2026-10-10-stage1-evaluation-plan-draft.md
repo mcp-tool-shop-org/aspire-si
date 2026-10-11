@@ -420,6 +420,9 @@ using that baseline's **aggregate** results:
   verdict definitions before any batch-4 training, and not from any sealed, DEV or item-level result. The
   evaluation's written rules don't rule on this case. It touches the cannot_tell/unsupported line, so it falls
   under the targeted-behaviour disclosure below.
+- Training procedure amendments of 2026-10-11, dated before any Stage 1 training: the quiz is one sitting after
+  each session's training, and each session trains one seeded, shuffled pass over all its lessons (the listed
+  lesson order was never implemented). Both arms are trained the same way.
 
 No sealed item, wording or source repo reached the data lane. Leakage is checked mechanically on every batch
 against the sealed file.
