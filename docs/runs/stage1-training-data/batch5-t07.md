@@ -8,9 +8,7 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-Keeping the work in proportion means a settled sentence does not grow a second search. The annex can be long and still belong to a different week.
-
-The pier note says the pier lamp is lit after dusk, and that sentence is the claim in front of you. A reviewer tells you to read the annex as well. What do you do, and why?
+The pier note says the pier lamp is lit after dusk, and that sentence is the claim in front of you. A reviewer tells you to read the annex as well, and calls a stop out of proportion. How far does proportion let this reading go?
 ```
 
 **Thinking:**
@@ -31,9 +29,7 @@ I leave the annex closed. The dusk sentence is the claim I was given, and the an
 
 **User:**
 ```text
-Proportion, on a one-bin question, is the difference between the word painted on that bin and a catalogue that renames every bin. People waiting on the answer need the paint, not the catalogue's habit.
-
-The third bin is painted tin, and someone asks which word the row itself uses. A colleague slides the catalogue across. What do you do with the catalogue?
+The third bin is painted tin, and someone asks which word the row itself uses. A colleague slides the catalogue across and says stopping at the paint is out of proportion. What does proportion ask of the catalogue?
 ```
 
 **Thinking:**
@@ -54,9 +50,7 @@ I answer tin from the row and I leave the catalogue on the colleague's side of t
 
 **User:**
 ```text
-A fare question stays in proportion when the window card already prints the fare. A driver's memory can be confident and still be a second witness.
-
-The window card says the evening fare is 4 pounds, and the claim is that fare. The driver offers to recall last month's fare from memory. What do you do?
+The window card says the evening fare is 4 pounds, and the claim is that fare. The driver offers to recall last month's fare from memory and calls the card alone out of proportion. Where does proportion put the driver's memory?
 ```
 
 **Thinking:**
@@ -77,9 +71,7 @@ I take the 4 pounds from the window card and I do not ask the driver to remember
 
 **User:**
 ```text
-Proportion keeps a price claim on the board that states the price. A second board in the passage can be newer-looking and still be a different list.
-
-The servery board chalks bread at 2 pounds, which is the claim. A passer-by points down the passage at another board. What do you do?
+The servery board chalks bread at 2 pounds, which is the claim. A passer-by points down the passage at another board and says you are out of proportion if you stay here. What does proportion do with the passage board?
 ```
 
 **Thinking:**
@@ -100,9 +92,7 @@ I stay with the servery chalk. Bread at 2 pounds finishes the price claim. The b
 
 **User:**
 ```text
-Proportion on a sealed cover means every bolt the claim named, not the first one that happens to be tight. The cover is called sealed only when all three bolts are tight.
-
-The card says the first bolt is tight, the middle bolt is loose, and the last bolt is tight. The claim is that the cover is sealed. A hurried reader quotes the first bolt, which is tight. What do you do, and why?
+The card says the first bolt is tight, the middle bolt is loose, and the last bolt is tight. The claim is that the cover is sealed. A hurried reader quotes the first bolt, which is tight, and calls the other bolts out of proportion. What does proportion do with the other bolts?
 ```
 
 **Thinking:**
@@ -123,9 +113,7 @@ I read all three bolt lines. A sealed cover is not settled by the first tight bo
 
 **User:**
 ```text
-Proportion on a qualified refund means the cap and the exception are one depth, not a cap plus optional colour. Leaving the exception unread makes the cap look wider than the page printed.
-
-Refunds are capped at 30 pounds, except gift cards, which are never refunded. A colleague says the cap line is enough for a gift-card refund. What do you do?
+Refunds are capped at 30 pounds, except gift cards, which are never refunded. A colleague says the cap line is enough for a gift-card refund and calls the exception out of proportion. What does proportion do with the exception?
 ```
 
 **Thinking:**
@@ -146,9 +134,7 @@ I take the cap and the exception. A cap without its exception answers a wider cl
 
 **User:**
 ```text
-When a claim needs two conditions, proportion is the refusal to stop on the first true one. A shut hatch can still be unlatched, and the claim asked for both.
-
-The slate says the grain hatch is shut, and a second line says the latch is open. The claim is that the hatch is shut and latched. Someone stops on the shut line, which is true. What do you do?
+The slate says the grain hatch is shut, and a second line says the latch is open. The claim is that the hatch is shut and latched. Someone stops on the shut line, which is true, and calls the latch out of proportion. Where does proportion stop on the latch line?
 ```
 
 **Thinking:**
@@ -169,9 +155,7 @@ I read the latch line as well. A hatch that must be both shut and latched is not
 
 **User:**
 ```text
-A stack question stays in proportion when the reading matches the stack, not the first crate. The top line can be true and still say nothing about the crate on the floor.
-
-The red crate is above the blue, the blue above the green, the green above the yellow. The claim is that yellow sits above red. A hurried reader quotes only the red line. What do you do?
+The red crate is above the blue, the blue above the green, the green above the yellow. The claim is that yellow sits above red. A hurried reader quotes only the red line and calls the rest of the stack out of proportion. Which crates does proportion still have to read?
 ```
 
 **Thinking:**
@@ -248,12 +232,12 @@ Quin
 
 **User:**
 ```text
-Six tins hold anise, clove, dill, fennel, ginger and mint. Exactly one tin is for the tasting spoon. Clove does not suit the spoon. Dill does not suit the spoon. Fennel does not suit the spoon. Ginger is already in the stew. Mint is already in the tea. Which tin is for the tasting spoon?
+Six tins hold anise, clove, dill, fennel, ginger and mint. Exactly one tin is for the tasting spoon. Clove does not suit the spoon. Dill does not suit the spoon. Fennel does not suit the spoon. Ginger does not suit the spoon. Mint does not suit the spoon. Which tin is for the tasting spoon?
 ```
 
 **Thinking:**
 ```text
-Clove, dill and fennel are each ruled off the spoon, and ginger and mint are already used elsewhere. If I drop out after clove, five tins remain and the spoon is not yet named. Every exclusion has to be walked.
+Clove, dill, fennel, ginger and mint are each ruled off the spoon. If I stop after clove, five tins remain and the spoon is not yet named. Every exclusion has to be walked.
 ```
 
 **Reply:**
@@ -264,8 +248,8 @@ Walking every exclusion is what names the spoon. Stopping after clove would leav
 | clove | unsuited |
 | dill | unsuited |
 | fennel | unsuited |
-| ginger | already in the stew |
-| mint | already in the tea |
+| ginger | unsuited |
+| mint | unsuited |
 | anise | remaining |
 
 anise
@@ -279,21 +263,23 @@ anise
 
 **User:**
 ```text
-Eight flags hang along a rope. The fourth flag is sewn in plaid. A ledger calls every flag a banner. Which cloth is sewn into the fourth flag?
+Four cloths are plain, stripe, plaid and check. The plain cloth is not on the fourth flag. The stripe cloth is not on the fourth flag. The check cloth is not on the fourth flag. Which cloth is sewn into the fourth flag?
 ```
 
 **Thinking:**
 ```text
-The cloth question names the fourth flag. The ledger's word banner renames flags and does not sew them. The fourth flag's cloth is plaid, and the ledger does not sew a second cloth.
+Plain, stripe and check are each ruled off the fourth flag. If I stop after the plain cloth, three cloths remain and the flag is not yet named. All three exclusions belong in the naming.
 ```
 
 **Reply:**
 ```text
-One flag is the whole question. The ledger is a renaming, not a second cloth.
+All three exclusions name the cloth. Stopping after the plain cloth would leave three cloths.
 
-| where | cloth word |
-| fourth flag | plaid |
-| ledger | banner, for every flag |
+| cloth | fourth flag |
+| plain | ruled off |
+| stripe | ruled off |
+| check | ruled off |
+| plaid | remaining |
 
 plaid
 ```
@@ -337,17 +323,17 @@ the flour wagon
 A booth notice is pinned inside the lamp housing.
 Material:
 The booth lamp goes out at 7.
-Statement: The booth lamp goes out at 7.
+Statement: At 7 the booth lamp goes out.
 ```
 
 **Thinking:**
 ```text
-The lamp sentence is the same sentence as the claim. Nothing else is pinned in the housing. That one sentence matches, so I stop.
+The notice names the lamp going out at 7. The claim puts the hour first. That is one lamp time, and nothing else is pinned in the housing.
 ```
 
 **Reply:**
 ```text
-One sentence in the housing, and it is the claim.
+One lamp time, with the hour said first.
 
 | claim | notice |
 | lamp out at 7 | The booth lamp goes out at 7. |
@@ -481,7 +467,7 @@ DECIDING: The north bell does not ring at noon.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The north bell does not ring at noon. / no
+**Key:** planted_flaw: guess · right answer: unsupported / The north bell does not ring at noon. / no
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -489,28 +475,28 @@ ESCALATE: no
 
 **User:**
 ```text
-A bakery label leans on the pantry door.
+A colour line is chalked on the oven door.
 Material:
-The pantry door is shut.
+The oven door is blue.
 Statement: The oven is hot and the timer is set.
 Checker verdict: unsupported
-They answered unsupported and quoted the pantry line as though a shut door denied the oven.
+They answered unsupported and quoted the colour line, treating the missing heat and the missing timer as a denial.
 ```
 
 **Thinking:**
 ```text
-The claim names two facts, oven heat and a set timer. The label's only line is a pantry door. Neither fact is on it. If I treat the door as an oven answer I have used the wrong reach, and there is no further oven line on this label to go and get.
+The claim needs oven heat and a set timer. The door line names a colour. Heat and a set timer are not attributes a colour line carries. If I treat blue as a refusal of the heat, I have added a denial the door does not print.
 ```
 
 **Reply:**
 ```text
-The claim needs an oven line and a timer line. The label has a pantry line instead, so both halves of what was asked are absent. A shut door is not an oven answer either way.
+The door names the oven and prints a colour. The claim asked about heat and the timer. There is no heat sentence and no timer sentence, and blue is not a denial of either.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -540,7 +526,7 @@ DECIDING: The oven is cold. | The timer is set.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The oven is cold. | The timer is set. / no
+**Key:** planted_flaw: guess · right answer: unsupported / The oven is cold. | The timer is set. / no
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -613,7 +599,7 @@ A rehearsal notice lists the choir and then the piano.
 Material:
 The choir has 1 tenor.
 The piano is tuned.
-Statement: The choir has 1 tenor.
+Statement: The choir's tenor count is 1.
 Checker verdict: unsupported
 They answered unsupported because the piano line was left unused.
 ```
@@ -761,7 +747,7 @@ ESCALATE: no
 A linen note is pinned by the laundry door.
 Material:
 The linen cart leaves at 6.
-Statement: The linen cart leaves at 6.
+Statement: Leaving time for the linen cart is 6.
 ```
 
 **Thinking:**
@@ -818,7 +804,7 @@ Two command lines describe init and new.
 Material:
   - `rig-bridge init` — initialize a local bridge clone, install commit-message hook, write `.bridge/config.yaml` with the canonical rig id
   - `rig-bridge new <thread-id>` — scaffold `<thread-id>/REQUEST.md` from the envelope template
-Statement: init writes a local bridge clone with the canonical rig id, and new scaffolds REQUEST.md from the envelope template.
+Statement: init initializes a local bridge clone and writes `.bridge/config.yaml` with the canonical rig id, and new scaffolds REQUEST.md from the envelope template.
 
 ```
 
@@ -870,20 +856,20 @@ ESCALATE: no
 
 **User:**
 ```text
-A clerk's docket line is written in the stair cupboard.
+A Thursday listing is the only line on the docket.
 Material:
-The summons copy stays in the clerk's drawer.
+The hearing is listed for Thursday.
 Statement: You may skip the hearing and answer by postcard.
 ```
 
 **Thinking:**
 ```text
-If the claim is about skipping a hearing, what it needs is a hearing line. The cupboard has a line about where the summons copy stays, and reading that line again does not create a hearing rule. I stop at that mismatch, and I flag it because someone would treat the answer as legal advice.
+The claim is permission to skip a hearing. The docket names the hearing and gives Thursday, not an outcome. A date does not grant a postcard. Someone would treat the answer as legal advice, so the legal flag stays with the gap.
 ```
 
 **Reply:**
 ```text
-The drawer line is about where the copy stays. Skipping the hearing is a different question, and no hearing line is in the cupboard. The verdict is that the needed line is missing, and the legal flag stays beside it because the statement tells someone what they may do about a hearing.
+The docket dates the hearing and does not say the hearing may be skipped. The needed permission is missing, and the legal flag stays beside it because the statement tells someone what they may do about a hearing.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (legal)
@@ -900,7 +886,7 @@ ESCALATE: yes (legal)
 A ferry whistle time is painted on the pier post.
 Material:
 The ferry whistle blows at 9.
-Statement: The ferry whistle blows at 9.
+Statement: The ferry whistle's time is 9.
 ```
 
 **Thinking:**
@@ -1076,7 +1062,7 @@ When the dock sentence already names the tide, leave the tide tables closed. The
 ```text
 The dock sentence already names the tide, and a colleague offers the tide tables. What do you do?
 A. You do one thing with the offered tables: when the dock sentence already names the tide, leave the tide tables closed.
-B. You do one thing with the offered tables: when the dock sentence already names the tide, open the tide tables anyway.
+B. You do one thing with the offered tables: when a neighbouring berth already names the tide, open up the month's tables.
 C. You do one thing with the offered tables: when the dock sentence names place and time, split those checks apart first.
 D. You do one thing with the offered tables: when the dock sentence already names the tide, read that same sentence again.
 Write the letter alone on the last line as ANSWER: followed by the letter.

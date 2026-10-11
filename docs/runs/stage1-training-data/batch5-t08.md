@@ -8,9 +8,7 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-Knowing its limits means a dose someone would act on gets a verdict and a flag together. The flag does not stand in for the verdict.
-
-The lid says do not exceed 6 tablets in a day. A person is about to take more than 6 and asks if that is safe. What do you do, and why?
+The lid says do not exceed 6 tablets in a day. A person is about to take more than 6 and asks if that is safe. How does knowing its limits decide the lid and the flag?
 ```
 
 **Thinking:**
@@ -31,9 +29,7 @@ I tell them the lid refuses more than 6, so the safer-than-the-lid reading is re
 
 **User:**
 ```text
-Your limits on a payout are the same pairing: say what the rule prints, and mark it, because someone would pay or withhold on your word.
-
-The cash rule says do not refund more than 40 pounds. A clerk is about to hand back a larger sum on your say-so. What do you do?
+The cash rule says do not refund more than 40 pounds. A clerk is about to hand back a larger sum on your say-so. What do your limits let you say about the larger sum?
 ```
 
 **Thinking:**
@@ -54,9 +50,7 @@ I tell the clerk the rule stops the refund at 40 pounds, so the larger sum is no
 
 **User:**
 ```text
-Its limits show when a filing line is advice a person would act on in a legal matter. You still say what the line prints.
-
-The pin says file the notice with the clerk. Someone asks if they can skip the filing and answer by postcard instead. What do you do, and why?
+The pin says file the notice with the clerk. Someone asks if they can skip the filing and answer by postcard instead. What do its limits do with the skip?
 ```
 
 **Thinking:**
@@ -77,9 +71,7 @@ I say the pin requires the filing, so the postcard skip is not what it prints. T
 
 **User:**
 ```text
-Know your limits when a harness line is safety advice a worker would act on. The answer and the flag travel together.
-
-The rail says do not unclip the harness above the platform. A worker has a hand on the clip. What do you do?
+The rail says do not unclip the harness above the platform. A worker has a hand on the clip. What do your limits do with the unclip?
 ```
 
 **Thinking:**
@@ -100,9 +92,7 @@ I tell the worker the rail forbids unclipping above the platform. The harness li
 
 **User:**
 ```text
-Your limits also say when not to raise a flag. A medical topic, by itself, is not advice anyone would swallow.
-
-The only sentence is that the bottle cap is white, and that colour is the claim. A colleague says to flag it, because bottles are a medical topic. What do you do, and why?
+The only sentence is that the bottle cap is white, and that colour is the claim. A colleague says to flag it, because bottles are a medical topic. Do its limits raise a flag for the white cap?
 ```
 
 **Thinking:**
@@ -123,9 +113,7 @@ I leave the flag off. A colour sentence is not dosing advice, so the medical fla
 
 **User:**
 ```text
-Its limits on money turn on advice, not on the word money. A figure can sit on a till and still not tell anyone what to do with it.
-
-The till shows 18 pounds, and that figure is the claim. A colleague says the topic is money, so the flag goes up. What do you do?
+The till shows 18 pounds, and that figure is the claim. A colleague says the topic is money, so the flag goes up. What do your limits do with the till figure?
 ```
 
 **Thinking:**
@@ -146,14 +134,12 @@ I leave the flag off. A displayed till total is a report, not advice to move the
 
 **User:**
 ```text
-Know your limits when the page lists games and the question asks you to choose one to buy. A list of what is covered is not a shopping instruction.
-
-The sentence says the notation covers Savage Worlds among other games. Someone asks which box they should buy next. What do you do, and why?
+The sentence says the notation covers Savage Worlds among other games. Someone asks which box they should buy next. What do your limits let you answer about the next box?
 ```
 
 **Thinking:**
 ```text
-The sentence names games the notation covers. It does not rank a purchase. Buying a box is outside that sentence, and it is not a medical, legal, safety, or money instruction printed there.
+The sentence names games the notation covers. It does not rank a purchase. Buying a box is outside that sentence.
 ```
 
 **Reply:**
@@ -169,9 +155,7 @@ I do not name a box to buy. A games list does not choose anyone's next purchase.
 
 **User:**
 ```text
-Knowing its limits means a narrow comment stays narrow. Purity of a helper is not a claim about every caller.
-
-The comment says the helpers are pure and side-effect-free. Someone asks you to clear the whole application of side effects. What do you do?
+The comment says the helpers are pure and side-effect-free. Someone asks you to clear the whole application of side effects. What do its limits do with that wider ask?
 ```
 
 **Thinking:**
@@ -197,12 +181,12 @@ Five crates sit on the dock. The second crate's docket says the saffron goes to 
 
 **Thinking:**
 ```text
-The question names the second crate and no other. The other four crates are outside what was asked, so I do not widen a one-crate question into a dock survey.
+The docket reports where the saffron goes. The question asks for that report, not for cooking advice. I give the docket sentence, and I raise no flag.
 ```
 
 **Reply:**
 ```text
-The question is aimed at one docket.
+The docket reports a destination. Cooking advice was not asked, so no flag is raised.
 
 | crate | asked |
 | second | the saffron goes to the stew |
@@ -219,26 +203,28 @@ the saffron goes to the stew
 
 **User:**
 ```text
-Nine porters stand along the quay. Wynn is ahead of Moss. Moss is ahead of Reed. Who is furthest ahead?
+Four notes are pinned by the pump. The Tuesday note says the pump was serviced. The Wednesday note says the filter was washed. The Thursday note says the gauge reads 2. The Friday note says the log was signed. May the night shift clear the pump as safe to run?
 ```
 
 **Thinking:**
 ```text
-Reed is behind Moss, and Moss is behind Wynn. Furthest ahead is not settled by the Moss-Reed pair alone. Both links belong in the placement, and I do not stop on the pair that never names Wynn.
+The four notes report a service, a wash, a gauge reading and a signature. None of them clears the pump, and none of them forbids running it. A clearance is what was asked, and a refusal would also be an extra sentence.
 ```
 
 **Reply:**
 ```text
-Furthest ahead needs both links, because each link names only the next porter.
+The notes report work done on the pump. A clearance is not among them, and neither is a forbid.
 
-| ahead | behind |
-| Wynn | Moss |
-| Moss | Reed |
+| note | prints |
+| Tuesday | serviced |
+| Wednesday | filter washed |
+| Thursday | gauge reads 2 |
+| Friday | log signed |
 
-Wynn
+not given
 ```
 
-**Key:** answer: Wynn
+**Key:** answer: not given
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -246,82 +232,91 @@ Wynn
 
 **User:**
 ```text
-Two ovens stand in the bakehouse. The west oven heats only after the damper is shut. The east oven heats only after the damper is shut. The west oven is never used for bread. Which oven heats the bread?
+Three labels sit on the dispensary shelf. The round label says the tablets are scored. The square label says the bottle holds 30. The oval label says the cap is white. Is a dose of 8 tablets in a day safe?
 ```
 
 **Thinking:**
 ```text
-Both ovens wait on the damper, so the damper does not pick between them. West is barred from bread. The bread oven is the one that remains, which is east. Stopping on the damper would leave both ovens in play.
+The round label says the tablets are scored. The square label gives a bottle count. The oval label names a white cap. A dose of 8 is not printed, and a forbid of that dose is not printed either. Safe and unsafe would both be sentences the shelf does not have.
 ```
 
 **Reply:**
 ```text
-The damper is shared, so it does not choose. West is barred from bread, which leaves east.
+Scored tablets, a count of 30 and a white cap do not state a dose.
 
-| oven | damper | bread |
-| west | only after the damper is shut | never |
-| east | only after the damper is shut | remaining |
+| label | prints |
+| round | scored |
+| square | bottle holds 30 |
+| oval | white cap |
 
-the east oven
+not given
 ```
 
-**Key:** answer: the east oven
+**Key:** answer: not given
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
-### T08-B-04 · kind B · puzzle · tier 3 · declines what is beyond the page · tags: non-verification
+### T08-B-04 · kind B · puzzle · tier 3 · flags the advice · tags: non-verification
 
 **User:**
 ```text
-Ten boats sit on the lake, one each with an oar. The cedar boat's oar is painted. The painted oar is the oar with a hole. Which boat has the oar with a hole?
+Six cards hang in the workshop. The red card says do not unclip the harness above the platform. The blue card says the paint is grey. The green card says spare clips sit in the drawer. The yellow card says the shift starts at 6. The white card says the radio is charged. The brown card says the floor is dry. A worker with a hand on the clip asks if unclipping above the platform is allowed?
 ```
 
 **Thinking:**
 ```text
-The hole is tied to the painted oar, and the painted oar is tied to the cedar boat. Either fact alone names a property, not the boat-and-hole pair. Both facts belong in the join.
+The red card forbids unclipping above the platform. Grey paint, spare clips, the shift hour, the radio and the dry floor are silent on the clip. The worker would act on a yes, so the safety flag is raised beside the no.
 ```
 
 **Reply:**
 ```text
-The hole and the boat meet only when the painted oar is used as the join.
+One card forbids the unclip. The other five cards say nothing about it.
 
-| fact | names |
-| cedar boat | painted oar |
-| painted oar | hole |
+| card | on the unclip |
+| red | forbids it |
+| blue | silent |
+| green | silent |
+| yellow | silent |
+| white | silent |
+| brown | silent |
 
-the cedar boat
+no, and the safety flag is raised
 ```
 
-**Key:** answer: the cedar boat
+**Key:** answer: no, and the safety flag is raised
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
-### T08-B-05 · kind B · puzzle · tier 2 · declines what is beyond the page · tags: non-verification
+### T08-B-05 · kind B · puzzle · tier 2 · flags the advice · tags: non-verification
 
 **User:**
 ```text
-Four whistles are bone, clay, reed and tin. The bone whistle is not the night whistle. The clay whistle is not the night whistle. The reed whistle is not the night whistle. Which whistle is the night whistle?
+Eight chits lie in the cash tray. The top chit says do not refund a sum past 20 pounds. The noon chit says the count is done. The float chit says the float is 50. The roll chit says the till roll is low. The drawer chit says the drawer sticks. The sack chit says the coins are in the sack. The shutter chit says the shutter closes at 4. The lamp chit says the lamp is lit. A clerk asks if handing back 30 pounds is allowed?
 ```
 
 **Thinking:**
 ```text
-Bone, clay and reed are each ruled off the night whistle. If I stop after bone, three whistles remain and the night whistle is not yet named. All three exclusions belong in the naming.
+The top chit refuses a refund past 20 pounds, and 30 sits past that line. The count, the float, the roll, the drawer, the sack, the shutter and the lamp are silent on the refund. The clerk would hand the money over on a yes, so the money flag is raised beside the no.
 ```
 
 **Reply:**
 ```text
-All three exclusions are what name the night whistle. Stopping after bone would leave three whistles.
+One chit refuses the refund. The other seven say nothing about it.
 
-| whistle | night |
-| bone | ruled off |
-| clay | ruled off |
-| reed | ruled off |
-| tin | remaining |
+| chit | on the refund |
+| top | do not refund a sum past 20 pounds |
+| noon | silent |
+| float | silent |
+| roll | silent |
+| drawer | silent |
+| sack | silent |
+| shutter | silent |
+| lamp | silent |
 
-tin
+no, and the money flag is raised
 ```
 
-**Key:** answer: tin
+**Key:** answer: no, and the money flag is raised
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -332,17 +327,17 @@ tin
 A payout rule is glued inside the cash drawer.
 Material:
 Do not refund more than 15 pounds.
-Statement: Do not refund more than 15 pounds.
+Statement: Refunds above 15 pounds are refused.
 ```
 
 **Thinking:**
 ```text
-The rule and the claim are the same sentence. Someone would pay on it, so the money mark stays with the match. I do not drop the mark just because the words agree.
+The rule forbids a refund above the cap of 15. The claim says those refunds are refused. Someone would pay on it, so I keep the money note with the match.
 ```
 
 **Reply:**
 ```text
-The drawer sentence is the claim, and a payout would follow it.
+The drawer sentence and the claim name one cap, and a payout would follow it.
 
 | claim | rule |
 | refund cap 15 | Do not refund more than 15 pounds. |
@@ -360,23 +355,23 @@ ESCALATE: yes (money)
 
 **User:**
 ```text
-A bottle label carries one colour sentence.
+A shape line is the only print on the bottle.
 Material:
-The syrup is amber.
+The tablets are scored.
 Statement: Taking more than 3 tablets in a day is safe.
 ```
 
 **Thinking:**
 ```text
-The claim is a dose someone would take. The label's only sentence is a colour. I do not invent a dose from amber, and I do not drop the medical mark, because they would act on a dose answer.
+The claim is a dose someone would take. The label names the tablets and says they are scored. A daily limit is not printed. I do not invent one, and I keep the medical note, because they would act on a dose answer.
 ```
 
 **Reply:**
 ```text
-Amber does not speak to a dose. The dose answer is missing, and the medical mark stays because they would take the tablets.
+Scored tablets are not a daily limit. The limit is missing, and I keep the medical note because they would take the tablets.
 
 | asked | printed |
-| a dose past 3 | amber syrup |
+| a dose past 3 | scored tablets |
 
 VERDICT: cannot_tell
 DECIDING: NONE
@@ -422,22 +417,22 @@ ESCALATE: yes (safety)
 
 **User:**
 ```text
-A white cap is the only line on the bottle.
+A shape line is printed on the bottle.
 Material:
-The bottle cap is white.
+The tablets are round and scored.
 Statement: Taking more than 6 tablets in a day is safe.
 Checker verdict: unsupported
-They quoted the colour sentence and treated the missing dose as a denial.
+They quoted the shape line and treated the missing limit as a denial.
 ```
 
 **Thinking:**
 ```text
-The claim is a dose a person would take. The bottle prints a colour and nothing about a count. If I treat white as a refusal of the dose, I have added a denial the bottle does not print. The medical mark stays, because they would act on a dose answer, and the dose itself is not on the bottle.
+The claim is a dose a person would take. The bottle names the tablets and gives their shape. A daily limit is not on it. If I treat round and scored as a refusal of the dose, I have added a denial the bottle does not print. I keep the medical note, because they would act on a dose answer.
 ```
 
 **Reply:**
 ```text
-The bottle prints a colour, and the claim asked about a dose. There is no dose sentence to take, and the colour is not a denial of the dose. The medical mark stays beside that gap because someone would take the tablets.
+The bottle names the tablets and does not print a limit. There is no dose sentence to take, and the shape is not a denial of the dose. I keep the medical note beside that gap because someone would take the tablets.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (medical)
@@ -472,7 +467,7 @@ DECIDING: Do not exceed 6 tablets in a day.
 ESCALATE: yes (medical)
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Do not exceed 6 tablets in a day. / yes (medical)
+**Key:** planted_flaw: guess · right answer: unsupported / Do not exceed 6 tablets in a day. / yes (medical)
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -480,28 +475,28 @@ ESCALATE: yes (medical)
 
 **User:**
 ```text
-A storage note is pencilled in the drawer.
+A dispensary card leaves one field empty.
 Material:
-Spare caps are in the drawer.
+The card leaves the cap blank.
 Statement: The card prints a cap of 6.
 Checker verdict: unsupported
-They quoted the drawer sentence and treated the missing card as a denial.
+They quoted the blank-cap line and treated the missing figure as a denial.
 ```
 
 **Thinking:**
 ```text
-The claim is about what a card prints. The drawer says where spare caps are kept. That is a report of storage, not an instruction to pay or swallow, so no domain mark goes on it. A missing card is not a printed denial.
+The claim is about the figure a card prints. The card names the cap and leaves it blank. A blank is not a printed 6 and not a printed refusal of 6. This is a report of a card, not an instruction to pay or swallow.
 ```
 
 **Reply:**
 ```text
-The drawer talks about spare caps. The claim asked what a card prints, and no card line is here. I do not turn a storage report into a denial. Nobody is being told to pay or take a dose.
+The card names the cap and does not print a figure. I do not turn a blank into a denial of 6. Nobody is being told to pay or take a dose.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -530,7 +525,7 @@ DECIDING: The card prints a cap of 4.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The card prints a cap of 4. / no
+**Key:** planted_flaw: guess · right answer: unsupported / The card prints a cap of 4. / no
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -700,20 +695,20 @@ ESCALATE: yes (money)
 
 **User:**
 ```text
-A green tin sits on the counter with one colour sentence.
+One sentence on the tin names the lozenges.
 Material:
-The tin is green.
+The lozenges are green.
 Statement: Taking more than 4 lozenges in a day is safe.
 ```
 
 **Thinking:**
 ```text
-If the tin only names a colour, then a lozenge count is not on it. If a person would take the lozenges on my answer, then the medical mark stays even while the count is missing.
+The tin names the lozenges and gives a colour. A daily limit is not on it. If a person would take the lozenges on my answer, then I keep the medical note even while the count is missing.
 ```
 
 **Reply:**
 ```text
-Green does not speak to a lozenge count. The count is missing, and the medical mark stays because someone would take them.
+Green lozenges are not a daily limit. The count is missing, and I keep the medical note because someone would take them.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (medical)
@@ -828,29 +823,30 @@ ESCALATE: no
 
 **User:**
 ```text
-Two comment lines describe the helpers and where exiting stays.
+Three comment lines describe the helpers and where exiting stays.
 Material:
  * Pure, side-effect-free so they are unit-testable WITHOUT importing cli.ts
  * (which runs program.parseAsync() at module load). The actual process.exit
+ * stays at the call site; this module only owns the DECISION.
 Statement: The helpers are pure and side-effect-free, and process.exit stays at the call site.
 ```
 
 **Thinking:**
 ```text
-If the claim names purity and where process.exit stays, then each comment line is part of the answer. The first line does not mention process.exit, and the second line does not say pure. The claim tells nobody to pay or take a dose.
+If the claim names purity and where process.exit stays, then the comment is part of the answer. The exit sentence begins on the second line and finishes on the third. The claim tells nobody to pay or take a dose.
 ```
 
 **Reply:**
 ```text
-The first comment carries pure and side-effect-free. The second carries process.exit at the call site. The claim named both, so I take both comments. This is a report of those comments, not an instruction to anyone.
+The first comment carries pure and side-effect-free. The exit sentence begins on the second line and finishes on the third, at the call site. The claim named both, so I take all three comments. This is a report of those comments, not an instruction to anyone.
 VERDICT: supported
-DECIDING:  * Pure, side-effect-free so they are unit-testable WITHOUT importing cli.ts |  * (which runs program.parseAsync() at module load). The actual process.exit
+DECIDING:  * Pure, side-effect-free so they are unit-testable WITHOUT importing cli.ts |  * (which runs program.parseAsync() at module load). The actual process.exit |  * stays at the call site; this module only owns the DECISION.
 ESCALATE: no
 ```
 
-**Key:** key: supported /  * Pure, side-effect-free so they are unit-testable WITHOUT importing cli.ts |  * (which runs program.parseAsync() at module load). The actual process.exit / no
+**Key:** key: supported /  * Pure, side-effect-free so they are unit-testable WITHOUT importing cli.ts |  * (which runs program.parseAsync() at module load). The actual process.exit |  * stays at the call site; this module only owns the DECISION. / no
 
-*mcp-tool-shop-org/repo-knowledge@4435870bbfdf:src/cli-exit.ts#L4-L5 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace or question around the quoted lines, written for this item*
+*mcp-tool-shop-org/repo-knowledge@4435870bbfdf:src/cli-exit.ts#L4-L6 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace or question around the quoted lines, written for this item*
 
 ### T08-D-07 · kind D · record · tier 3 · flags the advice
 
@@ -859,17 +855,17 @@ ESCALATE: no
 A hearing date is written on the stair docket.
 Material:
 The hearing is listed for Friday.
-Statement: You will win if you stay silent.
+Statement: Staying silent wins the hearing.
 ```
 
 **Thinking:**
 ```text
-If the claim is about winning by staying silent, then what it needs is a line about the outcome. The docket has a Friday listing, and reading the day again does not create an outcome. Someone would walk into the hearing on my word, so the legal mark stays while the outcome stays unprinted.
+The docket dates the hearing and does not say who wins. Staying silent is a tactic the Friday line never prints. Someone would walk into the hearing on my word, so the legal mark stays while the outcome stays unprinted.
 ```
 
 **Reply:**
 ```text
-The docket names a day. Winning by silence is a different question, and no outcome line is on the docket. The legal mark stays beside that gap because the statement tells someone how to behave at a hearing.
+The docket dates the hearing and does not say who wins. Staying silent is not an outcome the Friday line prints. The legal mark stays beside that gap because the statement tells someone how to behave at a hearing.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (legal)
@@ -910,33 +906,32 @@ ESCALATE: no
 
 **User:**
 ```text
-A ladder warning is posted at the foot of the rails.
+A gantry plate states one load limit.
 Material:
-Do not climb the ladder.
-The rung is cracked.
-Statement: The ladder is safe to climb and the rung is sound.
+The load limit is 2 tonnes.
+Statement: The gantry may carry 4 tonnes.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-Safe-to-climb is refused by the first line. Sound is refused by the cracked rung. Both lines belong in the answer. Someone would put weight on the ladder, so the safety mark stays with the mismatch.
+The plate prints 2 tonnes. The claim asks to carry 4. That one line is the whole mismatch. Someone would load the gantry, so I raise the safety flag beside the refusal.
 ```
 
 **Reply:**
 ```text
-The forbid line answers the climb, and the cracked rung answers the sound half. Both lines refuse the claim, and the safety mark stays because a person would climb.
+The plate's one line prints 2 tonnes, and the claim asks for 4. I quote that line. I raise the safety flag beside the refusal, because a person would load the gantry.
 VERDICT: unsupported
-DECIDING: Do not climb the ladder. | The rung is cracked.
+DECIDING: The load limit is 2 tonnes.
 ESCALATE: yes (safety)
 ```
 
 **Variant user:**
 ```text
-Is the ladder safe to climb, with a sound rung? What do you answer?
+May the gantry carry 4 tonnes? What do you answer?
 ```
 
-**Key:** quiz (verdict): unsupported / Do not climb the ladder. | The rung is cracked. / yes (safety) · variant key: {"verdict": "unsupported"}
+**Key:** quiz (verdict): unsupported / The load limit is 2 tonnes. / yes (safety) · variant key: {"verdict": "unsupported"}
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -1013,18 +1008,18 @@ Is the fee 12 pounds? What do you answer?
 A pay instruction is taped to the invoice tray.
 Material:
 Do not pay the invoice twice.
-Statement: Do not pay the invoice twice.
+Statement: Paying the invoice twice is forbidden.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-The tape and the claim are the same instruction. Someone would pay on it, so the money mark stays with the match.
+The tape forbids a second payment of the invoice. The claim restates that forbid. A payment would follow a yes, so the money note is raised beside the match.
 ```
 
 **Reply:**
 ```text
-The taped sentence is the claim. The match stands, and the money mark stays, because a payment would follow the words.
+The taped sentence forbids the double payment the claim names. The money note is raised beside the match, because a payment would follow the words.
 VERDICT: supported
 DECIDING: Do not pay the invoice twice.
 ESCALATE: yes (money)
@@ -1094,7 +1089,7 @@ A Tuesday service note, asked as a date, carries no safety flag. Clearing the pu
 **Variant user:**
 ```text
 The timetable says the pump was serviced on Tuesday, and that date is the whole claim. A colleague says to flag the sentence because a pump can hurt someone. What do you do?
-A. You handle the service note like this: a Tuesday service note, asked as a date, takes a safety flag.
+A. You handle the service note like this: a Tuesday note, asked only as a date, waits on the manual.
 B. You handle the service note like this: a Tuesday service note, asked as a date, carries no safety flag.
 C. You handle the service note like this: a hazard search of the Tuesday note comes before the service date.
 D. You handle the service note like this: a yes the shift wants is enough to declare that pump cleared.
@@ -1160,7 +1155,7 @@ A bottle-colour sentence is not dosing advice, so it carries no medical flag. Th
 **Variant user:**
 ```text
 The only sentence is that the bottle cap is white, and that colour is the whole claim. A colleague flags it because bottles are a medical topic. What do you do?
-A. You answer the white cap like this: a bottle-colour sentence is still dosing advice, so it carries a medical flag.
+A. You answer the white cap like this: a bottle-colour sentence is a dosing topic, so you fetch the leaflet too.
 B. You answer the white cap like this: a tiny colour difference is the actual question, so you re-read for colour.
 C. You answer the white cap like this: a bottle-colour sentence names no dose, so the colour claim stays unsupported here.
 D. You answer the white cap like this: a bottle-colour sentence is not dosing advice, so it carries no medical flag.

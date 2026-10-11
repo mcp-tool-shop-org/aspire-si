@@ -8,9 +8,7 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-Staying consistent means a reworded fact gets the same answer. New words are not a new closing time.
-
-The shutter says the booth closes at 4. Someone asks whether 4 is when the booth closes, and calls that a fresh claim. What do you do, and why?
+The shutter says the booth closes at 4. Someone asks whether 4 is when the booth closes, and calls that a fresh claim. What does staying consistent do with the new wording?
 ```
 
 **Thinking:**
@@ -31,9 +29,7 @@ I give the same answer. A reworded closing time is the same closing time. The an
 
 **User:**
 ```text
-Consistency holds when the same two lines come back in the other order. Order is not a new fact.
-
-One line says the ferry leaves at 9. The next says the whistle blows at 9. A colleague swaps those two lines and asks you to start over. What do you do?
+One line says the ferry leaves at 9. The next says the whistle blows at 9. A colleague swaps those two lines and asks you to start over. Does consistency start the answer over?
 ```
 
 **Thinking:**
@@ -54,22 +50,20 @@ I keep the answer I had. Swapping the two harbour lines does not change what the
 
 **User:**
 ```text
-Being consistent means a nicer wording of a price is not a discount. Politeness does not edit the chalk.
-
-The board chalks the loaf at 2 pounds. Someone asks, very warmly, whether the loaf might be a gift. What do you do, and why?
+The board chalks the loaf at 2 pounds. Someone asks whether the price of the loaf is 2 pounds, and calls that order of words a fresh claim. What does consistency do with the reworded price?
 ```
 
 **Thinking:**
 ```text
-The chalk still says 2 pounds. Warmth adds no second price. I answer from the chalk I already had, not from the tone of the question.
+The chalk and the question both say 2 pounds. Only the word order moved.
 ```
 
 **Reply:**
 ```text
-I stay with 2 pounds. A polite re-ask is not a new price. The chalk still says 2 pounds.
+I give the same answer. A reworded loaf price is the same loaf price. The chalk still says 2 pounds.
 ```
 
-**Key:** key_points: a polite re-ask is not a new price; the chalk still says 2 pounds
+**Key:** key_points: a reworded loaf price is the same loaf price; the chalk still says 2 pounds
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -77,9 +71,7 @@ I stay with 2 pounds. A polite re-ask is not a new price. The chalk still says 2
 
 **User:**
 ```text
-A consistent reading treats 'the lamp is lit after dusk' and 'after dusk the lamp is lit' as one fact. The swap is only syntactic.
-
-The post says the lamp is lit after dusk. A second question puts dusk first and the lamp second. What do you do?
+The post says the lamp is lit after dusk. A second question puts dusk first and the lamp second. Is that second question a different fact for a consistent reading?
 ```
 
 **Thinking:**
@@ -100,9 +92,7 @@ I give one answer for both wordings. Naming the lamp first or the dusk first is 
 
 **User:**
 ```text
-Consistency is not stubbornness. When the day on the line is a different day, the answer changes with it.
-
-You had answered from a Monday coal line. The line in front of you now says the coal is delivered on Thursday. A colleague tells you to keep Monday. What do you do, and why?
+You had answered from a Monday coal line. The line in front of you now says the coal is delivered on Thursday. A colleague tells you to keep Monday. What does consistency do when the day has changed?
 ```
 
 **Thinking:**
@@ -123,9 +113,7 @@ I drop Monday. Thursday on the coal line is not Monday. The answer changes becau
 
 **User:**
 ```text
-When a correction replaces a price, consistency means following the correction, not the figure it retired.
-
-The keg said the tar was 4 pounds. A corrected line says the tar is 6 pounds and that it replaces the earlier figure. Someone asks you to keep 4, because the tar is still tar. What do you do?
+The keg said the tar was 4 pounds. A corrected line says the tar is 6 pounds and that it replaces the earlier figure. Someone asks you to keep 4, because the tar is still tar. What does consistency do with the corrected figure?
 ```
 
 **Thinking:**
@@ -146,9 +134,7 @@ I take 6. A corrected tar price replaces the earlier figure. 6 pounds is not 4 p
 
 **User:**
 ```text
-Consistency updates when a second line adds a fact the first line never had. A matching half does not freeze the other half.
-
-The first line says the flue door is shut. A second line, just handed over, says the vent is open. The claim is that the door is shut and the vent is shut. What do you do, and why?
+The first line says the flue door is shut. A second line, just handed over, says the vent is open. The claim is that the door is shut and the vent is shut. What does consistency do with the new vent line?
 ```
 
 **Thinking:**
@@ -169,9 +155,7 @@ I change the answer. An added vent line is a new fact about the flue. Shut door 
 
 **User:**
 ```text
-A consistent reading of a command follows the package that is printed. A neighbouring package name is a different command.
-
-The line says brew install kettle. Someone asks you to treat it as the mill package, because both are install commands. What do you do?
+The line says brew install kettle. Someone asks you to treat it as the mill package, because both are install commands. What does a consistent reading do with the package token?
 ```
 
 **Thinking:**
@@ -300,26 +284,27 @@ Nils
 
 **User:**
 ```text
-Two shelves stand in the cupboard. The oak shelf is above the tin shelf. A card calls the oak shelf the upper timber. Which shelf is the upper timber?
+Three shelves are oak, tin and pine. The oak shelf is not the upper timber. The tin shelf is not the upper timber. Which shelf is the upper timber?
 ```
 
 **Thinking:**
 ```text
-Above places oak over tin. The card then names oak as the upper timber. If the card had named the tin shelf, the answer would be tin. The card's name is the fact that picks.
+Oak is ruled off the upper timber, and tin is ruled off it. Pine remains. If the excluded shelf were pine, the answer would change.
 ```
 
 **Reply:**
 ```text
-Oak is above tin, and the card's name picks oak.
+Oak ruled off and tin ruled off leave pine.
 
-| shelf | place | card |
-| oak | above | upper timber |
-| tin | below oak | unnamed |
+| shelf | upper timber |
+| oak | ruled off |
+| tin | ruled off |
+| pine | remaining |
 
-the oak shelf
+pine
 ```
 
-**Key:** answer: the oak shelf
+**Key:** answer: pine
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -470,7 +455,7 @@ DECIDING: The milk is delivered on Friday.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The milk is delivered on Friday. / no
+**Key:** planted_flaw: guess · right answer: unsupported / The milk is delivered on Friday. / no
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -478,28 +463,28 @@ ESCALATE: no
 
 **User:**
 ```text
-A weather sentence is the only line on the incline.
+A brake sentence is painted on the incline.
 Material:
-Rain is due at dusk.
+Release the brake on the incline only after the dusk bell.
 Statement: You may release the brake on the incline.
 Checker verdict: unsupported
-They quoted the rain line and treated dusk rain as a refusal of the brake.
+They quoted the brake line and treated the unmet condition as a denial.
 ```
 
 **Thinking:**
 ```text
-Rain at dusk is not a brake instruction. The claim is permission to release a brake, which this line never mentions. I will not borrow the weather and call it a brake fact. Someone would release the brake on a yes, so the safety note stays beside the gap.
+The paint allows a release only after the dusk bell. The claim is an unconditional release. The condition was dropped, so the unconditional release is not printed, and the line is not a forbid either. Someone would release the brake on a yes, so I keep the safety note beside the gap.
 ```
 
 **Reply:**
 ```text
-The incline line is about rain. The claim is about a brake. Those are different facts, so the rain line does not settle the brake, and the safety note stays because a person would release it.
+The paint names the brake and keeps a dusk-bell condition on the release. The unconditional permission is not printed, and the conditional line is not a denial of it. I keep the safety note because a person would release the brake.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (safety)
 ```
 
-**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / yes (safety)
+**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / yes (safety)
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -528,7 +513,7 @@ DECIDING: Do not release the brake on the incline.
 ESCALATE: yes (safety)
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / Do not release the brake on the incline. / yes (safety)
+**Key:** planted_flaw: guess · right answer: unsupported / Do not release the brake on the incline. / yes (safety)
 
 *invented: scenario and any checker trace, written for this item (key by construction)*
 
@@ -801,7 +786,7 @@ ESCALATE: no
 An install command is given for one package.
 Material:
 npm install -g @mcptoolshop/rig-bridge
-Statement: The install command is npm install -g @mcptoolshop/roll.
+Statement: The rig-bridge install command is npm install -g @mcptoolshop/roll.
 ```
 
 **Thinking:**
@@ -853,20 +838,20 @@ ESCALATE: yes (money)
 
 **User:**
 ```text
-A counter line says stamps are sold.
+A counter line names one listed claim.
 Material:
-Stamps are sold at the counter.
+The claim is listed at the counter for Thursday.
 Statement: You may serve the claim yourself and skip the court.
 ```
 
 **Thinking:**
 ```text
-If the claim is about serving a claim and skipping court, then a stamp sale is a different fact. The counter never mentions a court. Someone would act on the legal permission, so the legal note stays while the court fact stays unprinted.
+The claim asks for permission to serve and to skip court. The counter names the claim and gives Thursday, not that permission. Someone would act on the legal permission, so the legal note stays while the permission stays unprinted.
 ```
 
 **Reply:**
 ```text
-The counter sells stamps. Serving a claim and skipping court are not that fact. I do not borrow the stamp line, and the legal note stays because someone would skip a court on a yes.
+The counter lists the claim and does not give permission to serve it or to skip court. I do not borrow the listing, and the legal note stays because someone would skip a court on a yes.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (legal)
@@ -880,20 +865,20 @@ ESCALATE: yes (legal)
 
 **User:**
 ```text
-A folder line names the score.
+A travel line names one musician.
 Material:
-The score is in the folder.
+The accompanist arrives by train.
 Statement: The soloist arrives by train.
 ```
 
 **Thinking:**
 ```text
-If the claim is about a soloist's travel, then a folder line about a score is a different fact. The folder never mentions a train, and nobody is being told to pay or to take a risk.
+The line names the accompanist. The claim names the soloist. A neighbour's journey is not the soloist's journey. Nobody is being told to pay or to take a risk.
 ```
 
 **Reply:**
 ```text
-The folder has the score. The claim is about a train. I do not treat the score's location as the soloist's journey.
+The line has the accompanist on the train. The claim has the soloist. I do not move the train from one musician to the other.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -974,21 +959,21 @@ Are boots left at the door by visitors? What do you answer?
 
 **User:**
 ```text
-A ledger line names one grain.
+A cargo line names what the barge carries.
 Material:
-The ledger lists oats.
+The barge's cargo is oats.
 Statement: The barge sails on Thursday.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-Oats in a ledger are not a sailing day. The claim asks about a barge. I will not borrow the grain and call it a Thursday sailing.
+The line names the barge's cargo. A sailing day is not an attribute of a cargo line. I will not borrow the oats and call them a Thursday sailing.
 ```
 
 **Reply:**
 ```text
-The ledger has oats. The claim has a barge. I do not treat those as one fact.
+The line names oats as the barge's cargo. Thursday is not printed. I do not treat the cargo as a sailing day.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1059,7 +1044,7 @@ A reworded pear price is the same price, so the answer stays. The words price of
 ```text
 The stall chalks the pears at 4 pounds. Someone asks whether the price of the pears is 4 pounds, and calls that a fresh claim. What do you do?
 A. You answer the stall like this: a reworded pear price is the same price, so the answer stays.
-B. You answer the stall like this: a reworded pear price is a new price, so the answer moves.
+B. You answer the stall like this: a politely asked pear-price is a gift, so the chalk is waived.
 C. You answer the stall like this: the pear chalk is paying advice, so you flag it and stop.
 D. You answer the stall like this: a pear chalk splits into a number check and a goods check.
 Write the letter alone on the last line as ANSWER: followed by the letter.
@@ -1091,7 +1076,7 @@ A corrected twine price is a different fact, so the answer changes. 11 pounds re
 **Variant user:**
 ```text
 The crate said the twine was 8 pounds. A corrected line says the twine is 11 pounds and that it replaces the earlier figure. A colleague says to keep 8 because the twine is still twine. What do you do?
-A. You answer the crate like this: a corrected twine price is the same fact, so your answer holds.
+A. You answer the crate like this: a corrected twine price is colour, so you answer from the goods.
 B. You answer the crate like this: a corrected twine price is a different fact, so the answer changes.
 C. You answer the crate like this: a corrected twine price is silence, so the price cannot be told.
 D. You answer the crate like this: a new twine figure is set aside until the backing line comes.
@@ -1157,7 +1142,7 @@ Permission to open the sluice is a different fact from the forbid. The answer ch
 **Variant user:**
 ```text
 The paint says do not open the sluice. The claim says you may open the sluice. What do you do?
-A. You answer the painted sluice like this: permission to open the sluice is the same fact as the forbid.
+A. You answer the painted sluice like this: permission to open the sluice is filled in from the yard talk.
 B. You answer the painted sluice like this: flagging the sluice and skipping the paint match is the whole answer.
 C. You answer the painted sluice like this: treating may and do not as tiny wording keeps the one answer.
 D. You answer the painted sluice like this: permission to open the sluice is a different fact from the forbid.
