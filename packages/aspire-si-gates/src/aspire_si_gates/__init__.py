@@ -11,7 +11,7 @@ from .scorer_rules import critic_mismatch, deciding_covers, deciding_ok, lines_o
 from .gates import (DataError, batch_report, check_batch, check_item, closed_form_options,  # noqa: F401
                     freeze_report, leakage, load, parse_choice, role_words_in_prompt, validate)
 
-GATES_VERSION = "1.2.0"
+GATES_VERSION = "1.2.1"
 
 
 def gates_identity() -> dict:

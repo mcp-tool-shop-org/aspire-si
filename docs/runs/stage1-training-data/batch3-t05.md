@@ -392,7 +392,7 @@ Question: Which step is in step 1?
 
 **Thinking:**
 ```text
-Another solver's list puts test in step 1. That list stays unread.
+Another solver's list puts test in step 1. That list doesn't decide anything here; lines 2 and 3 do.
 Drain and reseat stand next to each other, Drain then reseat.
 Test is not next to Drain. The pairing that puts Drain in step 2 would put test in step 1, next to Drain.
 Drain is in step 1.

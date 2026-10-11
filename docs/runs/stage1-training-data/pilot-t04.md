@@ -279,30 +279,31 @@ unsupported
 **User:**
 ```text
 1. Three jugs are clay, tin and wood. Drinks are tea, water and juice, one each.
-2. The clay jug holds tea.
-3. The tin jug does not hold juice.
+2. The clay jug does not hold tea.
+3. The tin jug does not hold tea.
+4. If the clay jug holds water, the tin jug holds tea.
 Question: Which drink is in which jug?
 ```
 
 **Thinking:**
 ```text
-Clay, tin and wood, one drink each. The opening line assigns no drink.
-Clay holds tea, so tea is gone for the other jugs.
-Tin does not hold juice, and tea is already clay's, so tin holds water.
-Wood is left with juice.
-Each pass was forced. Had tin still had two drinks open, I would name both and stop.
+Clay, tin and wood, one drink each. The opening line places no drink.
+Lines 2 and 3 together: neither clay nor tin holds tea, so tea is in the wood jug.
+Line 4 with line 3: clay holding water would put tea in tin, and tin holds no tea. So clay does not hold water.
+Clay is left with juice, and tin with water.
+Every step was forced by two lines at once, so the answer is settled and I give it plainly. Without line 4, clay could still hold water or juice, and I would name both and stop there.
 ```
 
 **Reply:**
 ```text
 | jug | drink |
-| clay | tea |
+| clay | juice |
 | tin | water |
-| wood | juice |
-clay=tea; tin=water; wood=juice
+| wood | tea |
+clay=juice; tin=water; wood=tea
 ```
 
-**Key:** answer: clay=tea; tin=water; wood=juice
+**Key:** answer: clay=juice; tin=water; wood=tea
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
