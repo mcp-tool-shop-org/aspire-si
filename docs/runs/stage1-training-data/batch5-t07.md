@@ -1132,7 +1132,7 @@ The gift-card exception is part of the refund's depth, along with the cap. The c
 A refund page sets a 30 pound ceiling and says gift cards are never refunded. You are checking a gift-card refund, and a colleague cites only the ceiling. What do you do?
 A. Use the ceiling alone, treating the sentence about cards as background.
 B. Mark it unsupported, because the page says nothing about store credit.
-C. Use the gift-card exception together with the cap, since both set how deep this refund goes.
+C. Use the gift-card exception with the cap; both decide this refund's depth.
 D. Pass the case to someone else without stating what either sentence says.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```

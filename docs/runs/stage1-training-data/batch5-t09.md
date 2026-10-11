@@ -1045,7 +1045,7 @@ A reworded pear price is the same price, so the answer stays. The words price of
 **Variant user:**
 ```text
 A stall has the pears chalked at 4 pounds. A customer asks if the pears cost 4 pounds and says that counts as a new claim. What do you do?
-A. Keep the answer, because rewording the pear price leaves it the same price.
+A. Keep the answer: a reworded pear price is still the same price.
 B. Waive the chalk, because a politely asked question works like a gift.
 C. Flag the chalk as payment advice and stop there.
 D. Split the chalk into a number check and a goods check.
@@ -1078,8 +1078,8 @@ A corrected twine price is a different fact, so the answer changes. 11 pounds re
 **Variant user:**
 ```text
 A crate gave the twine as 8 pounds. A later line corrects it to 11 pounds and says the new figure replaces the old one. A colleague wants to keep 8, since twine is still twine. What do you do?
-A. Answer from the goods, treating the newer line as colour.
-B. Change the answer, because a twine price that has been corrected is a different fact.
+A. Answer from the goods alone, treating the newer line as mere colour.
+B. Change it, since twine at a corrected price is another fact.
 C. Call the figure unknowable, treating the newer line as silence.
 D. Set the new figure aside until a backing line arrives.
 Write the letter alone on the last line as ANSWER: followed by the letter.
@@ -1147,7 +1147,7 @@ Paint on the sluice gate says do not open it. The claim says opening it is allow
 A. Fill in the permission from what people in the yard say.
 B. Flag the sluice and skip matching the paint, and call that the reply.
 C. Treat may and do not as a small wording change that keeps one reply.
-D. Answer that permission to open and a ban on opening are two different facts about the sluice.
+D. Say that permission to open and a ban on opening are different sluice facts.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
