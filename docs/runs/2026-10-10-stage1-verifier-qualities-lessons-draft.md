@@ -186,8 +186,9 @@ are hand-written and reviewed by the R&D session; variants are rule-made.
 - **Quality mastered:** at least 95% of its items mastered, **and** at least 90% on fresh twins.
 - **Forgetting events** (correct, then wrong) are logged per item and per quality. When a quality's
   forgetting rate rises between sessions, its **lesson is repeated**, not just its quiz.
-- **Quizzes run at T = 0** (how the verifier serves) **and at the training temperature** (how it learns).
-  Both are reported, and mastery is judged at T = 0.
+- **Quizzes are judged at the card's sampling settings, majority of 3 (seeds 0–2), with every sample logged,
+  and there is no T = 0 sitting.** This replaces the earlier T = 0 plan; see the training procedure's ledger
+  section ([2026-10-10-stage1-training-procedure-prereg-draft](2026-10-10-stage1-training-procedure-prereg-draft.md)).
 - **Stage 1 is done when** every quality is mastered and the general-capability panel hasn't dropped.
   - A session cap of 12. Anything unmastered by then is reported, and the maintainer decides.
   - **Only then does Stage 2** (the domain data, then its tests) begin.

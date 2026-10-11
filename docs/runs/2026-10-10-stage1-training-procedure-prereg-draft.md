@@ -145,6 +145,29 @@ plus the machine line (GPU, driver, CUDA, torch, transformers), as the evaluatio
   So about **2–2.5 hours per session**. Each session is a separate grant, with the 15-minute rest between
   runs.
 
+## Amendment, 2026-10-11: the quiz sits at the end of each session
+
+*Written before any training run. R&D agreed the change and asked for this dated record.*
+
+**What changes.** Step 4 (Quiz) and the "order inside a session" above put each lesson's quiz after the next
+lesson's teaching, inside the session. Instead, the quiz for every lesson runs as **one sitting after the
+session's training has finished**:
+- the same student loader, with the session's adapter attached and unmerged;
+- the evaluation harness's generation, unchanged;
+- majority of 3 at the card's settings (seeds 0–2), with every sample logged, as the ledger section says.
+
+**Why.** Quizzing inside a run means stopping the trainer for generation partway through. That's a larger
+change to the trainer and the runner, and it adds a way to fail that a separate sitting doesn't have.
+
+**What stays true.** Every lesson in the session trains before any lesson is quizzed, so every quiz follows
+training on the other lessons. That is the absorb gap.
+
+**One fact this records.** The trainer doesn't teach lessons one at a time in the listed order. It trains a
+session's sequences in one shuffled pass across all lessons (seeded, so the order is reproducible). So lessons
+1–3 aren't trained strictly first. Each lesson's items are spread through the session, and the absorb gap comes
+from the interleaving. Teaching lessons in order would need a different sampler, and that would be its own
+change. R&D is told of it here.
+
 ## Standards compliance
 
 | Standard | Score | Evidence |
