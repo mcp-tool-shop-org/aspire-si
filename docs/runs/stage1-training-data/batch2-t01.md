@@ -273,7 +273,7 @@ The regular was right. Lines 2 and 3 are the reason I accept it; the certainty n
 | Tern | 16:15 |
 | Gull | 12:15 |
 | Puffin | 08:15 |
-Answer: Tern=16:15; Gull=12:15; Puffin=08:15
+Tern=16:15; Gull=12:15; Puffin=08:15
 ```
 
 **Key:** answer: Tern=16:15; Gull=12:15; Puffin=08:15

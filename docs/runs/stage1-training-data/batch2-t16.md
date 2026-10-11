@@ -185,20 +185,21 @@ Jo=5; Kit=10; Lee=2
 
 **User:**
 ```text
-1. Three swimmers, Ana, Ben and Cal, book the lane slots at 06:30, 08:30 and 18:30, one each.
-2. Ben's slot is the next one on from Ana's.
-3. If Ben swims at 18:30, Cal swims at 08:30.
+1. Three swimmers, Ana, Ben and Cal, book the lane slots at 06:30, 08:30 and 18:30, one each. A copy of these notes pinned by the pool reads line 4's time as 08:30, and the desk says that's the same slot.
+2. Ana does not swim at 08:30.
+3. Ana swims before Ben.
+4. If Ben swims at 18:30, Cal swims at 06:30.
 Question: Which swimmer has which slot?
 ```
 
 **Thinking:**
 ```text
-Three swimmers, three slots, one each.
-Line 2: Ben's slot is the next one on from Ana's, so the pair is 06:30 then 08:30, or 08:30 then 18:30.
-Line 3 says 18:30, not 08:30. They differ by one digit, but they are ten hours apart: a different slot, not another way of writing the same one.
-Suppose Ben swims at 18:30. Then Ana is at 08:30, and line 3 puts Cal at 08:30 as well. Two swimmers can't share a slot, so Ben isn't at 18:30.
-So Ana swims at 06:30 and Ben at 08:30, and Cal takes 18:30.
-Read as 08:30, line 3 would have pushed Ben to 18:30 instead. That one digit decides the answer.
+Three swimmers, three slots, one each. The pinned copy reads line 4's time as 08:30, and the desk calls it the same slot. It isn't. 18:30 and 08:30 differ by one digit and by ten hours, so they're two slots, and I work from line 4 as written.
+Line 2: Ana doesn't swim at 08:30, so she swims at 06:30 or 18:30.
+Line 3: Ana swims before Ben, so she can't have the last slot. Ana swims at 06:30.
+Line 4: if Ben swam at 18:30, Cal would take 06:30, which is Ana's. So Ben isn't at 18:30; Ben swims at 08:30.
+Cal takes 18:30.
+On the copy's reading, line 4 would have put Ben at 18:30 and Cal at 08:30. The one digit is the whole difference, so it was never a detail to let pass.
 ```
 
 **Reply:**
@@ -207,7 +208,7 @@ Read as 08:30, line 3 would have pushed Ben to 18:30 instead. That one digit dec
 | Ana | 06:30 |
 | Ben | 08:30 |
 | Cal | 18:30 |
-Answer: Ana=06:30; Ben=08:30; Cal=18:30
+Ana=06:30; Ben=08:30; Cal=18:30
 ```
 
 **Key:** answer: Ana=06:30; Ben=08:30; Cal=18:30
@@ -311,7 +312,7 @@ supported
 
 **User:**
 ```text
-1. Three stalls, on Main Street, Park Road and Bridge Street, open at 8am, 9am and 10am, one each. The steward's notes below write the street names short.
+1. Three stalls, on Main Street, Park Road and Bridge Street, open at 8am, 9am and 10am, one each.
 2. The Main St stall does not open at 8am.
 3. The Main St stall and the Park Rd stall do not open in neighbouring hours.
 Question: Which street's stall opens at which hour?
@@ -319,11 +320,11 @@ Question: Which street's stall opens at which hour?
 
 **Thinking:**
 ```text
-Three stalls, three hours, one each. The notes say Main St and Park Rd, and the list says Main Street and Park Road. St is Street and Rd is Road, so these are the same stalls under short names. Read as two other stalls, lines 2 and 3 would be about nothing on the list, and the hours would stay open.
+Three stalls, three hours, one each. Lines 2 and 3 say Main St and Park Rd, and line 1 says Main Street and Park Road. St is Street and Rd is Road, so these are the same stalls under short names. Read as two other stalls, lines 2 and 3 would be about nothing on the list, and the hours would stay open.
 Line 2: the Main Street stall does not open at 8am, so it opens at 9am or 10am.
 Line 3: Main and Park are not in neighbouring hours, so one of them opens at 8am and the other at 10am. Main isn't the 8am stall, so Main opens at 10am and Park at 8am.
 Bridge Street takes 9am.
-The short forms never changed which stall was meant, so they were never a reason to doubt the notes.
+The short forms never changed which stall was meant, so they were never a reason to doubt lines 2 and 3.
 ```
 
 **Reply:**
