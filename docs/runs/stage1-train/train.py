@@ -441,6 +441,7 @@ def train(a, seqs, manifest, out, events):
                          "train_seconds": prior_seconds + time.time() - t0 - paused,
                          "paused_seconds": prior_paused + paused}
                 with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
+                events("checkpoint", step=step)
             faulthandler.cancel_dump_traceback_later()
             raise Stop("card grant ended", EXIT["grant_end"], step=step, checkpoint_step=step, request=str(e)) from e
         t_step = time.time()
@@ -504,6 +505,7 @@ def train(a, seqs, manifest, out, events):
                      "paused_seconds": prior_paused + paused}
             with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
             saved_at = step + 1
+            events("checkpoint", step=step + 1)
         if len(step_times) >= 3:
             # A stalled step writes its own stack: the dump fires if the next step takes 5x the median step time.
             faulthandler.dump_traceback_later(5 * statistics.median(step_times), repeat=False, file=stall_file)
