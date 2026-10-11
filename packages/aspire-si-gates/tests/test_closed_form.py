@@ -100,7 +100,7 @@ def test_options_and_answers_parse():
 
 def test_the_defaults_are_r_and_ds_ruling():
     assert G.CLOSED_FORM_DEFAULT == {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8,
-                                     "distractor_margin": 0.0, "span": 8}
+                                     "distractor_margin": 0.15, "span": 8, "exempt_keyed_key_points": False}
     for bad in ({"carry": "loose"}, {"share": 0}, {"share": 1.5}, {"distractor_max": 0}, {"span": 1},
                 {"distractor_margin": -0.1}, {"distractor_margin": 1}):
         with pytest.raises(ValueError):
@@ -128,11 +128,11 @@ def test_a_near_miss_distractor_passes_under_the_keyed_share_and_the_margin_is_a
     near = copy.deepcopy(PARAPHRASED)  # keyed share 0.75; this distractor 0.67 (2 of 3 of key point 2)
     near["user"] = near["user"].replace("C. Ask the most senior approver what they meant.",
                                         "C. Skip the page; the approvals settle it.")
-    check(near)  # R&D: near-miss distractors that share the point's vocabulary are what test the trait
+    with pytest.raises(G.DataError, match="minus 0.15"):
+        check(near)  # the default margin (0.15): 0.67 is not under 0.75 - 0.15
+    check(near, {"distractor_margin": 0.0})  # strictly below the keyed share is enough at margin 0
     with pytest.raises(G.DataError, match="exactly one is keyed"):
-        check(near, {"distractor_margin": 0.1})  # 0.67 is not under 0.75 - 0.1
-    with pytest.raises(G.DataError, match="exactly one is keyed"):
-        check(near, {"distractor_max": 0.6})
+        check(near, {"distractor_margin": 0.0, "distractor_max": 0.6})  # the near-copy cap, set low
 
 
 def test_a_distractor_as_close_as_the_keyed_option_is_refused():
@@ -181,6 +181,42 @@ def test_the_span_rule_also_holds_across_items_in_a_batch():
     other["turns"] = [{"user": "Q?", "thinking": "t.", "reply": "First open and read the page; only then weigh "
                                                                   "the approvals, and say so."}]
     item = written_e(PARAPHRASED)
-    with pytest.raises(G.DataError, match="shares a 8-word span with a trained turn"):
+    with pytest.raises(G.DataError, match="T05-E-0[12]: its variant shares a 8-word span with a trained turn"):
         gates.check_closed_form_spans([item, other])
-    gates.check_closed_form_spans([item, other], VERBATIM)
+
+
+def test_a_copied_stem_is_refused_at_authoring():
+    """R&D on #105: the quiz spends on the whole variant, so the gate checks the whole variant, stem included."""
+    stem = copy.deepcopy(PARAPHRASED)
+    stem["user"] = stem["user"].replace("Approvals arrive on a document you haven't opened. What is your first move?",
+                                        "I read the page before using the approvals: an approval is not a sentence?")
+    with pytest.raises(G.DataError, match="would be spent at its first quiz"):
+        gates.check_closed_form_spans([written_e(stem)])
+    gates.check_closed_form_spans([written_e(PARAPHRASED)])
+
+
+def test_a_verdict_variant_restating_its_trained_statement_is_refused_and_material_is_exempt():
+    material = "The library opens at 9am on weekdays and closes at six in the evening."
+    trained_user = "Material:\n" + material + "\nStatement: the library opens at nine on weekday mornings for readers."
+    r = {"id": "T05-E-03", "kind": "E", "lesson": "T05", "material": material,
+         "quiz": {"type": "verdict", "verdict": "supported", "deciding": [material], "escalate": "no"},
+         "turns": [{"user": trained_user, "thinking": "t.", "reply": "VERDICT: supported"}],
+         "variant": {"user": "Claim: the library opens at nine on weekday mornings for readers. Is that backed?",
+                     "key": {"verdict": "supported"}}}
+    with pytest.raises(G.DataError, match="T05-E-03: its variant shares a 8-word span"):
+        gates.check_closed_form_spans([r])
+    r["variant"]["user"] = "Claim: weekday readers can get in at nine. Is that backed?"
+    gates.check_closed_form_spans([r])
+    r["variant"]["user"] = "Claim: The library opens at 9am on weekdays and closes at six. Backed?"  # material only
+    gates.check_closed_form_spans([r])
+
+
+def test_the_keyed_key_point_exemption_at_authoring_covers_the_keyed_option_only():
+    repeat = copy.deepcopy(GOOD)  # the keyed option repeats the trained reply's key point (8+ words)
+    repeat["user"] = repeat["user"].replace("B. Read the page before using the approvals.",
+                                            "B. I read the page before using the approvals: an approval is not.")
+    item = written_e(repeat)
+    item["quiz"]["key_points"] = ["i read the page before using the approvals an approval is not"] + KEY_POINTS
+    with pytest.raises(G.DataError, match="would be spent"):
+        gates.check_closed_form_spans([item], VERBATIM)
+    gates.check_closed_form_spans([item], {"carry": "verbatim", "exempt_keyed_key_points": True})

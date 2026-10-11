@@ -43,6 +43,7 @@ import score  # noqa: E402
 import stuck  # noqa: E402
 import stuck_adapter  # noqa: E402
 from aspire_si_gates import parse_choice  # noqa: E402
+from aspire_si_gates.gates import variant_checked_spans  # noqa: E402  (the same spent rule as the authoring gate)
 from ledger import Ledger  # noqa: E402
 
 SEEDS = (0, 1, 2)
@@ -150,26 +151,6 @@ def material_spans(items: list, n: int = 8) -> set:
 SPENT_RULE_DEFAULT = {"span": 8, "exempt_keyed_key_points": False}
 
 
-def checked_spans(item: dict, variant: dict, rule_s: dict) -> set:
-    """The variant's spans that the spent check compares with trained turns. With exempt_keyed_key_points on, a
-    closed-form variant's keyed option is checked without the item's own key points, and everything else (the
-    stem, the distractors) is checked in full: a stem that repeats the same words is still caught."""
-    import receipts
-    n = rule_s["span"]
-    if not rule_s["exempt_keyed_key_points"] or not (isinstance(variant.get("key"), dict)
-                                                     and "answer" in variant["key"]):
-        return receipts.spans(variant["user"], n)
-    from aspire_si_gates import closed_form_options
-    letter = variant["key"]["answer"]
-    keyed = closed_form_options(variant["user"]).get(letter, "")
-    rest = "\n".join(line for line in variant["user"].splitlines()
-                     if not (line.lstrip().lstrip("(").startswith(letter) and keyed and keyed in line))
-    key_point_spans: set = set()
-    for kp in (item.get("quiz") or {}).get("key_points") or []:
-        key_point_spans |= receipts.spans(kp, n)
-    return receipts.spans(rest, n) | (receipts.spans(keyed, n) - key_point_spans)
-
-
 def load_variants(paths) -> dict:
     """{base_id: {n: {user, key}}} from role-set's variant store files (n >= 1; n = 0 is the item's own)."""
     out: dict = {}
@@ -206,13 +187,12 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         if r is None:
             continue
         family = {0: r["variant"], **store.get(base, {})}
-        shown_on_purpose = material_spans([r], rule_s["span"])  # only the asked item's own material is shown
         n = ledger.next_variant(base, sorted(family))
         while n is not None:
             why = None
             if quiz_type(r, family[n]) == "free_text":
                 why = "free text, not yet testable"  # a written variant can only be quizzed in closed form
-            elif (checked_spans(r, family[n], rule_s) - shown_on_purpose) & trained:
+            elif variant_checked_spans(r, family[n], rule_s) & trained:  # the gates' rule, one definition
                 why = ("shares an 8-word span with a trained turn" if rule_s["span"] == 8
                        else f"shares a {rule_s['span']}-word span with a trained turn")
             if why is None:

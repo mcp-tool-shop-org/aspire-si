@@ -906,8 +906,13 @@ def parse_choice(answer: str) -> str | None:
 #                with a trained turn (the item's own here; any item's in check_closed_form_spans);
 #   "either"     the keyed option passes verbatim or paraphrase; distractors fail both; the span rule applies to
 #                every option except a keyed option that passes verbatim.
-CLOSED_FORM_DEFAULT = {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8, "distractor_margin": 0.0,
-                       "span": 8}  # R&D, 2026-10-11, from batch 5's measured shares; the margin is set after its round
+# Provenance (R&D, 2026-10-11): share 0.5 and distractor_max 0.8 from batch 5's measured shares; distractor_margin
+# 0.15 from batch 5's paraphrased round (6a01c18): smallest keyed-to-top-distractor gap 0.21, median 0.50, set below
+# the minimum to leave headroom; re-measured after batch 6 and raised if the minimum gap stays above 0.2. There is
+# no floor on distractor share: on-topic near-misses can share none of the point's words (off-topic stays a
+# key-check judgement).
+CLOSED_FORM_DEFAULT = {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8, "distractor_margin": 0.15,
+                       "span": 8, "exempt_keyed_key_points": False}  # R&D, 2026-10-11, from batch 5's measured shares; the margin is set after its round
 CARRY_MODES = ("verbatim", "paraphrase", "either")
 
 
@@ -1033,25 +1038,49 @@ def closed_form_figures(rows: list[dict]) -> list:
     return out
 
 
+def variant_checked_spans(r: dict, v: dict, cfg: dict) -> set:
+    """The spans of a variant that the spent check compares with trained turns (the same rule as quiz.py's): the
+    whole user text, minus the item's own material and new_material; with exempt_keyed_key_points on, a
+    closed-form keyed option is checked without the item's own key points (the stem and distractors in full)."""
+    n = cfg["span"]
+    text = v.get("user") or ""
+    if cfg["exempt_keyed_key_points"] and isinstance(v.get("key"), dict) and "answer" in v["key"]:
+        letter = v["key"]["answer"]
+        keyed = closed_form_options(text).get(letter, "")
+        rest = "\n".join(line for line in text.splitlines()
+                         if not (line.lstrip().lstrip("(").startswith(letter) and keyed and keyed in line))
+        kp_spans: set = set()
+        for kp in (r.get("quiz") or {}).get("key_points") or []:
+            kp_spans |= word_spans(kp, n)
+        out = word_spans(rest, n) | (word_spans(keyed, n) - kp_spans)
+    else:
+        out = word_spans(text, n)
+    material = word_spans(r.get("material") or "", n)
+    for t in r.get("turns") or []:
+        nm = t.get("new_material") or ""
+        material |= word_spans("\n".join(nm) if isinstance(nm, list) else nm, n)
+    return out - material
+
+
 def check_closed_form_spans(rows: list[dict], cfg=None) -> None:
-    """Across items: no closed-form option shares a span with any trained turn (paraphrase and either carry; in
-    either, a keyed option that passes verbatim is exempt). check_item covers an item's own turns."""
+    """The quiz's spent check, run at authoring (R&D on #105): every quizzable kind-E variant (verdict, or written
+    in closed form) must share no `span`-word span with any trained turn of any item, outside the item's own
+    material (and, if exempt_keyed_key_points is on, the item's key points inside its keyed option). A variant
+    that fails would be spent at its first quiz, so it is refused here. Free-text written variants aren't quizzed
+    and are left out."""
     cfg = closed_form_settings(cfg)
-    if cfg["carry"] == "verbatim":
-        return
     trained = trained_turn_spans(rows, cfg["span"])
     for r in rows:
         v = r.get("variant") or {}
-        if r.get("kind") != "E" or not isinstance(v.get("key"), dict) or "answer" not in v["key"]:
+        if r.get("kind") != "E" or not v.get("user"):
             continue
-        original = _key_points(r.get("quiz") or {})
-        for x, t in closed_form_options(v["user"]).items():
-            if cfg["carry"] == "either" and x == v["key"]["answer"] and \
-                    any(k and (k in norm(t).lower() or norm(t).lower() in k) for k in original):
-                continue
-            if word_spans(t, cfg["span"]) & trained:
-                raise DataError(f"{r['id']}: closed-form option {x} shares a {cfg['span']}-word span with a "
-                                "trained turn")
+        q = r.get("quiz") or {}
+        closed = isinstance(v.get("key"), dict) and "answer" in v["key"]
+        if q.get("type") == "written" and not closed:
+            continue
+        if variant_checked_spans(r, v, cfg) & trained:
+            raise DataError(f"{r['id']}: its variant shares a {cfg['span']}-word span with a trained turn, so it "
+                            "would be spent at its first quiz")
 
 
 def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_caps: bool = True,

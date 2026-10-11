@@ -101,8 +101,12 @@ def losses(d):
 def plain_run(tmp_path, steps=8, ckpt=2):
     out = tmp_path / "plain"
     env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""}
-    subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), "--max-steps", str(steps), "--ckpt-every",
-                    str(ckpt)], env=env, check=True, capture_output=True, timeout=900)
+    p = subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), "--max-steps", str(steps), "--ckpt-every",
+                        str(ckpt)], env=env, capture_output=True, text=True, timeout=900)
+    if p.returncode != 0:  # a flake was seen once (2026-10-11): leave its exit code, last step and stderr in the log
+        log = out / "loss.jsonl"
+        last = log.read_text(encoding="utf-8").splitlines()[-1][:200] if log.exists() else "no step logged"
+        raise AssertionError(f"plain run exit {p.returncode}; last step: {last}; stderr tail: {p.stderr[-2000:]}")
     return [(r["step"], r["loss"]) for r in
             (json.loads(x) for x in (out / "loss.jsonl").read_text(encoding="utf-8").splitlines() if x)]
 
@@ -128,7 +132,7 @@ def test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run(rig, tmp_pat
     assert row["schema"] == "stage1-receipt-v1" and row["source"] == "diagnostics" and row["round"] == 1
     assert row["arm"] == "ROLE" and row["seed"] == 0 and row["grant_id"] == "G-test"
     assert row["closed_form"] == {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8,
-                                   "distractor_margin": 0.0, "span": 8}
+                                   "distractor_margin": 0.15, "span": 8, "exempt_keyed_key_points": False}
 
 
 @needs_tokenizer

@@ -313,7 +313,9 @@ def main(argv=None):
     ap.add_argument("--closed-form-distractor-max", type=float, help="the near-copy guard: no distractor reaches it")
     ap.add_argument("--closed-form-distractor-margin", type=float,
                     help="every distractor's share is below the keyed share minus this")
-    ap.add_argument("--closed-form-span", type=int, help="the span length no option may share with a trained turn")
+    ap.add_argument("--closed-form-span", type=int, help="the span length no variant may share with a trained turn")
+    ap.add_argument("--closed-form-exempt-keyed-key-points", action="store_true", default=None,
+                    help="a closed-form keyed option may repeat the item's own key points (off by default)")
     ap.add_argument("--partial-set", action="store_true",
                     help="train on part of the data (a smoke or a test): the whole-dataset freeze checks are reported "
                          "in the manifest instead of refusing; every other check still refuses")
@@ -329,7 +331,8 @@ def main(argv=None):
     closed_form = data.closed_form_settings({k: v for k, v in (
         ("carry", a.closed_form_carry), ("share", a.closed_form_share),
         ("distractor_max", a.closed_form_distractor_max), ("distractor_margin", a.closed_form_distractor_margin),
-        ("span", a.closed_form_span)) if v is not None})
+        ("span", a.closed_form_span), ("exempt_keyed_key_points", a.closed_form_exempt_keyed_key_points))
+        if v is not None})
     freeze = data.validate_training_set(files, require_freeze=not a.partial_set, closed_form=closed_form)
     held = [h for p in a.held_out for h in data.load(p)]
     from interview import QUESTIONS  # the pre-interview's 12 questions are off-limits to training
