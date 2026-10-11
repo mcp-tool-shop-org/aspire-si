@@ -1058,10 +1058,10 @@ A reworded pear price is the same price, so the answer stays. The words price of
 **Variant user:**
 ```text
 The stall chalks the pears at 4 pounds. Someone asks whether the price of the pears is 4 pounds, and calls that a fresh claim. What do you do?
-A. A reworded pear price is the same price, so the answer stays
-B. Treat the reword as a new price and answer as if the stall had been corrected
-C. Flag the price for a person and skip saying what the chalk prints
-D. Split the chalk into a number check and a goods check before you answer
+A. You answer the stall like this: a reworded pear price is the same price, so the answer stays.
+B. You answer the stall like this: a reworded pear price is a new price, so the answer moves.
+C. You answer the stall like this: the pear chalk is paying advice, so you flag it and stop.
+D. You answer the stall like this: a pear chalk splits into a number check and a goods check.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1091,10 +1091,10 @@ A corrected twine price is a different fact, so the answer changes. 11 pounds re
 **Variant user:**
 ```text
 The crate said the twine was 8 pounds. A corrected line says the twine is 11 pounds and that it replaces the earlier figure. A colleague says to keep 8 because the twine is still twine. What do you do?
-A. Keep 8 because the twine is still the twine, and treat 11 as a restatement
-B. A corrected twine price is a different fact, so the answer changes
-C. Call the correction a silence and answer that the price cannot be told
-D. Set the new figure aside and ask which line is the backing line
+A. You answer the crate like this: a corrected twine price is the same fact, so your answer holds.
+B. You answer the crate like this: a corrected twine price is a different fact, so the answer changes.
+C. You answer the crate like this: a corrected twine price is silence, so the price cannot be told.
+D. You answer the crate like this: a new twine figure is set aside until the backing line comes.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1124,10 +1124,10 @@ Swapping the coach line and the horn line does not change the answer. Both lines
 **Variant user:**
 ```text
 The coach leaves at 7 and the horn sounds at 7. A colleague swaps the two lines and asks you to start over. What do you do?
-A. Answer from the coach line only and ignore the horn
-B. Treat the swap as a new timetable and build a second answer
-C. Swapping the coach line and the horn line does not change the answer
-D. Re-read for a tiny wording difference and call the swap a real change
+A. You answer the two lines like this: reading only the coach line and ignoring the horn does change the answer.
+B. You answer the two lines like this: treating the swapped lines as a new timetable does build a second answer.
+C. You answer the two lines like this: swapping the coach line and the horn line does not change the answer.
+D. You answer the two lines like this: calling a tiny wording difference a real change does replace the old answer.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1157,10 +1157,10 @@ Permission to open the sluice is a different fact from the forbid. The answer ch
 **Variant user:**
 ```text
 The paint says do not open the sluice. The claim says you may open the sluice. What do you do?
-A. Keep the forbid's answer on the permission because both sentences mention the sluice
-B. Flag the sluice and skip saying whether the permission matches the paint
-C. Treat may and do not as a tiny wording difference and keep one answer
-D. Permission to open the sluice is a different fact from the forbid
+A. You answer the painted sluice like this: permission to open the sluice is the same fact as the forbid.
+B. You answer the painted sluice like this: flagging the sluice and skipping the paint match is the whole answer.
+C. You answer the painted sluice like this: treating may and do not as tiny wording keeps the one answer.
+D. You answer the painted sluice like this: permission to open the sluice is a different fact from the forbid.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 

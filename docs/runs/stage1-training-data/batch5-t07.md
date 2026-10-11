@@ -1075,10 +1075,10 @@ When the dock sentence already names the tide, leave the tide tables closed. The
 **Variant user:**
 ```text
 The dock sentence already names the tide, and a colleague offers the tide tables. What do you do?
-A. When the dock sentence already names the tide, leave the tide tables closed
-B. Open the tide tables after the dock sentence, in case a later row revises a tide the dock already named
-C. Split the dock sentence into a place check and a time check before treating the tide as finished
-D. Read the dock sentence a second time before trusting a tide it has already named
+A. You do one thing with the offered tables: when the dock sentence already names the tide, leave the tide tables closed.
+B. You do one thing with the offered tables: when the dock sentence already names the tide, open the tide tables anyway.
+C. You do one thing with the offered tables: when the dock sentence names place and time, split those checks apart first.
+D. You do one thing with the offered tables: when the dock sentence already names the tide, read that same sentence again.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1108,10 +1108,10 @@ Placing Quin last takes every handover from Nia through to Quin. The Nia handove
 **Variant user:**
 ```text
 Nia finished before Omar, Omar before Pia, and Pia before Quin. Someone says the Nia handover places Quin last. What do you do?
-A. Stop at the Nia handover and treat Quin as already placed by it
-B. Placing Quin last takes every handover from Nia through to Quin
-C. Search the handovers first for a line that would put Quin ahead of Nia, and only afterwards read who actually finished
-D. Break Quin's place into three separate claims and answer each claim on its own
+A. You settle Quin's place in one sentence: stopping at the Nia handover treats Quin as already placed there.
+B. You settle Quin's place in one sentence: placing Quin last takes every handover from Nia through to Quin.
+C. You settle Quin's place in one sentence: searching for Quin ahead of Nia comes before reading the chain.
+D. You settle Quin's place in one sentence: breaking the place of Quin into three claims answers each claim.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1141,10 +1141,10 @@ The gift-card exception is part of the refund's depth, along with the cap. The c
 **Variant user:**
 ```text
 Refunds are capped at 30 pounds, except gift cards, which are never refunded. A gift-card refund is the claim, and a colleague quotes only the cap. What do you do?
-A. Quote the cap and treat the gift-card line as colour you can skip
-B. Because the page is silent on store credit, mark the gift-card refund unsupported
-C. The gift-card exception is part of the refund's depth, along with the cap
-D. Flag the refund for a person and skip saying what the two lines print
+A. You take the refund page like this: the gift-card line remains colour beside the cap, and the cap is enough.
+B. You take the refund page like this: the silence on store credit is what marks the gift-card refund unsupported here.
+C. You take the refund page like this: the gift-card exception is part of the refund's depth, along with the cap.
+D. You take the refund page like this: the refund passes to a person unread, and neither printed line is said.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
@@ -1174,10 +1174,10 @@ A chalked oil price finishes the price claim without the crate list. The crate l
 **Variant user:**
 ```text
 The drum chalk says lamp oil is 2 pounds, which is the whole claim. A passer-by points at a crate list in the alley. What do you do?
-A. Walk to the crate list before accepting a price the drum chalk already prints
-B. Set the attractive 2 pound figure aside and ask which list is the backing line
-C. Treat the crate list as a meaningless extra word and re-read the chalk for a tiny difference
-D. A chalked oil price finishes the price claim without the crate list
+A. You answer the drum like this: a chalked oil price awaits the separate crate list down the alley.
+B. You answer the drum like this: an attractive 2 pound figure is set aside pending some backing line.
+C. You answer the drum like this: a tiny wording difference inside the chalk sends you to that list.
+D. You answer the drum like this: a chalked oil price finishes the price claim without the crate list.
 Write the letter alone on the last line as ANSWER: followed by the letter.
 ```
 
