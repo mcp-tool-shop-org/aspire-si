@@ -1,7 +1,8 @@
 # DRAFT: Stage 1 training procedure (a short pre-registration)
 
-**Status: draft, 2026-10-10. Nothing trains until the maintainer approves this and the Publisher grants the
-card.** It sets how the approved lessons (Lessons 1–3 and the 18 trait lessons) become training, using the
+**Status: approved for round 1 by the maintainer, 2026-10-11, relayed through the Publisher.** Drafted
+2026-10-10. Round 1 trains on the frozen dataset (batches 5–8 merged, then the freeze) and starts only when the
+Publisher grants the card for that frozen data commit. It sets how the approved lessons (Lessons 1–3 and the 18 trait lessons) become training, using the
 loop and ledger in the lesson plan ([stage1-verifier-qualities-lessons-draft](2026-10-10-stage1-verifier-qualities-lessons-draft.md)).
 Measurement is in the [evaluation plan](2026-10-10-stage1-evaluation-plan-draft.md). Where the two drafts
 differ, this one says so and why.

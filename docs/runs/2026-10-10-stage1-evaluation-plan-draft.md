@@ -1,7 +1,8 @@
 # DRAFT: Evaluation plan, does teaching the role make a better verifier? (docs only)
 
-**Status: draft, 2026-10-10.** This is the maintainer's experiment design. Nothing runs until the
-maintainer approves this plan and the Stage 1 teaching material (`2026-10-10-stage1-*`).
+**Status: approved for round 1 by the maintainer, 2026-10-11, relayed through the Publisher,** together with
+the Stage 1 teaching material (`2026-10-10-stage1-*`): round 1 runs its training and its sittings. Drafted
+2026-10-10. This is the maintainer's experiment design.
 
 **The two questions:**
 1. **Phase A:** does teaching the role and the thinking process, on its own, change how the model does on
