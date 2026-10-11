@@ -145,9 +145,12 @@ def test_a_variant_that_was_trained_on_is_spent_not_asked():
     here, not read from the data: the data's spent variants are reworded in fix rounds."""
     r = copy.deepcopy(VERDICT_E[0])
     r["id"] = "T05-E-99"
-    trained_words = r["turns"][0]["thinking"].split()
-    assert len(trained_words) >= 10
-    r["variant"] = {"user": " ".join(trained_words[:10]) + " What do you answer?", "key": r["variant"]["key"]}
+    import receipts
+    words, own_material = r["turns"][0]["thinking"].split(), quiz.material_spans([r])
+    # a 10-word window of the trained thinking that quotes none of the item's material (which is exempt)
+    window = next(" ".join(words[i:i + 10]) for i in range(len(words) - 9)
+                  if not receipts.spans(" ".join(words[i:i + 10])) & own_material)
+    r["variant"] = {"user": window + " What do you answer?", "key": r["variant"]["key"]}
     r["_marker"] = r["variant"]["user"]
     lg = Ledger()
     out, rows, _ = sit([r], {0: True, 1: True, 2: True}, ledger=lg)
