@@ -3,11 +3,21 @@
     python train.py --data <items.jsonl> --out <round dir>
                     [--init-adapter <dir>] [--held-out a.jsonl b.jsonl ...] [--max-steps N] [--dry-run]
                     [--status <run dir>/status.json] [--ckpt-every 25]
+                    [--order shuffled|listed|round-robin] [--lesson-order T01,T04,...]
 
 - Loads the student through stage1-eval/student.py (the same loader and weights check as the evaluation).
 - LoRA rank 64, alpha 128, dropout 0.05 on every linear layer; AdamW lr 1e-4, cosine with 3% warm-up,
   effective batch 16 sequences, max length 4096, gradient checkpointing, bf16.
 - Loss on the assistant target only. One sequence per assistant turn (see data.py).
+- The training order is a setting (--order), recorded in the manifest, and a resume under a different order is
+  refused, because the order changes what is trained when:
+  - shuffled (the default; the pre-registered order): one seeded, shuffled pass over all of the session's lessons;
+  - listed: one lesson at a time, in --lesson-order (default: the order lessons first appear in the data files),
+    each lesson's sequences shuffled within it by the seed;
+  - round-robin: one sequence from each lesson in turn, in --lesson-order, each lesson's own sequences shuffled
+    by the seed, until every lesson is used up.
+  Every order trains every sequence once per epoch: only the sequence in time changes. A non-default order is
+  a measured change: pre-register it before the run it's used in.
 - Refuses the data on any schema error, a leakage hit against the held-out sets or the pre-interview, or a
   sequence over the length limits (target <= 3,000 tokens, whole sequence <= 4,096): refused, never truncated.
 - Writes: adapter/, manifest.json (data sha256s, seed, settings, adapter sha256, machine line, timing),
@@ -140,11 +150,53 @@ def build(rows, tok, max_len, max_target):
             if n > max_len or t > max_target:
                 refused.append((r["id"], n, t))
                 continue
-            seqs.append({**s, "id": r["id"]})
+            seqs.append({**s, "id": r["id"], "lesson": r.get("lesson")})
     if refused:
         raise SystemExit(f"items over the limits (sequence <= {max_len}, target <= {max_target} tokens; shorten "
                          f"or split them, never truncate): {refused[:10]}")
     return seqs
+
+
+ORDERS = ("shuffled", "listed", "round-robin")
+
+
+def lesson_sequence(seqs, lesson_order: list | None) -> list:
+    """The lessons in the order to train them: --lesson-order if given (it must name every lesson in the data,
+    each once, and nothing else), else the order lessons first appear in the data."""
+    present = list(dict.fromkeys(s["lesson"] for s in seqs))
+    if None in present:
+        raise SystemExit("an item has no lesson field: a lesson order can't place it")
+    if not lesson_order:
+        return present
+    if sorted(lesson_order) != sorted(present) or len(set(lesson_order)) != len(lesson_order):
+        missing, extra = set(present) - set(lesson_order), set(lesson_order) - set(present)
+        raise SystemExit(f"--lesson-order must name every lesson in the data once: missing {sorted(missing)}, "
+                         f"not in the data {sorted(extra)}")
+    return list(lesson_order)
+
+
+def training_order(seqs, mode: str, lesson_order: list | None, rng) -> list:
+    """Indices into seqs, every one exactly once, in the order to train them. `rng` is the seeded random module
+    (or a random.Random); "shuffled" draws exactly as the trainer always has (one shuffle of 0..n-1)."""
+    if mode not in ORDERS:
+        raise SystemExit(f"--order must be one of {', '.join(ORDERS)}")
+    if mode == "shuffled":
+        order = list(range(len(seqs)))
+        rng.shuffle(order)
+        return order
+    lessons = lesson_sequence(seqs, lesson_order)
+    groups = {ls: [i for i, s in enumerate(seqs) if s["lesson"] == ls] for ls in lessons}
+    for ls in lessons:
+        rng.shuffle(groups[ls])
+    if mode == "listed":
+        return [i for ls in lessons for i in groups[ls]]
+    order, k = [], 0  # round-robin
+    while any(groups.values()):
+        ls = lessons[k % len(lessons)]
+        if groups[ls]:
+            order.append(groups[ls].pop(0))
+        k += 1
+    return order
 
 
 def near_caps(seqs, max_len, max_target):
@@ -252,7 +304,12 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--status", help="the supervisor's status.json (heartbeat and heat pause)")
     ap.add_argument("--ckpt-every", type=int, default=25)
+    ap.add_argument("--order", choices=ORDERS, default="shuffled", help="the training order (see the docstring)")
+    ap.add_argument("--lesson-order", help="comma-separated lesson ids, for --order listed or round-robin")
     a = ap.parse_args(argv)
+    lesson_order = [x.strip() for x in a.lesson_order.split(",") if x.strip()] if a.lesson_order else None
+    if lesson_order and a.order == "shuffled":
+        ap.error("--lesson-order applies to --order listed or round-robin; shuffled ignores lessons")
 
     rows = [r for p in a.data for r in data.load(p)]
     data.validate(rows)
@@ -271,6 +328,8 @@ def main(argv=None):
                 "held_out": {p: sha256_file(Path(p)) for p in a.held_out}, "examples": len(rows),
                 "sequences": len(seqs), "target_tokens": sum(len(s["target_ids"]) for s in seqs),
                 "near_length_caps": near_caps(seqs, OPT["max_len"], OPT["max_target"]),
+                "order": {"mode": a.order, "seed": OPT["seed"],
+                          "lessons": None if a.order == "shuffled" else lesson_sequence(seqs, lesson_order)},
                 "init_adapter": a.init_adapter}
     if a.dry_run:
         print(json.dumps({k: v for k, v in manifest.items() if k != "student"}, indent=1))
@@ -317,8 +376,7 @@ def train(a, seqs, manifest, out, events):
     params = [p for p in model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(params, lr=OPT["lr"], weight_decay=OPT["weight_decay"])
 
-    order = list(range(len(seqs)))
-    random.shuffle(order)
+    order = training_order(seqs, manifest["order"]["mode"], manifest["order"]["lessons"], random)
     accum = OPT["effective_batch"]
     total_steps = math.ceil(len(order) * OPT["epochs"] / accum)
     if a.max_steps:
@@ -339,6 +397,8 @@ def train(a, seqs, manifest, out, events):
         st = json.loads((ckpt / "state.json").read_text(encoding="utf-8"))
         if st["code_sha256"] != manifest["code_sha256"] or st["data"] != manifest["data"]:
             raise SystemExit("refusing to resume: code or data differ from the checkpoint")
+        if st.get("order", manifest["order"]) != manifest["order"]:
+            raise SystemExit("refusing to resume: the training order differs from the checkpoint's")
         model.load_adapter(str(ckpt / "adapter"), adapter_name="default", is_trainable=True)
         opt.load_state_dict(torch.load(ckpt / "optimizer.pt", map_location=dev))
         rng = torch.load(ckpt / "rng.pt", weights_only=False)
@@ -370,7 +430,7 @@ def train(a, seqs, manifest, out, events):
             paused += sup.check()
         except StopRequested as e:
             if step > saved_at:  # flush: the steps finished since the last checkpoint are kept
-                state = {"step": step, "code_sha256": manifest["code_sha256"], "data": manifest["data"],
+                state = {"step": step, "code_sha256": manifest["code_sha256"], "data": manifest["data"], "order": manifest["order"],
                          "train_seconds": prior_seconds + time.time() - t0 - paused,
                          "paused_seconds": prior_paused + paused}
                 with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
@@ -432,7 +492,7 @@ def train(a, seqs, manifest, out, events):
         with_retry(_log, "loss.jsonl", events)
         print(json.dumps(rec), flush=True)
         if (step + 1) % a.ckpt_every == 0 or step + 1 == total_steps:
-            state = {"step": step + 1, "code_sha256": manifest["code_sha256"], "data": manifest["data"],
+            state = {"step": step + 1, "code_sha256": manifest["code_sha256"], "data": manifest["data"], "order": manifest["order"],
                      "train_seconds": prior_seconds + time.time() - t0 - paused,
                      "paused_seconds": prior_paused + paused}
             with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
