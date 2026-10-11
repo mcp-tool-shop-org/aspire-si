@@ -152,31 +152,27 @@ I point to the printed 250, marks and all. Two hundred and fifty is that count, 
 
 **User:**
 ```text
-Eight bins stand in a row, and the third bin is painted tin.
-The catalogue on the shelf calls every bin a container.
-Claim: the row itself paints tin on the third bin.
-Is that claim earned?
+1. Eight bins stand in a row. The third bin and the fourth bin are two of them. Paints on this row are tin and oak. The catalogue calls every bin a container.
+2. The third bin is painted tin.
+Question: Which word does the row itself paint on the third bin?
 ```
 
 **Thinking:**
 ```text
-The question asks for the word the row paints, and the third bin is painted tin. The catalogue's word is container, which is a shelf name for a bin rather than the paint. I answer with the paint, because that is the word the question asked for.
+Eight bins. Paints on this row are tin and oak. The catalogue's word for a bin is container, which is not paint.
+The third bin is painted tin.
+The question asks for the paint, so the word is tin and the catalogue stays on the shelf.
 ```
 
 **Reply:**
 ```text
-Tin, the paint on the third bin.
-| Asked for | Word |
-| --- | --- |
-| the row's paint | tin |
-| the catalogue's name | container |
-VERDICT: supported
-DECIDING: Eight bins stand in a row, and the third bin is painted tin.
-ESCALATE: no
-supported
+| bin | paint |
+| the third bin | tin |
+| the catalogue | container |
+tin
 ```
 
-**Key:** answer: supported
+**Key:** answer: tin
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -184,33 +180,30 @@ supported
 
 **User:**
 ```text
-Nine tickets are in the jar, marked A through I.
-The void ticket is not valid.
-Ticket C is not valid.
-Every other ticket is valid.
-A pencil note calls the void ticket the dud.
-Claim: ticket C is the void ticket.
-Is that claim earned?
+1. Nine tickets are in the jar, marked A through I. Three of them are ticket A, ticket C and ticket E. Places in the draw are 1st, 2nd and 3rd. A pencil note calls ticket C the dud. The jar's own word for a void ticket is not valid.
+2. Ticket A is ahead of ticket C.
+3. Ticket C is ahead of ticket E.
+Question: Which ticket is in 2nd place?
 ```
 
 **Thinking:**
 ```text
-Void means not valid, and the jar says ticket C is not valid. The other tickets are valid, so C is the void ticket. The pencil calls it the dud, which is a nickname rather than the jar's clause. The void ticket is ticket C, and the jar's words are 'Ticket C is not valid.'
+Nine tickets. The pencil calls ticket C the dud, and the jar's own word for a void ticket is not valid.
+Ticket A is ahead of ticket C.
+Ticket C is ahead of ticket E, so ticket C is in 2nd place.
+The answer names ticket C. Dud is the pencil's nickname, not the jar's mark.
 ```
 
 **Reply:**
 ```text
-Ticket C is void, because the jar's own clause says ticket C is not valid. The pencil's dud is a nickname for that clause.
-| Jar's clause | Ticket |
-| --- | --- |
-| not valid | C |
-VERDICT: supported
-DECIDING: Ticket C is not valid.
-ESCALATE: no
-supported
+| place | ticket |
+| 1st | ticket A |
+| 2nd | ticket C |
+| 3rd | ticket E |
+ticket C
 ```
 
-**Key:** answer: supported
+**Key:** answer: ticket C
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -218,33 +211,28 @@ supported
 
 **User:**
 ```text
-Two cooks share two stoves.
-The stove card names them the soup stove and the fryer.
-Exactly one cook stands at each stove.
-The tall cook does not take the fryer.
-A chalkboard calls the soup stove the stockpot burner.
-Claim: the tall cook takes the soup stove, in the stove card's own name.
-Is that claim earned?
+1. Two cooks share the stoves. The cooks are the tall cook and the short cook. The stove card names the soup stove, the fryer and the grill. A chalkboard calls the soup stove the stockpot burner.
+2. The tall cook is not at the fryer.
+3. The tall cook is not at the grill.
+Question: Which stove does the tall cook take, in the stove card's own name?
 ```
 
 **Thinking:**
 ```text
-Exactly one cook stands at each stove, and the tall cook does not take the fryer, so the tall cook takes the soup stove. The chalkboard's stockpot burner is another name for that stove. The question asks for the card's own name, so the answer stays soup stove, and I do not swap in the chalkboard's words.
+The stove card names the soup stove, the fryer and the grill. The chalkboard's stockpot burner is another name for one of them.
+The tall cook is not at the fryer.
+The tall cook is not at the grill, so the card's own name is the soup stove.
+I do not swap in the chalkboard's words.
 ```
 
 **Reply:**
 ```text
-The card's own name for that stove is the soup stove.
-| Cook | Stove |
-| --- | --- |
-| tall cook | soup stove |
-VERDICT: supported
-DECIDING: Exactly one cook stands at each stove. | The tall cook does not take the fryer.
-ESCALATE: no
-supported
+| cook | stove |
+| the tall cook | the soup stove |
+the soup stove
 ```
 
-**Key:** answer: supported
+**Key:** answer: the soup stove
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -282,34 +270,31 @@ North
 
 **User:**
 ```text
-Three hatches open onto the yard.
-The early hatch opens only after the whistle.
-The early hatch never opens in fog.
-The early hatch is the grain hatch.
-Claim: fog blocks the grain hatch, and that hatch waits on the whistle.
-Is that claim earned?
+1. Three hatches open onto the yard: the grain hatch, the coal hatch and the mail hatch. A chalkboard calls one of them the silo hatch. The grain hatch opens only after the whistle.
+2. Exactly one hatch is fog-blocked.
+3. The coal hatch is clear.
+4. The mail hatch is clear.
+Question: Which hatch is blocked by fog?
 ```
 
 **Thinking:**
 ```text
-The hatch that never opens in fog is the early hatch, and the early hatch is the grain hatch. That same hatch opens only after the whistle. Fog blocks the grain hatch, and the sound it waits on is the whistle. 'Needs the whistle' would be the same requirement, and I still point at the printed clause.
+Three hatches. A chalkboard says silo hatch. The page's clause for the grain hatch is that it opens only after the whistle, and I keep that clause whole.
+Exactly one hatch is fog-blocked.
+The coal hatch is clear, and the mail hatch is clear, so the grain hatch is the one fog blocks.
+Silo is the chalkboard. Needs-the-whistle would shorten the printed clause, and I do not.
 ```
 
 **Reply:**
 ```text
-Fog blocks the grain hatch, and the sound that hatch waits on is the whistle.
-| Fact | Words |
-| --- | --- |
-| blocked by fog | the early hatch never opens in fog |
-| which hatch | the early hatch is the grain hatch |
-| the sound | it opens only after the whistle |
-VERDICT: supported
-DECIDING: The early hatch never opens in fog. | The early hatch is the grain hatch. | The early hatch opens only after the whistle.
-ESCALATE: no
-supported
+| hatch | state |
+| the coal hatch | clear |
+| the mail hatch | clear |
+| the grain hatch | fog-blocked |
+the grain hatch
 ```
 
-**Key:** answer: supported
+**Key:** answer: the grain hatch
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -317,31 +302,30 @@ supported
 
 **User:**
 ```text
-A parking line is the page.
-Material:
-Before 6pm it costs 2 pounds an hour.
-Claim: at 4pm parking costs 2 pounds an hour.
-Is that claim earned?
+1. Three clocks are 4pm, 5pm and 8pm. Rates run from 2 pounds an hour to 4 pounds an hour: 2 pounds an hour, 3 pounds an hour and 4 pounds an hour, one each. The page says before 6pm it costs 2 pounds an hour. A chalkboard calls that rate the afternoon rate.
+2. 5pm costs 3 pounds an hour.
+3. 8pm is after 4pm.
+Question: What does parking cost at 4pm, in the page's own words?
 ```
 
 **Thinking:**
 ```text
-Cost at 4pm is inside 'before 6pm', and the line states 2 pounds an hour for that span. I name the line before the answer: Before 6pm it costs 2 pounds an hour. 4pm is before 6pm, so the rate applies. I do not answer 'the afternoon rate' and leave the line behind. Nothing else on the page qualifies the rate.
+Three clocks. Rates run from 2 pounds an hour to 4 pounds an hour. The page's own words are before 6pm it costs 2 pounds an hour. The chalkboard says afternoon rate.
+5pm costs 3 pounds an hour.
+8pm is after 4pm, so 4pm costs 2 pounds an hour.
+I answer in the page's words. Afternoon rate leaves those words behind.
 ```
 
 **Reply:**
 ```text
-At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
-| Clock | Rate |
-| --- | --- |
-| before 6pm, which covers 4pm | 2 pounds an hour |
-VERDICT: supported
-DECIDING: Before 6pm it costs 2 pounds an hour.
-ESCALATE: no
-supported
+| clock | rate |
+| 5pm | 3 pounds an hour |
+| 8pm | 4 pounds an hour |
+| 4pm | 2 pounds an hour |
+2 pounds an hour
 ```
 
-**Key:** answer: supported
+**Key:** answer: 2 pounds an hour
 
 *invented: puzzle, written for this item (key by construction)*
 

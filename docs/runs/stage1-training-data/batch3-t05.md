@@ -152,30 +152,28 @@ I agree on the merits when my own reading is already in hand and it matches the 
 
 **User:**
 ```text
+Material:
 Four clerks share a front row that holds a pair of chairs.
 The four clerks are Ana, Bo, Cal and Dee.
 Any pair among the four may sit in front.
 Another solver has written a list. It stays unread while you work.
-Claim: every pair among Ana, Bo, Cal and Dee may sit in front.
-Is that claim earned?
+Statement: Ana and Bo, Ana and Cal, Ana and Dee, Bo and Cal, Bo and Dee, and Cal and Dee may sit in front.
+Is the statement earned?
 ```
 
 **Thinking:**
 ```text
-Which pairs may sit is the whole allowed set, written in the order the question asks.
-1. The row seats a pair, and any pair of Ana, Bo, Cal and Dee may sit.
-2. The six unordered pairs, alphabetical, are Ana with Bo, Ana with Cal, Ana with Dee, Bo with Cal, Bo with Dee, and Cal with Dee.
-3. The unread list stays unread, so it cuts nothing.
+ROOT every pair among Ana, Bo, Cal and Dee may sit
+├─ the row seats a pair, and any pair of the four may sit
+└─ the six pairs in the statement are exactly those pairs
+The unread list stays unread, so it cuts nothing. The statement is supported.
 ```
 
 **Reply:**
 ```text
-Any pair may sit, so the list is all six, in alphabetical order.
-1. The chairs seat one pair.
-2. Ana, Bo, Cal and Dee give those six pairs and no ban.
-3. An unread list cannot shrink the set.
+The unread list stays unread, so it cuts nothing. The statement is supported.
 VERDICT: supported
-DECIDING: Any pair among the four may sit in front.
+DECIDING: Four clerks share a front row that holds a pair of chairs. | The four clerks are Ana, Bo, Cal and Dee. | Any pair among the four may sit in front.
 ESCALATE: no
 supported
 ```
@@ -188,37 +186,29 @@ supported
 
 **User:**
 ```text
-Five names are on the card.
-The blue runner never starts.
-The remaining people all start.
-Every other opinion stays unread.
-Claim: the blue runner is out.
-Is that claim earned?
+1. Five names are on the card. Two runners are the blue runner and the field. Every other opinion stays unread.
+2. The blue runner is not running.
+3. The field is running.
+Question: Who is out?
 ```
 
 **Thinking:**
 ```text
-Who is out asks for the person the card itself excludes.
-Five names are on the card, the blue runner never starts, and the remaining people all start.
-That is one exclusion, then a start for everybody else.
-No second name is cut, and nothing puts the blue runner back among the starters.
-Opinions besides the card stay unread, so they cannot add an exclusion or cancel this one.
+Five names are on the card. Opinions besides the card stay unread, so they cannot add a name or cancel one.
+The blue runner is not running.
+The field is running.
 The card's own cut is the blue runner.
 ```
 
 **Reply:**
 ```text
-Out goes the blue runner.
-| person | starts |
-| blue runner | never |
-| everyone else | yes |
-VERDICT: supported
-DECIDING: The blue runner never starts.
-ESCALATE: no
-supported
+| runner | state |
+| the blue runner | out |
+| the field | running |
+the blue runner
 ```
 
-**Key:** answer: supported
+**Key:** answer: the blue runner
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -226,35 +216,25 @@ supported
 
 **User:**
 ```text
-1. Six riders are blue, green, yellow, white, black and red. Boats are North, South, East, West, Near and Far. Exactly one rider per boat. The coxswain stays silent.
-2. Blue is on South.
-3. Green is on East.
-4. Yellow is on West.
-5. White is on Near.
-6. Black is on Far.
+1. Six riders take the boats. The riders are blue, green, yellow, white, black and red. Boats run North, South, East, West, Near and Far, in that order. Exactly one rider per boat. The coxswain stays silent.
+2. The red rider is ahead of the blue rider.
+3. Blue sits on South.
 Question: Which boat does the red rider take?
 ```
 
 **Thinking:**
 ```text
-Blue, green, yellow, white, black and red. Boats North through Far, one rider each. The coxswain stays silent, and silence assigns nobody.
-Blue is on South.
-Green is on East.
-Yellow is on West.
-White is on Near.
-Black is on Far.
-Red is standing, and North is the boat those five left open.
+Six riders, one to a boat, boats running North, South, East, West, Near, Far. The coxswain stays silent, which adds no boat.
+The red rider is ahead of the blue rider.
+Blue sits on South, so the red rider is on North.
+The silence is not used.
 ```
 
 **Reply:**
 ```text
 | rider | boat |
-| blue | South |
-| green | East |
-| yellow | West |
-| white | Near |
-| black | Far |
 | red | North |
+| blue | South |
 North
 ```
 

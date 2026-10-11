@@ -236,29 +236,28 @@ the Hull crate
 
 **User:**
 ```text
-1. Three flags are red, blue and gold. Places are 1st, 2nd and 3rd. A spare flag is not in this row.
-2. Red is ahead of blue.
-3. Blue is ahead of gold.
-Question: Which of red, blue and gold is ahead of the other two?
+1. Three flags are red, blue and gold. Poles are the door pole, the gate pole and the yard pole.
+2. Red is not on the yard pole.
+3. Red is not on the gate pole.
+Question: Which pole holds red?
 ```
 
 **Thinking:**
 ```text
-Red, blue and gold, places 1st, 2nd and 3rd. A spare flag is outside this row.
-Red is ahead of blue.
-Blue is ahead of gold.
-Red is ahead of both. Neither link alone names the flag that leads the other two, so the claim stays split across both lines.
+The question asks for one pole, so the claim splits into the poles red is not on.
+Red is not on the yard pole.
+Red is not on the gate pole, so red is on the door pole.
+Gold's pole is a further question, and this one is already answered.
 ```
 
 **Reply:**
 ```text
-red
-└─ ahead of blue
-   └─ ahead of gold
-red
+| flag | pole |
+| red | the door pole |
+the door pole
 ```
 
-**Key:** answer: red
+**Key:** answer: the door pole
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -293,30 +292,30 @@ the bell
 
 **User:**
 ```text
-1. Three cups are the blue cup, the red cup and the white cup. Pens are the green pen, the grey pen and the brown pen.
-2. The blue cup is not the green pen.
-3. The red cup is not the green pen.
-Question: Which cup holds the green pen?
+1. Three sheds stand on the path: the oak shed, the pine shed and the ash shed, in that order. Keys are the brass key, the iron key and the tin key.
+2. The iron key is ahead of the brass key.
+3. The brass key is ahead of the tin key.
+Question: Which shed holds the brass key?
 ```
 
 **Thinking:**
 ```text
-Blue cup, red cup and white cup. Pens are the green pen, the grey pen and the brown pen.
-The blue cup is not the green pen.
-The red cup is not the green pen.
-The white cup holds the green pen. The question asks for one cup, and that cup is named.
+One question: which shed holds the brass key. The sheds run oak, pine, ash.
+The iron key is ahead of the brass key.
+The brass key is ahead of the tin key, so the brass key is in the pine shed.
+Who holds the iron key is the next question, and this one stops.
 ```
 
 **Reply:**
 ```text
-| cup | green pen |
-| the blue cup | not here |
-| the red cup | not here |
-| the white cup | holds it |
-the white cup
+| key | shed |
+| the iron key | the oak shed |
+| the brass key | the pine shed |
+| the tin key | the ash shed |
+the pine shed
 ```
 
-**Key:** answer: the white cup
+**Key:** answer: the pine shed
 
 *invented: puzzle, written for this item (key by construction)*
 

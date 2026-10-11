@@ -152,35 +152,33 @@ I answer from the photocopy. Waiting for the original would pretend the rule was
 
 **User:**
 ```text
-Four sheds stand on the lane: north, south, east and west.
-The lane note allows any shed it does not close.
-The lane note closes the east shed and the west shed.
-A rumour passed along the yard says the south shed was closed.
-Claim: the lane note allows the north shed and the south shed.
-Is that claim earned?
+1. Four sheds stand on the lane: north, south, east and west. A shed is allowed or closed. A rumour says the south shed was closed.
+2. Exactly two sheds are closed.
+3. East is closed on the lane note.
+4. West is closed on the lane note.
+Question: Which sheds does the lane note allow?
 ```
 
 **Thinking:**
 ```text
-The lane note allows any shed it does not close, and the sheds it closes are east and west. North stays open on that note, and so does south. The yard rumour is talk from the yard, not the lane note, and the question asks what the note allows. I do not let the rumour close a shed the note left open.
+Four sheds. The rumour that the south shed was closed is yard talk, not the lane note.
+Exactly two sheds are closed.
+East is closed on the lane note.
+West is closed on the lane note, so the note allows north and south.
+I do not let the rumour close a shed the note left allowed.
 ```
 
 **Reply:**
 ```text
-North and south.
-| Shed | Lane note |
-| --- | --- |
+| shed | note |
 | north | allowed |
 | south | allowed |
 | east | closed |
 | west | closed |
-VERDICT: supported
-DECIDING: The lane note allows any shed it does not close. | The lane note closes the east shed and the west shed.
-ESCALATE: no
-supported
+north, south
 ```
 
-**Key:** answer: supported
+**Key:** answer: north, south
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -294,32 +292,29 @@ brass
 
 **User:**
 ```text
-Seven doors face the lane.
-The yard door opens only after the bell.
-No other door waits on the bell.
-A building plan is clipped to the back of the list.
-Claim: the yard door is the door that waits on the bell.
-Is that claim earned?
+1. Seven doors face the lane. Two of them are the yard door and the lane door. A building plan is clipped to the back of the list.
+2. The yard door waits on the bell.
+3. The lane door never waits, and the lane door opens.
+Question: Which door waits on the bell?
 ```
 
 **Thinking:**
 ```text
-The yard door opens only after the bell, and the list adds that no other door waits on the bell. Those two lines name one door. The plan draws wall thicknesses. The list has already named the yard door. The yard door is the door the list has already named.
+Seven doors. A building plan is clipped to the back of the list, and it draws walls rather than naming a door.
+The yard door waits on the bell.
+The lane door never waits, and the lane door opens.
+The list has named the door. I stop, and the plan stays on the back.
 ```
 
 **Reply:**
 ```text
-The yard door.
-1. The yard door opens only after the bell.
-2. The list says no other door waits on the bell.
-3. The plan draws wall thicknesses, and the list has named the door.
-VERDICT: supported
-DECIDING: The yard door opens only after the bell.
-ESCALATE: no
-supported
+| door | bell |
+| the yard door | waits |
+| the lane door | opens |
+the yard door
 ```
 
-**Key:** answer: supported
+**Key:** answer: the yard door
 
 *invented: puzzle, written for this item (key by construction)*
 

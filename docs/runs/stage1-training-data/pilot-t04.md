@@ -286,11 +286,11 @@ Question: Which drink is in which jug?
 
 **Thinking:**
 ```text
-Clay, tin and wood, drinks tea, water and juice, one each, and the opening line fills nothing.
+Clay, tin and wood, one drink each. The opening line assigns no drink.
 Clay holds tea, so tea is gone for the other jugs.
 Tin does not hold juice, and tea is already clay's, so tin holds water.
 Wood is left with juice.
-Three passes, each forced, nothing left open.
+Each pass was forced. Had tin still had two drinks open, I would name both and stop.
 ```
 
 **Reply:**
