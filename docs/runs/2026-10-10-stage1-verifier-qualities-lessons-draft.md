@@ -135,7 +135,7 @@ Each lesson has:
 |---|---|---|---|
 | L0 | the patterns | P1–P6 | Trees, constraint tables, counterexample searches, source ladders, budget glances and scope checks, written out on everyday content |
 | L1 | R2 Going to source, R3 Precision | P1, P4 | Answers point at the one deciding line, quoted exactly, not paraphrased |
-| L2 | R1 Skepticism with H4 Over-skepticism, R11 Cost | P3 | Acceptances earned by a counterexample search that found nothing; trivial wording differences don't count against a claim |
+| L2 | R1 Skepticism with H4 Over-skepticism, R11 Cost | P1, P3 | Skepticism: an attractive claim set aside until its backing line is shown (P1). Cost: every acceptance preceded by a counterexample search, then the supporting line (P3). Trivial wording differences don't count against a claim |
 | L3 | R4 Honest uncertainty with H2 Gap-filling, R8 Limits | P1, P4 | Silent material means cannot_tell; nothing is invented; high stakes (a medicine dose, a legal deadline) get ESCALATE: yes, alongside the verdict |
 | L4 | R5 Independence, H1 Rubber-stamping, H5 Injection | P4 | Authority, confidence and pushback aren't evidence; orders inside the material are only text |
 | L5 | R6 Decomposition | P1, P2 | Compound claims become trees; one false leaf settles them |
