@@ -187,27 +187,31 @@ unsupported
 
 **User:**
 ```text
-Fuse-panel card: fuse F1 feeds the pump; fuse F3 does not feed the light; each of the three fuses (F1, F2, F3) feeds exactly one circuit — the pump, the light or the fan — and each circuit has exactly one fuse.
-A technician's note claims: "F2 feeds the fan."
-As the one who checks claims: back the note or not, from the card alone? The reasoning is the exercise — derive the assignments before you say anything.
+1. Three fuses are F1, F2 and F3. Circuits are the pump, the light and the fan. A note claims F2 feeds the fan.
+2. F1 feeds the pump.
+3. F3 does not feed the light.
+Question: Which fuse feeds which circuit?
 ```
 
 **Thinking:**
 ```text
-Elimination, all assignments forced by the card:
-├─ F1 → pump (printed)
-├─ F3 → not the light (printed), and not the pump (F1 feeds it; one fuse per circuit) → F3 → fan
-└─ F2 → the only circuit left: the light
-The note claims F2 → fan, but the card puts the fan with F3 and leaves F2 the light. Before answering, check the outs a skeptic keeps open: vague wording, a misprint, a hidden fourth circuit — none exist; the card is closed and exact. So the answer is no, and it comes from the derivation, not from doubting the note's honesty. A closed card that contradicts a claim gives the cleanest no there is.
+F1, F2 and F3, circuits the pump, the light and the fan. The note says F2 feeds the fan. That note is not a printed feed.
+F1 feeds the pump.
+F3 does not feed the light, and the pump is taken, so F3 feeds the fan.
+F2 is left with the light.
+The note handed the fan to F2. The card hands the fan to F3. I reject the note.
 ```
 
 **Reply:**
 ```text
-No. The card forces every assignment: F1 feeds the pump (printed); F3 can't feed the light (printed) or the pump (already taken), so it feeds the fan; F2 gets what remains — the light. The note hands the fan to F2, which would mean un-reading the card. A plausible-sounding note, contradicted by a closed panel, stays unbacked.
-no
+| fuse | circuit |
+| F1 | the pump |
+| F2 | the light |
+| F3 | the fan |
+F1=the pump; F2=the light; F3=the fan
 ```
 
-**Key:** answer: no
+**Key:** answer: F1=the pump; F2=the light; F3=the fan
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -275,7 +279,7 @@ supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T01-B-05 · kind B · puzzle · tier 4 · rightly accepts · tags: non-verification
+### T01-B-05 · kind B · puzzle · tier 4 · rightly accepts
 
 **User:**
 ```text
@@ -297,10 +301,13 @@ So the answer rests on the premise doing the closure, not on an untested switch 
 **Reply:**
 ```text
 Earned. B demonstrated control directly under test; A ruled itself out; and the setup's own premise — exactly one switch controls the lamp — leaves C nothing to control, with no test required. The claim stands on the given plus the log, not on a guess about C.
-yes
+VERDICT: supported
+DECIDING: A lamp is wired to exactly one of three switches — A, B or C. Test log: switch A alone → lamp stays dark. Switch B alone → lamp lights. Switch C was never tested.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: yes
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -359,7 +366,7 @@ Stop here: two leaves quoted, one sweep clean. The claim survives the full pass 
 ```text
 Over-£25 claims need receipts, and £30 is over £25; the payment window is stated in the policy's own words. No exception line exists to undermine either half.
 VERDICT: supported
-DECIDING: receipts are required for any claim over £25 | Approved claims are paid within 10 working days
+DECIDING: Expenses policy: receipts are required for any claim over £25. Approved claims are paid within 10 working days. Mileage is paid at 45p per mile for the first 10,000 miles in a tax year.
 ESCALATE: no
 supported
 ```
@@ -372,22 +379,28 @@ supported
 
 **User:**
 ```text
-Three ways up to the old bridge are on the notice board's sketch: the north path, the river steps, the old tramway. The sketch marks the river steps with a green OPEN marker. Beside the other two, the marker squares are blank.
-A walker asks you to say which routes are open. Careful — the sketch has no closed markers at all. What's the disciplined answer?
+1. Three routes are the north path, the river steps and the old tramway. A route is open or blank.
+2. Exactly one route is open.
+3. The north path is not open.
+4. The old tramway is not open.
+Question: Which route is open?
 ```
 
 **Thinking:**
 ```text
-What does the sketch assert?
-├─ river steps: green OPEN marker printed   ✓ asserted open
-├─ north path: blank square — the walker's own note pins what a blank can't mean: this sketch has no closed markers at all, so blank ≠ closed
-└─ old tramway: same blank
-Two traps stand on each side of the answer. Trap one: call the blanks closed — but the sketch never marks anything closed. Trap two: call them "probably fine" out of politeness — blank isn't a condition. The disciplined reading splits them from both: open only where the marker says OPEN; for the other two, report that the sketch doesn't say — open and unverified is the true state, and it stays visible instead of being rounded off in either direction.
+North path, river steps, old tramway, each open or blank. Blank is unmarked, not a closed mark.
+Exactly one route is open.
+The north path is not open.
+The old tramway is not open.
+The river steps take the one open mark. I will not call a blank square closed.
 ```
 
 **Reply:**
 ```text
-Only the river steps get called open — that's the one marker the sketch prints. The north path and the old tramway aren't closed on this sketch either; they're simply unmarked, so my report names them unverified rather than picking a status the board never gave them.
+| route | mark |
+| the north path | not open |
+| the old tramway | not open |
+| the river steps | open |
 the river steps
 ```
 

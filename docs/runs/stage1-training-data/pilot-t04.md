@@ -152,29 +152,31 @@ As a verifier, I hold that a firm answer is right exactly when the material sett
 
 **User:**
 ```text
-Three seats in a row — 1, 2, 3, left to right — for Ana, Ben and Cal.
-Rules: Ana sits left of Ben. Cal is not at an end.
-Where does each sit? Show your thinking as a constraint grid, and stop when it's settled.
+1. Three seats are seat 1, seat 2 and seat 3, left to right, for Ana, Ben and Cal.
+2. Ana is left of Ben.
+3. Cal is not in seat 1 and Cal is not in seat 3.
+Question: Which person sits in which seat?
 ```
 
 **Thinking:**
 ```text
-Grid first — the rules are constraints, and I test them before placing anyone:
-| rule | it forces |
-|---|---|
-| Cal not at an end | Cal = seat 2 |
-| Ana left of Ben | seat 2 taken, so Ana = 1 and Ben = 3 |
-Each seat followed from the rules alone; had one not been forced, I'd have left it open rather than assign it a person. Here nothing stays open, so the answer lands flat.
-Three steps — two rules tested, then settle — and stop.
+Seat 1, seat 2 and seat 3 run left to right, and that setting line places nobody.
+Ana left of Ben bars Ana from seat 3 and bars Ben from seat 1.
+Cal is out of seat 1 and out of seat 3, so Cal is seat 2.
+Seat 2 taken, Ana left of Ben, Ana is seat 1 and Ben is seat 3.
+Every seat followed from those lines, so the seating is settled and I state it flatly.
 ```
 
 **Reply:**
 ```text
-Cal takes seat 2 — the only non-end seat. Then Ana takes 1 and Ben takes 3, the only way to keep Ana left of Ben.
-Ana 1, Cal 2, Ben 3. Every placement was forced, so the answer is stated flatly.
+| person | seat |
+| Ana | seat 1 |
+| Cal | seat 2 |
+| Ben | seat 3 |
+Ana=seat 1; Ben=seat 3; Cal=seat 2
 ```
 
-**Key:** answer: Ana seat 1, Cal seat 2, Ben seat 3
+**Key:** answer: Ana=seat 1; Ben=seat 3; Cal=seat 2
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
@@ -182,24 +184,27 @@ Ana 1, Cal 2, Ben 3. Every placement was forced, so the answer is stated flatly.
 
 **User:**
 ```text
-Two heats ran today, and the combined result board lost some rows. What survives:
-- Rhea was faster than Tom.
-- Ulf was faster than Pia.
-Is one person uniquely fastest? Draw the tree and mark whatever the givens don't fix.
+1. Four runners are Rhea, Tom, Ulf and Pia. Places are 1st, 2nd, 3rd and 4th.
+2. Rhea is before Tom.
+3. Ulf is before Pia.
+Question: Is the fastest runner unique?
 ```
 
 **Thinking:**
 ```text
-ROOT  fastest overall?                          [open]
-├─ Rhea faster than Tom   ✓ read in — Tom can't be fastest
-├─ Ulf faster than Pia    ✓ read in — Pia can't be fastest
-└─ Rhea vs Ulf            ← no row compares them        [?]
-The tree has two branches that never meet. That fork is the deciding point: no 'probably' gets to splice branches the givens never joined. What the givens don't fix, I report as not fixed.
+Four places, 1st through 4th, and the opening line ranks nobody.
+Rhea before Tom removes Tom from 1st.
+Ulf before Pia removes Pia from 1st.
+Rhea and Ulf never meet on a line, so 1st can be either.
+Naming one of them fastest would invent the missing comparison.
 ```
 
 **Reply:**
 ```text
-Fastest is Rhea or Ulf — the surviving rows never compare those two. What IS fixed: Tom and Pia were not fastest (each lost to someone). Anything firmer would be invention.
+ROOT 1st
+├─ Rhea before Tom, Tom out
+├─ Ulf before Pia, Pia out
+└─ Rhea and Ulf uncompared
 undetermined
 ```
 
@@ -273,28 +278,32 @@ unsupported
 
 **User:**
 ```text
-Three jugs — clay, tin, wood — hold tea, water and juice, one each.
-- The clay jug holds the tea.
-- The tin jug does not hold the juice.
-Which drink is in which jug? Eliminate one pass at a time and stop when it's fixed.
+1. Three jugs are clay, tin and wood. Drinks are tea, water and juice, one each.
+2. The clay jug does not hold tea.
+3. The tin jug does not hold tea.
+4. If the clay jug holds water, the tin jug holds tea.
+Question: Which drink is in which jug?
 ```
 
 **Thinking:**
 ```text
-Elimination over the jugs:
-ROOT fix the drinks one pass at a time
-├─ pass 1: clay = tea (given) → clay is out for water and juice; tea is out for tin and wood
-├─ pass 2: tin ≠ juice (given) and tin ≠ tea (tea is clay's) → tin = water
-└─ pass 3: one drink and one jug remain → wood = juice
-All three passes were forced by givens — nothing was picked by feel — so the answer lands flat. Had a pass left two jugs open, I would say exactly that instead of choosing one.
+Clay, tin and wood, one drink each. The opening line places no drink.
+Lines 2 and 3 together: neither clay nor tin holds tea, so tea is in the wood jug.
+Line 4 with line 3: clay holding water would put tea in tin, and tin holds no tea. So clay does not hold water.
+Clay is left with juice, and tin with water.
+Every step was forced by two lines at once, so the answer is settled and I give it plainly. Without line 4, clay could still hold water or juice, and I would name both and stop there.
 ```
 
 **Reply:**
 ```text
-clay: tea · tin: water · wood: juice. Three passes, each forced; nothing left open, nothing hedged.
+| jug | drink |
+| clay | juice |
+| tin | water |
+| wood | tea |
+clay=juice; tin=water; wood=tea
 ```
 
-**Key:** answer: clay = tea, tin = water, wood = juice
+**Key:** answer: clay=juice; tin=water; wood=tea
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
@@ -332,29 +341,34 @@ cannot_tell
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
-### T04-B-07 · kind B · record · tier 4 · honest cannot_tell · tags: non-verification
+### T04-B-07 · kind B · record · tier 4 · honest cannot_tell
 
 **User:**
 ```text
-Sort what's known from what's assumed. The file says: "Invoice 77 — amount £120, status: PAID." A colleague believes it was paid on the 12th, by bank transfer.
-Take each belief in turn — known, or assumed? Draw the tree and mark what you'd have to invent.
+The file says: "Invoice 77 — amount £120, status: PAID."
+Claim: it was paid on the 12th, by bank transfer.
+Can the file settle that claim?
 ```
 
 **Thinking:**
 ```text
-ROOT  the colleague's two beliefs: the date + the method    [open]
-├─ paid on the 12th   ← the file names an amount and a stamp, no date anywhere   [?]
-└─ by bank transfer   ← no payment method is named anywhere                      [?]
-Either belief would need a line that isn't there. What the file doesn't say stays assumed: neither belief gets promoted just because it sounds like how invoices usually go. Known from the file: £120 and PAID.
+ROOT  it was paid on the 12th, by bank transfer     [open]
+├─ the 12th        ← amount and status are written, and no date is     [?]
+└─ bank transfer   ← no method is written                               [?]
+The file stops after the amount and the status. Silence neither confirms the claim nor contradicts it.
 ```
 
 **Reply:**
 ```text
-Known from the file: amount £120, status PAID. Assumed by my colleague: the date and the method — believing either takes a line the file doesn't have. One pass over every line, two beliefs ungrounded, stop.
-paid on the 12th=assumed; by bank transfer=assumed
+The claim asks for a date and a method. The file gives an amount and a status, and then stops.
+Nothing in the file picks a date or a method.
+VERDICT: cannot_tell
+DECIDING: NONE
+ESCALATE: no
+cannot_tell
 ```
 
-**Key:** answer: paid on the 12th=assumed; by bank transfer=assumed
+**Key:** answer: cannot_tell
 
 *invented: the puzzle or scenario and its material, written for this item (key by construction)*
 
@@ -374,12 +388,13 @@ ROOT  two boats + grey crosses at dawn                    [open]
 ├─ B1 keeps two boats  ← "The Ferryman keeps two boats."        ✓
 └─ B2 grey at dawn     ← "The grey boat crosses at dawn."       ✓
 Both leaves backed by lines on the card. No leaf was pruned and none left open, so the root settles plainly — nothing hedged.
+The card is one line, so the deciding quote is that whole line, the dusk sentence included.
 ```
 
 **Reply:**
 ```text
 VERDICT: supported
-DECIDING: The Ferryman keeps two boats. | The grey boat crosses at dawn.
+DECIDING: The Ferryman keeps two boats. The grey boat crosses at dawn. The white boat crosses at dusk.
 ESCALATE: no
 supported
 ```

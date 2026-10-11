@@ -161,30 +161,35 @@ I add nothing. The nails' tin being blue is one fact, and the closed lid does no
 
 *invented: teaching passage and question, written for this item (key by construction)*
 
-### T06-B-01 · kind B · puzzle · tier 2 · one step is enough · tags: non-verification
+### T06-B-01 · kind B · puzzle · tier 2 · one step is enough
 
 **User:**
 ```text
 Ten pegs sit on the bench.
 Any peg may take the cord.
 A drawer is shut and stays shut.
-Question: Which pegs may take the cord?
+Claim: any of the ten pegs may take the cord.
+Is that claim earned?
 ```
 
 **Thinking:**
 ```text
-The question asks which pegs may take the cord, and that is one question. Ten pegs sit on the bench and any peg may take the cord, so the answer is that whole set. I do not divide the pegs into groups the lines never name. The shut drawer is a separate object and it does not change the cord.
+The claim is about which pegs may take the cord, and that is one question. Ten pegs sit on the bench and any peg may take the cord, so the answer is that whole set. I do not divide the pegs into groups the lines never name. The shut drawer is a separate object and it does not change the cord.
 ```
 
 **Reply:**
 ```text
 Any of the ten pegs.
 1. The bench allows any peg to take the cord.
-2. The question asks about pegs, not about the drawer.
+2. The claim is about pegs, not about the drawer.
 3. Dividing the row into unnamed groups would add a claim.
+VERDICT: supported
+DECIDING: Any peg may take the cord.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: any of the ten pegs
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -192,31 +197,35 @@ Any of the ten pegs.
 
 **User:**
 ```text
-Five crates are labelled Hull, Lyme, Oban, Rye and Wick.
-The morning boat takes the crate that is sealed and marked Hull.
-The Hull crate is sealed.
-The Lyme crate is sealed and marked Lyme.
-The Oban crate is marked Hull and is not sealed.
-The Rye crate is open.
-The Wick crate is open.
+1. Five crates are the Hull crate, the Lyme crate, the Oban crate, the Rye crate and the Wick crate. A crate does go or does stay. The morning boat takes the crate that is sealed and marked Hull.
+2. Exactly one crate does go.
+3. The Lyme crate is sealed and marked Lyme, so the Lyme crate does stay.
+4. The Oban crate is marked Hull and is unsealed, so the Oban crate does stay.
+5. The Rye crate is open, so the Rye crate does stay.
+6. The Wick crate is open, so the Wick crate does stay.
 Question: Which crate does the morning boat take?
 ```
 
 **Thinking:**
 ```text
-The morning boat takes the crate that is sealed and marked Hull. The Hull crate is sealed, and it is the Hull crate. Lyme is sealed but marked Lyme. Oban is marked Hull and is not sealed. Rye and Wick are open. One pairing names the crate, and the open crates are a tour the question does not ask for.
+Hull, Lyme, Oban, Rye and Wick. The morning boat takes the crate that is sealed and marked Hull.
+Exactly one crate does go.
+Lyme is sealed and marked Lyme, so Lyme stays.
+Oban is marked Hull and is unsealed, so Oban stays.
+Rye is open, so Rye stays.
+Wick is open, so Wick stays.
+Four stays leave the Hull crate. One pairing names the crate. I do not tour the stays into a second question.
 ```
 
 **Reply:**
 ```text
-The Hull crate.
-| Crate | Mark and seal |
-| --- | --- |
-| Hull | sealed, marked Hull |
-| Lyme | sealed, marked Lyme |
-| Oban | marked Hull, not sealed |
-| Rye | open |
-| Wick | open |
+| crate | trip |
+| the Lyme crate | stay |
+| the Oban crate | stay |
+| the Rye crate | stay |
+| the Wick crate | stay |
+| the Hull crate | go |
+the Hull crate
 ```
 
 **Key:** answer: the Hull crate
@@ -227,26 +236,32 @@ The Hull crate.
 
 **User:**
 ```text
-Six flags hang in a row.
-Red is ahead of blue.
-Blue is ahead of gold.
-Question: Which of red, blue and gold is ahead of the other two?
+1. Three flags are red, blue and gold. Poles run from the door pole to the yard pole: the door pole, the gate pole and the yard pole. A flag may share a pole.
+2. Exactly one flag is on the door pole.
+3. Blue is not on the door pole.
+4. Gold is not on the door pole.
+Question: Which pole holds red?
 ```
 
 **Thinking:**
 ```text
-The question needs both links. Red is ahead of blue, and blue is ahead of gold, so red is ahead of gold as well as of blue. Neither link alone names the flag that leads both of the others. Gold is last of the three. The other flags in the six are not in the question.
+The question asks which pole holds red, and that is one question.
+Exactly one flag is on the door pole.
+Blue is not on the door pole.
+Gold is not on the door pole, so red is on the door pole.
+Gold's pole is a further question, and this one is already answered.
 ```
 
 **Reply:**
 ```text
-Red.
-red
-└─ ahead of blue
-   └─ ahead of gold
+| flag | door pole |
+| blue | not on it |
+| gold | not on it |
+| red | on it |
+the door pole
 ```
 
-**Key:** answer: red
+**Key:** answer: the door pole
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -254,27 +269,26 @@ red
 
 **User:**
 ```text
-Four gates face the lane: west, east, north and south.
-The gate the cart uses opens only after the bell.
-The cart uses the west gate.
-The east gate opens only after the horn.
-Question: When does the west gate open?
+1. Two gates are the west gate and the east gate. Signals are the bell and the horn. The cart uses the west gate.
+2. The west gate does not use the horn.
+Question: Which signal does the west gate use?
 ```
 
 **Thinking:**
 ```text
-The cart uses the west gate, and the gate the cart uses opens only after the bell. So the west gate opens only after the bell. The east gate's horn is a second condition, and the question does not ask about the east gate. One condition answers the west gate.
+West gate and east gate, signals the bell and the horn. The cart uses the west gate.
+The west gate does not use the horn, so the west gate uses the bell.
+One signal answers the west gate. I do not go on to a second gate.
 ```
 
 **Reply:**
 ```text
-Only after the bell.
-1. The cart uses the west gate.
-2. That gate opens only after the bell.
-3. The horn belongs to the east gate.
+| gate | signal |
+| the west gate | the bell |
+the bell
 ```
 
-**Key:** answer: only after the bell
+**Key:** answer: the bell
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -282,29 +296,30 @@ Only after the bell.
 
 **User:**
 ```text
-Three cups are blue, red and white.
-The green pen is in one of the three cups.
-The green pen is never in the blue cup.
-The green pen is never in the red cup.
-Exactly one pen sits in each cup.
-Question: Which of the blue, red and white cups holds the green pen?
+1. Three sheds run from the oak shed to the ash shed: the oak shed, the pine shed and the ash shed. Keys are the brass key, the iron key and the tin key. One key per shed.
+2. The iron key is in the ash shed.
+3. The brass key is adjacent to the iron key.
+Question: Which shed holds the brass key?
 ```
 
 **Thinking:**
 ```text
-The green pen is in one of the three cups. It is never in the blue cup and never in the red cup, and exactly one pen sits in each cup, so the green pen is in the white cup. The question asks for one cup. I do not go on to ask who owns the cups.
+One question: which shed holds the brass key. The sheds run from the oak shed to the ash shed.
+The iron key is in the ash shed.
+The brass key is adjacent to the iron key, so the brass key is in the pine shed.
+The tin key's shed is the next question, and this one stops.
 ```
 
 **Reply:**
 ```text
-| Cup | Green pen |
-| --- | --- |
-| blue | never |
-| red | never |
-| white | holds it |
+| key | shed |
+| the iron key | the ash shed |
+| the brass key | the pine shed |
+| the tin key | the oak shed |
+the pine shed
 ```
 
-**Key:** answer: the white cup
+**Key:** answer: the pine shed
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -316,7 +331,8 @@ A pantry pair is the page.
 Material:
 The oats are in the jar.
 The rice is in the sack.
-What does the page settle?
+Claim: the page settles the oats in the jar and the rice in the sack.
+Is that claim earned?
 ```
 
 **Thinking:**
@@ -329,10 +345,13 @@ Two lines sit on the page. One places the oats in the jar. The other places the 
 The page settles both foods.
 1. The oats are in the jar.
 2. The rice is in the sack.
-oats=in the jar; rice=in the sack
+VERDICT: supported
+DECIDING: The oats are in the jar. | The rice is in the sack.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: oats=in the jar; rice=in the sack
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 

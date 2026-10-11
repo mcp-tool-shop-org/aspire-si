@@ -200,7 +200,7 @@ The swap test is brutal here: a swimmer turning up at 17:00 finds open swim, not
 ```text
 The digit matters: 08:30 and 18:30 are ten different hours of pool time. One character, but the character is the fact.
 VERDICT: unsupported
-DECIDING: lane swimming 06:30–08:30 weekdays
+DECIDING: Pool timetable: lane swimming 06:30–08:30 weekdays; open swim from 12:00.
 ESCALATE: no
 unsupported
 ```
@@ -209,7 +209,7 @@ unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T16-B-03 · kind B · puzzle · tier 4 · accepts the equivalent · tags: non-verification
+### T16-B-03 · kind B · puzzle · tier 4 · accepts the equivalent
 
 **User:**
 ```text
@@ -230,10 +230,13 @@ All three pass, so the phone version is the scorecard in spoken clothes. Had she
 **Reply:**
 ```text
 She read it right. The spelled-out numbers match the printed figures; "tied" is what two equal scores are; and "leads by seven" is exact arithmetic on 71 and 64, not a gloss. The liberties that cost are the ones that touch the numbers — she didn't touch any.
-yes
+VERDICT: supported
+DECIDING: Scorecard: Vale 64, Moss 64, Renn 71. | Ana reads it out over the phone as: "Vale and Moss tied on sixty-four; Renn leads by seven."
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: yes
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -268,7 +271,7 @@ unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T16-B-05 · kind B · puzzle · tier 3 · accepts the equivalent · tags: non-verification
+### T16-B-05 · kind B · puzzle · tier 3 · accepts the equivalent
 
 **User:**
 ```text
@@ -289,10 +292,13 @@ Zero costing differences. The stub and the printout point at one chair. If she'd
 **Reply:**
 ```text
 Same booking. Both tokens are spoken-style renderings of the printed ones (5→five, 12→twelve) with the letter intact and the fields in order. Enumerating differences found two liberties and zero changes, so the two strings address one seat.
-yes
+VERDICT: supported
+DECIDING: The booking system prints: row 5, seat B12. | The ticket stub in the customer's hand reads: "row five, seat B twelve."
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: yes
+**Key:** answer: supported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
@@ -357,13 +363,13 @@ unsupported
 
 *mcp-tool-shop-org/style-dataset-lab@9d91b77432a9:CHANGELOG.md#L58 (MIT (first line of LICENSE: 'MIT License'))*
 
-### T16-B-08 · kind B · puzzle · tier 4 · catches the changed fact · tags: non-verification
+### T16-B-08 · kind B · puzzle · tier 4 · catches the changed fact
 
 **User:**
 ```text
 Lab log: four sensor readings — 12.5, 21.5, 15.2, 51.2. Alarm rule: anything over 20 raises the alarm.
 Someone reads the log back as: "twelve point five, twenty-one point five, fifteen point two, twenty-five point one."
-Audit the read-back: which entries are free rewordings, which change the record, and does the alarm verdict change? Work entry by entry.
+Claim: the read-back is the same log. Work entry by entry, and say whether that claim holds.
 ```
 
 **Thinking:**
@@ -379,10 +385,13 @@ Alarm verdict, incidentally, doesn't change: 21.5, 51.2 and now 25.1 all sit ove
 **Reply:**
 ```text
 Entries one to three are free (spelled-out forms of the same values). Entry four is a change: 51.2 came back as 25.1, and a rotation of the digits is a different reading, full stop. The alarm would still fire on the wrong value, but the rule's patience doesn't repair the log — the record differs, so the read-back is not the log.
-12.5=free; 21.5=free; 15.2=free; 51.2=change; alarm=no
+VERDICT: unsupported
+DECIDING: Lab log: four sensor readings — 12.5, 21.5, 15.2, 51.2. Alarm rule: anything over 20 raises the alarm. | Someone reads the log back as: "twelve point five, twenty-one point five, fifteen point two, twenty-five point one."
+ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: 12.5=free; 21.5=free; 15.2=free; 51.2=change; alarm=no
+**Key:** answer: unsupported
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 

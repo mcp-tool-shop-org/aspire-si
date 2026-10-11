@@ -455,13 +455,27 @@ DETERMINERS = {"the", "a", "an", "this", "that", "these", "those", "each", "ever
                "my", "our", "your"}
 
 
+_CLOSING_LABELS = {("supported",), ("unsupported",), ("cannot", "tell")}
+
+
+def _is_closing_label(line: str) -> bool:
+    """True only when the line is the verdict label and nothing else. The same words inside a sentence stay."""
+    return tuple(re.findall(r"[a-z']+", line.lower())) in _CLOSING_LABELS
+
+
 def _target_lines(r: dict):
-    """(turn index, line) for each line of the assistant turns, outside material lines, the Statement line and
-    the three lines; bracketed quotes collapsed to one token."""
+    """(turn index, line) for each line of the assistant turns, outside material lines, the Statement line,
+    the three lines and the closing label; bracketed quotes collapsed to one token."""
     content = _content_lines(r)
     for i, t in enumerate(r["turns"]):
-        for text in (t["thinking"], t["reply"]):
-            for line in text.splitlines():
+        reply_lines = t["reply"].splitlines()
+        label_at = next((j for j in range(len(reply_lines) - 1, -1, -1) if reply_lines[j].strip()), None)
+        if label_at is None or not _is_closing_label(reply_lines[label_at]):
+            label_at = None
+        for is_reply, lines in ((False, t["thinking"].splitlines()), (True, reply_lines)):
+            for j, line in enumerate(lines):
+                if is_reply and j == label_at:
+                    continue
                 bare = ws(line).replace('\\"', '"').strip("\"'“” ").lower()
                 if not bare or THREE_LINE.match(line) or STATEMENT_RE.match(line) or bare in content:
                     continue
@@ -941,12 +955,15 @@ def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:
 
 
 def check_stamps(rows: list[dict], max_items: int = 2) -> None:
-    """Refuse an 8-word phrase that recurs in more than `max_items` kind B items of the same trait."""
+    """Refuse an 8-word phrase that recurs in more than `max_items` kind B items of the same trait.
+
+    The text is the same lines `_target_lines` keeps: material, the Statement line, the three lines and the
+    closing label are excluded, so identical cannot_tell closers are not a stamp."""
     seen: dict = {}
     for r in rows:
         if r.get("kind") != "B":
             continue
-        text = " ".join(t["thinking"] + " " + t["reply"] for t in r["turns"])
+        text = " ".join(line for _, line in _target_lines(r))
         for sh in _shingles(text):
             seen.setdefault((r["lesson"], sh), set()).add(r["id"])
     stamped = sorted(((k, sorted(v)) for k, v in seen.items() if len(v) > max_items),

@@ -152,23 +152,23 @@ I point to the printed 250, marks and all. Two hundred and fifty is that count, 
 
 **User:**
 ```text
-Eight bins stand in a row, and the third bin is painted tin.
-The catalogue on the shelf calls every bin a container.
+1. Eight bins stand in a row. The third bin and the fourth bin are two of them. Paints on this row are tin and oak. The catalogue calls every bin a container.
+2. The third bin is painted tin.
 Question: Which word does the row itself paint on the third bin?
 ```
 
 **Thinking:**
 ```text
-The question asks for the word the row paints, and the third bin is painted tin. The catalogue's word is container, which is a shelf name for a bin rather than the paint. I answer with the paint, because that is the word the question asked for.
+Eight bins. Paints on this row are tin and oak. The catalogue's word for a bin is container, which is not paint.
+The third bin is painted tin.
+The question asks for the paint, so the word is tin and the catalogue stays on the shelf.
 ```
 
 **Reply:**
 ```text
-Tin, the paint on the third bin.
-| Asked for | Word |
-| --- | --- |
-| the row's paint | tin |
-| the catalogue's name | container |
+| bin | paint |
+| the third bin | tin |
+tin
 ```
 
 **Key:** answer: tin
@@ -179,25 +179,29 @@ Tin, the paint on the third bin.
 
 **User:**
 ```text
-Nine tickets are in the jar, marked A through I.
-The void ticket is not valid.
-Ticket C is not valid.
-Every other ticket is valid.
-A pencil note calls the void ticket the dud.
-Question: Which ticket is void?
+1. Nine tickets are in the jar. Three of them are ticket A, ticket C and ticket E. Places in the draw are 1st, 2nd and 3rd. A pencil note calls ticket C the dud. The jar's own word for a void ticket is not valid.
+2. Ticket A is adjacent to ticket C.
+3. Ticket E is ahead of ticket A.
+4. Ticket C is ahead of ticket A.
+Question: Which ticket is in 2nd place?
 ```
 
 **Thinking:**
 ```text
-Void means not valid, and the jar says ticket C is not valid. The other tickets are valid, so C is the void ticket. The pencil calls it the dud, which is a nickname rather than the jar's clause. The void ticket is ticket C, and the jar's words are 'Ticket C is not valid.'
+Nine tickets. Three of them are ticket A, ticket C and ticket E, in places 1st, 2nd and 3rd. A pencil note calls ticket C the dud. The jar's own word for a void ticket is not valid, and that nickname is not a place.
+Ticket A is adjacent to ticket C.
+Ticket E is ahead of ticket A.
+Ticket C is ahead of ticket A, so ticket C is in 2nd.
+The dud is the pencil's word. The place comes from the three lines, in the jar's own names.
 ```
 
 **Reply:**
 ```text
-Ticket C is void, because the jar's own clause says ticket C is not valid. The pencil's dud is a nickname for that clause.
-| Jar's clause | Ticket |
-| --- | --- |
-| not valid | C |
+| place | ticket |
+| 1st | ticket E |
+| 2nd | ticket C |
+| 3rd | ticket A |
+ticket C
 ```
 
 **Key:** answer: ticket C
@@ -208,25 +212,27 @@ Ticket C is void, because the jar's own clause says ticket C is not valid. The p
 
 **User:**
 ```text
-Two cooks share two stoves.
-The stove card names them the soup stove and the fryer.
-Exactly one cook stands at each stove.
-The tall cook does not take the fryer.
-A chalkboard calls the soup stove the stockpot burner.
+1. Three stoves run from the soup stove to the grill: the soup stove, the fryer and the grill. The cooks are the tall cook, the short cook and the night cook. A chalkboard calls the soup stove the stockpot burner.
+2. The short cook is at the grill.
+3. The tall cook is not adjacent to the short cook.
 Question: Which stove does the tall cook take, in the stove card's own name?
 ```
 
 **Thinking:**
 ```text
-Exactly one cook stands at each stove, and the tall cook does not take the fryer, so the tall cook takes the soup stove. The chalkboard's stockpot burner is another name for that stove. The question asks for the card's own name, so the answer stays soup stove, and I do not swap in the chalkboard's words.
+Three stoves, from the soup stove to the grill. The chalkboard calls the soup stove the stockpot burner. The card's own name is the soup stove.
+The short cook is at the grill.
+The tall cook is not adjacent to the short cook, so the tall cook takes the soup stove.
+Stockpot burner is the chalkboard. The answer stays the card's name.
 ```
 
 **Reply:**
 ```text
-The card's own name for that stove is the soup stove.
-| Cook | Stove |
-| --- | --- |
-| tall cook | soup stove |
+| cook | stove |
+| the short cook | the grill |
+| the night cook | the fryer |
+| the tall cook | the soup stove |
+the soup stove
 ```
 
 **Key:** answer: the soup stove
@@ -237,24 +243,22 @@ The card's own name for that stove is the soup stove.
 
 **User:**
 ```text
-Four docks are called North, East, South and West.
-North is ahead of East.
-East is ahead of South.
+1. Four docks are called North, East, South and West. Places are 1st, 2nd and 3rd.
+2. North is ahead of East.
+3. East is ahead of South.
 Question: Which of North, East and South is ahead of the other two?
 ```
 
 **Thinking:**
 ```text
-Which of North, East and South is ahead of the other two.
-The deciding words are two sentences, each taken whole: "North is ahead of East." and "East is ahead of South."
-Those exact lines place North ahead of East and East ahead of South, so North is ahead of both.
-West is named and never placed, and the question does not ask about West.
+North, East, South and West are the four docks. Places in the question are 1st, 2nd and 3rd. West is named and never ranked here.
+North is ahead of East.
+East is ahead of South.
+North is ahead of the other two. The deciding lines are those two sentences, each whole.
 ```
 
 **Reply:**
 ```text
-North is ahead of the other two.
-The deciding lines, each whole, are "North is ahead of East." and "East is ahead of South."
 ROOT North
 ├─ North is ahead of East.
 └─ East is ahead of South.
@@ -269,29 +273,31 @@ North
 
 **User:**
 ```text
-Three hatches open onto the yard.
-The early hatch opens only after the whistle.
-The early hatch never opens in fog.
-The early hatch is the grain hatch.
-Question: Which hatch is blocked by fog, and which sound does that hatch wait on?
+1. Three hatches open onto the yard: the grain hatch, the coal hatch and the mail hatch. A hatch opens or is blocked. A hatch is the early hatch, the midday hatch or the late hatch. A chalkboard calls one of them the silo hatch.
+2. The early hatch never opens in fog.
+3. The early hatch is the grain hatch.
+4. Exactly one hatch is blocked.
+Question: Which hatch is blocked by fog?
 ```
 
 **Thinking:**
 ```text
-The hatch that never opens in fog is the early hatch, and the early hatch is the grain hatch. That same hatch opens only after the whistle. Fog blocks the grain hatch, and the sound it waits on is the whistle. 'Needs the whistle' would be the same requirement, and I still point at the printed clause.
+Three hatches. A chalkboard calls one the silo hatch. The page has two clauses and a count.
+The early hatch never opens in fog, so the early hatch is blocked.
+The early hatch is the grain hatch, so the blocked hatch is the grain hatch.
+Exactly one hatch is blocked, so no second hatch joins it.
+The silo hatch is the chalkboard. The page's two clauses name the hatch.
 ```
 
 **Reply:**
 ```text
-Fog blocks the grain hatch, and the sound that hatch waits on is the whistle.
-| Fact | Words |
-| --- | --- |
-| blocked by fog | the early hatch never opens in fog |
-| which hatch | the early hatch is the grain hatch |
-| the sound | it opens only after the whistle |
+| page | what it names |
+| the early hatch never opens in fog | the early hatch is blocked |
+| the early hatch is the grain hatch | the grain hatch |
+the grain hatch
 ```
 
-**Key:** answer: the grain hatch, waiting on the whistle
+**Key:** answer: the grain hatch
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -299,27 +305,27 @@ Fog blocks the grain hatch, and the sound that hatch waits on is the whistle.
 
 **User:**
 ```text
-A parking line is the page.
-Material:
-Before 6pm it costs 2 pounds an hour.
-Question: What does parking cost at 4pm, and which words decide it?
+The page is one parking line: Before 6pm it costs 2 pounds an hour.
+Claim: parking at 4pm costs 2 pounds an hour.
+Does the page support that claim, and which words decide it?
 ```
 
 **Thinking:**
 ```text
-Cost at 4pm is inside 'before 6pm', and the line states 2 pounds an hour for that span. I name the line before the answer: Before 6pm it costs 2 pounds an hour. 4pm is before 6pm, so the rate applies. I do not answer 'the afternoon rate' and leave the line behind. Nothing else on the page qualifies the rate.
+4pm is inside the hours before 6pm. The page gives one line, and that whole line decides the claim. A shorter name for the rate would leave the page's words behind.
 ```
 
 **Reply:**
 ```text
-At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
-| Clock | Rate |
-| --- | --- |
-| before 6pm, which covers 4pm | 2 pounds an hour |
-2 pounds an hour
+| claim | the page's line |
+| parking at 4pm costs 2 pounds an hour | Before 6pm it costs 2 pounds an hour. |
+VERDICT: supported
+DECIDING: Before 6pm it costs 2 pounds an hour.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: 2 pounds an hour
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -344,10 +350,13 @@ Yes. A single tenor is that count, and the line I cite keeps the numeral.
 | Line | Count |
 | --- | --- |
 | The choir has 1 tenor. | 1 tenor |
-yes
+VERDICT: supported
+DECIDING: The choir has 1 tenor.
+ESCALATE: no
+supported
 ```
 
-**Key:** answer: yes
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -372,10 +381,13 @@ No. The page sets the fee in pounds, so a dollar figure does not hold.
 | Printed | Claimed |
 | --- | --- |
 | 40 pounds | 40 dollars |
-no
+VERDICT: unsupported
+DECIDING: The call-out fee is 40 pounds.
+ESCALATE: no
+unsupported
 ```
 
-**Key:** answer: no
+**Key:** answer: unsupported
 
 *invented: puzzle, written for this item (key by construction)*
 
