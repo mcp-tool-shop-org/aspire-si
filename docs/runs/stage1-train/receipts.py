@@ -56,7 +56,10 @@ class Refused(Exception):
 
 
 def sha256_file(p: Path) -> str:
-    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+    """The sha256 of a held-out file's content with CRLF line endings read as LF. The pins are of the bytes git
+    stores (LF); a Windows checkout with core.autocrlf writes CRLF, which would otherwise fail the pin. A file
+    with no CRLF hashes exactly as its bytes, so the sealed pin is unchanged."""
+    return hashlib.sha256(Path(p).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def words(text: str) -> list:

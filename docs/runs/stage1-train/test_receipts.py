@@ -23,7 +23,7 @@ def fw(tmp_path):
                                   "ideal_tree": {"node_id": "held-node-7"}}) + "\n", encoding="utf-8")
     dev = tmp_path / "dev.jsonl"
     dev.write_text(json.dumps({"id": "pl-abcdef0123", "material": DEV_LINE}) + "\n", encoding="utf-8")
-    sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
+    sha = receipts.sha256_file  # the pin is of the content with CRLF read as LF
     return receipts.Firewall.load(sealed=sealed, sealed_sha256=sha(sealed), dev={dev: sha(dev)},
                                   questions=[QUESTION])
 
@@ -136,3 +136,19 @@ def test_the_evaluation_code_never_imports_the_receipt_writer():
     assert len(eval_files) >= 8
     for f in eval_files:
         assert not imports_of(f) & {"receipts", "run", "role_store", "role_set"}, f.name
+
+
+def test_a_crlf_checkout_of_a_held_out_file_still_arms_the_firewall(tmp_path):
+    """Found on the 5090 smoke (2026-10-11): with core.autocrlf the DEV files check out with CRLF and failed
+    their LF pins, so the firewall refused to arm and no receipt was written."""
+    lf = json.dumps({"id": "sx-0123456789", "material": SEALED_LINE}) + "\n"
+    sealed = tmp_path / "sealed.jsonl"
+    sealed.write_bytes(lf.replace("\n", "\r\n").encode())
+    pin = hashlib.sha256(lf.encode()).hexdigest()  # the pin is of the LF bytes, as git stores them
+    fw = receipts.Firewall.load(sealed=sealed, sealed_sha256=pin, dev={}, questions=[])
+    assert "sx-0123456789" in fw.held_ids
+
+
+def test_the_repository_dev_files_match_their_pins_however_they_are_checked_out():
+    for name, pin in receipts.DEV_FILES.items():
+        assert receipts.sha256_file(receipts.DEV_DIR / name) == pin, name

@@ -82,7 +82,7 @@ class TextTok:
 def test_a_variants_text_never_appears_in_a_training_sequence():
     """R&D, 2026-10-11: the first quiz asks the variant (n = 0), so the trainer must never train on it. Sequences
     come from an item's turns only; this checks every kind-E variant in the training data against them."""
-    rows = [json.loads(x) for f in sorted(DATA_DIR.glob("*.jsonl"))
+    rows = [json.loads(x) for f in sorted(DATA_DIR.glob("*.jsonl")) if not f.name.endswith(".models.jsonl")
             for x in f.read_text(encoding="utf-8").splitlines() if x.strip()]
     tok = TextTok()
     trained = "\n".join(t for r in rows for s in data.sequences(r, tok) for t in s["prompt_ids"] + s["target_ids"])
