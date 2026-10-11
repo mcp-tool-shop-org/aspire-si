@@ -439,3 +439,34 @@ or DEV items or any item-level result. It is disclosed in the evaluation plan's 
 **3. Kind-B lookup puzzles: at most one per trait.** A lookup puzzle is one whose question restates a premise,
 so the answer is read off rather than worked out. Keep at most one per trait. The rest must need the drawn
 pattern to solve.
+
+## Amendment 5 (2026-10-11): closed-form variants for written kind-E items
+
+*Binding from batch 5 onward. R&D's ruling; enforced by the gates (aspire-si-gates 1.2.0, `check_item`). Batches
+1–4 aren't reopened: their written E items stay out of the quiz ledger until a later fix round gives them
+closed-form variants, and the readout counts them as excluded, per lesson.*
+
+**Why.** A written quiz answered in free prose can only be scored by matching its key points in the prose
+(lexical, an approximation) or by a judge (ruled out). A closed-form variant is scored exactly: the model gives a
+letter, and the letter is right or wrong.
+
+**This restates amendment 4, rule 2, for written variants.** A written E item's `variant` is closed-form:
+- `variant.user` stands alone, with no material. It asks the question and lists **3 or 4 options**, each on its
+  own line, labelled `A.`, `B.`, `C.` (and `D.`), with no gaps in the letters. It asks for the answer as a line of
+  its own: `ANSWER: <letter>`.
+- `variant.key` is `{"answer": "<letter>"}` and nothing else.
+- **Exactly one option is keyed.** The keyed option carries one of the original's key points: after normalising,
+  it contains a key point or is contained in one. No other option carries a key point.
+- **The distractors are plausible near-misses:** what a reader who half-learned the trait would pick. Never
+  absurd options, never a "none of the above".
+- **Vary the keyed letter across a lesson's items.** Don't always key B. Don't reuse one stem or frame across
+  items; the phrase and formula gates apply as usual.
+- No two options are the same after normalising.
+
+The gates refuse a variant that breaks the shape: the option count or letters, the ANSWER line, the key's shape,
+the key letter not among the options, duplicate options, a keyed option without a key point, or a second option
+carrying one. The varied letter, plausible distractors and fresh stems are review rules.
+
+Verdict-type variants are unchanged (amendment 4, rule 2). In role-set's variant store, a written item's own
+closed-form variant is n = 0 under its `base_id`. Its extra variants (n ≥ 1) are closed-form too, with fresh
+wording and reshuffled options.

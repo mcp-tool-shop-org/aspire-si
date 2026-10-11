@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 30,
+      "qualifyingSourceCommits": 31,
       "rebaseline": null
     },
     {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 19,
-        "lines": 458,
+        "commits": 20,
+        "lines": 482,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 19,
-        "lines": 1495,
+        "commits": 20,
+        "lines": 1552,
         "path": "atlas/page.json"
       },
       {
-        "commits": 19,
-        "lines": 5991,
+        "commits": 20,
+        "lines": 6141,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 19,
-        "lines": 14866,
+        "commits": 20,
+        "lines": 15296,
         "path": "atlas/structure.json"
       },
       {
@@ -569,8 +569,8 @@
         "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
       },
       {
-        "commits": 23,
-        "lines": 806,
+        "commits": 24,
+        "lines": 809,
         "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
       },
       {
@@ -619,13 +619,13 @@
         "path": "docs/runs/2026-10-10-stage1-training-data-kimi-handoff.md"
       },
       {
-        "commits": 3,
-        "lines": 197,
+        "commits": 5,
+        "lines": 245,
         "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
       },
       {
-        "commits": 3,
-        "lines": 432,
+        "commits": 4,
+        "lines": 437,
         "path": "docs/runs/2026-10-10-stage1-verifier-qualities-lessons-draft.md"
       },
       {
@@ -774,6 +774,16 @@
         "path": "docs/runs/stage1-train/no_role.py"
       },
       {
+        "commits": 1,
+        "lines": 194,
+        "path": "docs/runs/stage1-train/receipts.py"
+      },
+      {
+        "commits": 1,
+        "lines": 599,
+        "path": "docs/runs/stage1-train/run.py"
+      },
+      {
         "commits": 2,
         "lines": 234,
         "path": "docs/runs/stage1-train/stuck.py"
@@ -795,6 +805,16 @@
       },
       {
         "commits": 1,
+        "lines": 138,
+        "path": "docs/runs/stage1-train/test_receipts.py"
+      },
+      {
+        "commits": 1,
+        "lines": 291,
+        "path": "docs/runs/stage1-train/test_runner.py"
+      },
+      {
+        "commits": 1,
         "lines": 29,
         "path": "docs/runs/stage1-train/test_scorer_rules.py"
       },
@@ -804,8 +824,13 @@
         "path": "docs/runs/stage1-train/test_stuck.py"
       },
       {
-        "commits": 3,
-        "lines": 229,
+        "commits": 1,
+        "lines": 115,
+        "path": "docs/runs/stage1-train/tiny_train.py"
+      },
+      {
+        "commits": 4,
+        "lines": 551,
         "path": "docs/runs/stage1-train/train.py"
       },
       {
@@ -914,13 +939,13 @@
         "path": "docs/runs/stage1-training-data/batch2-t16.md"
       },
       {
-        "commits": 1,
-        "lines": 40,
+        "commits": 2,
+        "lines": 42,
         "path": "docs/runs/stage1-training-data/batch3-t05.jsonl"
       },
       {
-        "commits": 1,
-        "lines": 1335,
+        "commits": 2,
+        "lines": 1349,
         "path": "docs/runs/stage1-training-data/batch3-t05.md"
       },
       {
@@ -934,13 +959,13 @@
         "path": "docs/runs/stage1-training-data/batch3-t13.md"
       },
       {
-        "commits": 1,
-        "lines": 40,
+        "commits": 2,
+        "lines": 42,
         "path": "docs/runs/stage1-training-data/batch3-t17.jsonl"
       },
       {
-        "commits": 1,
-        "lines": 1184,
+        "commits": 2,
+        "lines": 1192,
         "path": "docs/runs/stage1-training-data/batch3-t17.md"
       },
       {
@@ -1914,9 +1939,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-11T05:05:12.610Z",
+  "generatedAt": "2026-10-11T05:30:48.792Z",
   "generatedFrom": {
-    "commit": "65fc4e5c3096452b3c5e4514cbb8cb190618add1"
+    "commit": "1a25b97cd834d0b50b4952f1d4506b8c27fa6c45"
   },
   "pairs": [
     {
@@ -2125,43 +2150,43 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 12,
-      "shared": 12,
+      "either": 13,
+      "shared": 13,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 12,
-      "shared": 12,
+      "either": 13,
+      "shared": 13,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 12,
-      "shared": 12,
+      "either": 13,
+      "shared": 13,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 12,
-      "shared": 12,
+      "either": 13,
+      "shared": 13,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 12,
-      "shared": 12,
+      "either": 13,
+      "shared": 13,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 12,
-      "shared": 12,
+      "either": 13,
+      "shared": 13,
       "strength": 1
     },
     {
@@ -2210,16 +2235,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-10T23:51:40-04:00",
-    "inScopeFiles": 357,
+    "headDate": "2026-10-10T22:20:58-07:00",
+    "inScopeFiles": 358,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 159,
+    "qualifyingCommits": 163,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-14T03:51:40.000Z",
+    "since": "2026-04-14T05:20:58.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
