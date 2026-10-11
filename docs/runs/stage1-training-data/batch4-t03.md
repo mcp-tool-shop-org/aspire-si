@@ -208,11 +208,12 @@ Ticket C is void, because the jar's own clause says ticket C is not valid. The p
 
 **User:**
 ```text
-Two cooks share two stoves, the soup stove and the fryer.
+Two cooks share two stoves.
+The stove card names them the soup stove and the fryer.
 Exactly one cook stands at each stove.
 The tall cook does not take the fryer.
 A chalkboard calls the soup stove the stockpot burner.
-Question: Which stove does the tall cook take, in the card's own name?
+Question: Which stove does the tall cook take, in the stove card's own name?
 ```
 
 **Thinking:**

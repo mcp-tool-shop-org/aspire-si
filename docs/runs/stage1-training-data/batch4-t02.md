@@ -184,8 +184,9 @@ North and south.
 **User:**
 ```text
 Five lamps sit on the bench: red, blue, green, amber and white.
+The bench card says one of the five is the spare, and the spare never lights.
+The bench card says the spare is not blue, not green, not amber and not white.
 A passer-by says the blue lamp is the dark one.
-The spare never lights, and the spare is not blue, not green, not amber and not white.
 Question: Which of the five lamps is the spare?
 ```
 
@@ -197,7 +198,7 @@ The spare is the lamp that never lights, and the bench card says that lamp is no
 **Reply:**
 ```text
 The red lamp.
-1. The spare never lights.
+1. The card puts the spare among the five.
 2. The card excludes blue, green, amber and white.
 3. The passer-by's blue lamp is not the card.
 ```

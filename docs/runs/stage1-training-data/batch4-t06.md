@@ -948,7 +948,7 @@ The satchels are settled and the straps are open. Leather on the straps is unpri
 
 **Variant user:**
 ```text
-The straps are leather, and the satchels are on the hooks. What is settled, and what is open?
+The hook list names satchels. Checked against it, the statement says the straps are leather and the satchels are on the hooks. What is settled, and what is open?
 ```
 
 **Key:** quiz (written): the satchels are settled; the straps are open; leather on the straps is unprinted · variant key: {"key_points": ["the straps are open"]}
