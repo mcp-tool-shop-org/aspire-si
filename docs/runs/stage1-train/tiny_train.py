@@ -108,7 +108,8 @@ def main(argv):
     student.load_student = tiny_student
     student.identity = lambda: {"repo": "tiny-test", "revision": None}
     install_faults(argv)
-    return train.main(argv)
+    # The tests train on a few files, never the whole dataset, so the freeze checks are reported, not enforced.
+    return train.main(argv + ["--partial-set"])
 
 
 if __name__ == "__main__":

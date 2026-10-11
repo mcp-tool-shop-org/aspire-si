@@ -17,6 +17,7 @@ import pytest
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import receipts  # noqa: E402
 import run  # noqa: E402
 
 DATA = [str(HERE.parent / "stage1-training-data" / f) for f in
@@ -66,7 +67,7 @@ def runner_args(rig, *extra, steps=8, ckpt=2, grant_end="2099-01-01T00:00:00Z", 
     import hashlib
     args = ["--round", "1", "--arm", "ROLE", "--seed", "0", "--grant-id", "G-test", "--grant-end", grant_end,
             "--planned-peak-gb", "1", "--planned-minutes", "5", "--out-root", str(rig["root"]),
-            "--sealed", str(rig["sealed"]), "--sealed-sha256", hashlib.sha256(rig["sealed"].read_bytes()).hexdigest(),
+            "--sealed", str(rig["sealed"]), "--sealed-sha256", receipts.sha256_file(rig["sealed"]),
             "--watchdog-dir", str(rig["wd"]), "--backup-root", unmounted_drive() + "/aspire-si-backup",
             "--trainer", TINY, "--gpu-probe", f"file:{rig['gpu']}", "--resume-delay", "0",
             "--startup-timeout", str(kw.get("startup", 300)), "--stall-slack", str(kw.get("slack", 0)),

@@ -401,9 +401,9 @@ def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
     return seen
 
 
-def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int = 2) -> None:
+def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int | None = 2) -> None:
     """No two puzzles of one lesson share a structure signature; across the rows given (a batch), at most
-    per_batch share one."""
+    per_batch share one. per_batch=None leaves out the batch cap, for a set made of several batches."""
     for sig, items in puzzle_repeats(rows, skip).items():
         by_lesson: dict = {}
         for lesson, i in items:
@@ -412,7 +412,7 @@ def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int =
         if dup:
             raise DataError(f"{dup[0]}: puzzles {', '.join(dup[1])} share the structure {sig[0]} entities, "
                             f"{' + '.join(sig[1]) or 'no cues'}; vary the puzzle shape")
-        if len(items) > per_batch:
+        if per_batch is not None and len(items) > per_batch:
             raise DataError(f"{len(items)} puzzles share the structure {sig[0]} entities, "
                             f"{' + '.join(sig[1]) or 'no cues'} ({', '.join(i for _, i in items)}); at most "
                             f"{per_batch} per batch")
@@ -914,8 +914,10 @@ def _check_closed_form(where: str, v: dict, original: list):
         raise DataError(f"{where}: options {others} also carry a key point of the original: exactly one is keyed")
 
 
-def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
-    """Every check that needs the whole set: stamps, frames, shares, floors, pairs and the diversity gate."""
+def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_caps: bool = True) -> None:
+    """Every check that needs the whole set: stamps, frames, shares, floors, pairs and the diversity gate.
+    batch_caps=False leaves out the checks that are per batch by design (the puzzle-signature cap), for a set
+    made of several batches; everything per lesson still runs."""
     check_stamps(rows)
     check_frames(rows)
     check_multi_line_share(rows, skip=pre_amendment)
@@ -924,7 +926,7 @@ def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     check_spans(rows, skip=pre_amendment)
     check_framing_fits(rows, skip=pre_amendment)
     check_material_reuse(rows, skip=pre_amendment)
-    check_puzzles(rows, skip=pre_amendment)
+    check_puzzles(rows, skip=pre_amendment, per_batch=2 if batch_caps else None)
     check_phrases(rows, skip=pre_amendment)
     check_formulas(rows, skip=pre_amendment)
 
@@ -936,6 +938,46 @@ def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> None:
     for n, r in enumerate(rows, 1):
         check_item(r, n, pre_amendment, seen)
     check_batch(rows, pre_amendment)
+
+
+def batch_of(path: str) -> str:
+    """A data file's batch: its name up to the first "-" (batch3-t05.jsonl -> batch3, pilot-t04.jsonl -> pilot)."""
+    return Path(path).name.split("-", 1)[0]
+
+
+def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, require_freeze: bool = True) -> dict:
+    """The trainer's check of everything it trains on (the Dataset Specialist's ruling, 2026-10-11), given
+    {path: rows} in file order:
+    - check_item on every row;
+    - the per-lesson checks over the union (each lesson is one file, so the union gives the same answer);
+    - the per-batch checks per batch, files grouped by batch_of: the puzzle-signature cap and no framing line
+      repeated across the batch. These guard a writer's stamp inside one batch and don't apply across batches;
+    - freeze_report over the union: the floors, shares and ESCALATE items of the whole dataset.
+    Returns freeze_report's figures; raises DataError on the first failure. require_freeze=False (a smoke or a
+    test on part of the data) still runs every other check but reports freeze_report's shortfalls instead of
+    refusing: {"partial_set": True, "freeze_refused": <the message>}."""
+    rows = [r for rs in files.values() for r in rs]
+    seen: set = set()
+    for n, r in enumerate(rows, 1):
+        check_item(r, n, pre_amendment, seen)
+    check_batch(rows, pre_amendment, batch_caps=False)
+    batches: dict = {}
+    for path, rs in files.items():
+        batches.setdefault(batch_of(path), []).extend(rs)
+    for name, rs in batches.items():
+        try:
+            check_puzzles(rs, skip=pre_amendment)
+            rep = framing_repeats(rs, skip=pre_amendment)
+            if rep:
+                raise DataError(f"{len(rep)} framing line(s) repeated across the batch")
+        except DataError as e:
+            raise DataError(f"batch {name}: {e}") from e
+    try:
+        return freeze_report(rows, exempt=pre_amendment)
+    except DataError as e:
+        if require_freeze:
+            raise
+        return {"partial_set": True, "freeze_refused": str(e)}
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:

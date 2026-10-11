@@ -306,13 +306,19 @@ def main(argv=None):
     ap.add_argument("--ckpt-every", type=int, default=25)
     ap.add_argument("--order", choices=ORDERS, default="shuffled", help="the training order (see the docstring)")
     ap.add_argument("--lesson-order", help="comma-separated lesson ids, for --order listed or round-robin")
+    ap.add_argument("--partial-set", action="store_true",
+                    help="train on part of the data (a smoke or a test): the whole-dataset freeze checks are reported "
+                         "in the manifest instead of refusing; every other check still refuses")
     a = ap.parse_args(argv)
     lesson_order = [x.strip() for x in a.lesson_order.split(",") if x.strip()] if a.lesson_order else None
     if lesson_order and a.order == "shuffled":
         ap.error("--lesson-order applies to --order listed or round-robin; shuffled ignores lessons")
 
-    rows = [r for p in a.data for r in data.load(p)]
-    data.validate(rows)
+    files = {p: data.load(p) for p in a.data}
+    rows = [r for rs in files.values() for r in rs]
+    # Per item and per lesson over everything, the batch checks per batch file, and the whole-dataset freeze
+    # checks (the Dataset Specialist's ruling, 2026-10-11).
+    freeze = data.validate_training_set(files, require_freeze=not a.partial_set)
     held = [h for p in a.held_out for h in data.load(p)]
     from interview import QUESTIONS  # the pre-interview's 12 questions are off-limits to training
     leaks = data.leakage(rows, held, QUESTIONS)
@@ -330,6 +336,7 @@ def main(argv=None):
                 "near_length_caps": near_caps(seqs, OPT["max_len"], OPT["max_target"]),
                 "order": {"mode": a.order, "seed": OPT["seed"],
                           "lessons": None if a.order == "shuffled" else lesson_sequence(seqs, lesson_order)},
+                "freeze_report": freeze,
                 "init_adapter": a.init_adapter}
     if a.dry_run:
         print(json.dumps({k: v for k, v in manifest.items() if k != "student"}, indent=1))
