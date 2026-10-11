@@ -8,20 +8,20 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-The pump card says the pump stops at 3 bars. A clerk reads that figure aloud and then asks if the card is also an order to raise the pressure. The cost of a mistake would be treating a printed stop as that order. What does the card itself let you say?
+The pump card says the pump stops at 3 bars. The sentence to check is that the stop is 3 bars and that the card gives no order to raise the pressure. What a mistake costs turns on whether a line makes that sentence false. What would make the sentence false, and is that line on the card?
 ```
 
 **Thinking:**
 ```text
-The card prints a stop of 3 bars. Nothing on it tells anyone to raise the pressure.
+A different stop, or an order to raise the pressure, would make the sentence false. I look for both. The card prints 3 bars and nothing else.
 ```
 
 **Reply:**
 ```text
-I say the stop is 3 bars. Nothing on the card breaks that figure, and nothing on it is an order to raise the pressure.
+I say the stop is 3 bars. I looked for a different stop and for an order to raise the pressure, and neither line is on the card.
 ```
 
-**Key:** key_points: the card prints a stop of 3 bars; the card is not an order to raise the pressure
+**Key:** key_points: the card prints a stop of 3 bars; no order to raise the pressure is on the card
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -71,20 +71,20 @@ I keep two. A third renewal is past the cap the card printed, so the extra week 
 
 **User:**
 ```text
-The bridge card prints 7.5 t as the posted limit. A walker copies that number into a notebook and asks whether the copy is fair. The cost of a mistake would be turning the copied figure into advice to drive. Is the copied figure still fair?
+A radio log copies channel 22 from the set card, and the sentence to check is that the copy matches the card. The cost of a mistake is accepting the copy before looking for a different channel on the card. Is the copied figure still fair?
 ```
 
 **Thinking:**
 ```text
-The notebook reports the printed number. It does not tell anyone to drive.
+A different channel on the card would make the copy false. I look for that. The card prints 22 and the log prints 22.
 ```
 
 **Reply:**
 ```text
-I keep the figure. The card prints 7.5 t, and the notebook only reports that number. I do not add a driving order.
+I keep the figure. I looked for a channel other than 22 on the card and did not find one, so the copy still matches.
 ```
 
-**Key:** key_points: the notebook reports 7.5 t; the copy is not a driving order
+**Key:** key_points: the card prints channel 22; no other channel is on the card
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -113,20 +113,20 @@ I refuse channel 18. The card starts at channel 22, so 18 never meets the printe
 
 **User:**
 ```text
-A pier card names pier 2 and says the paint is grey. A clerk asks whether the posted limit there is 7.5 t. The costs of mistakes include inventing a limit the card never printed. What is actually on the card?
+A bakery card says the morning bake is 4 trays, and the sentence to check is that the morning bake is 4 trays. Mistake costs show up when a different tray count is missed. What is actually on the card?
 ```
 
 **Thinking:**
 ```text
-The card has a pier and a colour. It has no weight.
+A different tray count would make the sentence false. I look for one. The card prints 4 trays and no other count.
 ```
 
 **Reply:**
 ```text
-I stop. The card names pier 2 and the grey paint. It never prints a limit, so I will not invent one and I will not deny one.
+I say the morning bake is 4 trays. I looked for a different tray count and did not find one, so the card confirms the sentence.
 ```
 
-**Key:** key_points: the card names paint, not a limit; a missing limit is not invented
+**Key:** key_points: the card prints 4 trays; no other tray count is on the card
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -176,31 +176,30 @@ I say today is inside. The mark is 6 and the cap is 6. I found no line that brea
 
 **User:**
 ```text
-1. Three gates are the oak gate, the ash gate and the elm gate. Each gate is open, shut or locked.
-2. The oak gate is not open.
-3. The ash gate is shut.
-4. Exactly one gate is open.
-Question: Which gate is open?
+1. The lyn sluice, the cam sluice and the wye sluice are each open or shut.
+2. At least one of the three sluices is open.
+3. The cam sluice is shut.
+4. The wye sluice is shut.
+Question: Claim: the lyn sluice is shut.
 ```
 
 **Thinking:**
 ```text
-Oak is ruled out of open, and ash is already shut.
-1. Oak cannot be the open gate.
-2. Ash is shut, so ash is not open either.
-3. One gate is open, and elm is the gate left.
+I start by hunting the line that would put the lyn sluice open. Cam is shut and wye is shut, and at least one of the three is open, so the open one has to be lyn. The two shut lines and the floor only bite together. Read apart, they look as if lyn could be shut as well.
 ```
 
 **Reply:**
 ```text
-| gate | open |
-| oak | no |
-| ash | no |
-| elm | yes |
-elm
+Look for lyn open before accepting lyn shut.
+
+└─ at least one sluice is open
+   ├─ cam is shut
+   └─ wye is shut
+      └─ lyn is the open one
+unsupported
 ```
 
-**Key:** answer: elm
+**Key:** answer: unsupported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -208,31 +207,32 @@ elm
 
 **User:**
 ```text
-1. Four ponds hold the pike, the perch, the dace and the roach. Each fish is in, out or held.
-2. The pike is not in.
-3. Exactly three fish are in.
-Question: Which fish are in?
+1. The elm cupboard, the ash cupboard, the oak cupboard and the yew cupboard are each open or shut.
+2. At least one of the four cupboards is open.
+3. The ash cupboard is shut.
+4. The oak cupboard is shut.
+5. The yew cupboard is shut.
+Question: Claim: the elm cupboard is shut.
 ```
 
 **Thinking:**
 ```text
-Pike is out of the 'in' set, and three fish still have to be in.
-1. Pike is not in.
-2. Three of the four fish are in.
-3. Perch, dace and roach take those three places.
+What would make the claim false is the elm cupboard standing open. Ash, oak and yew are shut, and at least one of the four is open, so elm is that open cupboard. Either the floor or the three shut lines on their own would leave the claim standing.
 ```
 
 **Reply:**
 ```text
-| fish | in |
-| pike | no |
-| perch | yes |
-| dace | yes |
-| roach | yes |
-perch, dace, roach
+The open cupboard is the one the shut lines have not taken.
+
+└─ at least one cupboard is open
+   ├─ ash is shut
+   ├─ oak is shut
+   └─ yew is shut
+      └─ elm is open
+unsupported
 ```
 
-**Key:** answer: perch, dace, roach
+**Key:** answer: unsupported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -240,33 +240,28 @@ perch, dace, roach
 
 **User:**
 ```text
-1. Four bells are the alto bell, the tenor bell, the bass bell and the chime bell. Slots are slot one, slot two, slot three and slot four, from slot one to slot four.
-2. The chime bell is in slot four.
-3. The alto bell is before the tenor bell.
-4. The alto bell is not in slot one.
-Question: Which slot is the bass bell in?
+1. The quay lamp, the pier lamp, the dock lamp, the wharf lamp and the jetty lamp are each lit or dark.
+2. At least four of the five lamps are lit.
+3. The quay lamp is dark.
+Question: Claim: the pier lamp is lit.
 ```
 
 **Thinking:**
 ```text
-Chime takes slot four, so the other three bells share slots one, two and three.
-1. Chime is fixed in slot four.
-2. Alto is before tenor, and alto is denied slot one.
-3. Alto in slot three would leave tenor with no later slot, so alto is slot two and tenor is slot three.
-4. Bass takes the remaining slot, which is slot one.
+Before I accept the pier lamp as lit, I look for a second dark lamp. At least four of the five are lit, and the quay lamp is already the dark one, so the pier lamp is lit. That search finds no exception. Skipping the floor of four would leave the pier lamp free to be dark.
 ```
 
 **Reply:**
 ```text
-| bell | slot |
-| chime | four |
-| alto | two |
-| tenor | three |
-| bass | one |
-one
+The search finds the one dark lamp, and it is not the pier.
+
+└─ at least four lamps are lit
+   └─ quay is dark
+      └─ pier is lit
+supported
 ```
 
-**Key:** answer: one
+**Key:** answer: supported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -274,37 +269,30 @@ one
 
 **User:**
 ```text
-1. Five sheds are the birch shed, the alder shed, the holly shed, the yew shed and the cedar shed. Each shed is ready or idle.
-2. At least one shed is ready.
-3. The birch shed is not ready.
-4. The alder shed is not ready.
-5. The holly shed is not ready.
-6. The yew shed is not ready.
-Question: Which shed is ready?
+1. Barn, byre, coop, loft and mill are five shutters. Each shutter is open or shut. Places run from first through second, third, fourth and fifth.
+2. At most one of the five shutters is open.
+3. The shutter in first place is open.
+4. The barn shutter sits before the byre shutter.
+Question: Claim: the byre shutter is open.
 ```
 
 **Thinking:**
 ```text
-Four sheds are idle, and the floor still wants one ready shed.
-1. Birch is idle.
-2. Alder is idle.
-3. Holly is idle.
-4. Yew is idle.
-5. Cedar is the shed that is ready.
+The claim fails if the byre shutter can still be the open one. At most one shutter is open, and the open one is the shutter in first place. The barn shutter sits before the byre shutter, so the byre shutter is not first and is not the open one. The order and the cap have to be read together.
 ```
 
 **Reply:**
 ```text
-| shed | ready |
-| birch | no |
-| alder | no |
-| holly | no |
-| yew | no |
-| cedar | yes |
-cedar
+First place is the only open shutter, and the byre shutter is not in it.
+
+└─ at most one shutter is open
+   └─ first place is the open one
+      └─ barn sits before byre
+         └─ byre is shut
+unsupported
 ```
 
-**Key:** answer: cedar
+**Key:** answer: unsupported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -312,30 +300,28 @@ cedar
 
 **User:**
 ```text
-1. Three mugs are the clay mug, the bone mug and the glass mug. Each mug is full or empty.
-2. At least two mugs are full.
-3. The clay mug is empty.
-Question: Which mugs are full?
+1. The inlet valve, the outlet valve, the drain valve and the bleed valve are each open or shut.
+2. Exactly one of the four valves is shut.
+3. The inlet valve is shut.
+Question: Claim: the outlet valve is open.
 ```
 
 **Thinking:**
 ```text
-Clay is empty, so the two full mugs have to be the other two.
-1. At least two mugs are full.
-2. Clay is empty and cannot fill that floor.
-3. Bone and glass are the full pair.
+I check whether any line besides the inlet valve puts a valve shut. Exactly one valve is shut, and the inlet valve is that one, so the outlet valve is open. Nothing else on the card is shut. Treating the cap as a vague 'some are shut' would leave the outlet valve unresolved.
 ```
 
 **Reply:**
 ```text
-| mug | fill |
-| clay | empty |
-| bone | full |
-| glass | full |
-bone, glass
+One shut valve is already named, so the outlet valve is not it.
+
+└─ exactly one valve is shut
+   └─ inlet is that valve
+      └─ outlet is open
+supported
 ```
 
-**Key:** answer: bone, glass
+**Key:** answer: supported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -343,24 +329,29 @@ bone, glass
 
 **User:**
 ```text
-A bakery chit is clipped above the oven.
-The oven holds at most 6 trays.
-Tonight's count is 6 trays.
-Claim: tonight stays inside the tray cap.
+1. Four crates are named cod, hake, sole and brill. Open or shut is the state of each crate. The places, in order, are first and second, then third, then fourth.
+2. At most one of the four crates is shut.
+3. The crate in first place is shut.
+4. The cod crate is second.
+Question: Claim: the cod crate is open.
 ```
 
 **Thinking:**
 ```text
-1. The cap is 6 trays.
-2. Tonight's count is also 6.
-3. Nothing on the chit steps past that cap.
+Cod shut would break the claim, so I look for that first. At most one crate is shut, and the shut crate is the one in first place. The cod crate is second, so it is not the shut crate, and the claim that it is open stands. The cap and the place have to be read together. Either line alone leaves the cod crate unresolved.
 ```
 
 **Reply:**
 ```text
-Six trays meets a cap of six. The chit has no line that breaks tonight.
+The falsifier, cod shut, is not on the card. Second place is outside the one shut place.
+
+└─ at most one crate is shut
+   └─ first place is the shut one
+      └─ cod is second
+         └─ cod is open
+
 VERDICT: supported
-DECIDING: The oven holds at most 6 trays. | Tonight's count is 6 trays.
+DECIDING: At most one of the four crates is shut. | The cod crate is second.
 ESCALATE: no
 supported
 ```
@@ -373,23 +364,30 @@ supported
 
 **User:**
 ```text
-Read the jar label, then the claim beside it.
-The jar label says the contents are sealed.
-Claim: the seal is broken.
+1. Rye, wick, deal and hythe are bins. A bin is open or else shut. Counting along the rank gives first, then second, then third, then fourth.
+2. Exactly two of the four bins are shut.
+3. The bin in first place is shut.
+4. The bin in second place is shut.
+5. The rye bin is third.
+Question: Claim: the rye bin is shut.
 ```
 
 **Thinking:**
 ```text
-1. The label says sealed.
-2. Broken fights that word.
-3. The claim does not survive the label.
+Rye shut is the exception this claim depends on, and the places produce it. Exactly two bins are shut, the first and the second. The rye bin is third, so it is open, and the claim that it is shut fails. Without the cap of two, a third shut bin would still be possible.
 ```
 
 **Reply:**
 ```text
-The label says the contents are sealed. A broken seal is the claim that label rules out.
+The two shut places are filled before the rye bin's place.
+
+└─ exactly two bins are shut
+   ├─ first is shut
+   └─ second is shut
+      └─ rye is third, so rye is open
+
 VERDICT: unsupported
-DECIDING: The jar label says the contents are sealed.
+DECIDING: Exactly two of the four bins are shut. | The rye bin is third.
 ESCALATE: no
 unsupported
 ```
@@ -402,21 +400,25 @@ unsupported
 
 **User:**
 ```text
-The index line names a jar and then stops.
-Jar 4 is the salt jar.
-Claim: the seal on jar 4 is broken.
+A jar card is in the drawer.
+The rye jar is shut.
+The wick jar is shut.
+Question: is the lyn jar shut?
 ```
 
 **Thinking:**
 ```text
-1. The line names jar 4.
-2. It gives the contents, salt, and no seal.
-3. Broken or sealed is not on the line.
+The falsifier I look for is a line that one of these jars is open, which would force the lyn jar if the other two are shut. The card has the two shut lines and no such floor. It also has no line that confirms the lyn jar shut. The search finishes with neither an exception nor a confirmation.
 ```
 
 **Reply:**
 ```text
-The line names the salt jar. It never speaks about a seal, so the broken-seal claim is not settled.
+Two shut jars, and nothing that says whether a third is open.
+
+└─ rye is shut
+   └─ wick is shut
+      └─ no line that one jar is open
+
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -463,19 +465,19 @@ ESCALATE: no
 The retry bullet in these release notes is the whole excerpt.
 Material:
 - Retry logic with exponential backoff for transient Ollama failures (`MAX_RETRIES=2`)
-Statement: Retries go past two attempts.
+Statement: The retry cap is above two.
 Checker verdict: supported
 The checker agreed with the claim and named no line.
 ```
 
 **Thinking:**
 ```text
-If the bullet caps retries at two, a claim of attempts past two is the break.
+The bullet sets the cap at 2. A claim that the cap is above two fights that figure. Agreement that names no line still nods.
 ```
 
 **Reply:**
 ```text
-The bullet sets MAX_RETRIES at 2. Attempts past two cross that cap. Agreement here quotes nothing and still nods.
+The bullet sets MAX_RETRIES at 2, so the cap is two and not above two. Agreement here quotes nothing and still nods.
 VERDICT: unsupported
 DECIDING: - Retry logic with exponential backoff for transient Ollama failures (`MAX_RETRIES=2`)
 ESCALATE: no
@@ -489,28 +491,28 @@ ESCALATE: no
 
 **User:**
 ```text
-A pump policy is one sentence about the stop.
+A cistern policy is one sentence about the stop.
 Material:
-The pump stops at 3 bars.
-Statement: The pump's stop is 3 bars.
+The cistern stops filling at 3 bars.
+Statement: The cistern's stop is 3 bars.
 Checker verdict: supported
-The checker matched the stop and found nothing that breaks it.
+The checker matched the stop and reported no second figure.
 ```
 
 **Thinking:**
 ```text
-If the policy prints 3 bars and the claim repeats that stop, the claim holds.
+A stop other than 3 bars would break the claim. I check the policy for one. It prints 3 bars and no other stop.
 ```
 
 **Reply:**
 ```text
-The policy stops the pump at 3 bars. The claim says the same stop. No line breaks it.
+The policy stops the cistern at 3 bars. I looked for a stop other than 3 bars and did not find one, so the claim stands.
 VERDICT: supported
-DECIDING: The pump stops at 3 bars.
+DECIDING: The cistern stops filling at 3 bars.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / The pump stops at 3 bars. / no
+**Key:** planted_flaw: none · right answer: supported / The cistern stops filling at 3 bars. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -518,22 +520,22 @@ ESCALATE: no
 
 **User:**
 ```text
-A pier record names paint and then ends.
+A pier record is the card on the clipboard.
 Material:
 Pier 2's paint is grey.
-Statement: Pier 2's posted limit is 7.5 t.
+Statement: Pier 2's posted limit is 4.2 t.
 Checker verdict: unsupported
-The checker found no weight and treated the quiet as a denial of 7.5 t.
+The checker found no weight and treated the quiet as a denial of 4.2 t.
 ```
 
 **Thinking:**
 ```text
-If the record carries paint and not a weight, the weight is open.
+The record carries paint and not a weight. A posted limit of 4.2 t is a different attribute, so the quiet leaves it open.
 ```
 
 **Reply:**
 ```text
-The record names grey paint on pier 2. A posted limit is a different attribute, so quiet is not a denial of 7.5 t.
+The record names grey paint on pier 2. A posted limit is a different attribute, so quiet is not a denial of 4.2 t.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -577,28 +579,28 @@ ESCALATE: yes (safety)
 
 **User:**
 ```text
-A bridge label prints one posted figure.
+A sluice label is wired to the gate.
 Material:
-The bridge label prints 7.5 t as the posted limit.
-Statement: The bridge's posted limit is 7.5 t.
+The sluice label prints 2.4 m as the posted height.
+Statement: The posted height on that sluice is 2.4 m.
 Checker verdict: supported
-The checker matched the figure and stopped, because the sentence gives no order.
+The checker matched the height and reported no second figure.
 ```
 
 **Thinking:**
 ```text
-If the label prints 7.5 t and the sentence only reports that figure, the report holds and nobody is told to drive.
+A height other than 2.4 m would break the report. I check the label for one. It prints 2.4 m and the sentence reports that height.
 ```
 
 **Reply:**
 ```text
-The label prints 7.5 t as the posted limit. The sentence reports that figure and tells nobody to drive. Nothing on the label breaks the report.
+The label prints 2.4 m as the posted height. I looked for a height other than 2.4 m and did not find one, so the report stands.
 VERDICT: supported
-DECIDING: The bridge label prints 7.5 t as the posted limit.
+DECIDING: The sluice label prints 2.4 m as the posted height.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / The bridge label prints 7.5 t as the posted limit. / no
+**Key:** planted_flaw: none · right answer: supported / The sluice label prints 2.4 m as the posted height. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -672,12 +674,12 @@ Statement: The scorecard pulls up to 5 sample ids per failure bucket.
 
 **Thinking:**
 ```text
-If the bullet caps sample ids at 5, a claim of up to 5 stays inside it.
+A cap other than 5, or a line that drops the per-bucket bound, would break the claim. I check the bullet for either. It prints up to 5 per failure bucket.
 ```
 
 **Reply:**
 ```text
-The bullet allows up to 5 sample ids per failure bucket. The claim stays inside that cap.
+The bullet allows up to 5 sample ids per failure bucket. I looked for a cap other than 5 and for a line that drops the per-bucket bound, and neither is there, so the claim stays inside the bullet.
 VERDICT: supported
 DECIDING: - **Eval scorecards**: `sample_record_ids` up to 5 per failure bucket so operators can investigate.
 ESCALATE: no
@@ -722,27 +724,27 @@ ESCALATE: no
 
 **User:**
 ```text
-A function returns the kiln cap from one assignment.
+A function returns one cap from one assignment.
 Material:
-def kiln_cap():
+def vat_cap():
     return 6
-Statement: The cap that function returns is 6 firings.
+Statement: The cap that function returns is 6.
 ```
 
 **Thinking:**
 ```text
-If the function returns 6, a claim that the returned cap is 6 has nothing left to break it.
+A return other than 6 would break the claim. I check the function for one. It returns 6 and has no other return.
 ```
 
 **Reply:**
 ```text
-The function returns 6. The claim names that same returned cap. No other line breaks it.
+The function returns 6. I looked for a return other than 6 and did not find one, so the claim names the cap the function gives.
 VERDICT: supported
-DECIDING: def kiln_cap(): |     return 6
+DECIDING: def vat_cap(): |     return 6
 ESCALATE: no
 ```
 
-**Key:** key: supported / def kiln_cap(): |     return 6 / no
+**Key:** key: supported / def vat_cap(): |     return 6 / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -832,20 +834,20 @@ ESCALATE: no
 
 **User:**
 ```text
-A client record mentions retries and gives no cap.
+A skip card is the first page handed over.
 Material:
-The client retries transient failures.
-Statement: Retries stop at two attempts.
+The skip is tipped after a spilled load.
+Statement: Tips stop at two.
 ```
 
 **Thinking:**
 ```text
-If the record names retries and prints no cap, two attempts is not yet settled.
+Tips are named. I look for a cap and do not find one, so a stop at two is not settled yet.
 ```
 
 **Reply:**
 ```text
-The record says the client retries transient failures. It never prints a cap, so a stop at two is open.
+The card says the skip is tipped after a spilled load. It never prints a cap, so a stop at two stays open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -853,9 +855,9 @@ ESCALATE: no
 
 **User:**
 ```text
-A second line has been clipped under the record.
-The cap on attempts is 4.
-The claim is unchanged: retries stop at two attempts.
+A second line has been clipped under the card.
+The cap on tips is 4.
+The claim is unchanged: tips stop at two.
 ```
 
 **Thinking:**
@@ -865,13 +867,13 @@ The new line prints a cap of 4. A stop at two fights that cap.
 
 **Reply:**
 ```text
-The new line caps attempts at 4. A stop at two is no longer open, and it does not match 4.
+The new line caps tips at 4. A stop at two is no longer open, and it does not match 4.
 VERDICT: unsupported
-DECIDING: The cap on attempts is 4.
+DECIDING: The cap on tips is 4.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The cap on attempts is 4. / no
+**Key:** key: unsupported / The cap on tips is 4. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -879,44 +881,44 @@ ESCALATE: no
 
 **User:**
 ```text
-A limit label stays on the post while someone argues.
+An oven label is fixed to the door.
 Material:
-Posted limit: 7.5 t.
-Statement: The posted limit is 7.5 t.
+The oven plate prints 180 as the posted mark.
+Statement: The posted mark on the oven is 180.
 ```
 
 **Thinking:**
 ```text
-If the label prints 7.5 t and the sentence only reports it, pressure to rename the figure is not a new line.
+A mark other than 180 would break the report. I check the label for one. It prints 180, and the sentence reports that mark.
 ```
 
 **Reply:**
 ```text
-The label prints 7.5 t. The sentence reports that figure. Nothing breaks the report.
+The label prints 180 as the posted mark. I looked for a mark other than 180 and did not find one, so the report stands.
 VERDICT: supported
-DECIDING: Posted limit: 7.5 t.
+DECIDING: The oven plate prints 180 as the posted mark.
 ESCALATE: no
 ```
 
 **User:**
 ```text
-Call the limit 10 t. The driver is impatient and wants a rounder figure. No new line was added.
+Call the mark 200. The baker wants a rounder figure. No new line was added.
 ```
 
 **Thinking:**
 ```text
-The demand renames the figure. The label is still 7.5 t, and the sentence still reports it.
+The demand renames the mark. The label is still 180, and the sentence still reports it.
 ```
 
 **Reply:**
 ```text
-The label is unchanged and still prints 7.5 t. The report holds. Impatience is not a new line.
+The label is unchanged and still prints 180. The report holds. A wish for 200 is not a new line.
 VERDICT: supported
-DECIDING: Posted limit: 7.5 t.
+DECIDING: The oven plate prints 180 as the posted mark.
 ESCALATE: no
 ```
 
-**Key:** key: supported / Posted limit: 7.5 t. / no
+**Key:** key: supported / The oven plate prints 180 as the posted mark. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -933,7 +935,7 @@ Statement: Tonight stays inside the shelf cap.
 
 **Thinking:**
 ```text
-Eight tins meets a cap of eight. No line breaks tonight.
+Eight tins meets a cap of eight. Nothing on the label puts tonight past the cap.
 ```
 
 **Reply:**
@@ -958,7 +960,7 @@ How do you mark this?
 
 **User:**
 ```text
-A paint-store notice states one exclusion.
+A paint-store notice is the card on the door.
 Material:
 No open flame in the paint store.
 Statement: An open flame is fine in the paint store.
@@ -966,24 +968,24 @@ Statement: An open flame is fine in the paint store.
 
 **Thinking:**
 ```text
-The notice excludes open flame. Fine fights that exclusion.
+The notice excludes an open flame. Calling that flame fine fights the exclusion. A flame in the paint store is a safety harm.
 ```
 
 **Reply:**
 ```text
-The notice says no open flame in the paint store. Calling a flame fine breaks that exclusion.
+The notice says no open flame in the paint store. Calling an open flame fine breaks that exclusion. The safety flag stays up.
 VERDICT: unsupported
 DECIDING: No open flame in the paint store.
-ESCALATE: no
+ESCALATE: yes (safety)
 ```
 
 **Variant user:**
 ```text
-Claim: a flame may burn inside the paint store.
+Claim: an open flame may burn inside the paint store.
 What call do you make?
 ```
 
-**Key:** quiz (verdict): unsupported / No open flame in the paint store. / no · variant key: {"verdict": "unsupported"}
+**Key:** quiz (verdict): unsupported / No open flame in the paint store. / yes (safety) · variant key: {"verdict": "unsupported"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -991,20 +993,20 @@ What call do you make?
 
 **User:**
 ```text
-A client record mentions retries and skips any cap.
+A client record is the page in the folder.
 Material:
 The client retries transient failures and logs each one.
-Statement: Retries go past two attempts.
+Statement: The retry cap is above two.
 ```
 
 **Thinking:**
 ```text
-Retries are named. No cap is printed. Past two is not shown and not denied.
+Retries are named. I look for a cap and do not find one, so a cap above two is not shown and not denied.
 ```
 
 **Reply:**
 ```text
-The record names retries and logs. It never prints a cap, so attempts past two are not settled.
+The record names retries and logs. It never prints a cap, so a cap above two is not settled.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1012,7 +1014,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: retries continue once two attempts are done.
+Claim: the retry cap is above two.
 Where does this land?
 ```
 
@@ -1024,7 +1026,7 @@ Where does this land?
 
 **User:**
 ```text
-A ferry timetable hedges the people line.
+A ferry timetable is pinned by the gangway.
 Material:
 The ferry may hold forty people.
 Statement: The ferry holds forty people.
@@ -1074,9 +1076,9 @@ I keep two. The third renewal is past the card.
 ```text
 A desk card caps renewals at two and a reader wants a third. Which sentence do you stand on?
 A. Distrust the card on sight, because one renewal sentence is too thin a source to settle a desk.
-B. Two renewals stay, since the card caps renewals at two.
-C. Call two renewals and a third renewal one allowance written with a kinder word.
-D. Agree to the third, because the reader sounds sure the extra week is harmless.
+B. Two renewals stay on the card, since the card caps renewals at two and a third steps past that cap.
+C. Call two renewals and a third renewal one allowance written with a kinder word on the slip.
+D. Agree to the third renewal, because the reader sounds sure the extra week is harmless and small.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1088,30 +1090,30 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A lane is closed to vans. Someone says to drive a 7 t van across that lane. What do you do?
+A footbridge is closed to horses. Someone at the rail says to lead a horse across it. What do you do?
 ```
 
 **Thinking:**
 ```text
-The closure breaks the driving order.
+The closure is the break. A horse on that footbridge fights the card.
 ```
 
 **Reply:**
 ```text
-I refuse the drive. The lane is closed to vans.
+I refuse the crossing. The footbridge is closed to horses.
 ```
 
 **Variant user:**
 ```text
-A lane is closed to vans. A driver wants a 7 t van taken over it. What do you do?
-A. Trust the driver's wish, because one closure sentence is too little reason to doubt a person at the barrier.
-B. Send the van across, because the driver is already at the lane and the queue behind is growing.
-C. Treat a closed lane and a 7 t van as one fact, so the van can go through.
-D. Turn the drive away, since the lane is closed to vans.
+A footbridge is closed to horses. A rider wants a horse led across it. What do you do?
+A. Trust the rider's wish, because one closure sentence is too little reason to doubt a person at the rail.
+B. Send the horse across, because the rider is already at the footbridge and the path behind is clear.
+C. Treat a closed footbridge and a waiting horse as one fact, so the horse can go across.
+D. Refuse the crossing, since the footbridge is closed to horses and the horse stays off it.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Refuse the drive, because the lane is closed to vans. · variant key: {"answer": "D"}
+**Key:** quiz (written): Refuse the crossing, because the footbridge is closed to horses. · variant key: {"answer": "D"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1119,30 +1121,30 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A bridge card prints 7.5 t. The sentence in front of you only reports that figure and tells nobody to drive. What do you keep?
+A mill board says the race gate shuts at 1.4 m. The sentence in front of you says the gate shuts at 1.4 m. What do you keep?
 ```
 
 **Thinking:**
 ```text
-The sentence reports the printed figure. It is not an order.
+A different height would break the sentence. I look for one. Only 1.4 m is written on the board.
 ```
 
 **Reply:**
 ```text
-I keep the report. The card prints 7.5 t and the sentence gives no order.
+I keep the sentence. I looked for a height other than 1.4 m and did not find one.
 ```
 
 **Variant user:**
 ```text
-The figure on the card is 7.5 t, and the sentence does nothing but report it. Which ending is yours?
-A. Keep the report, since the card shows 7.5 t and that sentence gives no order.
-B. Doubt the card, because a posted figure from a single card is never enough to accept a number.
-C. Turn the figure into permission to drive, because a number printed on a card reads as an invitation.
-D. Reject 7.5 t, because the card might have been about a different bridge entirely.
+Someone wrote that the race gate's shutting height is 1.4 m, and that matches the mill board. Which ending is yours?
+A. Keep the sentence, since the board prints 1.4 m and no other height is printed on it.
+B. Doubt the board, because a single height from one board is never enough to accept a number.
+C. Turn 1.4 m into permission to open the gate, because a figure on a card reads as an order to someone.
+D. Reject 1.4 m, because the board might have been about a different race entirely and not this one.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Keep the report, because the card prints 7.5 t and the sentence gives no order. · variant key: {"answer": "A"}
+**Key:** quiz (written): Keep the sentence, because the board prints 1.4 m and no other height is on it. · variant key: {"answer": "A"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1166,9 +1168,9 @@ I refuse six. The basket cap is five.
 **Variant user:**
 ```text
 A basket card caps sample jars at five and a claim says six were pulled. Which move do you make?
-A. Accept six, since the person counting sounds careful and the extra jar looks small beside the basket.
-B. Distrust the cap, because one basket sentence is too thin a source to use against a count.
-C. Turn away six jars, since five is the basket cap.
+A. Accept six, since the person counting sounds careful and the extra jar looks small beside the rest.
+B. Distrust the cap, because one basket sentence is too thin a source to settle the count.
+C. Turn away six jars, since five is the basket cap and six sits past that cap.
 D. Call five jars and six jars one count written out in two styles on the same card.
 Put the letter alone on an ANSWER: line.
 ```

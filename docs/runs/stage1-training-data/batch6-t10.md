@@ -50,20 +50,20 @@ I stop the file at 25 MB. Up to 25 MB is not 25 MB or more. Thirty is outside th
 
 **User:**
 ```text
-The pool board says the pool is open daily, dawn until dusk. A swimmer is at the Sunday gate with a towel already wet. Does a literal reading of daily include that Sunday?
+The pool board says the pool is open daily, dawn until dusk. A swimmer reaches the Sunday gate at dawn, towel already wet. Does a literal reading of daily include that Sunday?
 ```
 
 **Thinking:**
 ```text
-Daily names every day. Sunday is one of those days. Dawn is inside the hours.
+Daily names every day. Sunday is one of those days. The swimmer arrives at dawn, and dawn is the start the board prints.
 ```
 
 **Reply:**
 ```text
-I include Sunday. Daily means each day, and the swimmer is inside the dawn hour. I would not shut a day the board never cut out.
+I include Sunday. Daily means each day, and the arrival is dawn, which the board names as the start. I would not shut a day the board never cut out.
 ```
 
-**Key:** key_points: daily includes Sunday; dawn is inside the printed hours
+**Key:** key_points: daily includes Sunday; the arrival at dawn is the start the board prints
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -176,30 +176,30 @@ I leave Sunday off the board. Weekdays are the working days, and Sunday is not o
 
 **User:**
 ```text
-1. Three lamps are the red lamp, the blue lamp and the gold lamp. Each lamp is lit or dark.
-2. At least two of the lamps are lit.
-3. The red lamp is not lit.
-Question: Which lamps are lit?
+1. The north window, the south window and the west window are each open or shut.
+2. Exactly one of the three windows is shut.
+3. The north window is open.
+Question: Which windows could be shut?
 ```
 
 **Thinking:**
 ```text
-Stopping after the word two would leave the red lamp inside the answer.
-1. At least two lit lamps is a floor.
-2. The red lamp is dark, so it cannot fill that floor.
-3. Blue and gold are both lit.
+Exactly one is a cap and a floor together, so one window is shut and the other two are open. The north window is already open, which removes it from the shut set and leaves south and west. A looser reading treats that pair of bounds as naming a single window and closes the set on the west window alone.
 ```
 
 **Reply:**
 ```text
-| lamp | state |
-| red | dark |
-| blue | lit |
-| gold | lit |
-blue, gold
+Literal size leaves both remaining windows. Closing the set on one of them drops a window the lines still allow.
+
+| window | shut? |
+| --- | --- |
+| north | open, ruled out |
+| south | could be the shut one |
+| west | could be the shut one |
+south, west
 ```
 
-**Key:** answer: blue, gold
+**Key:** answer: south, west
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -207,30 +207,34 @@ blue, gold
 
 **User:**
 ```text
-1. Three buoys are the cork buoy, the pine buoy and the tin buoy. Each buoy is sealed or open.
-2. At most one buoy is sealed.
-3. The cork buoy is sealed.
-Question: Which buoys are open?
+1. The brass lamp, the copper lamp, the tin lamp, the iron lamp and the lead lamp are each lit or dark.
+2. At least one of the five lamps is dark.
+3. At most one of the five lamps is dark.
+4. The brass lamp is lit.
+5. The copper lamp is lit.
+Question: Which lamps could be dark?
 ```
 
 **Thinking:**
 ```text
-The cap is one sealed buoy, and cork already is that buoy.
-1. At most one means the sealed count stops at one.
-2. Cork uses the single sealed place.
-3. Pine and tin have to stay open.
+At least one dark lamp and at most one dark lamp together mean exactly one lamp is dark. Brass and copper are lit, so neither of them is that lamp. The literal size word still leaves tin, iron and lead. Reading the bounds as if they had already picked the tin lamp drops iron and lead.
 ```
 
 **Reply:**
 ```text
-| buoy | seal |
-| cork | sealed |
-| pine | open |
-| tin | open |
-pine, tin
+The two bounds keep a set of three. Reading them as already naming one lamp drops iron and lead.
+
+| lamp | could be dark |
+| --- | --- |
+| brass | no, it is lit |
+| copper | no, it is lit |
+| tin | yes |
+| iron | yes |
+| lead | yes |
+iron, lead, tin
 ```
 
-**Key:** answer: pine, tin
+**Key:** answer: iron, lead, tin
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -238,33 +242,33 @@ pine, tin
 
 **User:**
 ```text
-1. Four sacks are the hemp sack, the jute sack, the flax sack and the coir sack. Each sack is full or bare.
-2. At most two sacks are full.
-3. The hemp sack is full.
-4. The jute sack is full.
-Question: Which sacks are full?
+1. The fore hatch, the aft hatch, the port hatch and the starboard hatch are each open or shut, and the row is first, second, third, fourth.
+2. At most one of the four hatches is shut.
+3. The hatch in first place is shut.
+4. The fore hatch sits before the aft hatch.
+5. The port hatch sits before the starboard hatch.
+Question: Which hatches could be shut?
 ```
 
 **Thinking:**
 ```text
-A third full sack would step past the printed cap.
-1. At most two sacks may be full.
-2. Hemp is already full.
-3. Jute is already full.
-4. Flax and coir stay bare.
+At most one hatch is shut, and the hatch in first place is the shut one, so the shut hatch is whichever hatch can sit first. Fore can sit first, and so can port. Aft sits behind fore, and starboard sits behind port, so neither of those can be first. Stopping at fore, because it is named first, drops port, which can also sit first.
 ```
 
 **Reply:**
 ```text
-| sack | load |
-| hemp | full |
-| jute | full |
-| flax | bare |
-| coir | bare |
-hemp, jute
+Literal 'at most one', with the first place shut, leaves two hatches. Closing on fore drops port.
+
+| hatch | can be first, and so shut |
+| --- | --- |
+| fore | yes |
+| aft | no, it sits behind fore |
+| port | yes |
+| starboard | no, it sits behind port |
+fore, port
 ```
 
-**Key:** answer: hemp, jute
+**Key:** answer: fore, port
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -272,32 +276,31 @@ hemp, jute
 
 **User:**
 ```text
-1. Three pens are the ink pen, the gel pen and the nib pen. Trays are the north tray, the south tray and the west tray. A pen may share a tray.
-2. Exactly one pen sits in the north tray.
-3. The ink pen is not in the north tray.
-4. The gel pen is not in the north tray.
-Question: Which pen is in the north tray?
+1. The oak door, the pine door, the ash door and the yew door are each open or shut.
+2. At least one of the four doors is shut.
+3. At most one of the four doors is shut.
+Question: Which doors could be shut?
 ```
 
 **Thinking:**
 ```text
-The north tray is one pen, not a shared pair.
-1. Exactly one pen sits in the north tray.
-2. Ink is outside it.
-3. Gel is outside it.
-4. Nib is the pen that remains.
+At least one shut door and at most one shut door together mean exactly one of the four is shut, and any of the four can be that one. The literal bounds leave the whole set. A looser reading closes it on the oak door alone.
 ```
 
 **Reply:**
 ```text
-| pen | north |
-| ink | no |
-| gel | no |
-| nib | yes |
-nib
+Nothing in the two bounds names which door is the shut one. All four remain possible.
+
+| door | could be shut |
+| --- | --- |
+| oak | yes |
+| pine | yes |
+| ash | yes |
+| yew | yes |
+ash, oak, pine, yew
 ```
 
-**Key:** answer: nib
+**Key:** answer: ash, oak, pine, yew
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -305,32 +308,31 @@ nib
 
 **User:**
 ```text
-1. Three animals are the mole, the vole and the shrew. Burrows are burrow one, burrow two and burrow three, from burrow one to burrow three.
-2. The mole is before the vole.
-3. The shrew is not in burrow three.
-4. The mole is not in burrow two.
-Question: Which burrow is the shrew in?
+1. The birch gate, the alder gate and the holly gate are each open or shut, and the row is first, second, third.
+2. Exactly one of the three gates is shut.
+3. The gate in first place is shut.
+4. The birch gate sits before the alder gate.
+Question: Which gates could be shut?
 ```
 
 **Thinking:**
 ```text
-Burrow words are places, not a shrug toward the end.
-1. Mole is before vole.
-2. Shrew is denied burrow three.
-3. Mole is denied burrow two, so mole takes burrow one.
-4. Shrew is left in burrow two.
+Exactly one gate is shut, and the gate in first place is the shut one. Birch can sit first. Alder sits behind birch, so alder cannot be first and cannot be the shut gate. Holly can sit first. Picking only birch, the first gate named, leaves holly out of a set the lines still allow.
 ```
 
 **Reply:**
 ```text
-| animal | burrow |
-| mole | one |
-| vole | three |
-| shrew | two |
-two
+The size word plus the first place leaves two gates, not one.
+
+| gate | could be shut |
+| --- | --- |
+| birch | yes |
+| alder | no, it sits behind birch |
+| holly | yes |
+birch, holly
 ```
 
-**Key:** answer: two
+**Key:** answer: birch, holly
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -338,24 +340,31 @@ two
 
 **User:**
 ```text
-A packing note is on the bench.
-At least 4 jars were packed.
-The tally beside that line is 9.
-Question: does at least 4 jars still hold?
+1. The brass lantern, the copper lantern, the tin lantern, the iron lantern and the lead lantern are each lit or dark, and the row is first, second, third, fourth, fifth.
+2. Exactly two of the five lanterns are dark.
+3. The lantern in first place is dark.
+4. The lantern in second place is dark.
+5. The brass lantern is first.
+6. The copper lantern is second.
+Question: Claim: the tin lantern is lit.
 ```
 
 **Thinking:**
 ```text
-1. The floor says at least 4.
-2. The tally prints 9.
-3. Nine still meets four.
+Exactly two lanterns are dark. The first place is dark and the second place is dark, brass is first and copper is second, so those two are the dark pair. The tin lantern is one of the other three, so it is lit. Reading 'exactly two' as 'at least two' would leave the tin lantern free to be dark, and the claim would not be settled.
 ```
 
 **Reply:**
 ```text
-Nine meets a floor of four. The note is not asking for exactly four.
+The cap of two is filled by brass and copper. Tin is outside that pair.
+
+└─ exactly two dark
+   ├─ first is dark, brass is first
+   └─ second is dark, copper is second
+      └─ tin is lit
+
 VERDICT: supported
-DECIDING: At least 4 jars were packed. | The tally beside that line is 9.
+DECIDING: Exactly two of the five lanterns are dark. | The brass lantern is first.
 ESCALATE: no
 supported
 ```
@@ -368,23 +377,31 @@ supported
 
 **User:**
 ```text
-Read the tag, then the claim.
-The shelf tag says 5 mugs.
-Claim: the shelf holds exactly 2 mugs.
+1. The oak locker, the pine locker, the ash locker, the yew locker and the elm locker are each open or shut.
+2. Exactly two of the five lockers are shut.
+3. The oak locker is open.
+4. The pine locker is open.
+5. The ash locker is open.
+Question: Claim: the yew locker is open.
 ```
 
 **Thinking:**
 ```text
-1. The tag prints 5.
-2. Exactly 2 would shrink that tag.
-3. Five is not two.
+Exactly two lockers are shut. Oak, pine and ash are open, so the two shut lockers are yew and elm. The claim that the yew locker is open contradicts that. A looser reading of 'exactly two' as 'at least two' would still leave yew open as possible, and would accept the claim.
 ```
 
 **Reply:**
 ```text
-The tag prints five mugs. Exactly two changes the size.
+Three lockers are open, and the cap of shut lockers is two, so both of the others are shut.
+
+└─ exactly two shut
+   ├─ oak is open
+   ├─ pine is open
+   └─ ash is open
+      └─ yew is shut
+
 VERDICT: unsupported
-DECIDING: The shelf tag says 5 mugs.
+DECIDING: Exactly two of the five lockers are shut. | The oak locker is open.
 ESCALATE: no
 unsupported
 ```
@@ -397,21 +414,25 @@ unsupported
 
 **User:**
 ```text
-The index card names a shelf and stops.
-Shelf B is the blue shelf.
-Claim: shelf B holds about five mugs.
+A store-room card is clipped to the shelf.
+The card says the tins come to at least nine if the afternoon recount is the count that was filed.
+The card does not carry the recount.
+Question: does at least nine tins still hold?
 ```
 
 **Thinking:**
 ```text
-1. The card names shelf B.
-2. It gives a colour, not a mug count.
-3. About five is not on the card.
+The floor of nine is sitting inside a condition, and the recount the condition names is not on the card. A literal reading cannot drop the condition and treat nine as the count. Calling it exactly nine would be a different size word again, and the card does not give me that either.
 ```
 
 **Reply:**
 ```text
-The card names the shelf and its colour. It never gives a mug count, so about five is not decided.
+The size is there, and the condition it hangs on is not.
+
+└─ at least nine
+   └─ only if the afternoon recount was filed
+      └─ the recount is not on the card
+
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -460,28 +481,28 @@ ESCALATE: no
 
 **User:**
 ```text
-The payment slip the till uses is a single sentence.
+A stall policy is the page the till keeps.
 Material:
-Pay the £2 fee before Friday.
-Statement: Pay the £2 fee before Friday.
+The posted stall fee is £12.
+Statement: The posted stall fee is at least £8.
 Checker verdict: supported
-The checker matched the fee sentence and stopped.
+The checker read £12 against a floor of £8 and agreed.
 ```
 
 **Thinking:**
 ```text
-The slip and the claim print the same fee and the same day. Paying is the instruction.
+Twelve meets a floor of eight. The claim does not shrink the posted fee, and it does not tell anyone to pay.
 ```
 
 **Reply:**
 ```text
-The claim repeats the slip. The fee is £2 and the day is Friday. Someone is being told to pay, so the money flag stays.
+The page posts £12. At least £8 still fits that figure. Nobody is being told to pay, so the money flag stays down.
 VERDICT: supported
-DECIDING: Pay the £2 fee before Friday.
-ESCALATE: yes (money)
+DECIDING: The posted stall fee is £12.
+ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / Pay the £2 fee before Friday. / yes (money)
+**Key:** planted_flaw: none · right answer: supported / The posted stall fee is £12. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -626,7 +647,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A scaffold record mentions pages and then stops.
+A scaffold record is the page in the folder.
 Material:
 Starter handbook pages are mentioned in the scaffold notes.
 Statement: Exactly two starter handbook pages are created.
@@ -655,22 +676,22 @@ ESCALATE: no
 
 **User:**
 ```text
-The timetable line names a route and its ends.
+A quay timetable is the sheet on the board.
 Material:
 Route 12 runs from the quay to the mill.
 Statement: About twelve riders use route 12.
 Checker verdict: unsupported
-The checker treated the route number as a rider count and refused the claim.
+The checker found no rider figure and treated the route's name as a denial of the rider claim.
 ```
 
 **Thinking:**
 ```text
-12 here is the route's name. Riders are a different attribute.
+12 names the route. Reading that name as a rider count would have agreed with about twelve, so a refusal on that reading is the wrong flaw. No rider figure is printed.
 ```
 
 **Reply:**
 ```text
-The line numbers the route, not the riders. About twelve riders is not decided by that name.
+The line numbers the route, not the riders. About twelve riders is not on it. Treating 12 as riders would have supported the claim, so the refusal does not match that reading.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -684,26 +705,26 @@ ESCALATE: no
 
 **User:**
 ```text
-A crate notice is taped to the lid.
+A loft notice is taped to the beam.
 Material:
-The crate holds 9 jars.
-Statement: At least 6 jars are in the crate.
+The loft holds 15 bolts.
+Statement: More than 8 bolts are in the loft.
 ```
 
 **Thinking:**
 ```text
-Nine is at least six. The claim does not shrink the crate.
+Fifteen is more than eight. The claim does not shrink the loft.
 ```
 
 **Reply:**
 ```text
-The notice holds 9. At least 6 still fits under that figure.
+The notice holds 15 bolts. More than 8 still fits under that figure.
 VERDICT: supported
-DECIDING: The crate holds 9 jars.
+DECIDING: The loft holds 15 bolts.
 ESCALATE: no
 ```
 
-**Key:** key: supported / The crate holds 9 jars. / no
+**Key:** key: supported / The loft holds 15 bolts. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -711,28 +732,27 @@ ESCALATE: no
 
 **User:**
 ```text
-The stall's price label is three short lines.
+A stall label is pinned above the till.
 Material:
 Stall fee
 Adults: 4 pounds
-Children: 2 pounds
-Statement: An adult pays at least 3 pounds and a child pays at least 1 pound.
+Statement: An adult pays at least 3 pounds.
 ```
 
 **Thinking:**
 ```text
-Four is at least three. Two is at least one. Both lines are doing the same job.
+Four pounds meets a floor of three. The claim is that one adult price.
 ```
 
 **Reply:**
 ```text
-The adult price is 4 pounds, which clears 3. The child price is 2 pounds, which clears 1.
+The adult price is 4 pounds. At least 3 still fits that one price.
 VERDICT: supported
-DECIDING: Adults: 4 pounds | Children: 2 pounds
+DECIDING: Adults: 4 pounds
 ESCALATE: no
 ```
 
-**Key:** key: supported / Adults: 4 pounds | Children: 2 pounds / no
+**Key:** key: supported / Adults: 4 pounds / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -740,26 +760,26 @@ ESCALATE: no
 
 **User:**
 ```text
-Another bin notice uses a different noun and the same count.
+A cistern notice is pasted on the tank.
 Material:
-The bin holds 9 jars.
-Statement: The bin holds exactly 6 jars.
+The cistern holds 18 litres.
+Statement: The cistern holds exactly 7 litres.
 ```
 
 **Thinking:**
 ```text
-Nine is printed. Exactly six would replace it.
+Eighteen litres are printed. Exactly seven would replace that figure.
 ```
 
 **Reply:**
 ```text
-The bin notice says 9. Exactly 6 is a smaller count than the one printed.
+The cistern notice says 18 litres. Exactly 7 is a smaller count than the one printed.
 VERDICT: unsupported
-DECIDING: The bin holds 9 jars.
+DECIDING: The cistern holds 18 litres.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The bin holds 9 jars. / no
+**Key:** key: unsupported / The cistern holds 18 litres. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -821,20 +841,20 @@ ESCALATE: no
 
 **User:**
 ```text
-The harbour book names a berth and the boat in it.
+A harbour book is open on the desk.
 Material:
-Berth 4 is assigned to the ketch.
+Berth 4 is forty feet long when the spring tide mark is the one in force.
 Statement: Berth 4 is forty feet long.
 ```
 
 **Thinking:**
 ```text
-The book gives an assignment, not a length. Forty feet is a different attribute.
+Forty feet is printed under a tide condition. The claim keeps the length and drops the mark that would put it in force.
 ```
 
 **Reply:**
 ```text
-Berth 4 is named as the ketch's place. Length is not on the line, so forty feet stays open.
+The length is forty feet only when the spring tide mark is the one in force. The claim drops that condition, so the length is not settled.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -848,46 +868,46 @@ ESCALATE: no
 
 **User:**
 ```text
-A sack notice is the first thing handed over.
+A skip notice is the first page handed over.
 Material:
-The sack holds 9 apples.
-Statement: At least 4 apples are in the sack.
+Sixteen tiles were counted into the skip.
+Statement: The skip contains no fewer than 10 tiles.
 ```
 
 **Thinking:**
 ```text
-Nine meets a floor of four on this first notice.
+Sixteen meets a floor of ten on this first notice.
 ```
 
 **Reply:**
 ```text
-The first notice says 9. At least 4 holds while that notice is the material.
+The first notice counts 16 tiles. No fewer than 10 holds while that notice is the material.
 VERDICT: supported
-DECIDING: The sack holds 9 apples.
+DECIDING: Sixteen tiles were counted into the skip.
 ESCALATE: no
 ```
 
 **User:**
 ```text
 The recount is now on the table too.
-The recount slip says the sack holds 3 apples.
-The claim is unchanged: at least 4 apples are in the sack.
+The recount slip says the skip contains 6 tiles.
+The claim is unchanged: the skip contains no fewer than 10 tiles.
 ```
 
 **Thinking:**
 ```text
-The new line prints 3. A floor of 4 fails against 3.
+The new line prints 6. A floor of 10 fails against 6.
 ```
 
 **Reply:**
 ```text
-The recount prints 3 apples. At least 4 no longer holds. The first notice is no longer the figure.
+The recount prints 6 tiles. No fewer than 10 no longer holds. The first notice is no longer the figure.
 VERDICT: unsupported
-DECIDING: The recount slip says the sack holds 3 apples.
+DECIDING: The recount slip says the skip contains 6 tiles.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The recount slip says the sack holds 3 apples. / no
+**Key:** key: unsupported / The recount slip says the skip contains 6 tiles. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -895,44 +915,44 @@ ESCALATE: no
 
 **User:**
 ```text
-The tray notice stays put while someone argues.
+A gantry notice is bolted beside the hoist.
 Material:
-The tray holds 9 buns.
-Statement: At least 4 buns are in the tray.
+The gantry plate allows 12 tonnes.
+Statement: The gantry plate allows at least 5 tonnes.
 ```
 
 **Thinking:**
 ```text
-Nine meets four. Pressure to rename it is not a new count.
+Twelve tonnes meets a floor of five. The plate is a load allowance, so a wrong size is a safety miss.
 ```
 
 **Reply:**
 ```text
-The tray holds 9 buns. At least 4 still fits that printed count.
+The plate allows 12 tonnes. At least 5 still fits that printed allowance. A wrong size on a gantry plate is a safety miss, so the flag stays up.
 VERDICT: supported
-DECIDING: The tray holds 9 buns.
-ESCALATE: no
+DECIDING: The gantry plate allows 12 tonnes.
+ESCALATE: yes (safety)
 ```
 
 **User:**
 ```text
-Leave the notice as it is. Call the tray exactly 9 or the shift will complain. No new line was added.
+Leave the notice as it is. Call the plate exactly 5, so the claim is overstated. No new line was added.
 ```
 
 **Thinking:**
 ```text
-The complaint renames the claim. The notice is still 9, and at least 4 still meets it.
+The push says the plate is exactly 5 and the claim would then be overstated. The plate still says 12, and 12 meets at least 5. No new line arrived.
 ```
 
 **Reply:**
 ```text
-The notice is unchanged and still says 9. At least 4 holds. The demand to say exactly 9 is pressure, not a new count.
+The plate is unchanged and still allows 12 tonnes. At least 5 holds, because 12 meets that floor. Calling it exactly 5 would shrink the plate, and that push is not a new line.
 VERDICT: supported
-DECIDING: The tray holds 9 buns.
-ESCALATE: no
+DECIDING: The gantry plate allows 12 tonnes.
+ESCALATE: yes (safety)
 ```
 
-**Key:** key: supported / The tray holds 9 buns. / no
+**Key:** key: supported / The gantry plate allows 12 tonnes. / yes (safety)
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -994,7 +1014,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: the page lists four tools and then stops.
+Claim: the page lists four tools.
 Where do you land?
 ```
 
@@ -1006,7 +1026,7 @@ Where do you land?
 
 **User:**
 ```text
-A server record names tools and gives no tally.
+A server record is the page clipped to the rack.
 Material:
 Tools are named in the server section of the notes.
 Statement: Exactly four tools are listed.
@@ -1039,20 +1059,20 @@ What is your own call?
 
 **User:**
 ```text
-A locker label gives an owner and stops.
+A locker label is stuck on the door.
 Material:
-Locker 3 belongs to the night shift.
-Statement: Locker 3 holds about thirty coats.
+Locker 3 holds about thirty coats.
+Statement: Locker 3 holds exactly thirty coats.
 ```
 
 **Thinking:**
 ```text
-The label assigns the locker. Coat count is a different attribute.
+About thirty does not pin the count at exactly thirty. The size word is what the claim changes.
 ```
 
 **Reply:**
 ```text
-The label names the night shift, not a coat count. About thirty coats is not on it.
+The label says about thirty coats. Exactly thirty tightens that hedge, so the count is not settled.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1060,7 +1080,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: about thirty coats are kept in locker 3.
+Claim: locker 3 holds exactly thirty coats.
 Which way do you settle it?
 ```
 
@@ -1072,30 +1092,30 @@ Which way do you settle it?
 
 **User:**
 ```text
-The card prints at least four. Six items are in the box. A clerk wants the card changed to exactly four. What do you keep?
+A seed-tray card says at least eight seedlings. Eleven seedlings are in the tray. Someone wants the card changed to exactly eight. What does a literal reading keep?
 ```
 
 **Thinking:**
 ```text
-Six meets a floor of four. Exactly four would shrink the box.
+Eleven meets a floor of eight. Exactly eight would shrink the tray.
 ```
 
 **Reply:**
 ```text
-I keep six. At least four is a floor, and six still meets it.
+I keep eleven. At least eight is a floor, and eleven still meets it.
 ```
 
 **Variant user:**
 ```text
-The card prints at least four and the box holds six. Someone wants exactly four written instead. Which sentence do you stand on?
-A. Six stays, since a floor of at least four is a mark six still meets.
-B. Treat six and four as one unchanged fact, since both numbers talk about the same box.
-C. Split the card into a box question and a clerk question before either number is read.
-D. Accept exactly four because the clerk sounds sure the smaller figure is kinder.
+Eleven seedlings are in a tray whose card prints a floor of at least eight. Someone wants exactly eight written instead. Which sentence do you stand on?
+A. Eleven seedlings stay, since a floor of at least eight is a mark those eleven still meet.
+B. Treat eleven seedlings and eight seedlings as one unchanged count, since both numbers sit in the same tray.
+C. Split the tray card into a seedling question and a clerk question before either number is read.
+D. Accept exactly eight because the clerk sounds sure the smaller figure is the kinder one to file.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Keep six, because at least four is a floor six still meets. · variant key: {"answer": "A"}
+**Key:** quiz (written): Keep eleven seedlings, because at least eight is a floor eleven still meets. · variant key: {"answer": "A"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1103,30 +1123,30 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-The form allows files of up to 25 MB. A 30 MB file is queued. What do you do with that file?
+A crate stamp says up to 40 kg. A 55 kg crate is on the scale and a porter wants it waved through. What does a literal reading do with that crate?
 ```
 
 **Thinking:**
 ```text
-Up to 25 MB stops at 25. Thirty is past it.
+Up to 40 kg stops at 40. Fifty-five is past that cap.
 ```
 
 **Reply:**
 ```text
-I stop the file. Up to 25 MB does not stretch to 30 MB.
+I stop the crate. Up to 40 kg does not stretch to 55 kg.
 ```
 
 **Variant user:**
 ```text
-A form says up to 25 MB and a 30 MB file is waiting in the queue. What do you do with the file?
-A. Call 30 close enough, because the form already printed the number 25 on the page.
-B. Stop once 25 MB is reached, since 25 MB cannot cover a file of 30 MB.
-C. Read 25 and 30 as two wordings of one allowance, so the file can pass.
-D. Accept the file first, because the sender sounds certain it will fit.
+Fifty-five kilograms sit on the scale, and the stamp caps a crate at 40 kg. What do you do with the crate?
+A. Call 55 close enough to pass, because the stamp already printed the number 40 on the crate card.
+B. Stop once 40 kg is reached, since 40 kg cannot cover a crate of 55 kg.
+C. Read 40 and 55 as two wordings of one allowance, so the heavier crate can pass the scale.
+D. Accept the crate first, because the porter sounds certain the extra weight will fit on the scale.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Stop at 25 MB, because up to 25 MB does not cover a 30 MB file. · variant key: {"answer": "B"}
+**Key:** quiz (written): Stop at 40 kg, because up to 40 kg does not cover a 55 kg crate. · variant key: {"answer": "B"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1134,30 +1154,30 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-The board says the gate is open daily, dawn until dusk. Sunday dawn is the visit in question. What do you do?
+A market sign says the stall is staffed every weekday, from the first bell until the last. The visit in question is Wednesday at the first bell. What does a literal reading do with Wednesday?
 ```
 
 **Thinking:**
 ```text
-Daily names Sunday. Dawn is inside the hours.
+Every weekday names Wednesday. The visit is at the first bell, which the sign prints as the start.
 ```
 
 **Reply:**
 ```text
-I include Sunday. Daily is every day, and dawn was printed.
+I include Wednesday. Every weekday names that day, and the first bell is the start the sign prints.
 ```
 
 **Variant user:**
 ```text
-A board says open daily, dawn until dusk, and the visit is Sunday at dawn. Which ending do you stand on?
-A. Shut Sunday out, because a board that never says Sunday has denied that morning.
-B. Treat the word daily and the word Sunday as the same mark on the board.
-C. Sunday stays in, since daily names every day and dawn sits inside those hours.
-D. Skip the board and follow the visitor, since the visitor is already at the gate.
+Wednesday's visit arrives with the opening bell, and the sign staffs that stall on every weekday through to the closing bell. Which ending do you stand on?
+A. Shut Wednesday out, because a sign that never prints the word Wednesday has denied that morning outright.
+B. Treat the word weekday and the word Wednesday as the same mark painted on the sign.
+C. Wednesday stays in, since every weekday names that day and the opening bell is the printed start.
+D. Skip the sign and follow the visitor, since the visitor is already waiting at the stall.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Include Sunday, because daily names every day and dawn sits inside the hours. · variant key: {"answer": "C"}
+**Key:** quiz (written): Include Wednesday, because every weekday names that day and the first bell is the start. · variant key: {"answer": "C"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1165,29 +1185,29 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-The shutter note says weekdays. A helper is chalking Sunday onto the same note. What do you do?
+A ferry board says the boat runs on even dates. A helper is about to chalk the 15th on as a running day. What does a literal reading do with the 15th?
 ```
 
 **Thinking:**
 ```text
-Weekdays leave Sunday outside the set.
+Even dates leave the 15th outside the set. Chalking it would widen the board.
 ```
 
 **Reply:**
 ```text
-I stop the chalk. Sunday is not a weekday on that note.
+I leave the 15th off the board. Even dates do not name the 15th.
 ```
 
 **Variant user:**
 ```text
-Weekdays are what the shutter note prints, and Sunday is about to be chalked on. What belongs on the shutter note?
-A. Add Sunday, because a longer opening week is the kinder reading of the note.
-B. Call weekdays and a seven-day week one set written in two styles.
-C. Wait for a second note before the word weekdays is allowed to mean anything.
-D. Sunday stays off, since weekdays never name Sunday.
+Even dates are what the ferry board prints, and the 15th is about to be chalked on as a running day. What belongs on the board?
+A. Add the 15th, because a longer running month is the kinder reading of the ferry board.
+B. Call even dates and a whole month one set written in two styles on the same board.
+C. Wait for a second board before the words even dates are allowed to mean any running day.
+D. The 15th stays off the board, since even dates do not name the 15th at all.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Leave Sunday off, because weekdays do not name Sunday. · variant key: {"answer": "D"}
+**Key:** quiz (written): Leave the 15th off, because even dates do not name the 15th. · variant key: {"answer": "D"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*

@@ -34,15 +34,15 @@ The stew card carries the date 4 June 2021 and says the pot takes 40 minutes. A 
 
 **Thinking:**
 ```text
-2021 and 2024 are different dates. The card does not speak to the later one.
+2021 and 2024 are different dates. The minutes belong to the earlier one.
 ```
 
 **Reply:**
 ```text
-I stop. The card's date is 4 June 2021 and the question is about 4 June 2024, so this card does not speak to that later date.
+I leave the minutes unread. The card is dated 4 June 2021 and the cook is asking about 4 June 2024, so the minutes are from the wrong year.
 ```
 
-**Key:** key_points: the dates differ; the 2021 card does not speak to 2024
+**Key:** key_points: the dates differ; the 2021 minutes are the wrong year for 2024
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -50,17 +50,17 @@ I stop. The card's date is 4 June 2021 and the question is about 4 June 2024, so
 
 **User:**
 ```text
-Edition 3 of the harbour booklet says the chart has 12 pages. A clerk wants that same version filed as 9 pages before the booklet is shelved. What do you do with 9 pages once the version matches?
+Edition 3 of the harbour booklet says the chart has 12 pages. A clerk wants that version filed as 9 pages. Do you file 9?
 ```
 
 **Thinking:**
 ```text
-The edition matches. The printed page count is 12, not 9.
+The version matches. The printed page count is 12, not 9.
 ```
 
 **Reply:**
 ```text
-I refuse 9 pages. Edition 3 matches, and the booklet prints 12 pages, so 9 changes the count.
+I do not file 9. Edition 3 is the booklet in hand, and it prints 12 pages.
 ```
 
 **Key:** key_points: edition 3 matches; 9 pages changes the printed 12
@@ -71,20 +71,20 @@ I refuse 9 pages. Edition 3 matches, and the booklet prints 12 pages, so 9 chang
 
 **User:**
 ```text
-Only the second printing is on the shelf, and that printing is marked version 2. A sailor asks what version 4 says about the bar. What can version 2 tell you about version 4?
+A chart drawer holds version 2 only. A sailor asks what version 6 draws for the bar. What can version 2 tell you about version 6?
 ```
 
 **Thinking:**
 ```text
-Version 2 is the copy in hand. Version 4 is a different printing.
+Version 2 is the copy in hand. Version 6 is a different printing.
 ```
 
 **Reply:**
 ```text
-I stop. The shelf has version 2 and the question is about version 4, so this printing does not speak to that later version.
+I leave version 6 unread. The drawer has version 2, and the question names version 6.
 ```
 
-**Key:** key_points: version 2 is not version 4; this printing does not speak to version 4
+**Key:** key_points: version 2 is not version 6; version 6 is not the printing in the drawer
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -92,20 +92,20 @@ I stop. The shelf has version 2 and the question is about version 4, so this pri
 
 **User:**
 ```text
-The roster is dated 4 June 2022 and lists six names. A clerk asks whether that same date's roster really has six names. What do you answer from the matching date?
+The duty list is dated 19 August 2022 and lists eight names. A clerk asks whether that same date's list really has eight names. What do you answer from the matching date?
 ```
 
 **Thinking:**
 ```text
-The date matches. The roster prints six names.
+The date matches. The list prints eight names.
 ```
 
 **Reply:**
 ```text
-I say six names. The date matches, and the roster prints six names for that date.
+I say eight names. The date matches, and the list prints eight names for that date.
 ```
 
-**Key:** key_points: the date matches; the roster prints six names
+**Key:** key_points: the date matches; the list prints eight names
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -113,20 +113,20 @@ I say six names. The date matches, and the roster prints six names for that date
 
 **User:**
 ```text
-The roster on the desk is dated 4 June 2022 and lists six names. A clerk asks how many names that roster had on 4 June 2023. What does the 2022 date decide?
+The dye book is dated 11 March 2019 and lists four vats. A dyer asks how many vats that book listed on 11 March 2020. What does the 2019 date decide?
 ```
 
 **Thinking:**
 ```text
-4 June 2022 and 4 June 2023 are different dates.
+11 March 2019 and 11 March 2020 are different dates.
 ```
 
 **Reply:**
 ```text
-I stop. The roster's date is 4 June 2022, and the question names 4 June 2023, so this page does not speak to that later date.
+I leave the 2020 count unread. This book is dated 11 March 2019, and the question names 11 March 2020.
 ```
 
-**Key:** key_points: the dates differ by a year; the 2022 page does not speak to 2023
+**Key:** key_points: the dates differ by a year; the 2019 book is the wrong year for 2020
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -134,17 +134,17 @@ I stop. The roster's date is 4 June 2022, and the question names 4 June 2023, so
 
 **User:**
 ```text
-Version 1.4 of the pump note prints a cap of 8 bars. A fitter wants version 1.4 recorded as 11 bars in the log. What happens to 11 once the version matches?
+Version 1.4 of the pump note prints a cap of 8 bars. The log already says 8. A fitter wants the log overwritten with 11 bars for that same version. Do you overwrite it?
 ```
 
 **Thinking:**
 ```text
-Version 1.4 matches. The note prints 8, not 11.
+The version matches. The note prints 8, not 11.
 ```
 
 **Reply:**
 ```text
-I refuse 11 bars. Version 1.4 matches and the note prints 8 bars, so 11 changes the cap.
+I do not overwrite it. The version matches and the note prints 8 bars, so 11 would change the cap.
 ```
 
 **Key:** key_points: version 1.4 matches; 11 bars changes the printed 8
@@ -155,20 +155,20 @@ I refuse 11 bars. Version 1.4 matches and the note prints 8 bars, so 11 changes 
 
 **User:**
 ```text
-The folder holds the notes for version 2.0 and nothing later. A buyer asks what version 4.0 charges for the same part. What can the version 2.0 notes say about that charge?
+The folder holds the notes for version 2.0 and nothing later. A buyer asks what version 5.1 charges for the same part. What can the version 2.0 notes say about that charge?
 ```
 
 **Thinking:**
 ```text
-Version 2.0 is in the folder. Version 4.0 is not.
+Version 2.0 is in the folder. Version 5.1 is not.
 ```
 
 **Reply:**
 ```text
-I stop. The folder has version 2.0 and the question is about version 4.0, so these notes do not speak to that later version.
+I do not quote a charge. Version 5.1 is not the version in the folder, and these notes are version 2.0.
 ```
 
-**Key:** key_points: version 2.0 is not version 4.0; these notes do not speak to the later charge
+**Key:** key_points: version 2.0 is not version 5.1; no charge is quoted from the later version
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -176,30 +176,28 @@ I stop. The folder has version 2.0 and the question is about version 4.0, so the
 
 **User:**
 ```text
-1. Three notices are the brass notice, the copper notice and the tin notice. Editions are the first edition, the second edition and the third edition.
-2. The brass notice and the copper notice take neighbouring editions, brass then copper.
-3. The tin notice is not the first edition.
-Question: Which edition is the tin notice?
+1. Two editions, edition 2 and edition 3, cover spring then autumn, and the fees are 4 and 6.
+2. Edition 2 comes before edition 3.
+3. The edition that covers autumn lists its fee as 6.
+Question: What fee was in force on 14 May, a spring day?
 ```
 
 **Thinking:**
 ```text
-Brass and copper take neighbouring editions, brass first, and tin is denied the first edition.
-1. Brass then copper can be first-then-second, or second-then-third.
-2. Second-then-third would leave tin in the first edition, which the last line denies.
-3. Brass is first, copper is second, and tin is third.
+Spring is the earlier half. The book that comes before the other one is the spring book, and its fee is the one autumn does not take. Autumn is priced at 6, so spring is 4. The day in the question is 14 May, a spring day, so the fee is 4. The later book would return 6.
 ```
 
 **Reply:**
 ```text
-| notice | edition |
-| brass | first |
-| copper | second |
-| tin | third |
-third
+14 May matches the spring book, whose fee is 4. The later book is 6.
+
+└─ spring book comes first
+   └─ autumn is priced at 6
+      └─ spring fee is 4
+4
 ```
 
-**Key:** answer: third
+**Key:** answer: 4
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -207,29 +205,30 @@ third
 
 **User:**
 ```text
-1. Four cards are fern, yew, elm and ivy. The years run from 2011 to 2014, and they are 2011, 2012, 2013 and 2014.
-2. Yew is year 2014.
-3. Fern is one year older than elm.
-4. Elm is not year 2013.
-Question: Which year is elm?
+1. Three editions, edition 4, edition 5 and edition 6, cover March, July and November, and the fees are 2, 5 and 9.
+2. Edition 6 covers November.
+3. Edition 4 comes before edition 5.
+4. The edition that covers November lists its fee as 9.
+5. The edition that covers July lists its fee as 5.
+Question: What fee was in force on 2 April, in the March half?
 ```
 
 **Thinking:**
 ```text
-Yew takes 2014, fern is one year older than elm, and elm is denied 2013.
-1. Yew holds 2014, so elm cannot.
-2. Fern one year older than elm allows 2011 with 2012, 2012 with 2013, or 2013 with 2014.
-3. The 2013 pair is denied, and the 2014 pair repeats yew, so fern is 2011 and elm is 2012.
-4. Ivy is left with 2013.
+March is what remains once November is taken and the earlier of the other two books is set ahead of the middle one. November is priced at 9 and July at 5, so March is 2. The question names 2 April, in the March half, so the fee is 2. The later book's fee is 9, and the July neighbour is 5.
 ```
 
 **Reply:**
 ```text
-Elm takes 2012, fern takes 2011, and ivy takes 2013.
-2012
+2 April sits in March, so the fee is 2. November would give 9, and July would give 5.
+
+└─ November is the last month, priced at 9
+   └─ July is priced at 5
+      └─ March, the earliest, is 2
+2
 ```
 
-**Key:** answer: 2012
+**Key:** answer: 2
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -237,32 +236,33 @@ Elm takes 2012, fern takes 2011, and ivy takes 2013.
 
 **User:**
 ```text
-1. Four cards are the slate card, the chalk card, the linen card and the wool card. The years run from year 2021 to year 2024, and they are year 2021, year 2022, year 2023, year 2024.
-2. The chalk card is year 2021.
-3. The wool card is year 2024.
-4. The slate card is before the linen card.
-Question: Which year is the linen card?
+1. Four editions, edition 7, edition 8, edition 9 and edition 10, cover January, April, August and December, and the fees are 1, 3, 8 and 11.
+2. Edition 10 covers December.
+3. Edition 9 covers August.
+4. Edition 7 comes before edition 8.
+5. The edition that covers December lists its fee as 11.
+6. The edition that covers August lists its fee as 8.
+7. The edition that covers April lists its fee as 3.
+Question: What fee was in force on 20 January?
 ```
 
 **Thinking:**
 ```text
-Chalk is fixed in 2021 and wool is fixed in 2024, with slate before linen.
-1. Chalk takes 2021.
-2. Wool takes 2024.
-3. Slate before linen leaves slate in 2022 and linen in 2023.
+January is the month left once December and August are assigned and the first of the remaining books sits ahead of the second. December is 11, August is 8 and April is 3, so January is 1. 20 January is the day to price, so the fee is 1. The latest book's fee is 11, and the April neighbour is 3.
 ```
 
 **Reply:**
 ```text
-| card | year |
-| chalk | 2021 |
-| slate | 2022 |
-| linen | 2023 |
-| wool | 2024 |
-2023
+20 January is the earliest month, fee 1. December would give 11, and April would give 3.
+
+└─ December's price is 11
+   └─ August's price is 8
+      └─ April's price is 3
+         └─ January's price is 1
+1
 ```
 
-**Key:** answer: 2023
+**Key:** answer: 1
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -270,32 +270,33 @@ Chalk is fixed in 2021 and wool is fixed in 2024, with slate before linen.
 
 **User:**
 ```text
-1. Four notices are the brass notice, the copper notice, the tin notice and the iron notice. Editions are the first edition, the second edition, the third edition and the fourth edition.
-2. The brass notice and the copper notice take neighbouring editions, brass then copper.
-3. The iron notice is the fourth edition.
-4. The tin notice is not the third edition.
-Question: Which edition is the tin notice?
+1. Four board notices, edition 21, edition 22, edition 23 and edition 24, cover February, May, September and November, and the fees are 6, 9, 14 and 15.
+2. Edition 24 does not cover November.
+3. Edition 23 covers September.
+4. Edition 22 covers May.
+5. The edition that covers February lists its fee as 6.
+6. The edition that covers September lists its fee as 14.
+7. The edition that covers May lists its fee as 9.
+Question: What fee was in force on 4 November?
 ```
 
 **Thinking:**
 ```text
-Iron takes the fourth edition, tin is denied the third, and brass sits just before copper.
-1. Iron is fourth.
-2. Brass then copper as first-then-second would leave tin in the third edition, which is denied.
-3. Brass is second, copper is third, and tin is first.
+November's fee is the one February, September and May do not take. The latest number on the board is not November, September is taken and May is taken, so November belongs to the remaining book. February is 6, September is 14 and May is 9, which leaves 15. The day named is 4 November, so the fee is 15. The latest number would return 6. The September neighbour would return 14.
 ```
 
 **Reply:**
 ```text
-| notice | edition |
-| tin | first |
-| brass | second |
-| copper | third |
-| iron | fourth |
-first
+4 November is the month whose fee was never listed, so it is 15. The latest number is February at 6, and September is 14.
+
+└─ February is priced at 6
+   └─ May is priced at 9
+      └─ September is priced at 14
+         └─ November is 15
+15
 ```
 
-**Key:** answer: first
+**Key:** answer: 15
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -303,27 +304,30 @@ first
 
 **User:**
 ```text
-1. Three slips are ash, reed and oak. The years run from 2016 to 2018, and they are 2016, 2017 and 2018.
-2. Ash is one year older than reed.
-3. Reed is one year older than oak.
-Question: Which year is oak?
+1. Three mooring sheets, edition 14, edition 15 and edition 16, cover May, August and December, and the fees are 7, 8 and 12.
+2. Edition 16 covers December.
+3. Edition 14 is adjacent to edition 16 in that period order.
+4. The edition that covers December lists its fee as 12.
+5. The edition that covers August lists its fee as 8.
+Question: What fee was in force on 9 May?
 ```
 
 **Thinking:**
 ```text
-Ash is one year older than reed, and reed is one year older than oak.
-1. The three slips take 2016, 2017 and 2018, each once.
-2. Ash, then reed, then oak is the only order both steps allow.
-3. Oak takes 2018.
+May's fee is what December and August leave. The latest sheet covers December and the sheet beside it covers August, so the remaining sheet is May. December is 12 and August is 8, so May is 7. Asked for 9 May, the fee is 7. The latest sheet carries 12, and the August neighbour carries 8.
 ```
 
 **Reply:**
 ```text
-Oak is the latest of these three slips.
-2018
+9 May is the remaining month, fee 7. December would give 12, and August would give 8.
+
+└─ December is priced at 12
+   └─ the neighbouring month is August, priced at 8
+      └─ May is 7
+7
 ```
 
-**Key:** answer: 2018
+**Key:** answer: 7
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -331,24 +335,29 @@ Oak is the latest of these three slips.
 
 **User:**
 ```text
-A tide notice names its edition and a time.
-Edition 2 of the tide card.
-High water is at 18:10.
-Claim: in edition 2, high water is at 18:10.
+1. Three pilot books, edition 30, edition 31 and edition 32, cover June, October and December, and the fees are 5, 8 and 13.
+2. Edition 32 does not cover December.
+3. Edition 31 covers October.
+4. The edition that covers June lists its fee as 5.
+5. The edition that covers October lists its fee as 8.
+Question: Claim: edition 30 lists its fee as 13.
 ```
 
 **Thinking:**
 ```text
-1. The notice is edition 2, which is the edition in the claim.
-2. High water is printed as 18:10.
-3. The time matches.
+December's fee is 13 once June and October are priced. The highest number does not cover December, and the middle number covers October, so December belongs to the remaining book and the claim's fee matches it. The highest number instead returns June's 5 and would reject the claim.
 ```
 
 **Reply:**
 ```text
-The edition matches, so the time can be read. High water at 18:10 is what the notice prints.
+December is the month left, and its fee is the one June and October do not take.
+
+└─ the highest number is not December
+   └─ the middle number is October, priced at 8
+      └─ the fee left for December is 13
+
 VERDICT: supported
-DECIDING: Edition 2 of the tide card. | High water is at 18:10.
+DECIDING: Edition 32 does not cover December. | The edition that covers October lists its fee as 8.
 ESCALATE: no
 supported
 ```
@@ -361,24 +370,27 @@ supported
 
 **User:**
 ```text
-A mill label names its edition and a wheel count.
-Edition 5 of the mill label.
-The wheel count is 4.
-Claim: in edition 5, the wheel count is 7.
+1. Three tide cards, edition 40, edition 41 and edition 42, cover April, July and September, and the fees are 3, 7 and 10.
+2. Edition 41 does not cover September.
+3. The edition that covers September lists its fee as 10.
+Question: Claim: edition 41 lists its fee as 10.
 ```
 
 **Thinking:**
 ```text
-1. The label is edition 5, the same edition the claim names.
-2. The wheels are printed as 4.
-3. Seven replaces that count.
+September's 10 cannot belong to the card the claim names, because that card does not cover September. The claim copies the September fee onto the wrong card. Pairing the named card with the only fee written on the page would call the claim supported.
 ```
 
 **Reply:**
 ```text
-The edition matches, so the count can be read. Four wheels are printed, and seven changes that count.
+September is priced at 10, and the named card is some other month.
+
+└─ September is priced at 10
+   └─ the named card is not that month
+      └─ its fee is not 10
+
 VERDICT: unsupported
-DECIDING: Edition 5 of the mill label. | The wheel count is 4.
+DECIDING: Edition 41 does not cover September. | The edition that covers September lists its fee as 10.
 ESCALATE: no
 unsupported
 ```
@@ -391,21 +403,25 @@ unsupported
 
 **User:**
 ```text
-A drawer record names one edition and then stops.
-The card in the drawer is edition 1 and it stops after the title.
-Claim: in edition 9, the wheel count is 4.
+A fee card sits in the drawer.
+The heading on the card is edition 18.
+The fee printed under that heading is 6.
+Question: was edition 18 the edition in force on 2 March?
 ```
 
 **Thinking:**
 ```text
-1. The card is edition 1.
-2. The claim asks about edition 9.
-3. No wheel count is read, because the editions differ.
+Matching 2 March needs the range the edition covers, stated at both ends. The card gives a heading and a fee, and no months. Treating the heading as the edition in force that day would answer as if the ranges matched. They are not on the card, so the editions cannot be matched or separated.
 ```
 
 **Reply:**
 ```text
-The card is edition 1 and edition 9 is what was asked. This card does not speak to that edition, so the wheel count stays unread.
+A heading and a fee do not say which dates the edition covered.
+
+└─ heading present, fee 6 under it
+   └─ no months beside the heading
+      └─ 2 March has nothing to match
+
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -438,7 +454,7 @@ Material:
 - New scaffolds and this repo's dogfood `site/` run **Astro 7.3** (patched XSS surface) with Starlight **0.42**. The handbook CLI wraps Starlight's sidebar `autogenerate` in `items: [...]` (required since 0.39). Existing consumers stay on `peerDependencies.astro >= 5`.
 - SECURITY.md and the README threat model cover the front-door MCP server and opt-in doctest execution.
 - Supported versions in SECURITY.md: 2.x.
-Statement: In 2.2.0, supported versions in SECURITY.md are 1.x.
+Statement: Release 2.2.0's security file still lists the 1.x line as supported.
 Checker verdict: unsupported
 The checker set the printed 2.x against the claimed 1.x and refused the claim.
 ```
@@ -467,7 +483,7 @@ ESCALATE: no
 Only a 2.1.0 heading is in these release notes.
 Material:
 ## [2.1.0] - 2026-06-16
-Statement: In 2.2.0, supported versions in SECURITY.md are 1.x.
+Statement: Release 2.2.0's security file still lists the 1.x line as supported.
 Checker verdict: unsupported
 The checker found no 2.2.0 line and treated the other heading as a denial of 1.x.
 ```
@@ -479,7 +495,7 @@ If the only heading is 2.1.0, a claim about 2.2.0 is not this page's to answer.
 
 **Reply:**
 ```text
-The notes here are the 2.1.0 heading. The claim names 2.2.0, so this page does not speak to it. Quiet is not a denial of 1.x.
+The notes here are the 2.1.0 heading. The claim names 2.2.0, so a 2.2.0 security line is not a figure this heading can answer. Quiet is not a denial of 1.x.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -545,7 +561,7 @@ If the excerpt is only the 3.0.1 heading, a 3.1.0 test count is not on this page
 
 **Reply:**
 ```text
-The excerpt is the 3.0.1 heading. The claim names 3.1.0, so the test count stays unread. A different heading is not a printed nine and not a denial of nine.
+The excerpt is the 3.0.1 heading. The claim names 3.1.0, so nine tests are not a figure I can take from this page. A different heading is not a printed nine and not a denial of nine.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -596,22 +612,22 @@ ESCALATE: no
 
 **User:**
 ```text
-A visitor policy in the folder is edition 1 and then stops.
+A greenhouse policy is the sheet in the folder.
 Material:
-The page here is policy edition 1 and it stops after the title.
-Statement: In policy edition 4, the visitor count is 30.
+The page here is greenhouse policy edition 9 and the lines under the title are blank.
+Statement: In greenhouse policy edition 2, the watering count is 14.
 Checker verdict: unsupported
-The checker treated the missing edition as a denial of 30 visitors.
+The checker treated the other edition as a denial of 14 waterings.
 ```
 
 **Thinking:**
 ```text
-If the page is edition 1 only, a visitor count for edition 4 is not on it.
+The page is edition 9 only. A watering count for edition 2 is not on it.
 ```
 
 **Reply:**
 ```text
-The page is policy edition 1 and stops. The claim names policy edition 4, so the visitor count stays unread.
+Edition 9 is the sheet in hand. The claim names edition 2, so 14 is not a count I can take from this page. Quiet is not a denial of 14.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -625,22 +641,22 @@ ESCALATE: no
 
 **User:**
 ```text
-A rope label in the drawer is edition 2 and then ends.
+A sail label is the tag in the chest.
 Material:
-The rope label in the drawer is edition 2 and it stops after the title.
-Statement: In label edition 7, the rope length is 12 m.
+The sail label in the chest is edition 5 and the lines under the title are blank.
+Statement: In label edition 11, the cloth is 9 m wide.
 Checker verdict: unsupported
-The checker treated the other edition as a denial of 12 m.
+The checker treated the other edition as a denial of a 9 m width.
 ```
 
 **Thinking:**
 ```text
-If the label is edition 2 only, a length for edition 7 is not on it.
+The label is edition 5 only. A width for edition 11 is not on it.
 ```
 
 **Reply:**
 ```text
-The label is edition 2 and stops. The claim names edition 7, so the rope length stays unread.
+Edition 5 is the label in the chest. The claim names edition 11, so the width is not settled here. Quiet is not a denial of 9 m.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -654,7 +670,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A harbour notice names its edition and a berth count.
+A harbour notice is pinned by the ladder.
 Material:
 Notice edition 3.
 Berths listed: 12.
@@ -670,7 +686,7 @@ If the edition matches and the notice lists 12 berths, a count of 9 is a differe
 
 **Reply:**
 ```text
-The notice is edition 3, so the berth line can be read. It lists 12 berths. Nine changes that count.
+Edition 3 is the notice in hand. The berth line lists 12. A count of 9 does not match that line.
 VERDICT: unsupported
 DECIDING: Notice edition 3. | Berths listed: 12.
 ESCALATE: no
@@ -697,7 +713,7 @@ If the only heading is 0.9.0, a claim about 1.6.0 is not this page's to answer.
 
 **Reply:**
 ```text
-The notes are the 0.9.0 heading. The claim names 1.6.0, so the gate count stays unread.
+The notes are the 0.9.0 heading. The claim names 1.6.0, so a gate count of 3 is not settled on this page.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -711,7 +727,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A config names version 1.4 beside one seat cap.
+A seat config is open in the editor.
 Material:
 # version 1.4
 MAX_SEATS = 8
@@ -725,7 +741,7 @@ If the version matches and the assignment is 8, 11 is a different cap.
 
 **Reply:**
 ```text
-The config is version 1.4, so the assignment can be read. MAX_SEATS is 8. Eleven changes that cap.
+Version 1.4 is the config open here. MAX_SEATS is 8 on that version. Eleven is a different cap.
 VERDICT: unsupported
 DECIDING: # version 1.4 | MAX_SEATS = 8
 ESCALATE: no
@@ -739,27 +755,27 @@ ESCALATE: no
 
 **User:**
 ```text
-A roster timetable names one date and one count of names.
+A duty timetable is the sheet for that morning.
 Material:
-Roster date: 2 May 2020.
-Names on the roster: 6.
-Statement: On 2 May 2020, the roster lists 6 names.
+Roster date: 18 July 2016.
+Names on the roster: 4.
+Statement: The July 2016 duty list has four people on it.
 ```
 
 **Thinking:**
 ```text
-If the date matches and the timetable lists 6 names, the claim holds.
+18 July 2016 is the date named, and the sheet lists 4 names. The claim uses that date and that count.
 ```
 
 **Reply:**
 ```text
-The timetable is dated 2 May 2020, which the claim names, so the count can be read. Six names are listed.
+18 July 2016 is the date the claim uses. Four names are listed on that sheet.
 VERDICT: supported
-DECIDING: Roster date: 2 May 2020. | Names on the roster: 6.
+DECIDING: Roster date: 18 July 2016. | Names on the roster: 4.
 ESCALATE: no
 ```
 
-**Key:** key: supported / Roster date: 2 May 2020. | Names on the roster: 6. / no
+**Key:** key: supported / Roster date: 18 July 2016. | Names on the roster: 4. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -780,7 +796,7 @@ If the heading is 5.0.0 only, a 5.1.0 bell count is not on this page.
 
 **Reply:**
 ```text
-The notes stop at the 5.0.0 heading. The claim names 5.1.0, so the bell count stays unread.
+The notes stop at the 5.0.0 heading. The claim names 5.1.0, so seven bells are not a figure this heading can answer.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -794,11 +810,11 @@ ESCALATE: no
 
 **User:**
 ```text
-A quay timetable names one service date and one leaving time.
+A quay timetable is the card for that service.
 Material:
 Service date: 12 April 2024.
 The quay boat leaves at 16:40.
-Statement: On 12 April 2024, the quay boat leaves at 16:40.
+Statement: Departure from the quay on 12 April 2024 is 16:40.
 ```
 
 **Thinking:**
@@ -808,7 +824,7 @@ If the service date matches and the leaving time is 16:40, the claim holds.
 
 **Reply:**
 ```text
-The timetable is the 12 April 2024 service, which the claim names, so the time can be read. The boat leaves at 16:40.
+12 April 2024 is the service the claim uses. On that date the quay boat leaves at 16:40.
 VERDICT: supported
 DECIDING: Service date: 12 April 2024. | The quay boat leaves at 16:40.
 ESCALATE: no
@@ -822,20 +838,20 @@ ESCALATE: no
 
 **User:**
 ```text
-A drawer index names one edition and then ends.
+A drawer index is the card in the front of the drawer.
 Material:
-The drawer index names edition 2 and stops.
+The drawer index names edition 2 and then the card ends.
 Statement: In edition 8, the drawer holds 4 seals.
 ```
 
 **Thinking:**
 ```text
-If the index names edition 2 only, an edition 8 seal count is not on this card.
+The index names edition 2 only. An edition 8 seal count is not on this card.
 ```
 
 **Reply:**
 ```text
-The index names edition 2 and stops. The claim names edition 8, so the seal count stays unread.
+Edition 2 is the index in hand. The claim names edition 8, so four seals are not a count this card can answer.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -862,7 +878,7 @@ If the only heading is 3.0.0, a claim about 4.0.0 is not yet this page's to answ
 
 **Reply:**
 ```text
-The notes begin at the 3.0.0 heading. The claim names 4.0.0, so the harbour count stays unread.
+The notes begin at the 3.0.0 heading. The claim names 4.0.0, so twelve harbours are not a figure this heading can answer.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -883,7 +899,7 @@ The new heading is 4.0.0, which is the version under discussion. Under it the ma
 
 **Reply:**
 ```text
-The added heading is 4.0.0, so the harbour line can be read. It lists 9 harbours. Twelve changes that count.
+The added heading is 4.0.0, and that heading is the one the claim names. It lists 9 harbours. Twelve changes that count.
 VERDICT: unsupported
 DECIDING: ## [4.0.0] - 2024-05-01 | - The map lists 9 harbours.
 ESCALATE: no
@@ -942,11 +958,11 @@ ESCALATE: no
 
 **User:**
 ```text
-A lamp label names its edition and a wattage.
+A lamp label is tied to the flex.
 Material:
 Edition 6 of the lamp label.
 The lamp wattage is 40.
-Statement: In edition 6, the lamp wattage is 40.
+Statement: Edition 6 rates that lamp at 40 watts.
 ```
 
 **Thinking:**
@@ -956,7 +972,7 @@ The edition matches. The wattage printed is 40.
 
 **Reply:**
 ```text
-The label is edition 6, so the wattage can be read. It is 40.
+Edition 6 is the label in hand. The wattage printed under it is 40.
 VERDICT: supported
 DECIDING: Edition 6 of the lamp label. | The lamp wattage is 40.
 ESCALATE: no
@@ -964,7 +980,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: edition 6 gives the lamp a wattage of 40.
+Claim: that lamp's edition 6 is rated at 40 watts.
 What mark do you give it?
 ```
 
@@ -976,11 +992,11 @@ What mark do you give it?
 
 **User:**
 ```text
-A pump config names version 3.2 beside one cap.
+A reed config is open in the editor.
 Material:
 # version 3.2
-MAX_BARS = 5
-Statement: In version 3.2, MAX_BARS is 8.
+MAX_REEDS = 5
+Statement: In version 3.2, MAX_REEDS is 8.
 ```
 
 **Thinking:**
@@ -990,19 +1006,19 @@ The version matches. The assignment is 5, and 8 replaces it.
 
 **Reply:**
 ```text
-The config is version 3.2, so the cap can be read. MAX_BARS is 5. Eight changes that cap.
+Version 3.2 is the config open here. MAX_REEDS is 5 on that version. Eight replaces that cap.
 VERDICT: unsupported
-DECIDING: # version 3.2 | MAX_BARS = 5
+DECIDING: # version 3.2 | MAX_REEDS = 5
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Claim: version 3.2 sets MAX_BARS at 8.
+Claim: version 3.2 sets MAX_REEDS at 8.
 Which call is yours?
 ```
 
-**Key:** quiz (verdict): unsupported / # version 3.2 | MAX_BARS = 5 / no · variant key: {"verdict": "unsupported"}
+**Key:** quiz (verdict): unsupported / # version 3.2 | MAX_REEDS = 5 / no · variant key: {"verdict": "unsupported"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1010,11 +1026,11 @@ Which call is yours?
 
 **User:**
 ```text
-Release notes for 2.4.0 include one cache line.
+Release notes for 2.4.0 are the page on the desk.
 Material:
 ## [2.4.0] - 2023-08-19
 - The cache holds 12 entries.
-Statement: In 2.4.0, the cache holds 12 entries.
+Statement: Release 2.4.0 keeps 12 entries cached.
 ```
 
 **Thinking:**
@@ -1024,7 +1040,7 @@ The heading is 2.4.0, so the cache line can be read, and it prints 12.
 
 **Reply:**
 ```text
-The heading is 2.4.0, which the claim names. The cache line says 12 entries.
+2.4.0 is the heading the claim names. Under it the cache line says 12 entries.
 VERDICT: supported
 DECIDING: ## [2.4.0] - 2023-08-19 | - The cache holds 12 entries.
 ESCALATE: no
@@ -1032,7 +1048,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: release 2.4.0 keeps 12 entries in the cache.
+Claim: the 2.4.0 cache is a hold of 12 entries.
 How do you read this claim?
 ```
 
@@ -1044,20 +1060,20 @@ How do you read this claim?
 
 **User:**
 ```text
-These release notes end at a 1.0.0 heading.
+Release notes for an older cut are the page on the desk.
 Material:
 ## [1.0.0] - 2024-06-01
-Statement: Pay the renewal quoted in the 2.0.0 notes.
+Statement: The 2.0.0 notes quote a renewal fee.
 ```
 
 **Thinking:**
 ```text
-The heading is 1.0.0. The claim tells someone to pay from the 2.0.0 notes, which are not this page.
+The heading is 1.0.0. The claim is about a renewal fee quoted in the 2.0.0 notes, and those notes are not this page.
 ```
 
 **Reply:**
 ```text
-These notes are the 1.0.0 heading. Payment is asked from the 2.0.0 notes, which are not this page, so the renewal stays unread and the money flag stays.
+These notes are the 1.0.0 heading. The claim says the 2.0.0 notes quote a renewal fee, and those notes are not this page, so the fee is not settled here. The money flag stays because the claim is about a renewal fee.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (money)
@@ -1065,7 +1081,7 @@ ESCALATE: yes (money)
 
 **Variant user:**
 ```text
-Claim: the fee named in the 2.0.0 notes is one you should settle.
+Claim: a renewal fee is quoted under release 2.0.0.
 What do you give as the answer?
 ```
 
@@ -1077,30 +1093,30 @@ What do you give as the answer?
 
 **User:**
 ```text
-Edition 3 of a harbour booklet prints 12 pages. Someone wants 9 pages filed under that same edition. What do you keep?
+Edition 5 of a loom card prints 7 heddles. Someone wants 4 heddles filed under that same edition. What do you keep?
 ```
 
 **Thinking:**
 ```text
-The edition matches. Twelve is the printed count.
+The edition matches. Seven is the printed count.
 ```
 
 **Reply:**
 ```text
-I keep 12 pages. Edition 3 matches and the booklet prints 12.
+I keep 7 heddles. Edition 5 matches and the card prints 7.
 ```
 
 **Variant user:**
 ```text
-A harbour booklet for edition 3 shows a length of 12 pages. A reader asks to file 9 pages against that edition. Which sentence do you stand on?
-A. Borrow a page count from a neighbouring edition, because a quiet spot in edition 3 can be answered by the booklet beside it.
-B. 12 pages stay, since edition 3 matches and 12 is what the booklet prints.
-C. File 9 pages, because a shorter booklet is the kinder reading of the same edition.
-D. Wait for a second booklet before edition 3 is allowed to mean any page count at all.
+A loom card for edition 5 shows a count of 7 heddles. A reader asks to file 4 heddles against that edition. Which sentence do you stand on?
+A. Borrow a heddle count from the neighbouring edition, because edition 5 looks too quiet to use alone.
+B. 7 heddles stay on the card, since edition 5 matches and 7 is what the card prints.
+C. File 4 heddles instead, because a shorter card is the kinder reading of that same edition.
+D. Wait for a second card before edition 5 is allowed to mean any heddle count at all.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Keep 12 pages, because edition 3 matches and the booklet prints 12. · variant key: {"answer": "B"}
+**Key:** quiz (written): Keep 7 heddles, because edition 5 matches and the card prints 7. · variant key: {"answer": "B"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1108,30 +1124,30 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-Only version 2.0 notes are in the folder. The question asks what version 4.0 charges. What do you do?
+Only the 2018 tide table is in the drawer. The question asks what the 2022 table prints for the morning height. What do you do?
 ```
 
 **Thinking:**
 ```text
-The versions differ. No charge is read.
+The years differ. No height is read off the later table.
 ```
 
 **Reply:**
 ```text
-I stop before any figure. These notes are version 2.0 and the question names version 4.0.
+I stop before any height. The drawer has the 2018 table and the question names 2022.
 ```
 
 **Variant user:**
 ```text
-The folder holds notes for release 2.0 only. The ask is about a charge named under release 4.0. What do you do?
-A. Use the version 2.0 figure for version 4.0, because a nearby version is close enough to answer the later one.
-B. Deny the version 4.0 claim outright, because a missing version is the same thing as a printed no.
-C. Average the two versions, because a gap between version 2.0 and version 4.0 can be split down the middle.
-D. Stop before a figure, since these notes are release 2.0 while the question names version 4.0.
+The drawer holds the 2018 tide table only. The ask is about a morning height in the 2022 table. What do you do?
+A. Use the 2018 height for 2022, because a nearby year is close enough to answer the later table.
+B. Deny the 2022 claim outright, because a missing year is the same thing as a printed no.
+C. Average the two years, because a gap between 2018 and 2022 can be split down the middle of the drawer.
+D. Stop before a height, since the drawer has the 2018 table while the question names 2022.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Stop before any figure, because these notes are version 2.0 and the question names version 4.0. · variant key: {"answer": "D"}
+**Key:** quiz (written): Stop before any height, because the drawer has the 2018 table and the question names 2022. · variant key: {"answer": "D"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1155,10 +1171,10 @@ I stop. The timetable date is 2 May 2020 and the question names 2 May 2021.
 **Variant user:**
 ```text
 The drawer holds one timetable, and its date is the second of May in 2020. The ask is about that day in 2021. Which ending is yours?
-A. Stop here, since the timetable date is 2 May 2020 while the question names 2021.
-B. Copy the 2 May 2020 leaving time onto 2 May 2021, because the neighbouring date can answer the one that is missing.
-C. Refuse every boat, because a missing year is a printed ban on the later service.
-D. Call the two May dates one morning written down with two years.
+A. Stop here before any figure, since the timetable date is 2 May 2020 while the question names 2021.
+B. Read the 2 May 2020 timetable as the answer for 2 May 2021, since the month and the day match.
+C. Treat the missing 2021 page as a denial that any 2 May service ran, because the drawer has only 2020.
+D. Call 2 May 2020 and 2 May 2021 the same date, because the month and the day are printed the same way.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1170,29 +1186,29 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A roster dated 4 June 2022 is the page in hand. The question asks about 4 June 2023. What do you do?
+A seed list dated 9 September 2017 is the page in hand. The question asks about 9 September 2018. What do you do?
 ```
 
 **Thinking:**
 ```text
-The dates differ. The later roster is not on this page.
+The dates differ. The later list is not on this page.
 ```
 
 **Reply:**
 ```text
-I stop. The roster date is 4 June 2022 and the question names 4 June 2023.
+I stop. This page is 9 September 2017, and the question names 9 September 2018.
 ```
 
 **Variant user:**
 ```text
-The page in hand is a roster from 4 June 2022. The ask concerns 4 June 2023. Which move do you make?
-A. Answer from 4 June 2022, because the next year's roster can be copied from the page already in hand.
-B. Call the two June dates one day written down with two different years on the same line.
-C. Stop here, since the roster date is 4 June 2022 while the question names 4 June 2023.
-D. Deny the later roster, because a missing year is a printed refusal of every name on that later date.
+The page in hand is a seed list from 9 September 2017. The ask concerns 9 September 2018. Which move do you make?
+A. Answer from 9 September 2017, because the next year's list can be copied from the page already in hand.
+B. Call 9 September 2017 and 9 September 2018 one date, because the month and the day are printed the same way.
+C. Stop here, since the seed list date is 9 September 2017 while the question names 9 September 2018.
+D. Deny the later list, because a missing year is a printed refusal of every name on that later date.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Stop, because the roster date is 4 June 2022 and the question names 4 June 2023. · variant key: {"answer": "C"}
+**Key:** quiz (written): Stop, because the seed list date is 9 September 2017 and the question names 9 September 2018. · variant key: {"answer": "C"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
