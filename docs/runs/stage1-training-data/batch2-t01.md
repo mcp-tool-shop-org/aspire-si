@@ -174,7 +174,7 @@ The boast has no backing line. The page says the opposite.
 ```text
 The pull is the boast shape: a release that sounds as if every probability became exact. The backing line is not in the bullet. The CLI sentence says Monte-Carlo results are labelled not exact.
 VERDICT: unsupported
-DECIDING: The CLI labels Monte-Carlo results (`~ estimated via Monte Carlo (N samples) — not exact`).
+DECIDING: probabilities from sampled estimates. The CLI labels Monte-Carlo results | (`~ estimated via Monte Carlo (N samples) — not exact`).
 ESCALATE: no
 unsupported
 ```

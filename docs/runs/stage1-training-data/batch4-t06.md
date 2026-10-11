@@ -316,23 +316,19 @@ A pantry pair is the page.
 Material:
 The oats are in the jar.
 The rice is in the sack.
-Statement: The oats are in the jar and there is no rice.
 What does the page settle?
 ```
 
 **Thinking:**
 ```text
-Two claims sit in the statement. The oats are in the jar, and that line holds. The rice is in the sack, so a claim that there is no rice does not hold. The page settles both foods, and the rice line is the one the 'no rice' half cannot get past.
+Two lines sit on the page. One places the oats in the jar. The other places the rice in the sack. The page settles both, and each food stays on its own line.
 ```
 
 **Reply:**
 ```text
-The page settles the oats in the jar and the rice in the sack. 'No rice' does not hold.
-1. Oats in the jar holds.
-2. Rice in the sack is what the page prints.
-VERDICT: unsupported
-DECIDING: The rice is in the sack.
-ESCALATE: no
+The page settles both foods.
+1. The oats are in the jar.
+2. The rice is in the sack.
 oats=in the jar; rice=in the sack
 ```
 

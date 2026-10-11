@@ -316,9 +316,6 @@ At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
 | Clock | Rate |
 | --- | --- |
 | before 6pm, which covers 4pm | 2 pounds an hour |
-VERDICT: supported
-DECIDING: Before 6pm it costs 2 pounds an hour.
-ESCALATE: no
 2 pounds an hour
 ```
 
@@ -347,9 +344,6 @@ Yes. A single tenor is that count, and the line I cite keeps the numeral.
 | Line | Count |
 | --- | --- |
 | The choir has 1 tenor. | 1 tenor |
-VERDICT: supported
-DECIDING: The choir has 1 tenor.
-ESCALATE: no
 yes
 ```
 
@@ -378,9 +372,6 @@ No. The page sets the fee in pounds, so a dollar figure does not hold.
 | Printed | Claimed |
 | --- | --- |
 | 40 pounds | 40 dollars |
-VERDICT: unsupported
-DECIDING: The call-out fee is 40 pounds.
-ESCALATE: no
 no
 ```
 
@@ -726,25 +717,23 @@ Material:
   "name": "@mcptoolshop/repo-knowledge",
   "version": "2.1.1",
   "description": "Repo knowledge system — relational catalog with full-text search, audit evidence, and MCP access",
-Statement: The version is 2.1.1 and the license field says Apache-2.0.
+Statement: The version is 2.1.1.
 ```
 
 **Thinking:**
 ```text
-The version half has an exact line: the version field prints 2.1.1.
-The license half needs its own exact line, and none of the three lines is a license field.
-Both lines would be needed. I do not supply Apache-2.0 from outside the manifest.
+The claim names a version of 2.1.1. I look for that number on a version line. The version line prints "version": "2.1.1", so the claim has its line. The description beside it talks about a catalog and search, and it holds no second copy of the number. If the claim is the version, the version line is the line I cite. The description does not qualify the number.
 ```
 
 **Reply:**
 ```text
-I can quote the version line, which prints 2.1.1. No line prints a license field, so the second half has no exact words to point to. Both halves are needed, and I do not fill the missing one.
-VERDICT: cannot_tell
-DECIDING: NONE
+The version line prints 2.1.1. The description does not carry that number.
+VERDICT: supported
+DECIDING:   "version": "2.1.1",
 ESCALATE: no
 ```
 
-**Key:** key: cannot_tell / NONE / no
+**Key:** key: supported /   "version": "2.1.1", / no
 
 *mcp-tool-shop-org/repo-knowledge@4435870bbfdf:package.json#L2-L4 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -1088,33 +1077,31 @@ The towels are stacked in tens. What do you answer?
 ```text
 A path note is stuck to the gate.
 Material:
-The footpath is closed past the oak.
-The cycle lane stays open past the oak.
-Statement: The footpath is closed past the oak and the cycle lane stays open past the oak.
+The footpath is closed past the oak when the river is high.
+Statement: The footpath is closed past the oak.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-The claim has two halves, and each half needs its own exact line.
-The footpath sentence says the footpath is closed past the oak.
-The cycle lane sentence says the cycle lane stays open past the oak.
-Both lines are needed, and both are quoted whole. Neither line covers the other way.
+The statement copies the opening of the line and leaves off the river.
+The line says the closure holds when the river is high.
+A matching opening is not the whole line, so the closure is not settled.
 ```
 
 **Reply:**
 ```text
-The note's exact words close the footpath past the oak and keep the cycle lane open past the oak. Both lines are needed, and both are quoted whole.
-VERDICT: supported
-DECIDING: The footpath is closed past the oak. | The cycle lane stays open past the oak.
+The note closes the footpath past the oak when the river is high. The statement stops before that condition, so the matching words do not settle the closure.
+VERDICT: cannot_tell
+DECIDING: NONE
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Past the oak, the footpath is closed and the cycle lane stays open. What do you answer?
+Read the gate note once more. It says the footpath is closed past the oak when the river is high. Statement: The footpath is closed past the oak. What do you answer?
 ```
 
-**Key:** quiz (verdict): supported / The footpath is closed past the oak. | The cycle lane stays open past the oak. / no · variant key: {"verdict": "supported"}
+**Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
 
 *invented: verdict question and variant, written for this item (key by construction)*
