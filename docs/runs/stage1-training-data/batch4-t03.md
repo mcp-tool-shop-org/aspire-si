@@ -134,14 +134,14 @@ I point to 2026-05-04, the form the page printed. 4 May 2026 is that same day, s
 
 **User:**
 ```text
-A precise person does not treat a numeral and its word as a quarrel. Four hundred and 400 can be one count. What must stay exact is the line you point to, digits and marks included.
+A precise person does not treat a numeral and its word as a quarrel. Two hundred and fifty and 250 can be one count. What must stay exact is the line you point to, digits and marks included.
 
-The page prints 400 and the claim says four hundred. What do you point to?
+The page prints 250 and the claim says two hundred and fifty. What do you point to?
 ```
 
 **Reply:**
 ```text
-I point to the printed 400, marks and all. Four hundred is that count, so I do not send the claim back for speaking the word. The pointed-to digits do not switch to the word.
+I point to the printed 250, marks and all. Two hundred and fifty is that count, so I do not send the claim back for speaking the word. The pointed-to digits do not switch to the word.
 ```
 
 **Key:** key_points: a numeral and its word can be one count; point to the printed digits; the quote does not switch to the claim's word
@@ -152,26 +152,26 @@ I point to the printed 400, marks and all. Four hundred is that count, so I do n
 
 **User:**
 ```text
-Eight tins sit in a row.
-The tea is allowed in every tin the row names.
-The catalogue on the shelf calls those tins containers.
-Question: Which word names what may hold the tea, tins or containers?
+Eight bins stand in a row, and the third bin is painted tin.
+The catalogue on the shelf calls every bin a container.
+Question: Which word does the row itself paint on the third bin?
 ```
 
 **Thinking:**
 ```text
-The row's own word is tins, and the tea is allowed in every tin the row names. The catalogue's word is containers. Those are two names for a holder, and the answer has to use the word the row printed. The answer is tins.
+The question asks for the word the row paints, and the third bin is painted tin. The catalogue's word is container, which is a shelf name for a bin rather than the paint. I answer with the paint, because that is the word the question asked for.
 ```
 
 **Reply:**
 ```text
-Tins.
-1. The row's word is tins.
-2. Containers is the catalogue's word.
-3. The answer keeps the row's word.
+Tin, the paint on the third bin.
+| Asked for | Word |
+| --- | --- |
+| the row's paint | tin |
+| the catalogue's name | container |
 ```
 
-**Key:** answer: tins
+**Key:** answer: tin
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -194,10 +194,10 @@ Void means not valid, and the jar says ticket C is not valid. The other tickets 
 
 **Reply:**
 ```text
-Ticket C.
-1. Void means not valid.
-2. The jar says ticket C is not valid.
-3. Dud is the pencil's nickname, not the clause.
+Ticket C is void, because the jar's own clause says ticket C is not valid. The pencil's dud is a nickname for that clause.
+| Jar's clause | Ticket |
+| --- | --- |
+| not valid | C |
 ```
 
 **Key:** answer: ticket C
@@ -222,7 +222,7 @@ Exactly one cook stands at each stove, and the tall cook does not take the fryer
 
 **Reply:**
 ```text
-The soup stove.
+The card's own name for that stove is the soup stove.
 | Cook | Stove |
 | --- | --- |
 | tall cook | soup stove |
@@ -249,10 +249,10 @@ Which dock is ahead of the other two is a chain of two printed comparisons. Nort
 
 **Reply:**
 ```text
-North.
-1. North is ahead of East.
-2. East is ahead of South.
-3. Both lines stay, rather than a summary that North wins.
+North is ahead of the other two, and both comparisons stay.
+ROOT North
+├─ ahead of East
+└─ East ahead of South
 ```
 
 **Key:** answer: North
@@ -277,10 +277,12 @@ The hatch that never opens in fog is the early hatch, and the early hatch is the
 
 **Reply:**
 ```text
-The grain hatch, and it waits on the whistle.
-1. The early hatch never opens in fog.
-2. The early hatch is the grain hatch.
-3. It opens only after the whistle.
+Fog blocks the grain hatch, and the sound that hatch waits on is the whistle.
+| Fact | Words |
+| --- | --- |
+| blocked by fog | the early hatch never opens in fog |
+| which hatch | the early hatch is the grain hatch |
+| the sound | it opens only after the whistle |
 ```
 
 **Key:** answer: the grain hatch, waiting on the whistle
@@ -304,9 +306,10 @@ Cost at 4pm is inside 'before 6pm', and the line states 2 pounds an hour for tha
 
 **Reply:**
 ```text
-2 pounds an hour. The deciding words are the whole line.
-1. 4pm falls before 6pm.
-2. The line sets 2 pounds an hour for that span.
+At 4pm the rate is 2 pounds an hour, taken from the whole before-6pm line.
+| Clock | Rate |
+| --- | --- |
+| before 6pm, which covers 4pm | 2 pounds an hour |
 VERDICT: supported
 DECIDING: Before 6pm it costs 2 pounds an hour.
 ESCALATE: no
@@ -333,9 +336,10 @@ A single tenor is one tenor. The line prints The choir has 1 tenor. The printed 
 
 **Reply:**
 ```text
-Yes. The printed line keeps its numeral.
-1. A single tenor is 1 tenor.
-2. The line keeps the numeral.
+Yes. A single tenor is that count, and the line I cite keeps the numeral.
+| Line | Count |
+| --- | --- |
+| The choir has 1 tenor. | 1 tenor |
 VERDICT: supported
 DECIDING: The choir has 1 tenor.
 ESCALATE: no
@@ -362,9 +366,10 @@ Question: Does the page set the call-out fee at 40 dollars?
 
 **Reply:**
 ```text
-No. The line says 40 pounds, not 40 dollars.
-1. The whole fee line is the contradiction.
-2. The unit is part of that line.
+No. The page sets the fee in pounds, so a dollar figure does not hold.
+| Printed | Claimed |
+| --- | --- |
+| 40 pounds | 40 dollars |
 VERDICT: unsupported
 DECIDING: The call-out fee is 40 pounds.
 ESCALATE: no
@@ -388,12 +393,12 @@ They answered unsupported and quoted the usually line.
 
 **Thinking:**
 ```text
-A plug in the basin is the claim. The slip says the basin usually has a plug. Usually leaves the other mornings unclaimed, so the bare sentence is not settled, and the line is not a refusal either. They quoted that hedge and marked the plug ruled out. A hedge is not a line that says the basin has no plug.
+A plug in the basin is the claim. The slip says the basin usually has a plug. Usually leaves the other mornings unclaimed, so the bare sentence stays open, and the line does not refuse a plug either. They quoted that hedge and marked the plug ruled out. A hedge is not a line that says the basin has no plug.
 ```
 
 **Reply:**
 ```text
-The slip says the basin usually has a plug. Usually does not settle the bare claim, and it does not refuse a plug.
+The slip says the basin usually has a plug. A usual plug leaves the bare sentence open, and the slip does not refuse a plug.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -668,12 +673,12 @@ Statement: The spool is 25 megabytes.
 
 **Thinking:**
 ```text
-The claim gives the spool a size of 25 megabytes with no hedge. The note says the spool is usually 25 megabytes. Usually leaves other spools unclaimed, so the bare size is not settled, and the line is not a different size either. If the word usually is doing the work, then the bare claim is still open.
+The claim gives the spool a size of 25 megabytes with no hedge. The note says the spool is usually 25 megabytes. Usually leaves other spools unclaimed, so the bare size stays open, and the line is not a different size either. If the word usually is doing the work, then the bare claim is still open.
 ```
 
 **Reply:**
 ```text
-The note says the spool is usually 25 megabytes. Usually does not settle the bare size.
+The note says the spool is usually 25 megabytes. A usual figure leaves the bare size open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -717,18 +722,18 @@ Statement: The version is 2.1.1.
 
 **Thinking:**
 ```text
-The claim names a version of 2.1.1. The version line prints "version": "2.1.1". The name line says which package that version belongs to, so the two lines are the manifest's version entry. The description is about a catalog and search, and it holds no second number. The version line and the name line are the citation. The description does not qualify the number.
+The claim names a version of 2.1.1. I look for that number on a version line. The version line prints "version": "2.1.1", so the claim has its line. The description beside it talks about a catalog and search, and it holds no second copy of the number. If the claim is the version, the version line is the line I cite. The description does not qualify the number.
 ```
 
 **Reply:**
 ```text
-The version line prints 2.1.1 beside the package name. The description does not hold the number.
+The version line prints 2.1.1. The description does not carry that number.
 VERDICT: supported
-DECIDING:   "name": "@mcptoolshop/repo-knowledge", |   "version": "2.1.1",
+DECIDING:   "version": "2.1.1",
 ESCALATE: no
 ```
 
-**Key:** key: supported / "name": "@mcptoolshop/repo-knowledge", | "version": "2.1.1", / no
+**Key:** key: supported /   "version": "2.1.1", / no
 
 *mcp-tool-shop-org/repo-knowledge@4435870bbfdf:package.json#L2-L4 (MIT (first line of LICENSE: 'MIT License'))*
 
@@ -799,12 +804,12 @@ Statement: Bay 4 has a green chair.
 
 **Thinking:**
 ```text
-The claim gives bay 4 a green chair. The card books the bay for the morning shift. A booking names a bay and a shift. I look for chair, green, and any colour, and none of those words is printed. The booking does not deny a chair either. With no chair on the card, the claim is not settled.
+The claim gives bay 4 a green chair. The card books the bay for the morning shift. A booking names a bay and a shift. I look for chair, green, and any colour, and none of those words is printed. The booking does not deny a chair either. With no chair on the card, the claim stays open.
 ```
 
 **Reply:**
 ```text
-The card books bay 4 for the morning shift. A chair is not the sort of fact this booking carries, so the claim is not settled.
+The card books bay 4 for the morning shift. A chair is not the sort of fact this booking carries, so a chair sits outside what this booking records.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -972,31 +977,39 @@ A claim of Saint Ann is checked against a page that prints St. Ann. What do you 
 
 *invented: written question and variant, written for this item (key by construction)*
 
-### T03-E-05 · kind E · teaching · tier 1 · quotes the words
+### T03-E-05 · kind E · record · tier 2 · quotes the words
 
 **User:**
 ```text
-A sentence supports the claim and you have not yet looked for a sentence that would undo it. What is still owed, and what happens to the quote if you find that undoing sentence?
+A yard slate lists the two gates.
+Material:
+The north gate opens at 9.
+The south gate stays shut.
+Statement: The north gate opens at 9 and the south gate stays shut.
+What do you answer?
 ```
 
 **Thinking:**
 ```text
-What is owed is a short sweep of the rest of the page. If a later sentence undoes the claim, that later sentence becomes the quote, whole, and the earlier help is not the line I cite. If the sweep finds nothing, the helpful sentence remains the quote, still whole.
+The claim is two gates, and each gate has its own line. The north line says the north gate opens at 9. The south line says the south gate stays shut. If both lines are printed as the claim says them, the claim holds. I cite both lines, because each gate is its own fact.
 ```
 
 **Reply:**
 ```text
-Sweep the page for a sentence that would undo the claim. If you find one, that sentence is the quote. If you find none, the helpful sentence stays the quote.
+Both gates are printed as the claim says them. The north gate opens at 9, and the south gate stays shut.
+VERDICT: supported
+DECIDING: The north gate opens at 9. | The south gate stays shut.
+ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-After a sentence supports a claim, what do you still look for, and which sentence do you quote if you find it?
+The south gate stays shut, and the north gate opens at 9. What do you answer?
 ```
 
-**Key:** quiz (written): sweep the page for a sentence that would undo the claim; an undoing sentence becomes the quote; if none is found, the helpful sentence stays the quote · variant key: {"key_points": ["sweep the page for a sentence that would undo the claim"]}
+**Key:** quiz (verdict): supported / The north gate opens at 9. | The south gate stays shut. / no · variant key: {"verdict": "supported"}
 
-*invented: written question and variant, written for this item (key by construction)*
+*invented: two gate lines and the variant, written for this item (key by construction)*
 
 ### T03-E-06 · kind E · teaching · tier 1 · equivalent wording
 
@@ -1038,12 +1051,12 @@ What do you answer?
 
 **Thinking:**
 ```text
-The claim stacks the towels in tens. The card heads the linen shelf and says sheets are stacked in tens. Sheets are not towels. The tens belong to the sheets. I looked for the word towel and it is not on the card. A matching number on a different item does not settle the towels. With no towel on the card, the claim stays open, and the sheet line is not a denial of towels either.
+The claim stacks the towels in tens. The card heads the linen shelf and says sheets are stacked in tens. Sheets are not towels. The tens belong to the sheets. I looked for the word towel and it is not on the card. A matching count on the sheets does not give the towels a number. With no towel on the card, the claim stays open, and the sheet line is not a denial of towels either.
 ```
 
 **Reply:**
 ```text
-The card stacks sheets in tens. Towels are not on it, so the claim is not settled.
+The card stacks sheets in tens. Towels are not on it, so towels stay off this card.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1071,12 +1084,12 @@ What do you answer?
 
 **Thinking:**
 ```text
-The claim closes the cycle lane. The note closes the footpath, past the oak. A footpath and a cycle lane are different ways, even when they pass the same oak. I looked for the words cycle lane and the note does not have them. The footpath sentence does not say the cycle lane is closed, and it does not say the cycle lane is open. If the named way is the footpath only, the cycle-lane claim is not settled by this note.
+The claim closes the cycle lane. The note closes the footpath, past the oak. A footpath and a cycle lane are different ways, even when they pass the same oak. I looked for the words cycle lane and the note does not have them. The footpath sentence does not say the cycle lane is closed, and it does not say the cycle lane is open. If the named way is the footpath only, the cycle-lane claim stays open on this note.
 ```
 
 **Reply:**
 ```text
-The note closes the footpath past the oak. It does not mention a cycle lane, so that claim is not settled.
+The note closes the footpath past the oak. It does not mention a cycle lane, so a cycle lane sits outside this note.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no

@@ -152,26 +152,30 @@ I answer from the photocopy. Waiting for the original would pretend the rule was
 
 **User:**
 ```text
-Four sheds stand on the lane.
-The lane note lists every shed as allowed for the crate.
-A supervisor left a sealed note on the nail and called it a shorter list.
-Question: Which of the four sheds may hold the crate?
+Four sheds stand on the lane: north, south, east and west.
+The lane note allows any shed it does not close.
+The lane note closes the east shed and the west shed.
+A rumour passed along the yard says the south shed was closed.
+Question: Which sheds does the lane note allow?
 ```
 
 **Thinking:**
 ```text
-The lane note is the page, and it lists every shed as allowed. That set is the four sheds, taken whole. The sealed note is a second voice, and the question only says the supervisor called it shorter. I answer from the lane note. An unopened note does not cut a set the lane note left whole.
+The lane note allows any shed it does not close, and the sheds it closes are east and west. North stays open on that note, and so does south. The yard rumour is talk from the yard, not the lane note, and the question asks what the note allows. I do not let the rumour close a shed the note left open.
 ```
 
 **Reply:**
 ```text
-Every one of the four sheds.
-1. The lane note lists every shed.
-2. The sealed note is someone else's list.
-3. The answer is the lane note's set.
+North and south.
+| Shed | Lane note |
+| --- | --- |
+| north | allowed |
+| south | allowed |
+| east | closed |
+| west | closed |
 ```
 
-**Key:** answer: every one of the four sheds
+**Key:** answer: north and south
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -206,16 +210,18 @@ The red lamp.
 
 **User:**
 ```text
-Six pegs and six hooks are on the rail.
-Place exactly one peg on each hook.
-The red peg is the only peg that fits the end hook.
-The clerk offers the workshop manual, which draws the pegs a different way.
-Question: Which of the six pegs goes on the end hook?
+Six pegs hang on the rail: red, blue, green, amber, white and black.
+Exactly one peg is on the end hook.
+Blue, green and amber never fit the end hook.
+White is already on the middle hook.
+Black is already on the first hook.
+A workshop sketch on the bench ranks the pegs by length.
+Question: Which peg is on the end hook?
 ```
 
 **Thinking:**
 ```text
-The end hook has one peg that fits, and the rail names it: the red peg. Exactly one peg on each hook does not pick a colour, so the end-hook line is the one that does. The workshop manual is on offer, and the rail never points to it. The red peg is already named, so the manual stays on the shelf.
+Exactly one peg is on the end hook. Blue, green and amber never fit it, white is already on the middle hook, and black is already on the first hook. The peg still left is red. The workshop sketch ranks by length, and the rail has already named the end peg, so the sketch stays on the bench.
 ```
 
 **Reply:**
@@ -223,7 +229,9 @@ The end hook has one peg that fits, and the rail names it: the red peg. Exactly 
 The red peg.
 | Hook | Peg |
 | --- | --- |
-| end hook | red peg |
+| end | red |
+| middle | white |
+| first | black |
 ```
 
 **Key:** answer: the red peg
@@ -237,13 +245,13 @@ The red peg.
 Three bells are brass, clay and tin.
 The noon strike uses the bell that is higher than clay.
 Brass is higher than clay.
-The clerk offers the tower drawings, which rank the bells by weight.
+A weight chart under the card ranks the bells by weight.
 Question: Which of brass, clay or tin does the noon strike use?
 ```
 
 **Thinking:**
 ```text
-The noon strike uses whichever bell is higher than clay. The card says brass is higher than clay, so the strike uses brass. Tin is named and never ranked against clay. The tower drawings are offered, and this card never sends me to them. Brass is already the bell the two lines pick.
+The noon strike uses whichever bell is higher than clay. The card says brass is higher than clay, so the strike uses brass. Tin is named and never ranked against clay. The weight chart ranks by weight, and these two lines already name brass. Brass is already the bell the two lines pick.
 ```
 
 **Reply:**
@@ -251,7 +259,7 @@ The noon strike uses whichever bell is higher than clay. The card says brass is 
 Brass.
 1. The strike uses the bell higher than clay.
 2. Brass is that bell.
-3. The drawings are a second ranking the card does not use.
+3. The weight chart ranks by weight, and the two lines already name brass.
 ```
 
 **Key:** answer: brass
@@ -265,13 +273,13 @@ Brass.
 Seven doors face the lane.
 The yard door opens only after the bell.
 No other door waits on the bell.
-The clerk offers the building plan.
+A building plan is clipped to the back of the list.
 Question: Which door waits on the bell?
 ```
 
 **Thinking:**
 ```text
-The yard door opens only after the bell, and the list adds that no other door waits on the bell. Those two lines name one door. The building plan is offered beside the list, and the list never says the plan is required. The yard door is the door the list has already named.
+The yard door opens only after the bell, and the list adds that no other door waits on the bell. Those two lines name one door. The plan draws wall thicknesses. The list has already named the yard door. The yard door is the door the list has already named.
 ```
 
 **Reply:**
@@ -279,7 +287,7 @@ The yard door opens only after the bell, and the list adds that no other door wa
 The yard door.
 1. The yard door opens only after the bell.
 2. The list says no other door waits on the bell.
-3. The building plan is not a line of this list.
+3. The plan draws wall thicknesses, and the list has named the door.
 ```
 
 **Key:** answer: the yard door
@@ -379,22 +387,22 @@ ESCALATE: no
 
 **User:**
 ```text
-A quay ticket note is posted by the office window.
+A quay bell note is posted by the office window.
 Material:
-The ferry office sells tickets at the quay and posts the fare as 4 pounds.
+The ferry bell usually rings at noon.
 Statement: The ferry bell rings at noon.
 Checker verdict: unsupported
-They answered unsupported and quoted the fare line.
+They answered unsupported and quoted the usually line.
 ```
 
 **Thinking:**
 ```text
-A noon bell is the claim they marked unsupported. The note says the office sells tickets at the quay and posts the fare as 4 pounds. A fare and a ticket sale name money and a place. Neither sentence mentions a bell, and neither sentence denies one. Marking the bell ruled out, on a note that never speaks of it, treats a gap as a no. The note is the page in front of me.
+A noon bell is the claim they marked unsupported. The note says the ferry bell usually rings at noon. Usually leaves the bare noon ringing open, and it does not rule a bell out. They quoted that hedge and treated it as a denial. The note is the page in front of me.
 ```
 
 **Reply:**
 ```text
-The fare line is what they quoted, and it never speaks of a bell. A missing bell is not a bell ruled out.
+The note says the ferry bell usually rings at noon. A usual ringing leaves the bare noon claim open, and it does not rule the bell out.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -402,7 +410,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: quay ticket note and checker trace, written for this item (key by construction)*
+*invented: quay bell note and checker trace, written for this item (key by construction)*
 
 ### T02-C-02 · kind C · record · tier 3 · stops once decided
 
@@ -413,19 +421,19 @@ Material:
 The ferry bell does not ring at noon.
 Tickets are sold at the quay.
 Statement: The ferry bell rings at noon.
-The clerk offers the harbour master's log.
+The harbour master's log for last month is in a drawer.
 Checker verdict: unsupported
 They answered unsupported and quoted the sentence about the bell.
 ```
 
 **Thinking:**
 ```text
-A noon ringing is the claim. This note prints that the ferry bell does not ring at noon, and then says tickets are sold at the quay. The first sentence is the opposite of the claim. The ticket sentence does not soften it. The clerk has offered the harbour master's log, and this note never says the log would reopen the bell. The denial on the note is the answer.
+A noon ringing is the claim. This note prints that the ferry bell does not ring at noon, and then says tickets are sold at the quay. The first sentence is the opposite of the claim. The ticket sentence does not soften it. Last month's log is in a drawer. This note already denies the noon bell. The denial on the note is the answer.
 ```
 
 **Reply:**
 ```text
-The bell sentence denies a noon ringing, and the ticket sentence does not soften it. The harbour log was offered, and this note already denies the bell.
+The bell sentence denies a noon ringing, and the ticket sentence does not soften it. Last month's log is in a drawer, and this note already denies the bell.
 VERDICT: unsupported
 DECIDING: The ferry bell does not ring at noon.
 ESCALATE: no
@@ -473,19 +481,19 @@ Material:
 Room 2 has no spare lamp.
 The tour starts at the desk.
 Statement: Room 2 holds a spare lamp.
-The clerk offers the storeroom inventory.
+A storeroom inventory sits on a clipboard.
 Checker verdict: unsupported
 They answered unsupported and read out the sentence that names the lamp.
 ```
 
 **Thinking:**
 ```text
-A spare lamp in room 2 is denied in the first sentence: room 2 has no spare lamp. The tour sentence only says where the tour starts. The clerk has offered the storeroom inventory. The card never says that inventory would overrule the door. The denial is printed, and the tour sentence does not give the lamp back.
+A spare lamp in room 2 is denied in the first sentence: room 2 has no spare lamp. The tour sentence only says where the tour starts. A clipboard inventory sits nearby. Nothing on the card hands the lamp to that clipboard. The denial is printed, and the tour sentence does not give the lamp back.
 ```
 
 **Reply:**
 ```text
-The card denies the lamp in so many words, and the tour sentence does not give one back. The storeroom inventory on offer is not a line on the card.
+The card denies the lamp in so many words, and the tour sentence does not give one back. The clipboard inventory is a different sheet from this card.
 VERDICT: unsupported
 DECIDING: Room 2 has no spare lamp.
 ESCALATE: no
@@ -504,18 +512,18 @@ Material:
 npm install -g @mcptoolshop/repo-knowledge
 Statement: The install command is npm install -g @mcptoolshop/repo-knowledge.
 Checker verdict: supported
-A colleague offers the package website.
+A colleague mentions a longer install page on the package website.
 They answered supported and quoted the install line.
 ```
 
 **Thinking:**
 ```text
-The claim repeats the install command. The note prints npm install -g @mcptoolshop/repo-knowledge and nothing else. That line is the command. A colleague has offered the package website. The note does not say the command is partial, and it does not say the website must confirm it. The command I point to is the one the note prints.
+The claim repeats the install command. The note prints npm install -g @mcptoolshop/repo-knowledge and nothing else. That line is the command. A longer install page was mentioned. This note does not treat its command as a partial line. The command I point to is the one the note prints.
 ```
 
 **Reply:**
 ```text
-The install line is the command the claim repeats. The website on offer is not a second half of that line.
+The install line is the command the claim repeats. The longer install page is the colleague's page, and this note's command is the whole line.
 VERDICT: supported
 DECIDING: npm install -g @mcptoolshop/repo-knowledge
 ESCALATE: no
@@ -560,20 +568,20 @@ ESCALATE: no
 ```text
 A bakery hour card is propped against the till.
 Material:
-The counter opens at 8 and the last loaf leaves at 3.
-Statement: Water boils at 100 degrees.
+The counter opens at 8 if the baker is in.
+Statement: The counter opens at 8.
 Checker verdict: supported
-They answered supported and quoted nothing on the card.
+They answered supported and quoted the opening line.
 ```
 
 **Thinking:**
 ```text
-Boiling at 100 degrees is the claim they marked supported. The card says the counter opens at 8 and the last loaf leaves at 3. Hours for bread do not state a boiling point. A kitchen fact can be true of water and still be absent from this card. They treated that worldly fact as if the card had printed it.
+An 8 o'clock opening is the claim they marked supported. The card gives that opening only if the baker is in, and it never says the baker is in. They quoted the opening and dropped its condition. A conditional hour is not a bare hour, and it is not a denial of one either.
 ```
 
 **Reply:**
 ```text
-The card gives the counter's hours and the last loaf. Boiling is a kitchen fact this card does not print.
+The card opens the counter at 8 only if the baker is in. The claim drops that condition, so the bare hour stays open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -592,18 +600,18 @@ Material:
 Net 400 g of oats.
 Statement: The jar holds 400 g of oats.
 Checker verdict: supported
-The miller offers a certificate for the oats.
+The miller keeps a certificate in the office.
 They answered supported and quoted the net line.
 ```
 
 **Thinking:**
 ```text
-The claim matches the net line: 400 g of oats. The label prints that and stops. The miller has offered a certificate. The label never says the net figure waits on a certificate. The figure on the label is the figure the claim names.
+The claim matches the net line: 400 g of oats. The label prints that and stops. The office certificate is the miller's other paper. The label's net figure is already the whole claim. The figure on the label is the figure the claim names.
 ```
 
 **Reply:**
 ```text
-The net line states 400 g of oats, which is the whole claim. The certificate on offer is not a second figure on the label.
+The net line states 400 g of oats, which is the whole claim. The office certificate is the miller's other paper, and the net figure is already here.
 VERDICT: supported
 DECIDING: Net 400 g of oats.
 ESCALATE: no
@@ -717,17 +725,17 @@ Material:
 ### Added
 - **`<slot name="head"/>` on BaseLayout** — consumers inject OG images, Twitter cards, JSON-LD, or preconnect hints without forking the layout ([#5](https://github.com/mcp-tool-shop-org/site-theme/issues/5)).
 Statement: BaseLayout has a slot named head.
-The editor offers the layout file.
+An editor mentions a layout file outside this note.
 ```
 
 **Thinking:**
 ```text
-The claim is a head slot on BaseLayout. The 2.2.0 heading is the release, and the bullet under it names that slot on BaseLayout. I take both lines because the bullet belongs to that release. The editor has offered the layout file. The bullet does not say the slot is only a plan. If the bullet's words are the slot, then the file is a different page from this note.
+The claim is a head slot on BaseLayout. The 2.2.0 heading is the release, and the bullet under it names that slot on BaseLayout. I take both lines because the bullet belongs to that release. An editor mentions a layout file outside this note. The bullet does not call the slot a plan. If the bullet's words are the slot, that file is outside this note.
 ```
 
 **Reply:**
 ```text
-The 2.2.0 bullet already names a head slot on BaseLayout. The layout file on offer is a different page.
+The 2.2.0 bullet already names a head slot on BaseLayout. The layout file the editor mentioned sits outside this note.
 VERDICT: supported
 DECIDING: ## [2.2.0] - 2026-09-05 | - **`<slot name="head"/>` on BaseLayout** — consumers inject OG images, Twitter cards, JSON-LD, or preconnect hints without forking the layout ([#5](https://github.com/mcp-tool-shop-org/site-theme/issues/5)).
 ESCALATE: no
@@ -745,17 +753,17 @@ A command example is printed under the usage heading in the notes you have.
 Material:
 roll 2d6+3                        # Basic roll
 Statement: The basic roll example is roll 2d6+3.
-A colleague offers the probability chapter.
+A colleague mentions a probability chapter later in the book.
 ```
 
 **Thinking:**
 ```text
-The claim names the basic roll example as roll 2d6+3. The line prints that command and labels it a basic roll. The spacing and the label are part of the line, so I take the line whole. A colleague has offered the probability chapter. Nothing beside this line says the example is provisional. The example the claim names is the example this line prints.
+The claim names the basic roll example as roll 2d6+3. The line prints that command and labels it a basic roll. The spacing and the label are part of the line, so I take the line whole. A probability chapter was mentioned later in the book. Nothing beside this line calls the example provisional. The example the claim names is the example this line prints.
 ```
 
 **Reply:**
 ```text
-The printed line is the basic roll, command and label together. The probability chapter on offer is another document.
+The printed line is the basic roll, command and label together. The probability chapter is later in the book, and this line is the example.
 VERDICT: supported
 DECIDING: roll 2d6+3                        # Basic roll
 ESCALATE: no
@@ -829,17 +837,17 @@ Material:
 Agreed: the van leaves at 7.
 Parked: the price, to be discussed Friday.
 Statement: The meeting agreed the new price.
-The secretary offers the recording.
+The secretary keeps a recording in a folder.
 ```
 
 **Thinking:**
 ```text
-The claim says the meeting agreed the new price. The minutes agree the van leaves at 7, and they park the price for Friday. Parked is not agreed. The van line does not smuggle the price in. The secretary has offered the recording. The minutes never say the recording would reopen a parked price. The parked line is the price's answer.
+The claim says the meeting agreed the new price. The minutes agree the van leaves at 7, and they park the price for Friday. Parked is not agreed. The van line does not smuggle the price in. A folder recording is the secretary's other copy. These minutes already park the price. The parked line is the price's answer.
 ```
 
 **Reply:**
 ```text
-The minutes park the price for Friday, so an agreed new price does not hold. The recording on offer is not a minute.
+The minutes park the price for Friday, so an agreed new price does not hold. The folder recording is the secretary's other copy, and it is not one of these minutes.
 VERDICT: unsupported
 DECIDING: Parked: the price, to be discussed Friday.
 ESCALATE: no
@@ -858,17 +866,17 @@ Material:
 Late fees
 A late fee of 2 pounds applies after day 14.
 Statement: A late fee of 2 pounds applies after day 14.
-The clerk offers the original lease from the cabinet.
+The original lease, signature page included, is in the cabinet.
 ```
 
 **Thinking:**
 ```text
-The claim repeats the late-fee sentence. The policy heads the subject and then states a late fee of 2 pounds after day 14. I take both lines: the heading names the fee, and the sentence states the figure and the day. The clerk has offered the original lease. No line here says the figure waits on that lease. If the sentence states the fee, then the lease is a further document.
+The claim repeats the late-fee sentence. The policy heads the subject and then states a late fee of 2 pounds after day 14. I take both lines: the heading names the fee, and the sentence states the figure and the day. The cabinet holds the lease, signature page included. No line here sends the fee out to that page. If the sentence states the fee, the fee is already on this page.
 ```
 
 **Reply:**
 ```text
-The heading and the sentence state the late fee. The cabinet lease is a further document, and the fee is already stated here.
+The heading and the sentence state the late fee. The signature page stays in the cabinet, and the fee is already stated here.
 VERDICT: supported
 DECIDING: Late fees | A late fee of 2 pounds applies after day 14.
 ESCALATE: no
@@ -934,22 +942,22 @@ A platform card names the 9:10 and platform 2. A traveller asks you to confirm f
 
 **User:**
 ```text
-The hire card says the deposit is 20 pounds, and it has no footnote. A colleague offers to fetch last year's rate sheet. Do you wait for that sheet?
+The hire card says the deposit is 20 pounds, and it has no footnote. Last year's rate sheet is in a drawer. Do you wait for that sheet?
 ```
 
 **Thinking:**
 ```text
-The deposit is printed as 20 pounds, and there is no footnote qualifying it. Last year's sheet is the document the colleague is offering. The card's deposit sentence does not point onward. I answer from the printed 20 pounds and leave the offered sheet in the drawer.
+The deposit is printed as 20 pounds, and there is no footnote qualifying it. Last year's sheet is the one in the drawer. The card's deposit sentence does not point onward. I answer from the printed 20 pounds and leave the offered sheet in the drawer.
 ```
 
 **Reply:**
 ```text
-I do not wait. The card states 20 pounds with no footnote, and the offered sheet is another year's page.
+I do not wait. The card states 20 pounds with no footnote, and the sheet in the drawer is another year's page.
 ```
 
 **Variant user:**
 ```text
-A hire card states a 20 pound deposit and carries no footnote. Someone offers to fetch last year's rate sheet before you answer. Do you wait?
+A hire card states a 20 pound deposit and carries no footnote. Last year's rate sheet is in a drawer. Do you wait?
 ```
 
 **Key:** quiz (written): a printed deposit with no footnote already decides; do not fetch a sheet the card never mentions; another year's sheet is a different document · variant key: {"key_points": ["do not fetch a sheet the card never mentions"]}
@@ -960,22 +968,22 @@ A hire card states a 20 pound deposit and carries no footnote. Someone offers to
 
 **User:**
 ```text
-One sentence on the page supports the claim, and a later sentence might undo it. A colleague offers a newer copy of the page. Describe the look you still owe this page, and what you do with the offered copy.
+One sentence on the page supports the claim, and a later sentence might undo it. A newer copy is on the colleague's desk. What do you do before you answer, and what do you do with that copy?
 ```
 
 **Thinking:**
 ```text
-A sentence that only helps is not yet the last word. I read the rest of this page for a line that would make the claim false. The colleague has offered a newer copy. That copy is a different sheet. When the look through this page finds no undoing line, the helpful sentence stands, and the offered copy is not a hole in it.
+A sentence that only helps is not yet the last word. I read the rest of this page for a line that would make the claim false. A newer copy is on the colleague's desk, and that copy is a different sheet. When this page has no undoing line, the helpful sentence stands, and the desk copy is not a hole in it.
 ```
 
 **Reply:**
 ```text
-I look through this page for a line that would undo the claim. If none is there, I answer from the helpful sentence. The newer copy on offer is a different sheet.
+I read the rest of this page before I answer. If nothing there undoes the claim, I answer from the helpful sentence. The copy on the colleague's desk is a different sheet.
 ```
 
 **Variant user:**
 ```text
-After you have checked the page for a line that would undo a helpful sentence and found none, do you order a newer copy?
+A newer copy is on the colleague's desk. The page you already have supports the claim. Do you order that copy?
 ```
 
 **Key:** quiz (written): a helpful sentence still gets a look for a line that undoes it; when nothing undoes it, the sentence stands; do not order a newer copy the page never names · variant key: {"key_points": ["do not order a newer copy the page never names"]}
@@ -1012,27 +1020,27 @@ A vendor's letter calls the pump quiet. The spec sheet lists volts and amps. You
 
 **User:**
 ```text
-You were handed a photocopy. It reads: the late fee is 5 pounds. The clerk offers the archive original from two floors away. What do you answer from?
+You were handed a carbon of a delivery note. It reads: the crate count is 9. The press copy is in the other room. What do you answer from?
 ```
 
 **Thinking:**
 ```text
-The photocopy is the page I was handed, and its fee sentence names 5 pounds. The clerk has offered the archive original. That original would be a second copy of a fee I can already read. The photocopy does not point upstairs. I answer from the page in my hand.
+The carbon is the page I was handed, and its count sentence names 9 crates. The press copy is in the other room. That copy would be a second sheet of a count I can already read. The carbon does not send me next door. I answer from the page in my hand.
 ```
 
 **Reply:**
 ```text
-I answer from the photocopy. It states a late fee of 5 pounds, and the archive original on offer is a second copy.
+I answer from the carbon. It states a crate count of 9, and the press copy in the other room is a second sheet.
 ```
 
 **Variant user:**
 ```text
-A photocopy reads: the late fee is 5 pounds. The archive original sits two floors away. Do you wait for it before answering?
+A carbon reads: the crate count is 9. The press copy is in the other room. Do you wait for it before answering?
 ```
 
-**Key:** quiz (written): the photocopy you were given is the page; a fee sentence you can already read does not wait on the archive; the original is a second copy, not a missing line · variant key: {"key_points": ["a fee sentence you can already read does not wait on the archive"]}
+**Key:** quiz (written): the carbon is the page in hand; a count you can already read does not wait on the press copy; the press copy is a second sheet · variant key: {"key_points": ["a count you can already read does not wait on the press copy"]}
 
-*invented: written question and variant, written for this item (key by construction)*
+*invented: carbon of a delivery note and its variant, written for this item (key by construction)*
 
 ### T02-E-07 · kind E · notice · tier 3 · from the page
 
@@ -1075,19 +1083,19 @@ Read the yard-gate log and say whether it backs a lock time of 18:00. What do yo
 A pontoon note is folded into the harbour book.
 Material:
 The skiff carries a bell if the fog is thick.
-The harbour master offers a second book.
+A second harbour book is on the shelf.
 Statement: The skiff carries a bell.
 What do you answer?
 ```
 
 **Thinking:**
 ```text
-The claim puts a bell on the skiff with no condition. The note gives the bell only if the fog is thick, and it never says the fog is thick. The condition is doing the work the claim drops. That is not a denial of a bell, and it is not a bell on every trip. The second book is on offer, and this note does not point to it.
+The claim puts a bell on the skiff with no condition. The note gives the bell only if the fog is thick, and it never says the fog is thick. The condition is doing the work the claim drops. That is not a denial of a bell, and it is not a bell on every trip. The shelf holds a second harbour book, and this note does not send you to it.
 ```
 
 **Reply:**
 ```text
-The note ties the bell to thick fog, and the claim drops that condition. A second book was offered. This note does not send you there.
+The note ties the bell to thick fog, and the claim drops that condition. A second harbour book is on the shelf. This note does not send you there.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
