@@ -260,7 +260,7 @@ the red peg
 
 **User:**
 ```text
-1. Three bells are brass, clay and tin. Heights are 1st, 2nd and 3rd. The noon strike uses the bell in 1st. A weight chart ranks bells by weight.
+1. Three bells are brass, clay and tin. Heights are 1st, 2nd and 3rd, each bell at a different height. The noon strike uses the bell in 1st. A weight chart ranks bells by weight.
 2. Brass is not in 3rd.
 3. Clay and tin hang next to each other.
 Question: Which bell does the noon strike use?
