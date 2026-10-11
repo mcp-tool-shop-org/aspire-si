@@ -176,145 +176,158 @@ I read the whole stack. Three stacked crates place the bottom one only when ever
 
 **User:**
 ```text
-Three dockets sit in a tray. The top docket says the crane stops at dusk. What does the top docket say the crane does?
+1. Three cranes, North, Mid and South, stop work at dawn, noon and dusk, one each. The tray holds a docket for each crane.
+2. The North crane's docket says it stops at dusk.
+Question: When does the North crane stop?
 ```
 
 **Thinking:**
 ```text
-The question names the top docket and nothing else in the tray. That is a one-docket depth. The other two dockets are not part of what was asked.
+The question asks about the North crane and nothing else. The North crane's docket, the second line, says dusk. That settles it in one line, so the Mid and South dockets stay in the tray; reading them would add work this question doesn't need.
 ```
 
 **Reply:**
 ```text
-The question is aimed at the top docket alone.
+One docket answers it.
 
-| docket | role in the question |
-| top | the crane stops at dusk |
-| middle | unasked |
-| bottom | unasked |
+| crane | stops |
+| North | dusk |
+| Mid, South | not asked |
 
-the crane stops at dusk
+dusk
 ```
 
-**Key:** answer: the crane stops at dusk
+**Key:** answer: dusk
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T07-B-02 · kind B · puzzle · tier 3 · careful on the hard · tags: non-verification
 
 **User:**
 ```text
-Four couriers finished in a chain. Nia finished before Omar. Omar finished before Pia. Pia finished before Quin. Who finished last?
+1. Four couriers, Nia, Omar, Pia and Quin, finished a relay in places 1st, 2nd, 3rd and 4th, one each.
+2. Nia did not finish 1st.
+3. Nia finished before Omar.
+4. Pia's place is the next one on from Nia's.
+Question: Who finished 4th?
 ```
 
 **Thinking:**
 ```text
-Quin is absent from the first handover. Omar's place does not settle Quin, and Pia's place does not settle Quin until the last handover is included. Every handover belongs in the placement.
+Last place needs every clue here, so I take them in order. Nia didn't finish 1st, so she is 2nd, 3rd or 4th. She finished before Omar, so she isn't 4th. Pia comes right after her: if Nia were 3rd, Pia would be 4th and Omar would have no later place, so Nia is 2nd and Pia 3rd. Omar, after Nia, takes 4th, and Quin is 1st. Stopping before the Pia clue would have left Nia at 2nd or 3rd and the last place open.
 ```
 
 **Reply:**
 ```text
-Last place needs every handover, because each one only names the next person.
+It takes all three lines to place the last courier.
 
-| earlier | later |
-| Nia | Omar |
-| Omar | Pia |
-| Pia | Quin |
+| place | courier |
+| 1st | Quin |
+| 2nd | Nia |
+| 3rd | Pia |
+| 4th | Omar |
 
-Quin
+Omar
 ```
 
-**Key:** answer: Quin
+**Key:** answer: Omar
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T07-B-03 · kind B · puzzle · tier 3 · careful on the hard · tags: non-verification
 
 **User:**
 ```text
-Six tins hold anise, clove, dill, fennel, ginger and mint. Exactly one tin is for the tasting spoon. Clove does not suit the spoon. Dill does not suit the spoon. Fennel does not suit the spoon. Ginger does not suit the spoon. Mint does not suit the spoon. Which tin is for the tasting spoon?
+1. Three tins, anise, clove and dill, go to the spoon, the jar and the pot, one each.
+2. The anise tin does not go to the spoon.
+3. If the anise tin goes to the pot, so does the clove tin.
+4. If the anise tin goes to the jar, the clove tin goes to the spoon.
+Question: Which tin goes where?
 ```
 
 **Thinking:**
 ```text
-Clove, dill, fennel, ginger and mint are each ruled off the spoon. If I stop after clove, five tins remain and the spoon is not yet named. Every exclusion has to be walked.
+Every clue counts here. Anise isn't for the spoon, so it goes to the jar or the pot. Anise in the pot would put clove there too, and each use takes one tin, so anise goes to the jar. With anise in the jar, clove goes to the spoon, and dill takes the pot. The first clue alone leaves anise two places; the pot clue closes one and the jar clue places clove.
 ```
 
 **Reply:**
 ```text
-Walking every exclusion is what names the spoon. Stopping after clove would leave five tins.
+Each line does part of the work.
 
-| tin | spoon |
-| clove | unsuited |
-| dill | unsuited |
-| fennel | unsuited |
-| ginger | unsuited |
-| mint | unsuited |
-| anise | remaining |
+| tin | use |
+| anise | the jar |
+| clove | the spoon |
+| dill | the pot |
 
-anise
+anise=the jar; clove=the spoon; dill=the pot
 ```
 
-**Key:** answer: anise
+**Key:** answer: anise=the jar; clove=the spoon; dill=the pot
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T07-B-04 · kind B · puzzle · tier 2 · quick on the obvious · tags: non-verification
 
 **User:**
 ```text
-Four cloths are plain, stripe, plaid and check, and only one of them is sewn into the fourth flag. The plain cloth is not on the fourth flag. The stripe cloth is not on the fourth flag. The check cloth is not on the fourth flag. Which cloth is sewn into the fourth flag?
+1. Three cloths, plain, stripe and plaid, hang on the 1st, 2nd and 3rd flags, counting from the gate, a different cloth on each.
+2. The plain cloth is not on the 2nd flag.
+3. The plain cloth hangs on the flag next on from the stripe cloth's.
+4. The plaid cloth is on the 1st flag.
+Question: After which numbered line is the cloth on the 3rd flag settled?
 ```
 
 **Thinking:**
 ```text
-Only one cloth is on the fourth flag, and plain, stripe and check are each ruled off it. If I stop after the plain cloth, three cloths remain and the flag is not yet named. All three exclusions belong in the naming.
+Plain isn't on the 2nd flag, so it is on the 1st or the 3rd. It hangs right after stripe, so it can't be on the 1st; plain is on the 3rd flag. That settles the 3rd flag after line 3. The plaid clue places a cloth this question never asked about, so I stop there.
 ```
 
 **Reply:**
 ```text
-All three exclusions name the cloth. Stopping after the plain cloth would leave three cloths.
+Lines 2 and 3 settle the 3rd flag; line 4 answers a different question.
 
-| cloth | fourth flag |
-| plain | ruled off |
-| stripe | ruled off |
-| check | ruled off |
-| plaid | remaining |
+| after line | 3rd flag |
+| 2 | still open |
+| 3 | plain |
 
-plaid
+3
 ```
 
-**Key:** answer: plaid
+**Key:** answer: 3
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T07-B-05 · kind B · puzzle · tier 3 · careful on the hard · tags: non-verification
 
 **User:**
 ```text
-Seven wagons stand in the yard. The flour wagon leaves only after the bell. The flour wagon carries oats. The salt wagon leaves only after the bell. The salt wagon carries rice. The morning wagon carries oats. Each wagon carries one load, and each load is carried by one wagon. Which wagon is the morning wagon?
+1. Three wagons, the flour wagon, the salt wagon and the oat wagon, leave the yard first, second and third, one each.
+2. The flour wagon does not leave second.
+3. The salt wagon does not leave second.
+4. The oat wagon leaves before the flour wagon.
+Question: Which wagon leaves first?
 ```
 
 **Thinking:**
 ```text
-Oats is the morning load. Flour carries oats and salt carries rice. A single load rides on one wagon, so the morning wagon is the oats wagon, which is flour. The bell line is shared by flour and salt, so the bell alone does not pick the morning wagon.
+Flour and salt are both kept off second place, so the oat wagon leaves second. Oat leaves before flour, so flour is third, and salt leaves first. None of the clues is spare: without the oat clue, flour and salt could take first and third either way round.
 ```
 
 **Reply:**
 ```text
-The bell is shared, so it is not enough. Oats picks flour, because one load rides on one wagon.
+All three lines are needed.
 
-| wagon | leaves | load |
-| flour | only after the bell | oats |
-| salt | only after the bell | rice |
-| morning |  | oats |
+| turn | wagon |
+| first | salt |
+| second | oat |
+| third | flour |
 
-the flour wagon
+salt
 ```
 
-**Key:** answer: the flour wagon
+**Key:** answer: salt
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T07-B-06 · kind B · notice · tier 2 · quick on the obvious
 

@@ -176,137 +176,152 @@ I refuse the mill reading. Mill on the command is not kettle. A different packag
 
 **User:**
 ```text
-Six crates sit in the yard. The top crate's tag says the nails are for the roof. What does the top crate's tag say the nails are for?
+1. Four crates hold nails, rope, tar and glue, for the roof, the fence, the shed and the gate, one each. A second tag on the nails crate words line 2 the other way round.
+2. The nails are for the roof.
+Question: What are the nails for?
 ```
 
 **Thinking:**
 ```text
-The question names the top tag. Asking it with the words flipped would still name that tag. The other five crates are a different question.
+The nails are for the roof. The second tag says it with the words turned round. A reworded fact is still one fact, so the answer doesn't change and there is nothing new to weigh.
 ```
 
 **Reply:**
 ```text
-One tag is the whole question, flipped or not.
+Both tags carry one fact.
 
-| crate | tag |
-| top | the nails are for the roof |
-| the other five | unasked |
+| tag | says |
+| line 2 | the nails are for the roof |
+| second tag | line 2, reworded |
 
-the nails are for the roof
+the roof
 ```
 
-**Key:** answer: the nails are for the roof
+**Key:** answer: the roof
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T09-B-02 · kind B · puzzle · tier 3 · a different fact changes the verdict · tags: non-verification
 
 **User:**
 ```text
-Eight lamps hang in the passage. The brass lamp is lit only after the dusk bell. The copper lamp is lit only after the dusk bell. The copper lamp is not the stair lamp. The stair lamp is one of those two. Which lamp is the stair lamp?
+1. Three lamps, brass, copper and iron, are lit first, second and third, one each. Last week's sheet had line 2 the other way round.
+2. The iron lamp is lit before the brass lamp.
+3. The brass lamp and the copper lamp are not lit in neighbouring turns.
+Question: Which lamp is lit first?
 ```
 
 **Thinking:**
 ```text
-The dusk bell is printed on brass and on copper, so that line does not pick between them. Copper is refused by name. That refusal is a different fact, and it picks brass. Without the refusal, both lamps would still be in play.
+Iron is lit before brass. Last week's sheet had that clue the other way round, which is a different fact, not a rewording, so it doesn't carry over; I use this sheet's clue. Brass and copper aren't lit in neighbouring turns, so they take first and third, and iron is second. With iron before brass, brass is third and copper first. On last week's order brass would have been first, so the reversed clue is what changes the answer.
 ```
 
 **Reply:**
 ```text
-The dusk bell is one fact on two lamps, and it does not name the stair lamp. Copper refused by name is what picks brass.
+This sheet's order decides it, not last week's.
 
-| lamp | dusk | stair |
-| brass | only after the dusk bell | picked once copper is refused |
-| copper | only after the dusk bell | refused by name |
+| turn | lamp |
+| first | copper |
+| second | iron |
+| third | brass |
 
-the brass lamp
+copper
 ```
 
-**Key:** answer: the brass lamp
+**Key:** answer: copper
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T09-B-03 · kind B · puzzle · tier 3 · same fact, same verdict · tags: non-verification
 
 **User:**
 ```text
-Three bowls are barley, leek and pea, one each for a seat. Exactly one bowl is for the guest. The barley bowl is not for the guest. The leek bowl is not for the guest. Which bowl is for the guest?
+1. Three bowls, barley, leek and pea, stand at seat 1, seat 2 and seat 3, one each. A helper reads line 2 back with the two bowls named the other way round.
+2. The barley bowl and the leek bowl stand at neighbouring seats.
+3. The pea bowl stands at the seat next on from the barley bowl's.
+Question: Which bowl stands at seat 1?
 ```
 
 **Thinking:**
 ```text
-Barley is refused for the guest, and leek is refused for the guest. Those two refusals name pea. Saying leek first and barley second would still name pea, so the order of the two refusals is not a new guest.
+Barley and leek are neighbours. The helper reads that back with leek named first; neighbours either way round is one fact, so the answer can't move. Pea sits right after barley. If barley were at seat 1, pea would take seat 2 and leek couldn't be next to barley, so barley is at seat 2 and pea at seat 3. Leek is at seat 1.
 ```
 
 **Reply:**
 ```text
-Barley then leek names pea. Leek then barley names pea. The order of the refusals is not a new guest.
+The read-back changes nothing, so the seats stay.
 
-1. Barley is not the guest's bowl.
-2. Leek is not the guest's bowl.
-3. Pea is the guest's bowl.
+| seat | bowl |
+| 1 | leek |
+| 2 | barley |
+| 3 | pea |
 
-pea
+leek
 ```
 
-**Key:** answer: pea
+**Key:** answer: leek
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T09-B-04 · kind B · puzzle · tier 3 · same fact, same verdict · tags: non-verification
 
 **User:**
 ```text
-Seven flags hang on the rope. Nils's flag is left of Otto's flag. Otto's flag is left of Sula's flag. The checked flag is not in this row. Which of Nils, Otto and Sula is furthest left?
+1. Three flags, Nils's, Otto's and Sula's, hang on the 1st peg, the 2nd peg and the 3rd peg, left to right, each flag on its own peg. A helper reads line 3 back as Otto's flag hanging to the right of Nils's.
+2. Nils's flag is not on the 2nd peg.
+3. Nils's flag hangs to the left of Otto's.
+Question: Whose flag is on the 1st peg?
 ```
 
 **Thinking:**
 ```text
-Nils is left of Otto, and Otto is left of Sula, so Nils is furthest left of the three. The checked flag is a different row. Asking who is furthest left is the same placement as reading both links.
+Nils's flag isn't on the 2nd peg, and it hangs left of Otto's, so it isn't on the 3rd peg either. Nils's flag is on the 1st peg. The helper reads the second clue as Otto's flag hanging right of Nils's. That is one fact seen from the other side of the pair, so the answer stays Nils.
 ```
 
 **Reply:**
 ```text
-Both links place Nils furthest left. The checked flag is another row.
+Left of and right of, said the other way round, are one fact.
 
-| left | right |
-| Nils | Otto |
-| Otto | Sula |
+| peg | flag |
+| 1st | Nils |
+| 2nd and 3rd | Otto and Sula |
 
 Nils
 ```
 
 **Key:** answer: Nils
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T09-B-05 · kind B · puzzle · tier 2 · a different fact changes the verdict · tags: non-verification
 
 **User:**
 ```text
-Three shelves are oak, tin and pine, and only one of them is the upper timber. The oak shelf is not the upper timber. The tin shelf is not the upper timber. Which shelf is the upper timber?
+1. Three shelves, oak, tin and pine, sit at the top, the middle and the bottom of the rack, each at its own level. An older label gave the oak shelf a different place, and lines 2 and 3 replace it.
+2. The pine shelf sits above the oak shelf.
+3. The oak shelf and the tin shelf sit at neighbouring levels.
+Question: Which shelf is at the top?
 ```
 
 **Thinking:**
 ```text
-Only one shelf is the upper timber. Oak is ruled off it, and tin is ruled off it, so pine is the one. If the excluded shelf were pine, the answer would change.
+The older label put the oak shelf somewhere else, but lines 2 and 3 replace it, and a replaced line is a different fact, so its answer doesn't carry over. Pine sits above oak, so oak isn't at the top and pine isn't at the bottom. Oak and tin sit at neighbouring levels: if tin were at the top, oak would be in the middle and pine at the bottom, below oak. So tin isn't at the top either, and pine is.
 ```
 
 **Reply:**
 ```text
-Oak ruled off and tin ruled off leave pine.
+The replacing lines decide it, not the old label.
 
-| shelf | upper timber |
-| oak | ruled off |
-| tin | ruled off |
-| pine | remaining |
+| level | shelf |
+| top | pine |
+| middle and bottom | oak and tin |
 
 pine
 ```
 
 **Key:** answer: pine
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T09-B-06 · kind B · notice · tier 2 · same fact, same verdict
 

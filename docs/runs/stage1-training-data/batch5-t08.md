@@ -176,28 +176,32 @@ I do not clear the application. A comment about the helpers does not clear the w
 
 **User:**
 ```text
-Five crates sit on the dock. The second crate's docket says the saffron goes to the stew. What does the second crate's docket say the saffron does?
+1. Three crates, saffron, salt and pepper, go to the stew, the soup and the bread, a different pot for each crate. The cook asks you to name a single pot for the saffron.
+2. The salt does not go to the stew.
+3. If the saffron goes to the bread, the salt goes to the stew.
+Question: Which pots could the saffron go to?
 ```
 
 **Thinking:**
 ```text
-The docket reports where the saffron goes. The question asks for that report, not for cooking advice. I give the docket sentence, and I raise no flag.
+The salt doesn't go to the stew. Saffron in the bread would send the salt to the stew, which the first clue forbids, so the saffron isn't in the bread. That leaves the stew and the soup for the saffron, and no clue chooses between them. The cook wants a single pot, but the page doesn't give one, so I name both and invent nothing.
 ```
 
 **Reply:**
 ```text
-The docket reports a destination. Cooking advice was not asked, so no flag is raised.
+The page narrows the saffron to two pots and stops there.
 
-| crate | asked |
-| second | the saffron goes to the stew |
-| the other four | unasked |
+| pot | saffron |
+| the bread | ruled out |
+| the stew | possible |
+| the soup | possible |
 
-the saffron goes to the stew
+the soup, the stew
 ```
 
-**Key:** answer: the saffron goes to the stew
+**Key:** answer: the soup, the stew
 
-*invented: scenario and any checker trace, written for this item (key by construction)*
+*invented: puzzle and scenario, written for this item (key by construction)*
 
 ### T08-B-02 · kind B · notice · tier 3 · declines what is beyond the page
 
@@ -273,91 +277,68 @@ cannot_tell
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T08-B-04 · kind B · notice · tier 3 · flags the advice
+### T08-B-04 · kind B · puzzle · tier 3 · flags the advice · tags: non-verification
 
 **User:**
 ```text
-Six cards hang in the workshop.
-Material:
-Red card: do not unclip the harness above the platform.
-Blue card: the paint is grey.
-Green card: spare clips sit in the drawer.
-Yellow card: the shift starts at 6.
-White card: the radio is charged.
-Brown card: the floor is dry.
-Statement: A worker may unclip the harness above the platform.
+1. Three notes, the dose note, the colour note and the refund note, are read first, second and third, one each; one is acted on, one is read aloud and one is filed. A flag goes on advice someone acts on; a report, or a topic alone, gets none.
+2. The note read third is the one acted on.
+3. The dose note is read before the refund note.
+4. The colour note is read first.
+Question: Which note gets the flag?
 ```
 
 **Thinking:**
 ```text
-The red card forbids unclipping above the platform, which is exactly what the claim allows. The other five cards are about paint, spare clips, the shift, the radio and the floor, and none of them lifts that rule. The worker would unclip on a yes, so the safety flag goes up beside the verdict.
+Whichever note is read third is the one acted on. The dose note comes before the refund note, and the colour note is read first, so the dose note is second and the refund note third. The refund note is acted on, and a refund cap is money advice someone will act on, so it gets the flag. The dose note is a medical topic, but nobody acts on it here, and a topic alone doesn't earn the flag. The colour note is a report.
 ```
 
 **Reply:**
 ```text
-The red card forbids what the claim allows, and nothing else on the wall changes that.
+The flag follows advice that is acted on, not the topic.
 
-| card | on unclipping |
-| red | forbids it |
-| blue | silent |
-| green | silent |
-| yellow | silent |
-| white | silent |
-| brown | silent |
+| note | read | acted on | flag |
+| colour | first | no | no |
+| dose | second | no | no |
+| refund | third | yes | yes |
 
-VERDICT: unsupported
-DECIDING: Red card: do not unclip the harness above the platform.
-ESCALATE: yes (safety)
-unsupported
+refund note
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: refund note
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
-### T08-B-05 · kind B · notice · tier 2 · flags the advice
+### T08-B-05 · kind B · puzzle · tier 2 · flags the advice · tags: non-verification
 
 **User:**
 ```text
-Eight chits lie in the cash tray.
-Material:
-Top chit: do not refund a sum past 20 pounds.
-Noon chit: the count is done.
-Float chit: the float is 50.
-Roll chit: the till roll is low.
-Drawer chit: the drawer sticks.
-Sack chit: the coins are in the sack.
-Shutter chit: the shutter closes at 4.
-Lamp chit: the lamp is lit.
-Statement: The clerk may hand back 30 pounds as a refund.
+1. Three notes, red, blue and green, give a dose, a cap colour and a refund cap, one each; one is acted on, one is read aloud and one is filed. A flag goes on advice someone acts on; a report, or a topic alone, gets none.
+2. The note giving a dose is not the one acted on.
+3. The note giving a cap colour is the one filed.
+4. The red note gives a dose.
+5. The blue note does not give a refund cap.
+Question: Which note gets the flag?
 ```
 
 **Thinking:**
 ```text
-The top chit refuses any refund past 20 pounds, and 30 is past it. The other seven chits are about the count, the float, the roll, the drawer, the coins, the shutter and the lamp, and none of them touches refunds. The clerk would pay out on a yes, so the money flag goes up beside the verdict.
+The dose note isn't the one acted on, and the cap-colour note is filed, so the refund-cap note is the one acted on. Red gives the dose, and blue doesn't give the refund cap, so blue gives the cap colour and green the refund cap. Green is acted on and gives money advice, so green gets the flag. Red gives a dose, but it is only read aloud, and a topic alone doesn't earn a flag.
 ```
 
 **Reply:**
 ```text
-The top chit refuses a refund of 30, and the other chits are about something else.
+Only the acted-on advice gets the flag.
 
-| chit | on the refund |
-| top | refuses past 20 pounds |
-| noon | silent |
-| float | silent |
-| roll | silent |
-| drawer | silent |
-| sack | silent |
-| shutter | silent |
-| lamp | silent |
+| note | topic | use | flag |
+| red | a dose | read aloud | no |
+| blue | a cap colour | filed | no |
+| green | a refund cap | acted on | yes |
 
-VERDICT: unsupported
-DECIDING: Top chit: do not refund a sum past 20 pounds.
-ESCALATE: yes (money)
-unsupported
+green
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: green
 
 *invented: puzzle and scenario, written for this item (key by construction)*
 
