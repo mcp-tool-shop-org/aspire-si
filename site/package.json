@@ -14,5 +14,8 @@
     "astro": "^7.3.1",
     "tailwindcss": "^4.2.0",
     "@astrojs/starlight": "^0.42.0"
+  },
+  "overrides": {
+    "postcss-nested": "^7.0.2"
   }
 }
