@@ -19,7 +19,7 @@ def three_lessons_share_a_signature(monkeypatch):
     items."""
     from aspire_si_gates import gates
     picks = [(r["lesson"], r["id"]) for rs in FILES.values() for r in rs[:1]]
-    monkeypatch.setattr(gates, "puzzle_repeats", lambda rows, skip=(): {SIG: [x for x in picks
+    monkeypatch.setattr(gates, "puzzle_repeats", lambda rows, skip=(), models=None: {SIG: [x for x in picks
                                                                               if x[1] in {r["id"] for r in rows}]})
     return picks
 

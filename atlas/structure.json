@@ -2912,7 +2912,7 @@
             "test_the_whole_current_dataset_validates_for_training",
             "three_lessons_share_a_signature"
           ],
-          "hash": "d79c8cfa13a9a94913a9a593a012ecb855a1d0d981feebdd9197d5edafb4dd11",
+          "hash": "921bbf1ecdb874aa88f9640a10e0a99ff30d6d3cb74c12e3c163afc6ed379537",
           "importsFiles": [
             "docs/runs/stage1-train/data.py",
             "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
@@ -7114,8 +7114,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "388a6bcbd54cf4811b7053bd32734158c7d71a10",
-    "tracked": 389
+    "commit": "f9f4901e20e2fde4727d56881f18778a80845dd5",
+    "tracked": 392
   },
   "landings": [
     {
@@ -7807,6 +7807,42 @@
     {
       "readers": [
         {
+          "by": "packages/aspire-si-gates/tests/test_model_signature.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "packages/aspire-si-gates/tests/test_model_signature.py",
+          "call": "read_bytes",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "packages/aspire-si-gates/tests/test_model_signature.py",
+          "call": "read_text",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "packages/aspire-si-gates/tests/test_model_signature.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
           "by": ".github/workflows/release.yml",
           "confidence": "config"
         }
@@ -7851,7 +7887,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 99,
+  "testFiles": 102,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
@@ -7872,6 +7908,7 @@
     "docs/runs/stage1-training-data/test_checks.py",
     "packages/aspire-si-gates/tests/test_closed_form.py",
     "packages/aspire-si-gates/tests/test_material_and_puzzles.py",
+    "packages/aspire-si-gates/tests/test_model_signature.py",
     "packages/aspire-si-gates/tests/test_package.py"
   ],
   "unassigned": [
@@ -7880,14 +7917,14 @@
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "99309491ab813f8073136d9e9f76102bb416741fda4ef3fbd9b10f257972c221",
+      "hash": "630f64825bae71adfae7b4a6182c4dfe89010a382a54b79f89924b936878edaa",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "8a98cff707ed9466b1bba28a516634e6227e250d680567964d38f7e4a4705aa4",
+      "hash": "0cee9003af307ddc31364c6032a90e43a942d85008ea945b442d938a96536326",
       "importOrder": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
         "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py",
@@ -7952,6 +7989,7 @@
         "closed_form_options",
         "closed_form_settings",
         "content_stems",
+        "describe_signature",
         "formulas",
         "framing_mismatch",
         "framing_of",
@@ -7961,12 +7999,15 @@
         "key_point_share",
         "leakage",
         "load",
+        "load_models",
+        "model_signature",
         "norm",
         "parse_choice",
         "puzzle_repeats",
         "puzzle_signature",
         "reused_material",
         "role_words_in_prompt",
+        "row_sha256",
         "shared_spans",
         "trained_turn_spans",
         "trait_sections",
@@ -7980,222 +8021,162 @@
         {
           "in": "_check_quoting",
           "kind": "raise",
-          "line": 112
+          "line": 113
         },
         {
           "in": "_check_quoting",
           "kind": "raise",
-          "line": 122
+          "line": 123
         },
         {
           "in": "check_multi_line_share",
           "kind": "raise",
-          "line": 141
+          "line": 142
         },
         {
           "in": "_turn_verdicts",
           "kind": "raise",
-          "line": 163
+          "line": 164
         },
         {
           "in": "check_floors",
           "kind": "raise",
-          "line": 199
+          "line": 200
         },
         {
           "in": "check_floors",
           "kind": "raise",
-          "line": 202
+          "line": 203
         },
         {
           "in": "check_floors",
           "kind": "raise",
-          "line": 204
+          "line": 205
         },
         {
           "in": "check_floors",
           "kind": "raise",
-          "line": 207
+          "line": 208
         },
         {
           "in": "check_pairs",
           "kind": "raise",
-          "line": 220
+          "line": 221
         },
         {
           "in": "check_pairs",
           "kind": "raise",
-          "line": 223
+          "line": 224
         },
         {
           "in": "check_pairs",
           "kind": "raise",
-          "line": 228
+          "line": 229
         },
         {
           "in": "check_pairs",
           "kind": "raise",
-          "line": 234
+          "line": 235
         },
         {
           "in": "check_spans",
           "kind": "raise",
-          "line": 284
+          "line": 285
         },
         {
           "in": "check_framing_fits",
           "kind": "raise",
-          "line": 324
+          "line": 325
         },
         {
           "in": "check_material_reuse",
           "kind": "raise",
-          "line": 350
+          "line": 351
+        },
+        {
+          "in": "load_models",
+          "kind": "raise",
+          "line": 440
+        },
+        {
+          "in": "load_models",
+          "kind": "raise",
+          "line": 442
         },
         {
           "in": "check_puzzles",
           "kind": "raise",
-          "line": 418
+          "line": 471
         },
         {
           "in": "check_puzzles",
           "kind": "raise",
-          "line": 421
+          "line": 474
         },
         {
           "in": "check_phrases",
           "kind": "raise",
-          "line": 523
+          "line": 575
         },
         {
           "in": "check_formulas",
           "kind": "raise",
-          "line": 576
+          "line": 628
         },
         {
           "in": "freeze_report",
           "kind": "raise",
-          "line": 719
+          "line": 771
         },
         {
           "in": "_check_keys",
-          "kind": "raise",
-          "line": 746
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 749
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 751
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 754
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 756
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 762
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 766
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 769
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 772
-        },
-        {
-          "in": "_reply_matches",
-          "kind": "raise",
-          "line": 774
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 792
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 795
-        },
-        {
-          "in": "check_item",
           "kind": "raise",
           "line": 798
         },
         {
-          "in": "check_item",
+          "in": "_check_keys",
           "kind": "raise",
-          "line": 800
+          "line": 801
         },
         {
-          "in": "check_item",
+          "in": "_check_keys",
+          "kind": "raise",
+          "line": 803
+        },
+        {
+          "in": "_check_keys",
           "kind": "raise",
           "line": 806
         },
         {
-          "in": "check_item",
+          "in": "_check_keys",
           "kind": "raise",
-          "line": 812
+          "line": 808
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
           "line": 814
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
-          "line": 817
+          "line": 818
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
-          "line": 825
+          "line": 821
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
-          "line": 828
+          "line": 824
         },
         {
-          "in": "check_item",
+          "in": "_reply_matches",
           "kind": "raise",
-          "line": 832
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 837
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 840
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 842
+          "line": 826
         },
         {
           "in": "check_item",
@@ -8205,155 +8186,225 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 848
+          "line": 847
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 851
+          "line": 850
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 853
+          "line": 852
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 855
+          "line": 858
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 857
+          "line": 864
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 859
+          "line": 866
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 863
+          "line": 869
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 865
+          "line": 877
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 879
+          "line": 880
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 886
+          "line": 884
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 888
+          "line": 889
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 895
+          "line": 892
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 894
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 896
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 900
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 903
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 905
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 907
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 909
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 911
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 915
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 917
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 931
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 938
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 940
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 947
         },
         {
           "in": "closed_form_settings",
           "kind": "raise",
-          "line": 943
+          "line": 995
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 992
+          "line": 1044
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 994
+          "line": 1046
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 998
+          "line": 1050
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1000
+          "line": 1052
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1003
+          "line": 1055
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1006
+          "line": 1058
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1020
+          "line": 1072
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1033
+          "line": 1085
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1041
+          "line": 1093
         },
         {
           "in": "check_closed_form_spans",
           "kind": "raise",
-          "line": 1102
+          "line": 1154
         },
         {
           "in": "validate_training_set",
           "kind": "raise",
-          "line": 1164
+          "line": 1219
         },
         {
           "in": "validate_training_set",
           "kind": "except",
-          "line": 1165
+          "line": 1220
         },
         {
           "in": "validate_training_set",
           "kind": "raise",
-          "line": 1166
+          "line": 1221
         },
         {
           "in": "validate_training_set",
           "kind": "except",
-          "line": 1169
+          "line": 1224
         },
         {
           "in": "validate_training_set",
           "kind": "raise",
-          "line": 1171
+          "line": 1226
         },
         {
           "in": "check_frames",
           "kind": "raise",
-          "line": 1188
+          "line": 1243
         },
         {
           "in": "check_stamps",
           "kind": "raise",
-          "line": 1207
+          "line": 1262
         }
       ],
-      "hash": "b22883f8f5db125924b2b633603b87b594238a423f6e81bc2357fc87c6d6ebe0",
+      "hash": "6b5f00afccd4b95e2b29ad3c9cd00a1887e43b80648ef931abf98db1b336bc3d",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/answer_format.py",
         "packages/aspire-si-gates/src/aspire_si_gates/constants.py"
@@ -8376,6 +8427,14 @@
     {
       "hash": "dbb875277a34e36e9dd96d54da4b1c991e255824742e71999729019a41261d9b",
       "path": "packages/aspire-si-gates/tests/conftest.py"
+    },
+    {
+      "hash": "6f4a7349ca5eff1bfd03cadc50b12262329ab504da6e4bdc5735ed5a5ec791b8",
+      "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl"
+    },
+    {
+      "hash": "3a39dbe2bb85ea25e0d4e93ceddbde4da4f168bfc37108fda8729b18f9814cfd",
+      "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl"
     },
     {
       "exports": [
@@ -8427,6 +8486,24 @@
     },
     {
       "exports": [
+        "model",
+        "puzzle",
+        "test_a_row_stamped_by_role_set_verifies_and_one_edited_character_fails",
+        "test_a_sidecar_line_for_an_item_the_file_lacks_is_refused_and_no_sidecar_means_no_models",
+        "test_the_model_decides_the_signature_and_the_regex_is_only_the_fallback",
+        "test_the_signature_is_entities_and_the_multiset_of_rules_with_after_folded_into_before",
+        "test_the_stamp_ignores_a_crlf_line_ending"
+      ],
+      "hash": "d2e2bb6b7890fb65aa93418cc141a2ba8a27aacf3bcad51457ae695e37692bea",
+      "importsFiles": [
+        "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+        "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+      ],
+      "path": "packages/aspire-si-gates/tests/test_model_signature.py",
+      "testFramework": "pytest"
+    },
+    {
+      "exports": [
         "b_item",
         "d_item",
         "test_a_lesson_rank_is_a_figure_not_a_refusal",
@@ -8440,7 +8517,7 @@
         "test_scorer_rules_are_exposed",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "5d06699773adbbc5a46b4970e1f555471f1bc918107c8e3c5d79dc2212b4ad8f",
+      "hash": "95abac8eb0abd668898250e320329a1e4a65aef5abf844cb3c246d21c11f4242",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
