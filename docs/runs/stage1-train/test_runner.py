@@ -7,6 +7,7 @@ Each test runs the real run.py and train.py; only the model is tiny and the faul
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -234,8 +235,18 @@ def test_heat_pauses_between_steps_and_resumes(rig, monkeypatch, tmp_path):
 @needs_tokenizer
 def test_the_grant_end_checkpoints_and_stops_without_resuming(rig):
     from datetime import datetime, timedelta, timezone
-    end = (datetime.now(timezone.utc) + timedelta(seconds=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    p, d, status, actions = run_runner(rig, {"TINY_SLOW_S": "1"}, steps=10, ckpt=4, grant_end=end, startup=600)
+    # The grant end is wall-clock and the trainer's startup isn't: on a loaded machine startup can outlast a short
+    # window, and the stop lands before step 1 (nothing to flush, checked here). The window then widens, with the
+    # steps slowed to match so the run (10 steps on this data) can't finish before the grant ends. The sleep is
+    # outside the timed step, so the stall slack covers it.
+    for window, slow in ((30, 4), (90, 12), (240, 30)):
+        shutil.rmtree(rig["root"], ignore_errors=True)
+        end = (datetime.now(timezone.utc) + timedelta(seconds=window)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        p, d, status, actions = run_runner(rig, {"TINY_SLOW_S": str(slow)}, steps=10, ckpt=4, grant_end=end,
+                                           slack=3 * slow, startup=600)
+        if (d / "train" / "loss.jsonl").exists():
+            break
+        assert p.returncode == 1 and not (d / "train" / "checkpoint").exists()  # stopped before step 1
     assert p.returncode == 1
     assert status["state"] == "stopped" and status["stop_reason"] == "card grant ended" and status["resumes"] == 0
     assert [x["action"] for x in actions if "grant" in x["trigger"]] == ["stop at the next checkpoint"]
