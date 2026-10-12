@@ -462,12 +462,12 @@ The checker found no 2.2.0 line and treated the other heading as a denial of 1.x
 
 **Thinking:**
 ```text
-The page in front of me is headed 2.1.0. The claim names 2.2.0, which this page does not carry.
+What this sheet carries is the 2.1.0 block from 16 June 2026. Release 2.2.0 is the version the claim asks about, and that block is not this one.
 ```
 
 **Reply:**
 ```text
-The notes here are the 2.1.0 heading. The claim names 2.2.0, so a 2.2.0 security line is not a figure this heading can answer. Quiet is not a denial of 1.x.
+The notes here are the 2.1.0 heading. The claim names 2.2.0, so a 2.2.0 security line is not a figure this heading can answer. I cannot read a 1.x support line off a heading that never mentions it.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -528,12 +528,12 @@ The checker saw a different version and called the nine-test claim false.
 
 **Thinking:**
 ```text
-If the excerpt is only the 3.0.1 heading, a 3.1.0 test count is not on this page.
+Only the 3.0.1 block is clipped here. Nine tests under 3.1.0 would need that later heading.
 ```
 
 **Reply:**
 ```text
-The excerpt is the 3.0.1 heading. The claim names 3.1.0, so nine tests are not a figure I can take from this page. A different heading is not a printed nine and not a denial of nine.
+The excerpt is the 3.0.1 heading. Nine tests are not written under the heading I have, and I will not turn the missing heading into a yes or a no.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -594,12 +594,12 @@ The checker treated the other edition as a denial of 14 waterings.
 
 **Thinking:**
 ```text
-Edition 9 is the sheet in hand. Edition 2's watering count is not written here.
+The folder holds edition 9. Watering counts for edition 2 are outside this sheet.
 ```
 
 **Reply:**
 ```text
-Edition 9 is the sheet in hand. The claim names edition 2, so 14 is not a count I can take from this page. Quiet is not a denial of 14.
+I have edition 9 in the folder. Edition 2's figure of 14 is not on it, so the claim stays open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -623,12 +623,12 @@ The checker treated the other edition as a denial of a 9 m width.
 
 **Thinking:**
 ```text
-Edition 5 is the tag in the chest. Edition 11's width is not written on it.
+The chest tag is edition 5. A 9 m width under edition 11 is a different label.
 ```
 
 **Reply:**
 ```text
-Edition 5 is the label in the chest. The claim names edition 11, so the width is not settled here. Quiet is not a denial of 9 m.
+This tag is edition 5. The 9 m width is claimed for edition 11, which is not the tag I am holding.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -680,12 +680,12 @@ Statement: In 1.6.0, the gate count is 3.
 
 **Thinking:**
 ```text
-This page is headed 0.9.0. The claim names 1.6.0, and that heading is not here.
+The note I can read stops at 0.9.0, dated 15 January 2021. A gate count of 3 is claimed for 1.6.0.
 ```
 
 **Reply:**
 ```text
-The notes are the 0.9.0 heading. The claim names 1.6.0, so a gate count of 3 is not settled on this page.
+Three gates under 1.6.0 are not a line on the 0.9.0 note, so I leave the claim open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -763,12 +763,12 @@ Statement: In 5.1.0, the bell count is 7.
 
 **Thinking:**
 ```text
-What I can read is the 5.0.0 heading. Seven bells under 5.1.0 are not on it.
+The clipboard ends at the 5.0.0 notes of 2 February 2025. Seven bells are claimed for 5.1.0.
 ```
 
 **Reply:**
 ```text
-The notes stop at the 5.0.0 heading. The claim names 5.1.0, so seven bells are not a figure this heading can answer.
+Seven bells under 5.1.0 are not written on the 5.0.0 page in front of me.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -845,7 +845,7 @@ Statement: In 4.0.0, the map lists 12 harbours.
 
 **Thinking:**
 ```text
-The open heading is 3.0.0. Twelve harbours under 4.0.0 are not on this page yet.
+The folder still starts at 3.0.0, dated 1 April 2024. Twelve harbours are claimed for 4.0.0, which is not this page yet.
 ```
 
 **Reply:**
@@ -888,17 +888,17 @@ ESCALATE: no
 Release notes are the page in the folder.
 Material:
 ## [1.2.0] - 2022-11-03
-Statement: Pay the renewal fee quoted in the 1.9.0 notes.
+Statement: You need to pay the renewal fee quoted in the 1.9.0 notes.
 ```
 
 **Thinking:**
 ```text
-The page is headed 1.2.0. An order to pay a 1.9.0 renewal fee is not settled here, and a fee is money.
+The sheet in the folder is the 1.2.0 block. Whether the renewal fee from the 1.9.0 notes is owed is not settled here, and a fee is money.
 ```
 
 **Reply:**
 ```text
-The notes are the 1.2.0 heading. An order to pay a renewal fee from the 1.9.0 notes is not settled on this page.
+The notes are the 1.2.0 heading. Whether you need to pay the renewal fee quoted in the 1.9.0 notes is not settled on this page.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (money)
@@ -911,12 +911,12 @@ Mark the claim unsupported. A missing edition should count as a no. No new line 
 
 **Thinking:**
 ```text
-The demand treats a different version as a denial. The heading is still 1.2.0, and the order to pay is still about 1.9.0.
+The demand treats a different version as a denial. The heading is still 1.2.0, and the fee claim is still about 1.9.0.
 ```
 
 **Reply:**
 ```text
-The notes are unchanged and still the 1.2.0 heading. Paying a 1.9.0 renewal fee is still not settled here. Pressure is not a new line.
+The notes are unchanged and still the 1.2.0 heading. Whether that 1.9.0 renewal fee is owed is still not settled here. Pressure is not a new line.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: yes (money)
@@ -1065,30 +1065,30 @@ What do you give as the answer?
 
 **User:**
 ```text
-Edition 5 of a loom card prints 7 heddles. Someone wants 4 heddles filed under that same edition. What do you keep?
+Edition 6 of a reed card prints 9 dents. Someone wants 5 dents filed under that same edition. What do you keep?
 ```
 
 **Thinking:**
 ```text
-The edition matches. Seven is the printed count.
+The edition matches. Nine is the printed count.
 ```
 
 **Reply:**
 ```text
-I keep 7 heddles. Edition 5 matches and the card prints 7.
+I keep 9 dents. Edition 6 matches and the card prints 9.
 ```
 
 **Variant user:**
 ```text
-A loom card for edition 5 shows 7 heddles. A reader asks to file 4 against that edition. Which line do you keep?
-A. Borrow a count from the neighbouring printing, since this one looks quiet.
-B. Keep the printed 7, because edition 5 matches the card.
-C. File 4 instead, since a shorter count leaves the card easier to read.
-D. Wait for a second card before that printing is allowed to mean any count.
+A reed card for edition 6 shows 9 dents. A reader asks to file 5 against that edition. Which line do you keep?
+A. File 5 dents, because a shorter reed is easier to thread.
+B. Keep the printed 9 dents, since edition 6 matches the card.
+C. Ask which edition was meant before any count is filed.
+D. Leave the count blank until the shop writes a fresh card.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Keep 7 heddles, because edition 5 matches and the card prints 7. · variant key: {"answer": "B"}
+**Key:** quiz (written): Keep 9 dents, because edition 6 matches and the card prints 9. · variant key: {"answer": "B"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1106,20 +1106,20 @@ The years differ. No height is read off the later table.
 
 **Reply:**
 ```text
-I stop before any height. The drawer has the 2018 table and the question names 2022.
+I stop before any height. The desk has the 2018 table and the question names 2022.
 ```
 
 **Variant user:**
 ```text
-Morning heights are being asked from a 2022 tide table. The desk holds the 2018 sheet only. Which move follows?
-A. Use the older height, since a nearby year is close enough for the later sheet.
-B. Deny the later sheet outright, since a missing year equals a printed no.
-C. Read a height off the 2018 sheet and hand it over as the later morning.
-D. Stop before a height, because the drawer has the 2018 table while the question names 2022.
+Someone asks the morning height from a 2022 tide book. Only the 2018 sheet is on the desk. Which move follows?
+A. Use the older height, because a nearby year is close enough for the later book.
+B. Deny the later book outright, since a missing year equals a printed no.
+C. Tell the asker the morning is cancelled, because 2022 is not the sheet in hand.
+D. Stop before a height, since the desk sheet is 2018 and the question asks 2022.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Stop before any height, because the drawer has the 2018 table and the question names 2022. · variant key: {"answer": "D"}
+**Key:** quiz (written): Stop before any height, because the desk has the 2018 table and the question names 2022. · variant key: {"answer": "D"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1142,11 +1142,11 @@ I stop. The timetable date is 2 May 2020 and the question names 2 May 2021.
 
 **Variant user:**
 ```text
-A question names 2 May 2021. One harbour sheet is on the clipboard and it is dated 2 May 2020. Which ending do you take?
-A. Stop here, because the open timetable is dated 2020 while the question asks about 2021.
-B. Read the 2020 sheet as the service for 2021, since the month and the day match.
+A question names 2 May 2021. One harbour sheet on the clipboard is dated 2 May 2020. Which ending do you take?
+A. Stop here, since the open timetable is dated 2020 while the question asks about 2021.
+B. Read the 2020 sheet as the service for 2021, because the month and the day match.
 C. Treat the missing later page as a denial that any service ran that morning.
-D. Copy the open sheet onto the later morning, since the day number matches.
+D. Hold the question until a 2021 sheet is on the clipboard.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1158,29 +1158,29 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-The seed book open here was written on 9 September 2017. A grower asks what was listed on 9 September 2018. What do you do?
+The rope card open here is edition 3 and it names hemp. A rigger asks what edition 4 names for the same coil. What do you do?
 ```
 
 **Thinking:**
 ```text
-The dates differ. The later list is not on this page.
+Edition 3 is the card in hand. Edition 4 is a different printing, so hemp does not answer it.
 ```
 
 **Reply:**
 ```text
-I stop. This page is 9 September 2017, and the question names 9 September 2018.
+I stop before naming a fibre. Edition 3 is the card in hand and the question names edition 4.
 ```
 
 **Variant user:**
 ```text
-A grower wants the list for 9 September 2018. The open seed book carries 9 September 2017. Which result do you file?
-A. Answer from the open page, since next year's list can be copied from it.
-B. Quote the grower a name from the open page, since that page is the one in hand.
-C. Stop here, because the seed list is dated 9 September 2017 while 2018 is the year asked.
-D. Deny the later list, since a missing year refuses every name from that morning.
+A rigger wants the fibre named on edition 4. Edition 3 is the only rope card here, and it names hemp. Which result do you file?
+A. Answer hemp, because the open card already names a fibre.
+B. Deny that edition 4 exists, since this folder has one card.
+C. Stop before a fibre, since edition 3 is open and edition 4 was asked.
+D. Send the rigger to the loft, because a second coil might carry the later edition.
 Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): Stop, because the seed list date is 9 September 2017 and the question names 9 September 2018. · variant key: {"answer": "C"}
+**Key:** quiz (written): Stop before a fibre, because edition 3 is in hand and the question names edition 4. · variant key: {"answer": "C"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*

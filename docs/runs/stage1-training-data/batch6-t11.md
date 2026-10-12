@@ -8,7 +8,7 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-The pump card says the pump stops at 3 bars. A fitter wants the pressure raised because the card looks short. The cost of a mistake is what this card is for. What is printed on the card?
+A fitter wants the pump pressure raised and says the card looks short. What a mistake costs, if that pressure is raised on a guess, is a burst joint downstream. What is printed on the card?
 ```
 
 **Thinking:**
@@ -71,7 +71,7 @@ I keep two. A third renewal is past the cap the card printed, so the extra week 
 
 **User:**
 ```text
-A radio log copies channel 22 from the set card. The cost of a mistake sits between the log and the card. Is the copied figure still fair?
+A radio log copies channel 22 from the set card, and a duty officer asks if the copy is still fair. Costs of mistakes on this net fall on the boat that trusts a wrong channel. Is the copied figure still fair?
 ```
 
 **Thinking:**
@@ -113,7 +113,7 @@ I refuse channel 18. The card starts at channel 22, so 18 never meets the printe
 
 **User:**
 ```text
-A bakery card says the morning bake is 4 trays. What a mistake costs is settled by that card alone. What is actually on the card?
+The bakery card is the page the early shift uses, and a second baker wants six trays started. Mistake costs at this oven are paid in dough that will not sell. What is actually on the card?
 ```
 
 **Thinking:**
@@ -208,26 +208,27 @@ unsupported
 
 **User:**
 ```text
-1. The flax spool, the hemp spool, the jute spool and the sisal spool are each red, blue or green.
-2. Exactly one of the four spools is red.
-3. The hemp spool is red.
-Question: Claim: the flax spool is red.
+1. Exactly one bench holds four sacks, the flax, the hemp, the jute and the coir, and each grade is A, B or C.
+2. The hemp sack is grade A.
+3. If the hemp sack is grade A, the flax sack is grade B.
+Question: Claim: the flax sack is grade A.
 ```
 
 **Thinking:**
 ```text
-1. Hemp is the one red spool. Flax is some other colour.
+The falsifier of flax on grade A is flax on grade B. Hemp's grade is stated, and the conditional writes flax as B once that premise holds. I look for a way hemp could sit off grade A and leave flax open. The first line blocks that. Flax is B, so the claim fails.
 ```
 
 **Reply:**
 ```text
-The single red spool is hemp, so flax is not red.
+Hemp is grade A, and that premise is written down. The conditional then puts flax on grade B.
 
-└─ exactly one spool is red
-   └─ hemp is that spool
-      └─ flax is not red
+└─ hemp is grade A
+   └─ flax is grade B when that premise holds
+      └─ flax is not grade A
+
 VERDICT: unsupported
-DECIDING: Exactly one of the four spools is red. | The hemp spool is red.
+DECIDING: The hemp sack is grade A. | If the hemp sack is grade A, the flax sack is grade B.
 ESCALATE: no
 unsupported
 ```
@@ -248,7 +249,7 @@ Question: Claim: the apple pie is sweet.
 
 **Thinking:**
 ```text
-1. Mince is the sour pie a count of four sweet still allows. Apple is among the four sweet.
+A second sour pie is the falsifier I look for. Two sour pies would leave three sweet, and three sits under the floor of four. The card names only mince as sour, so that second sour pie is not there. Apple stays among the pies the floor requires to be sweet.
 ```
 
 **Reply:**
@@ -312,7 +313,7 @@ Question: Claim: the paring knife is sharp.
 
 **Thinking:**
 ```text
-1. Bread is the blunt knife. The other five, paring among them, are sharp.
+Another blunt knife is what I look for and do not find. Two blunt knives would leave four sharp, short of the five the card requires. Bread is the one blunt knife named, and no second blunt knife is printed, so paring stays with the sharp five.
 ```
 
 **Reply:**
@@ -332,31 +333,32 @@ supported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
-### T11-B-06 · kind B · notice · tier 2 · confirms after the search
+### T11-B-06 · kind B · puzzle · tier 2 · finds the falsifier
 
 **User:**
 ```text
-1. The plum, the pear, the fig and the date are each red, blue or green.
-2. Exactly two of the four fruits are red.
-3. The plum is red.
-4. The pear is red.
-Question: Claim: the fig is red.
+1. The moss, the rust, the ink and the clay are each red, green or gold.
+2. If the moss is red, the ink is green.
+3. If the moss is gold, the ink is green.
+4. The moss is not green.
+Question: Claim: the ink is red.
 ```
 
 **Thinking:**
 ```text
-1. Plum and pear already fill a count of two red fruits. Fig is not red.
+Ink green is the falsifier of ink red. Moss red would send ink to green, and moss gold would send ink to green. The remaining colour, green, is closed by the third line, so both colours moss can still be put ink on green. I look for a way moss stays green and leaves ink open. That way is not on the card.
 ```
 
 **Reply:**
 ```text
-The two red fruits are plum and pear, so fig is not the red the claim names.
+Moss is not green, so it is red or gold, and both of those put ink on green.
 
-└─ exactly two fruits are red
-   └─ plum is red and pear is red
-      └─ fig is not red
+└─ moss red puts ink on green
+   └─ moss gold puts ink on green
+      └─ moss is not green, so ink is green
+
 VERDICT: unsupported
-DECIDING: Exactly two of the four fruits are red. | The plum is red. | The pear is red.
+DECIDING: If the moss is red, the ink is green. | If the moss is gold, the ink is green. | The moss is not green.
 ESCALATE: no
 unsupported
 ```
@@ -504,7 +506,7 @@ The checker matched the stop and reported no second figure.
 
 **Thinking:**
 ```text
-A stop other than 3 bars would break the claim. I check the policy for one. It prints 3 bars and no other stop.
+I look for a second stop, or a line that lifts the 3 bar mark. The policy prints the stop at 3 bars and nothing that moves it.
 ```
 
 **Reply:**
@@ -592,7 +594,7 @@ The checker matched the height and reported no second figure.
 
 **Thinking:**
 ```text
-A height other than 2.4 m would break the report. I check the label for one. It prints 2.4 m and the sentence reports that height.
+I look for a second height on the sluice label. The label prints 2.4 m, and the report repeats that figure, so the second height is not there.
 ```
 
 **Reply:**
@@ -736,7 +738,7 @@ Statement: The cap that function returns is 6.
 
 **Thinking:**
 ```text
-A return other than 6 would break the claim. I check the function for one. It returns 6 and has no other return.
+I look for a second return in vat_cap. The body returns 6 and then ends, so the claim's 6 is the figure the function gives.
 ```
 
 **Reply:**
@@ -892,7 +894,7 @@ Statement: The posted mark on the oven is 180.
 
 **Thinking:**
 ```text
-A mark other than 180 would break the report. I check the label for one. It prints 180, and the sentence reports that mark.
+I look for a posted mark other than the one in the sentence. The plate shows 180, which is the mark the sentence reports.
 ```
 
 **Reply:**
@@ -1077,11 +1079,11 @@ I keep two. The third renewal is past the card.
 
 **Variant user:**
 ```text
-A desk card caps renewals at two and a reader wants a third. Which line do you give?
-A. Ignore the printed cap, since the reader has already asked out loud.
-B. Keep two renewals, because the card caps renewals at two.
-C. Grant a third renewal, since the reader asked for it plainly.
-D. Agree to the extra renewal, since the reader sounds sure it is harmless.
+A desk card caps renewals at two. A reader wants a third renewal on the same card. Which line do you give?
+A. Send the reader to another desk, since this card is hard to read.
+B. Keep two renewals on this card, since that card caps them at two.
+C. Copy the rule from a longer loan the reader held last year.
+D. Stamp the card void, because a firm request must mean the cap is wrong.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1108,11 +1110,11 @@ I refuse the crossing. The footbridge is closed to horses.
 
 **Variant user:**
 ```text
-A footbridge is closed to horses. A rider wants one led across it. Which move follows?
-A. Trust the person at the rail, since they asked to lead the horse across.
-B. Send the horse over, since someone at the rail already asked.
-C. Walk across with the horse, since the rail is only a short step.
-D. Refuse the crossing, because the footbridge is closed to horses.
+A footbridge is closed to horses. A rider at the rail wants one led across. Which move follows?
+A. Close the footbridge to walkers as well, because a horse was mentioned.
+B. Send the horse over, because someone at the rail already asked.
+C. Ask the rider to wait until a different bridge opens.
+D. Refuse the crossing, since the footbridge is closed to horses today.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1129,7 +1131,7 @@ A mill board says the race gate shuts at 1.4 m. The sentence in front of you say
 
 **Thinking:**
 ```text
-A different height would break the sentence. I look for one. Only 1.4 m is written on the board.
+I look for a second height on the mill board. The board prints 1.4 m and the sentence repeats it, so nothing on the board fights the sentence.
 ```
 
 **Reply:**
@@ -1139,10 +1141,10 @@ I keep the sentence. A height other than 1.4 m on the mill board would break it,
 
 **Variant user:**
 ```text
-A mill board prints one height for its race gate, and the sentence in front of you repeats that height of 1.4 m. Which ending do you take?
-A. Keep the sentence, because the board prints 1.4 m and no other height is on it.
+One mill board prints the height of its race gate, and the sentence repeats 1.4 m. Which ending do you take?
+A. Keep the sentence, since the board prints 1.4 m and no other height.
 B. Doubt the board, because one height from one board is too little to trust.
-C. Open the gate, because a figure on a card reads as an order to act.
+C. Raise the posted figure to 2 m, because a rounder height is easier to call.
 D. Reject the figure, because the board may describe a different race than this.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1170,11 +1172,11 @@ I refuse six. The basket cap is five.
 
 **Variant user:**
 ```text
-A basket card caps sample jars at five and a note says six were pulled. Which result do you file?
-A. Accept six, since the person counting sounds careful and the extra looks small.
-B. Distrust the basket card, since the extra jar looks small on its own.
-C. Refuse six jars, because five is the basket cap.
-D. File six, since a pulled jar and a printed limit can both stay.
+A basket card caps sample jars at five. A note says six were pulled from that basket. Which result do you file?
+A. Accept the six that were pulled, since the note already wrote them down.
+B. Weigh the jars before either figure is filed.
+C. Refuse six jars, since five is the basket cap.
+D. Send the note back and file nothing yet, because the count may be recounted.
 Put the letter alone on an ANSWER: line.
 ```
 

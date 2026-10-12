@@ -176,24 +176,29 @@ I leave Sunday off the board. Weekdays are the working days, and Sunday is not o
 
 **User:**
 ```text
-1. The red cup, the blue cup and the green cup are each hot or cold.
-2. Exactly two of the three cups are hot.
-3. The red cup is hot.
-Question: Which sets of cups could be hot?
+1. Three stoves, the kiln, the oven and the hob, are each hot, warm or cold.
+2. At least two of the stoves are hot.
+3. If the kiln is hot, the oven is hot.
+Question: which stoves are hot?
 ```
 
 **Thinking:**
 ```text
-1. Red is already hot, so one hot cup remains between blue and green. Reading exactly two as at least two also allows every cup hot. Reading it as at most two also allows red alone.
+The size step is a floor: two stoves hot, not a fixed pair. Exactly two would drop the case where the kiln, the oven and the hob are all hot. The kiln line then strikes out any hot group that takes the kiln and leaves the oven warm or cold. What remains is the oven with the kiln, the oven with the hob, and all three.
 ```
 
 **Reply:**
 ```text
-As written, the hot sets are red with blue, and red with green.
-red, blue, red, green
+| hot stoves |
+| --- |
+| kiln and oven |
+| kiln and oven and hob |
+| oven and hob |
+
+kiln and oven; kiln and oven and hob; oven and hob
 ```
 
-**Key:** answer: red, blue, red, green
+**Key:** answer: kiln and oven; kiln and oven and hob; oven and hob
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -201,100 +206,128 @@ red, blue, red, green
 
 **User:**
 ```text
-1. The rye loaf, the oat loaf, the bran loaf and the spelt loaf are each fresh or stale.
-2. Exactly two of the four loaves are stale.
-3. The rye loaf is stale.
-4. The oat loaf is fresh.
-Question: Which sets of loaves could be stale?
+1. Four sacks, the rye, the oat, the bran and the spelt, are each fresh, stale or sour.
+2. At least two of the sacks are stale.
+3. If the rye is stale, the oat is stale.
+4. If the bran is stale, the spelt is stale.
+Question: which sacks are stale?
 ```
 
 **Thinking:**
 ```text
-1. Rye is stale and oat is fresh, so the second stale loaf is bran or spelt. Reading exactly two as at least two also allows rye, bran and spelt together. Reading it as at most two also allows rye alone.
+Stale is bounded from below. Two stale sacks are required, and more than two is still allowed. Taking that floor as a fixed two drops the larger stale groups. Rye stale forces oat stale, and bran stale forces spelt stale, so rye without oat is out and bran without spelt is out.
 ```
 
 **Reply:**
 ```text
-As written, the stale sets are rye with bran, and rye with spelt.
-rye, bran, rye, spelt
+| stale sacks |
+| --- |
+| bran and spelt |
+| oat and bran and spelt |
+| oat and spelt |
+| rye and oat |
+| rye and oat and bran and spelt |
+| rye and oat and spelt |
+
+bran and spelt; oat and bran and spelt; oat and spelt; rye and oat; rye and oat and bran and spelt; rye and oat and spelt
 ```
 
-**Key:** answer: rye, bran, rye, spelt
+**Key:** answer: bran and spelt; oat and bran and spelt; oat and spelt; rye and oat; rye and oat and bran and spelt; rye and oat and spelt
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
-### T10-B-03 · kind B · puzzle · tier 3 · rejects the changed size · tags: non-verification
+### T10-B-03 · kind B · puzzle · tier 4 · rejects the changed size · tags: non-verification
 
 **User:**
 ```text
-1. The ash mug, the elm mug, the oak mug, the yew mug and the fir mug are each red, blue or green.
-2. Exactly two of the five mugs are red.
-3. The ash mug is blue.
-Question: Which sets of mugs could be red?
+1. Five bowls, the pip, the jug, the urn, the crock and the vat, are each red, blue or green.
+2. At least four of the bowls are red.
+3. If the pip is red, the jug is red.
+Question: which bowls are red?
 ```
 
 **Thinking:**
 ```text
-1. Ash is blue, so the two red mugs are a pair drawn from elm, oak, yew and fir. A minimum of two red mugs would allow bigger red groups. A maximum of two would allow a single red mug, or none.
+Red bowls have a minimum of four on a shelf of five. That minimum still allows every bowl red. Pinning the minimum to four and no more drops the group of all five. Pip red forces jug red, so a red pip whose jug is blue or green cannot reach four.
 ```
 
 **Reply:**
 ```text
-As written, every pair among elm, oak, yew and fir can be the red pair.
-elm, fir, elm, oak, elm, yew, oak, fir, oak, yew, yew, fir
+| red bowls |
+| --- |
+| jug and urn and crock and vat |
+| pip and jug and crock and vat |
+| pip and jug and urn and crock |
+| pip and jug and urn and crock and vat |
+| pip and jug and urn and vat |
+
+jug and urn and crock and vat; pip and jug and crock and vat; pip and jug and urn and crock; pip and jug and urn and crock and vat; pip and jug and urn and vat
 ```
 
-**Key:** answer: elm, fir, elm, oak, elm, yew, oak, fir, oak, yew, yew, fir
+**Key:** answer: jug and urn and crock and vat; pip and jug and crock and vat; pip and jug and urn and crock; pip and jug and urn and crock and vat; pip and jug and urn and vat
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
-### T10-B-04 · kind B · puzzle · tier 2 · rejects the changed size · tags: non-verification
+### T10-B-04 · kind B · puzzle · tier 3 · rejects the changed size · tags: non-verification
 
 **User:**
 ```text
-1. The linen cloth, the cotton cloth, the wool cloth, the silk cloth, the hemp cloth and the jute cloth are each wet or dry.
-2. Exactly two of the six cloths are wet.
-3. The linen cloth is wet.
-Question: Which sets of cloths could be wet?
+1. Six buoys, the nun, the can, the spar, the bell, the gong and the whistle, are each flying, furled or spare.
+2. At most one of the buoys is flying.
+3. If the nun is flying, the can is flying.
+Question: which buoys are flying?
 ```
 
 **Thinking:**
 ```text
-1. Linen is wet, so the other wet cloth is one of the five remaining. Loosening two wet cloths into a floor admits more wet cloths around linen. Loosening that two into a ceiling admits linen with nothing else wet.
+Flying buoys have a ceiling of one. The empty set sits inside that ceiling. Pinning the ceiling to one and no fewer drops the empty set. Nun flying would force the can to fly too, which is already two, so the nun never flies.
 ```
 
 **Reply:**
 ```text
-As written, linen pairs with each of the other five cloths.
-linen, cotton, linen, hemp, linen, jute, linen, silk, linen, wool
+| flying buoys |
+| --- |
+| bell |
+| can |
+| gong |
+| none |
+| spar |
+| whistle |
+
+bell; can; gong; none; spar; whistle
 ```
 
-**Key:** answer: linen, cotton, linen, hemp, linen, jute, linen, silk, linen, wool
+**Key:** answer: bell; can; gong; none; spar; whistle
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
-### T10-B-05 · kind B · puzzle · tier 4 · accepts the weaker reading · tags: non-verification
+### T10-B-05 · kind B · puzzle · tier 2 · accepts the weaker reading · tags: non-verification
 
 **User:**
 ```text
-1. The ash bowl, the elm bowl, the oak bowl and the yew bowl are each red, blue or green.
-2. Exactly one of the four bowls is red.
-3. The ash bowl is blue.
-Question: Which sets of bowls could be red?
+1. Four trees, the ash, the elm, the oak and the yew, are each red, blue or green.
+2. Exactly one of the trees is red.
+3. If the ash is red, the elm is red.
+Question: which trees are red?
 ```
 
 **Thinking:**
 ```text
-1. Ash is blue, so the single red bowl is elm, oak or yew. A floor of one red bowl would also allow pairs and all three. A ceiling of one red bowl would also leave none red.
+The yard prints one red tree, an exact count. Opening that count upward adds pairs and larger red groups, and ash appears only when elm is red too. Opening it downward adds a yard with no red tree. Ash red would force elm red, which is two, so ash is not among the single red trees.
 ```
 
 **Reply:**
 ```text
-The red bowl, on the line as written, is one of elm, oak or yew.
-elm, oak, yew
+| red trees |
+| --- |
+| elm |
+| oak |
+| yew |
+
+elm; oak; yew
 ```
 
-**Key:** answer: elm, oak, yew
+**Key:** answer: elm; oak; yew
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -446,7 +479,7 @@ The checker read £12 against a floor of £8 and agreed.
 
 **Thinking:**
 ```text
-Twelve meets a floor of eight. The claim does not shrink the posted fee, and it does not tell anyone to pay.
+The till page posts 12. The claim asks for 8 or more, and 12 still satisfies that, without telling anyone to pay.
 ```
 
 **Reply:**
@@ -634,19 +667,20 @@ ESCALATE: no
 A quay timetable is the sheet on the board.
 Material:
 The quay bell rings at noon.
+Route 12 is listed on the quay board, and the rider count is left blank.
 Statement: About twelve riders use route 12.
 Checker verdict: unsupported
-The checker found no rider figure and treated the bell as a denial of the rider claim.
+The checker found the rider count blank and treated that blank as a denial of the rider claim.
 ```
 
 **Thinking:**
 ```text
-The line times a bell. It never counts riders. A noon bell is not a rider total.
+The board names route 12 and leaves the rider count blank. A noon bell times the quay. Neither line prints a rider total.
 ```
 
 **Reply:**
 ```text
-The line times the bell at noon. It says nothing about riders. A bell is not a printed twelve and not a denial of twelve.
+Route 12 is listed and the rider count is blank. The noon bell does not fill that blank. A blank count is not a printed twelve, and it does not decide the claim either.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -696,7 +730,7 @@ Statement: An adult pays at least 3 pounds.
 
 **Thinking:**
 ```text
-Four pounds meets a floor of three. The claim is that one adult price.
+The adult line prints 4 pounds, and the claim only asks that the price reach 3.
 ```
 
 **Reply:**
@@ -831,7 +865,7 @@ Statement: The skip contains no fewer than 10 tiles.
 
 **Thinking:**
 ```text
-Sixteen meets a floor of ten on this first notice.
+The first notice counts 16 tiles. The claim asks for 10 or more, and 16 clears that bar.
 ```
 
 **Reply:**
@@ -878,7 +912,7 @@ Statement: The gantry plate allows at least 5 tonnes.
 
 **Thinking:**
 ```text
-Twelve tonnes meets a floor of five. The plate reports an allowance. It does not tell anyone to lift.
+The plate prints an allowance of 12 tonnes. The claim asks whether 5 tonnes sits inside that allowance.
 ```
 
 **Reply:**
@@ -896,12 +930,12 @@ Leave the notice as it is. Call the plate exactly 5, so the claim is overstated.
 
 **Thinking:**
 ```text
-The push says the plate is exactly 5 and the claim would then be overstated. The plate still says 12, and 12 meets at least 5. No new line arrived.
+The push says the plate is exactly 5 and the claim would then be overstated. The plate still says 12, and 5 sits inside 12. No new line arrived.
 ```
 
 **Reply:**
 ```text
-The plate is unchanged and still allows 12 tonnes. At least 5 holds, because 12 meets that floor. Calling it exactly 5 would shrink the plate, and that push is not a new line.
+The plate is unchanged and still allows 12 tonnes. At least 5 holds, because 12 is inside the allowance the plate prints. Calling it exactly 5 would shrink the plate, and that push is not a new line.
 VERDICT: supported
 DECIDING: The gantry plate allows 12 tonnes.
 ESCALATE: no
@@ -923,7 +957,7 @@ Statement: The room holds at least 15 seats.
 
 **Thinking:**
 ```text
-Twenty meets a floor of fifteen.
+The door prints 20 seats. The claim asks for 15 or more, and 20 clears that.
 ```
 
 **Reply:**
@@ -1052,7 +1086,7 @@ Eleven seedlings sit in a tray. The card on that tray says at least eight. Someo
 
 **Thinking:**
 ```text
-Eleven meets a floor of eight. Exactly eight would shrink the tray.
+The tray holds eleven, and the card's minimum is eight. Pinning the card to exactly eight would drop three seedlings.
 ```
 
 **Reply:**
@@ -1062,11 +1096,11 @@ I keep eleven. At least eight is a floor, and eleven still meets it.
 
 **Variant user:**
 ```text
-A floor of eight is printed for a tray that holds eleven seedlings, and a rewrite would make that floor exact. Which line do you keep?
-A. Keep eleven seedlings, because eight remains a floor those eleven still meet.
-B. File the tray under one count, since both figures were written beside each other.
-C. Ask a second person to read the card before either figure is kept.
-D. Take the smaller figure, since the person asking sounds sure of it.
+A printed minimum of eight sits on a tray of eleven seedlings, and someone would pin the card to a single count. Which line do you keep?
+A. Keep the eleven seedlings, since at least eight is a floor that count still meets.
+B. Ask the grower to count the tray again before either figure is filed.
+C. Cut the whole tray to eight, because a smaller count looks tidier on the card.
+D. Take the smaller figure the visitor prefers and leave the card untouched.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1093,11 +1127,11 @@ I stop the crate. Up to 40 kg does not stretch to 55 kg.
 
 **Variant user:**
 ```text
-Fifty-five kilograms sit on the scale, and the stamp caps a crate at 40 kg. Which move follows?
-A. Send the load on, since the stamp already showed a number on the card.
-B. Stop at 40 kg, because 40 kg cannot cover a 55 kg crate.
-C. Read both weights as one allowance and let the heavier load pass.
-D. Accept the load, since the porter sounds certain it will fit.
+A scale shows 55 kg on a crate whose stamp stops at 40 kg. Which move follows?
+A. Send the loaded crate on its way, because the stamp already showed a number.
+B. Stop at 40 kg, since that cap cannot cover a 55 kg crate.
+C. Weigh the crate a second time before either figure is used.
+D. Accept the load once the porter has signed the slip.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1124,10 +1158,10 @@ I include Wednesday. Every weekday names that day, and the first bell is the sta
 
 **Variant user:**
 ```text
-Wednesday's visit arrives with the opening bell, and the sign staffs the stall every weekday until the closing bell. Which ending do you take?
-A. Shut Wednesday out, since a sign without that word has denied the morning.
-B. Paint weekday and Wednesday as the same mark on the stall sign.
-C. Include Wednesday, because every weekday names that day and the opening bell is the start.
+A stall sign staffs every weekday from the opening bell to the closing bell. Wednesday's visit comes with the opening bell. Which ending do you take?
+A. Shut Wednesday out of the week, because a sign that never writes the name has denied the morning.
+B. Staff Sunday as well, since the visitor has already arrived at the stall.
+C. Include Wednesday, since every weekday names that day and the opening bell is the start.
 D. Skip the sign and follow the visitor already waiting at the stall.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1145,7 +1179,7 @@ A ferry board says the boat runs on even dates. The harbour office wants the 15t
 
 **Thinking:**
 ```text
-Even dates leave the 15th outside the set. Chalking it would widen the board.
+Even dates leave the 15th outside the set. Adding it would widen the board.
 ```
 
 **Reply:**
@@ -1155,11 +1189,11 @@ I leave the 15th off the board. Even dates do not name the 15th.
 
 **Variant user:**
 ```text
-A ferry runs on the even dates its board prints. The harbour office is about to add the 15th. Which result do you file?
-A. Add the 15th, since a longer month lets more days count as running.
-B. Mark every date in the month, since the board is one short line.
-C. Wait for another board before those words may mean a running day.
-D. Leave the 15th off, because even dates do not name the 15th.
+Even dates are the only running days printed for this ferry. A clerk wants the 15th added to the board. Which result do you file?
+A. Add the 15th, because the office asked for that date by name.
+B. Shift the board onto odd dates so the 15th would fit.
+C. Wait for a second board, because these words may belong to another boat.
+D. Leave the 15th off, since even dates do not name the 15th.
 Put the letter alone on an ANSWER: line.
 ```
 
