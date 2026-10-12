@@ -1176,8 +1176,8 @@ I stop. The timetable date is 2 May 2020 and the question names 2 May 2021.
 A question names 2 May 2021. One harbour sheet on the clipboard is dated 2 May 2020. Which ending do you take?
 A. Stop here, since the open timetable is dated 2020 while the question asks about 2021.
 B. Read the 2020 sheet as the service for 2021, because the month and the day match.
-C. Ask which harbour the 2021 service belongs to, since the clipboard shows one morning and not a place.
-D. Copy the 2020 morning onto the later year, because the clipboard is the sheet in hand.
+C. Say no boat sailed on 2 May 2021, because the sheet in hand lists no sailing for that year.
+D. Ask for the 2020 sailings to be confirmed first, since a sheet on a clipboard may have been changed.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1206,7 +1206,7 @@ I stop before naming a fibre. Edition 3 is the card in hand and the question nam
 ```text
 A rigger wants the fibre named on edition 4. Edition 3 is the only rope card here, and it names hemp. Which result do you file?
 A. Answer hemp for the later printing, because a fibre written once covers every printing of that coil.
-B. Stamp this card as edition 4 as well, since a folder with one rope card has nowhere else to look.
+B. Tell the rigger the later printing lists nothing, since this card shows nothing for it.
 C. Stop before a fibre, since edition 3 is open and edition 4 was asked.
 D. Send hemp back as a guess for the later coil, because the rigger still needs a fibre.
 Put the letter alone on an ANSWER: line.

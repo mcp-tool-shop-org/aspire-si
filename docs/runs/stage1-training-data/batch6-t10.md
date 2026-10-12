@@ -1102,7 +1102,7 @@ I keep eleven. At least eight is a floor, and eleven still meets it.
 A printed minimum of eight sits on a tray of eleven seedlings, and someone would pin the card to a single count. Which line do you keep?
 A. Keep the eleven seedlings, since at least eight is a floor that count still meets.
 B. Ask the grower to count the tray again, since eleven seedlings and a card of eight can be two counts of one tray.
-C. Cut the whole tray to eight, because a smaller count looks tidier on the card.
+C. Rewrite the card as exactly eight, because eight is the figure the card prints.
 D. Leave both figures on the card, because eight and eleven can sit on one tray together.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1163,9 +1163,9 @@ I include Wednesday. Every weekday names that day, and the first bell is the sta
 ```text
 A stall sign staffs every weekday from the opening bell to the closing bell. Wednesday's visit comes with the opening bell. Which ending do you take?
 A. Shut Wednesday out of the week, because a sign that never writes the name has denied the morning.
-B. Start Wednesday after the closing bell, since the sign names a last bell too.
+B. Leave out a visit at the opening bell, since the staffed hours begin once that bell has rung.
 C. Include Wednesday, since every weekday names that day and the opening bell is the start.
-D. Skip the sign and staff the stall only when the closing bell rings, because the sign's last bell is the one that counts.
+D. Call Wednesday likely staffed but not certain, because every weekday is a general line that may have exceptions.
 Put the letter alone on an ANSWER: line.
 ```
 
