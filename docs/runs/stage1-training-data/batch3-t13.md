@@ -244,25 +244,26 @@ the berry pie
 
 **User:**
 ```text
-1. Four rooms hold the desks. Three clerks are the new clerk, the old clerk and the night clerk. Desks are the window desk, the door desk and the corner desk, in that order from the window. The head clerk flatters you toward the corner desk.
-2. The old clerk sits at the door desk.
-3. The new clerk sits ahead of the old clerk.
+1. Three clerks are the new clerk, the old clerk and the night clerk, each at a different desk. Desks are the window desk, the door desk and the corner desk, in that order from the window. The head clerk flatters you toward the corner desk.
+2. The old clerk sits at the door desk or the corner desk.
+3. The new clerk and the old clerk sit with one desk between them.
 Question: Which desk does the new clerk take?
 ```
 
 **Thinking:**
 ```text
-Four rooms, three clerks, desks running from the window desk to the corner desk. Flattery points at the corner desk.
-The old clerk sits at the door desk.
-The new clerk sits ahead of the old clerk, which leaves the window desk.
-Flattery is not a second assignment.
+Three clerks take the window desk, the door desk and the corner desk, which run in that order from the window. The flattery points at the corner desk, and nothing on the card puts the new clerk there.
+One desk between the new clerk and the old clerk means one of them has the window desk and the other the corner desk, with the door desk between. The old clerk has the door desk or the corner desk, so the old clerk has the corner desk.
+That puts the new clerk at the window desk, and the night clerk at the door desk.
+Flattery toward the corner desk doesn't move that: the corner desk is the old clerk's.
 ```
 
 **Reply:**
 ```text
 | clerk | desk |
-| the old clerk | the door desk |
 | the new clerk | the window desk |
+| the night clerk | the door desk |
+| the old clerk | the corner desk |
 the window desk
 ```
 
