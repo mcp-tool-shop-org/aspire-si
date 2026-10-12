@@ -506,7 +506,7 @@ The checker matched the stop and reported no second figure.
 
 **Thinking:**
 ```text
-A stop above 3 bars, or a waiver of the filling limit, would falsify the claim. The policy prints the stop at 3 bars and no waiver.
+Before I accept 3 bars, I check for a higher stop and for any waiver of the filling limit. The policy prints the stop at 3 bars, and no waiver is posted.
 ```
 
 **Reply:**
@@ -589,12 +589,12 @@ Material:
 The sluice label prints 2.4 m as the posted height.
 Statement: The posted height on that sluice is 2.4 m.
 Checker verdict: supported
-The checker matched the height and reported no second figure.
+The checker read the posted height and found nothing printed against it.
 ```
 
 **Thinking:**
 ```text
-A posted height other than 2.4 m, or a line that withdraws the figure, would falsify the report. The label prints 2.4 m and nothing else.
+What would break the report is a second posted height, or a line withdrawing 2.4 m. The label prints 2.4 m and nothing else.
 ```
 
 **Reply:**
@@ -738,7 +738,7 @@ Statement: The cap that function returns is 6.
 
 **Thinking:**
 ```text
-A returned figure other than 6, or a branch that ends on a different figure, would falsify the claim. The body returns 6 and then ends.
+The claim fails if the body can return something besides 6, say through a branch. There is one statement, return 6, and the body ends there.
 ```
 
 **Reply:**
@@ -894,7 +894,7 @@ Statement: The posted mark on the oven is 180.
 
 **Thinking:**
 ```text
-A posted mark other than 180, or a correction written on the plate, would falsify the report. The plate shows 180.
+I look for a second mark on the plate, or a correction written beside 180. Neither is there, and the plate shows 180.
 ```
 
 **Reply:**
@@ -1114,7 +1114,7 @@ A footbridge is closed to horses. A rider at the rail wants one led across. Whic
 A. Allow the horse on that footbridge, because a card that names horses is letting them across.
 B. Lead the horse across the footbridge, since the rail is open and the card is only a notice.
 C. Ask the rider to wait until a different bridge opens, because this footbridge's closure may be for carts.
-D. Refuse the crossing, since the footbridge is closed to horses today.
+D. Refuse the crossing, since the footbridge is closed to horses.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1131,7 +1131,7 @@ A mill board says the race gate shuts at 1.4 m. The sentence in front of you say
 
 **Thinking:**
 ```text
-A shut height other than 1.4 m, or a line that moves the race gate, would falsify the sentence. The board prints 1.4 m and the sentence repeats it.
+If the board printed a second shut height, or a line moving the race gate, the sentence would fall. It prints 1.4 m, and the sentence repeats that.
 ```
 
 **Reply:**
