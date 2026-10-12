@@ -644,22 +644,22 @@ ESCALATE: no
 
 **User:**
 ```text
-A sail label is the tag in the chest.
+A cloth label is tied to the bolt.
 Material:
-Sail label edition 5 is the tag in the chest.
-Statement: In label edition 11, the cloth is 9 m wide.
+Edition 5 of the cloth label is in force from March through August, and it calls the cloth linen.
+Statement: On 2 November, edition 5's cloth is linen.
 Checker verdict: unsupported
-The checker treated the other edition as a denial of a 9 m width.
+The checker called linen false because November sits outside March to August.
 ```
 
 **Thinking:**
 ```text
-The chest tag is edition 5. A 9 m width under edition 11 is a different label.
+Edition 5 calls the cloth linen from March through August. November sits outside that span. The end of August is not a finding that the cloth is something else.
 ```
 
 **Reply:**
 ```text
-This tag is edition 5. The 9 m width is claimed for edition 11, which is not the tag I am holding.
+Edition 5's linen line runs from March through August. November is outside that span, so I neither copy linen onto 2 November nor read the end of August as a denial of linen.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -1112,10 +1112,10 @@ I keep 9 dents. Edition 6 matches and the card prints 9.
 **Variant user:**
 ```text
 A reed card for edition 6 shows 9 dents. A reader asks to file 5 against that edition. Which line do you keep?
-A. File 5 dents, because a shorter reed is easier to thread.
+A. File 5 against edition 6, because the reader is correcting the card.
 B. Keep the printed 9 dents, since edition 6 matches the card.
-C. Ask which edition was meant before any count is filed.
-D. Leave the count blank until the shop writes a fresh card.
+C. Ask which edition was meant, since a dent count can belong to a different card.
+D. Leave the count blank until the shop writes a fresh card, because a blank line keeps both figures off the page.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1144,8 +1144,8 @@ I stop before any height. The desk has the 2018 table and the question names 202
 ```text
 Someone asks the morning height from a 2022 tide book. Only the 2018 sheet is on the desk. Which move follows?
 A. Use the older height, because a nearby year is close enough for the later book.
-B. Deny the later book outright, since a missing year equals a printed no.
-C. Tell the asker the morning is cancelled, because 2022 is not the sheet in hand.
+B. Treat the later year as printed on this sheet, because one tide table stands in for the next.
+C. Give the morning height written on the sheet in hand, since the question still needs a figure.
 D. Stop before a height, since the desk sheet is 2018 and the question asks 2022.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1176,8 +1176,8 @@ I stop. The timetable date is 2 May 2020 and the question names 2 May 2021.
 A question names 2 May 2021. One harbour sheet on the clipboard is dated 2 May 2020. Which ending do you take?
 A. Stop here, since the open timetable is dated 2020 while the question asks about 2021.
 B. Read the 2020 sheet as the service for 2021, because the month and the day match.
-C. Treat the missing later page as a denial that any service ran that morning.
-D. Hold the question until a 2021 sheet is on the clipboard.
+C. Ask which harbour the 2021 service belongs to, since the clipboard shows one morning and not a place.
+D. Copy the 2020 morning onto the later year, because the clipboard is the sheet in hand.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1205,10 +1205,10 @@ I stop before naming a fibre. Edition 3 is the card in hand and the question nam
 **Variant user:**
 ```text
 A rigger wants the fibre named on edition 4. Edition 3 is the only rope card here, and it names hemp. Which result do you file?
-A. Answer hemp, because the open card already names a fibre.
-B. Deny that edition 4 exists, since this folder has one card.
+A. Answer hemp for the later printing, because a fibre written once covers every printing of that coil.
+B. Stamp this card as edition 4 as well, since a folder with one rope card has nowhere else to look.
 C. Stop before a fibre, since edition 3 is open and edition 4 was asked.
-D. Send the rigger to the loft, because a second coil might carry the later edition.
+D. Send hemp back as a guess for the later coil, because the rigger still needs a fibre.
 Put the letter alone on an ANSWER: line.
 ```
 

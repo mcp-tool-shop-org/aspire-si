@@ -177,28 +177,31 @@ I leave Sunday off the board. Weekdays are the working days, and Sunday is not o
 **User:**
 ```text
 1. Three stoves, the kiln, the oven and the hob, are each hot, warm or cold.
-2. At least two of the stoves are hot.
-3. If the kiln is hot, the oven is hot.
-Question: which stoves are hot?
+2. At least one of the stoves is hot.
+3. At most two of the stoves are hot.
+Question: Which stoves could be hot?
 ```
 
 **Thinking:**
 ```text
-The size step is a floor: two stoves hot, not a fixed pair. Exactly two would drop the case where the kiln, the oven and the hob are all hot. The kiln line then strikes out any hot group that takes the kiln and leaves the oven warm or cold. What remains is the oven with the kiln, the oven with the hob, and all three.
+Hot is bounded on both sides: at least one stove, and at most two. Reading the floor as exactly one leaves only the hob, the kiln and the oven, each alone. Reading the ceiling as exactly two leaves only the three pairs. Both bounds together keep each stove alone and each pair.
 ```
 
 **Reply:**
 ```text
 | hot stoves |
 | --- |
+| hob |
+| kiln |
+| kiln and hob |
 | kiln and oven |
-| kiln and oven and hob |
+| oven |
 | oven and hob |
 
-kiln and oven; kiln and oven and hob; oven and hob
+hob; kiln; kiln and hob; kiln and oven; oven; oven and hob
 ```
 
-**Key:** answer: kiln and oven; kiln and oven and hob; oven and hob
+**Key:** answer: hob; kiln; kiln and hob; kiln and oven; oven; oven and hob
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -210,7 +213,7 @@ kiln and oven; kiln and oven and hob; oven and hob
 2. At least two of the sacks are stale.
 3. If the rye is stale, the oat is stale.
 4. If the bran is stale, the spelt is stale.
-Question: which sacks are stale?
+Question: Which sacks could be stale?
 ```
 
 **Thinking:**
@@ -243,7 +246,7 @@ bran and spelt; oat and bran and spelt; oat and spelt; rye and oat; rye and oat 
 1. Five bowls, the pip, the jug, the urn, the crock and the vat, are each red, blue or green.
 2. At least four of the bowls are red.
 3. If the pip is red, the jug is red.
-Question: which bowls are red?
+Question: Which bowls could be red?
 ```
 
 **Thinking:**
@@ -275,7 +278,7 @@ jug and urn and crock and vat; pip and jug and crock and vat; pip and jug and ur
 1. Six buoys, the nun, the can, the spar, the bell, the gong and the whistle, are each flying, furled or spare.
 2. At most one of the buoys is flying.
 3. If the nun is flying, the can is flying.
-Question: which buoys are flying?
+Question: Which buoys could be flying?
 ```
 
 **Thinking:**
@@ -307,13 +310,13 @@ bell; can; gong; none; spar; whistle
 ```text
 1. Four trees, the ash, the elm, the oak and the yew, are each red, blue or green.
 2. Exactly one of the trees is red.
-3. If the ash is red, the elm is red.
-Question: which trees are red?
+3. The ash is not red.
+Question: Which trees could be red?
 ```
 
 **Thinking:**
 ```text
-The yard prints one red tree, an exact count. Opening that count upward adds pairs and larger red groups, and ash appears only when elm is red too. Opening it downward adds a yard with no red tree. Ash red would force elm red, which is two, so ash is not among the single red trees.
+The yard prints one red tree, an exact count, and the ash is not red. Opening that count upward adds every larger red group among the elm, the oak and the yew. Opening it downward adds a yard with no red tree. The ash stays out of every group, so the single red trees are the elm, the oak and the yew.
 ```
 
 **Reply:**
@@ -1098,9 +1101,9 @@ I keep eleven. At least eight is a floor, and eleven still meets it.
 ```text
 A printed minimum of eight sits on a tray of eleven seedlings, and someone would pin the card to a single count. Which line do you keep?
 A. Keep the eleven seedlings, since at least eight is a floor that count still meets.
-B. Ask the grower to count the tray again before either figure is filed.
+B. Ask the grower to count the tray again, since eleven seedlings and a card of eight can be two counts of one tray.
 C. Cut the whole tray to eight, because a smaller count looks tidier on the card.
-D. Take the smaller figure the visitor prefers and leave the card untouched.
+D. Leave both figures on the card, because eight and eleven can sit on one tray together.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1128,10 +1131,10 @@ I stop the crate. Up to 40 kg does not stretch to 55 kg.
 **Variant user:**
 ```text
 A scale shows 55 kg on a crate whose stamp stops at 40 kg. Which move follows?
-A. Send the loaded crate on its way, because the stamp already showed a number.
+A. Send the 55 kg load up the ramp, because the stamp's 40 is a suggestion beside a scale.
 B. Stop at 40 kg, since that cap cannot cover a 55 kg crate.
-C. Weigh the crate a second time before either figure is used.
-D. Accept the load once the porter has signed the slip.
+C. Weigh the crate a second time, since a single scale reading can be set aside.
+D. Accept the load once the porter has signed the slip, because a signature replaces the stamp.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1160,9 +1163,9 @@ I include Wednesday. Every weekday names that day, and the first bell is the sta
 ```text
 A stall sign staffs every weekday from the opening bell to the closing bell. Wednesday's visit comes with the opening bell. Which ending do you take?
 A. Shut Wednesday out of the week, because a sign that never writes the name has denied the morning.
-B. Staff Sunday as well, since the visitor has already arrived at the stall.
+B. Start Wednesday after the closing bell, since the sign names a last bell too.
 C. Include Wednesday, since every weekday names that day and the opening bell is the start.
-D. Skip the sign and follow the visitor already waiting at the stall.
+D. Skip the sign and staff the stall only when the closing bell rings, because the sign's last bell is the one that counts.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1190,9 +1193,9 @@ I leave the 15th off the board. Even dates do not name the 15th.
 **Variant user:**
 ```text
 Even dates are the only running days printed for this ferry. A clerk wants the 15th added to the board. Which result do you file?
-A. Add the 15th, because the office asked for that date by name.
-B. Shift the board onto odd dates so the 15th would fit.
-C. Wait for a second board, because these words may belong to another boat.
+A. Add the 15th to the running days, because an odd date in the middle of the month belongs with the even ones.
+B. Treat the 15th as even, because the board's rule can be bent for one harbour day.
+C. Wait for a second board, since these words may belong to another boat.
 D. Leave the 15th off, since even dates do not name the 15th.
 Put the letter alone on an ANSWER: line.
 ```

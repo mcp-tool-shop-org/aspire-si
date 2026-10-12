@@ -506,12 +506,12 @@ The checker matched the stop and reported no second figure.
 
 **Thinking:**
 ```text
-I look for a second stop, or a line that lifts the 3 bar mark. The policy prints the stop at 3 bars and nothing that moves it.
+A stop above 3 bars, or a waiver of the filling limit, would falsify the claim. The policy prints the stop at 3 bars and no waiver.
 ```
 
 **Reply:**
 ```text
-The policy stops the cistern at 3 bars. An exclusion or a second stop would break that, and the policy prints neither.
+The policy stops the cistern at 3 bars. I found no higher stop and no waiver of the filling limit, so the claim matches the tank.
 VERDICT: supported
 DECIDING: The cistern stops filling at 3 bars.
 ESCALATE: no
@@ -594,12 +594,12 @@ The checker matched the height and reported no second figure.
 
 **Thinking:**
 ```text
-I look for a second height on the sluice label. The label prints 2.4 m, and the report repeats that figure, so the second height is not there.
+A posted height other than 2.4 m, or a line that withdraws the figure, would falsify the report. The label prints 2.4 m and nothing else.
 ```
 
 **Reply:**
 ```text
-The label prints 2.4 m as the posted height. A second height on the label would break the report, and none is printed.
+The label prints 2.4 m as the posted height. Nothing else is printed beside that figure, so the report stands.
 VERDICT: supported
 DECIDING: The sluice label prints 2.4 m as the posted height.
 ESCALATE: no
@@ -738,12 +738,12 @@ Statement: The cap that function returns is 6.
 
 **Thinking:**
 ```text
-I look for a second return in vat_cap. The body returns 6 and then ends, so the claim's 6 is the figure the function gives.
+A returned figure other than 6, or a branch that ends on a different figure, would falsify the claim. The body returns 6 and then ends.
 ```
 
 **Reply:**
 ```text
-The function returns 6. Another return in that function would break the claim, and the body has only this return.
+The function returns 6. The body ends on that return, so the claim matches the code.
 VERDICT: supported
 DECIDING: def vat_cap(): |     return 6
 ESCALATE: no
@@ -894,12 +894,12 @@ Statement: The posted mark on the oven is 180.
 
 **Thinking:**
 ```text
-I look for a posted mark other than the one in the sentence. The plate shows 180, which is the mark the sentence reports.
+A posted mark other than 180, or a correction written on the plate, would falsify the report. The plate shows 180.
 ```
 
 **Reply:**
 ```text
-The label prints 180 as the posted mark. A different mark on the plate would break the report, and the plate shows 180.
+The label prints 180 as the posted mark. The plate shows that figure and carries no correction, so the report holds.
 VERDICT: supported
 DECIDING: The oven plate prints 180 as the posted mark.
 ESCALATE: no
@@ -1082,7 +1082,7 @@ I keep two. The third renewal is past the card.
 A desk card caps renewals at two. A reader wants a third renewal on the same card. Which line do you give?
 A. Send the reader to another desk, since this card is hard to read.
 B. Keep two renewals on this card, since that card caps them at two.
-C. Copy the rule from a longer loan the reader held last year.
+C. Copy the rule from a longer loan the reader held last year, because two renewals look short against that loan.
 D. Stamp the card void, because a firm request must mean the cap is wrong.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1111,9 +1111,9 @@ I refuse the crossing. The footbridge is closed to horses.
 **Variant user:**
 ```text
 A footbridge is closed to horses. A rider at the rail wants one led across. Which move follows?
-A. Close the footbridge to walkers as well, because a horse was mentioned.
-B. Send the horse over, because someone at the rail already asked.
-C. Ask the rider to wait until a different bridge opens.
+A. Allow the horse on that footbridge, because a card that names horses is letting them across.
+B. Lead the horse across the footbridge, since the rail is open and the card is only a notice.
+C. Ask the rider to wait until a different bridge opens, because this footbridge's closure may be for carts.
 D. Refuse the crossing, since the footbridge is closed to horses today.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1131,20 +1131,20 @@ A mill board says the race gate shuts at 1.4 m. The sentence in front of you say
 
 **Thinking:**
 ```text
-I look for a second height on the mill board. The board prints 1.4 m and the sentence repeats it, so nothing on the board fights the sentence.
+A shut height other than 1.4 m, or a line that moves the race gate, would falsify the sentence. The board prints 1.4 m and the sentence repeats it.
 ```
 
 **Reply:**
 ```text
-I keep the sentence. A height other than 1.4 m on the mill board would break it, and the board prints 1.4 m only.
+I keep the sentence. The board prints 1.4 m, and I found no other shut height on it.
 ```
 
 **Variant user:**
 ```text
 One mill board prints the height of its race gate, and the sentence repeats 1.4 m. Which ending do you take?
 A. Keep the sentence, since the board prints 1.4 m and no other height.
-B. Doubt the board, because one height from one board is too little to trust.
-C. Raise the posted figure to 2 m, because a rounder height is easier to call.
+B. Doubt the board, since one height from one board is too little to trust.
+C. Call the race shut once the water passes 1.4 m, because a higher mark is the cautious reading.
 D. Reject the figure, because the board may describe a different race than this.
 Put the letter alone on an ANSWER: line.
 ```
@@ -1173,8 +1173,8 @@ I refuse six. The basket cap is five.
 **Variant user:**
 ```text
 A basket card caps sample jars at five. A note says six were pulled from that basket. Which result do you file?
-A. Accept the six that were pulled, since the note already wrote them down.
-B. Weigh the jars before either figure is filed.
+A. Count the six jars as the basket's own figure, because a written count outranks the card.
+B. File five jars and set the sixth aside, since the note's count can be split across two baskets.
 C. Refuse six jars, since five is the basket cap.
 D. Send the note back and file nothing yet, because the count may be recounted.
 Put the letter alone on an ANSWER: line.
