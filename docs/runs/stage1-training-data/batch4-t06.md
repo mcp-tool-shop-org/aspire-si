@@ -197,38 +197,32 @@ supported
 
 **User:**
 ```text
-1. Five crates are the Hull crate, the Lyme crate, the Oban crate, the Rye crate and the Wick crate. A crate does go or does stay. The morning boat takes the crate that is sealed and marked Hull.
-2. Exactly one crate does go.
-3. The Lyme crate is sealed and marked Lyme, so the Lyme crate does stay.
-4. The Oban crate is marked Hull and is unsealed, so the Oban crate does stay.
-5. The Rye crate is open, so the Rye crate does stay.
-6. The Wick crate is open, so the Wick crate does stay.
-Question: Which crate does the morning boat take?
+1. The Hull crate, the Rye crate and the Oban crate go first, second and third, and the jobs are pack, ship and hold.
+2. Hull comes before Rye.
+3. Oban is third.
+4. The crate in first has the job pack.
+Question: What job does the Hull crate have?
 ```
 
 **Thinking:**
 ```text
-Hull, Lyme, Oban, Rye and Wick. The morning boat takes the crate that is sealed and marked Hull.
-Exactly one crate does go.
-Lyme is sealed and marked Lyme, so Lyme stays.
-Oban is marked Hull and is unsealed, so Oban stays.
-Rye is open, so Rye stays.
-Wick is open, so Wick stays.
-Four stays leave the Hull crate. One pairing names the crate. I do not tour the stays into a second question.
+1. Oban is third, and Hull comes before Rye, so Hull is first and Rye is second.
+2. The crate in first has the job pack, so Hull has pack. A middle crate would have ship, and Hull is not the middle crate.
 ```
 
 **Reply:**
 ```text
-| crate | trip |
-| the Lyme crate | stay |
-| the Oban crate | stay |
-| the Rye crate | stay |
-| the Wick crate | stay |
-| the Hull crate | go |
-the Hull crate
+Hull is first, and the first crate has pack.
+
+| crate | place | job |
+| --- | --- | --- |
+| Hull | first | pack |
+| Rye | second | ship |
+| Oban | third | hold |
+pack
 ```
 
-**Key:** answer: the Hull crate
+**Key:** answer: pack
 
 *invented: puzzle, written for this item (key by construction)*
 
