@@ -5,6 +5,7 @@ validate(rows) = check_item on every row, then check_batch on the whole set. che
 gives the incremental refusals a generator can hand back to its writer.
 """
 
+import hashlib
 import json
 import re
 import sys
@@ -397,30 +398,81 @@ def _is_puzzle(r: dict) -> bool:
         not re.search(r"(?m)^\s*VERDICT\s*:", r["turns"][-1]["reply"])
 
 
-def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
-    """{signature: [(lesson, id)]} for the non-verification B puzzles."""
+# The signature from a puzzle's sidecar model (R&D, 2026-10-11): the entity count and the multiset of fact rule
+# types, so counts matter. `after` is folded into `before` (the same relation written backwards); is_not, not_adjacent
+# and not_in stay apart (elimination and placement are different reasoning). The regex signature above is the
+# fallback for an item without a sidecar model.
+RULE_FOLD = {"after": "before"}
+
+
+def model_signature(model: dict) -> tuple:
+    rules = sorted(RULE_FOLD.get(f["rule"][0], f["rule"][0]) for f in model.get("facts") or [])
+    return ("model", len(model.get("entities") or []), tuple(rules))
+
+
+def describe_signature(sig: tuple) -> str:
+    if sig and sig[0] == "model":
+        return f"{sig[1]} entities, rules {' + '.join(sig[2]) or 'none'}"
+    return f"{sig[0]} entities, {' + '.join(sig[1]) or 'no cues'}"
+
+
+def row_sha256(line: str) -> str:
+    """role-set's stamp (puzzle_check.row_sha256): the sha256 of the item's line as committed, CR/LF stripped."""
+    return hashlib.sha256(line.rstrip("\r\n").encode("utf-8")).hexdigest()
+
+
+def load_models(data_path) -> dict:
+    """{id: model} from the `<name>.models.jsonl` sidecar beside a data file, each line's row_sha256 checked against
+    its row as committed. A mismatch, or a sidecar line naming an item the file doesn't have, is refused: the model
+    (and its puzzle-check) would describe a different row. No sidecar file: {} (the regex fallback applies)."""
+    data_path = Path(data_path)
+    side = data_path.with_name(data_path.name[:-len(".jsonl")] + ".models.jsonl")
+    if not side.exists():
+        return {}
+    shas = {json.loads(x)["id"]: row_sha256(x)
+            for x in data_path.read_text(encoding="utf-8").splitlines() if x.strip()}
+    out = {}
+    for x in side.read_text(encoding="utf-8").splitlines():
+        if not x.strip():
+            continue
+        m = json.loads(x)
+        if m["id"] not in shas:
+            raise DataError(f"{side.name}: a model for {m['id']}, which {data_path.name} doesn't have")
+        if m.get("row_sha256") != shas[m["id"]]:
+            raise DataError(f"{side.name}: {m['id']}'s row_sha256 doesn't match its row as committed (the row changed "
+                            "after its model was written; re-run role-set puzzle-check --stamp after review)")
+        if isinstance(m.get("model"), dict):
+            out[m["id"]] = m["model"]
+    return out
+
+
+def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, models: dict | None = None) -> dict:
+    """{signature: [(lesson, id)]} for the non-verification B puzzles: the model signature where a sidecar model
+    exists, else the regex signature."""
     seen: dict = {}
     for r in rows:
         if r.get("lesson") not in skip and _is_puzzle(r):
-            seen.setdefault(puzzle_signature(r), []).append((r["lesson"], r["id"]))
+            m = (models or {}).get(r["id"])
+            sig = model_signature(m) if m else puzzle_signature(r)
+            seen.setdefault(sig, []).append((r["lesson"], r["id"]))
     return seen
 
 
-def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int | None = 2) -> None:
+def check_puzzles(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, per_batch: int | None = 2,
+                  models: dict | None = None) -> None:
     """No two puzzles of one lesson share a structure signature; across the rows given (a batch), at most
     per_batch share one. per_batch=None leaves out the batch cap, for a set made of several batches."""
-    for sig, items in puzzle_repeats(rows, skip).items():
+    for sig, items in puzzle_repeats(rows, skip, models).items():
         by_lesson: dict = {}
         for lesson, i in items:
             by_lesson.setdefault(lesson, []).append(i)
         dup = next(((l, ids) for l, ids in by_lesson.items() if len(ids) > 1), None)
         if dup:
-            raise DataError(f"{dup[0]}: puzzles {', '.join(dup[1])} share the structure {sig[0]} entities, "
-                            f"{' + '.join(sig[1]) or 'no cues'}; vary the puzzle shape")
+            raise DataError(f"{dup[0]}: puzzles {', '.join(dup[1])} share the structure "
+                            f"{describe_signature(sig)}; vary the puzzle shape")
         if per_batch is not None and len(items) > per_batch:
-            raise DataError(f"{len(items)} puzzles share the structure {sig[0]} entities, "
-                            f"{' + '.join(sig[1]) or 'no cues'} ({', '.join(i for _, i in items)}); at most "
-                            f"{per_batch} per batch")
+            raise DataError(f"{len(items)} puzzles share the structure {describe_signature(sig)} "
+                            f"({', '.join(i for _, i in items)}); at most {per_batch} per batch")
 
 
 def framing_of(r: dict) -> str:
@@ -1104,7 +1156,7 @@ def check_closed_form_spans(rows: list[dict], cfg=None) -> None:
 
 
 def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_caps: bool = True,
-                closed_form=None) -> None:
+                closed_form=None, models: dict | None = None) -> None:
     """Every check that needs the whole set: stamps, frames, shares, floors, pairs and the diversity gate.
     batch_caps=False leaves out the checks that are per batch by design (the puzzle-signature cap), for a set
     made of several batches; everything per lesson still runs."""
@@ -1116,7 +1168,7 @@ def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_cap
     check_spans(rows, skip=pre_amendment)
     check_framing_fits(rows, skip=pre_amendment)
     check_material_reuse(rows, skip=pre_amendment)
-    check_puzzles(rows, skip=pre_amendment, per_batch=2 if batch_caps else None)
+    check_puzzles(rows, skip=pre_amendment, per_batch=2 if batch_caps else None, models=models)
     check_phrases(rows, skip=pre_amendment)
     check_formulas(rows, skip=pre_amendment)
     check_closed_form_spans(rows, closed_form)
@@ -1152,13 +1204,16 @@ def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, requ
     seen: set = set()
     for n, r in enumerate(rows, 1):
         check_item(r, n, pre_amendment, seen, closed_form)
-    check_batch(rows, pre_amendment, batch_caps=False, closed_form=closed_form)
+    models: dict = {}
+    for path in files:
+        models.update(load_models(path))
+    check_batch(rows, pre_amendment, batch_caps=False, closed_form=closed_form, models=models)
     batches: dict = {}
     for path, rs in files.items():
         batches.setdefault(batch_of(path), []).extend(rs)
     for name, rs in batches.items():
         try:
-            check_puzzles(rs, skip=pre_amendment)
+            check_puzzles(rs, skip=pre_amendment, models=models)
             rep = framing_repeats(rs, skip=pre_amendment)
             if rep:
                 raise DataError(f"{len(rep)} framing line(s) repeated across the batch")

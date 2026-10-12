@@ -1,17 +1,21 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-12 from commit 388a6bc by Atlas 1.24.0.
+Mapped at 2026-10-12 from commit f9f4901 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (230 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (231 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-11 (cfcabcd)
+## What changed since 2026-10-12 (388a6bc)
 
-- packages/aspire-si-gates/tests/test_material_and_puzzles.py is new and belongs to no part, so atlas check fails on it against the previous map.
-- 10 files added and 28 changed content, across 1 part.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl is now read by packages/aspire-si-gates/tests/test_model_signature.py.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl is now read by packages/aspire-si-gates/tests/test_model_signature.py.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl is new and belongs to no part, so atlas check fails on it against the previous map.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl is new and belongs to no part, so atlas check fails on it against the previous map.
+- packages/aspire-si-gates/tests/test_model_signature.py is new and belongs to no part, so atlas check fails on it against the previous map.
+- 3 files added and 5 changed content, across 1 part.
 
 ## What comes in
 
@@ -46,10 +50,10 @@ CI writes nothing this map can see.
 
 ## What tends to change together
 
-- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 7 of 7 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 8 of 8 commits.
 - **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 9 commits, inside the examples part.
-- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 6 of 7 commits.
-- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 6 of 7 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 7 of 8 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 7 of 8 commits.
 - **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
 1 file changed together with its own test, as expected.
@@ -62,7 +66,7 @@ Window: 180 days; a pair counts from 3 shared commits, since 3 source files reac
 
 Every code part is imported by at least one test.
 
-20 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 17 more.
+21 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 18 more.
 
 ## Written but never read
 
@@ -94,7 +98,7 @@ Read those in order to follow one pull request end to end.
 - 16 writes and 35 reads use paths built at run time and are not named here.
 - 66 writes and 82 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
-- 12 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 9 more.
+- 15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.
