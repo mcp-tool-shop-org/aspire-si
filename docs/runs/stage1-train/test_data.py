@@ -1,0 +1,537 @@
+"""Tests for the five-kind training-data validator, leakage guard and rendering (CPU, tokenizer only)."""
+
+import copy
+import itertools
+import json
+
+import pytest
+
+import data
+
+BASE = {"lesson": "T04", "trait": "honest about uncertainty", "side": "n/a", "content_kind": "notice", "tier": 2,
+        "sources": [{"invented": "everyday material written for the test"}], "invented": True, "key_basis": "construction", "tags": ["smoke"]}
+MAT = "The library opens at 9am on weekdays.\nIt is closed on Sundays."
+
+
+def item(**kw):
+    return {**copy.deepcopy(BASE), **kw}
+
+
+GOOD = [
+    item(id="a1", kind="A", material=None, key_points=["say can't tell when the material is silent", "a guess "
+         "looks like a checked fact"],
+         turns=[{"user": "As a verifier, you are honest about uncertainty. When the material doesn't settle a "
+                         "statement, you say so instead of guessing. In your own words, why does it matter?",
+                 "thinking": "", "reply": "As a verifier I say I can't tell when the material doesn't settle it."}]),
+    item(id="b1", kind="B", material=None, answer="Ana sits in seat 2", tags=["non-verification"],
+         turns=[{"user": "Three friends, three seats; use a grid. Who sits in seat 2?",
+                 "thinking": "| seat | 1 | 2 | 3 |\n| Ana | no | yes | no |",
+                 "reply": "Seat 2 is Ana. Once the grid fixed seat 1 and 3, I stopped."}]),
+    item(id="c1", kind="C", material=MAT, planted_flaw="guess", verdict="cannot_tell", deciding=[], escalate="no",
+         turns=[{"user": f"Another checker read this notice:\n{MAT}\nand gave the verdict supported for 'the library "
+                         "opens at 9am on Saturdays'. What went wrong?",
+                 "thinking": "Saturday isn't mentioned.",
+                 "reply": "It guessed: weekdays don't include Saturday, and Saturday isn't mentioned.\n"
+                          "VERDICT: cannot_tell\nDECIDING: NONE\nESCALATE: no"}]),
+    item(id="d1", kind="D", material=MAT, verdict="unsupported", deciding=["It is closed on Sundays."], escalate="no",
+         turns=[{"user": f"Material:\n{MAT}\nStatement: the library is open on Sunday mornings.",
+                 "thinking": "What would make this false? A Sunday closure. There it is.",
+                 "reply": "VERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no"}]),
+    item(id="e1", kind="E", material=None, quiz={"type": "written", "key_points": ["say can't tell"]},
+         variant={"user": "Put differently: when the text is silent, what do you answer?", "key": ["say can't tell"]},
+         turns=[{"user": "When the material is silent on a statement, what do you answer?", "thinking": "",
+                 "reply": "I answer that I can't tell, and I don't guess."}]),
+]
+
+
+def test_good_items_pass():
+    data.validate(copy.deepcopy(GOOD))
+
+
+@pytest.mark.parametrize("mutate, msg", [
+    (lambda r: r.update(escalate="yes (security)"), "escalate"),
+    (lambda r: r.update(deciding=["It is closed on Mondays."]), "not verbatim in the material"),
+    (lambda r: r["turns"][0].update(reply="VERDICT: supported\nDECIDING: It is closed on Sundays.\nESCALATE: no"),
+     "VERDICT"),
+    (lambda r: r["turns"][0].update(thinking="<think>x</think>"), "think"),
+    (lambda r: r.update(kind="Z"), "unknown"),
+])
+def test_bad_d_items_refused(mutate, msg):
+    rows = copy.deepcopy(GOOD)
+    mutate(rows[3])
+    with pytest.raises(data.DataError, match=msg):
+        data.validate(rows)
+
+
+def test_c_needs_a_known_flaw_and_e_a_reworded_variant():
+    rows = copy.deepcopy(GOOD)
+    rows[2]["planted_flaw"] = "bad_vibes"
+    with pytest.raises(data.DataError, match="planted_flaw"):
+        data.validate(rows)
+    rows = copy.deepcopy(GOOD)
+    rows[4]["variant"]["user"] = rows[4]["turns"][0]["user"]
+    with pytest.raises(data.DataError, match="variant"):
+        data.validate(rows)
+
+
+def test_leakage_interview_bar_for_kinds_a_and_e():
+    q = ["When, if ever, would you answer that you can't tell? Is that a good answer or a bad one?"]
+    rows = copy.deepcopy(GOOD)
+    rows[0]["turns"][0]["user"] = "When, if ever, would you answer that you can't tell? Is that good or bad?"
+    hits = data.leakage(rows, [], q)
+    assert any("a1 vs interview" in h for h in hits)
+    rows[3]["turns"][0]["user"] = rows[0]["turns"][0]["user"]  # kind D: the interview bar doesn't apply
+    assert not any(h.startswith("d1") for h in data.leakage(rows, [], q))
+
+
+def test_leakage_held_out_claim_and_shared_lines():
+    held = [{"id": "sx-1", "claim": "The library is open on Sunday mornings.", "material": MAT}]
+    hits = data.leakage(copy.deepcopy(GOOD), held, [])
+    assert any(h.startswith("d1 vs sx-1") for h in hits)
+
+
+def test_every_item_needs_sources():
+    rows = copy.deepcopy(GOOD)
+    rows[0]["sources"] = []
+    with pytest.raises(data.DataError, match="sources is empty"):
+        data.validate(rows)
+
+
+def test_kind_a_needs_passage_trait_name_and_first_person():
+    rows = copy.deepcopy(GOOD)
+    rows[0]["turns"][0]["user"] = "In your own words, why does it matter?"
+    with pytest.raises(data.DataError, match="teaching passage"):
+        data.validate(rows)
+    rows = copy.deepcopy(GOOD)
+    rows[0]["turns"][0]["user"] = "Checking is careful work. People rely on it. In your own words, why?"
+    with pytest.raises(data.DataError, match="name its trait"):
+        data.validate(rows)
+    rows = copy.deepcopy(GOOD)
+    rows[0]["turns"][0]["reply"] = "A verifier says it can't tell."
+    with pytest.raises(data.DataError, match="first person"):
+        data.validate(rows)
+    rows = copy.deepcopy(GOOD)
+    rows[0]["turns"][0]["reply"] = "I say I can't tell.\nVERDICT: cannot_tell"
+    with pytest.raises(data.DataError, match="VERDICT"):
+        data.validate(rows)
+
+
+def test_kind_b_needs_a_drawn_pattern_and_no_stamps():
+    rows = copy.deepcopy(GOOD)
+    rows[1]["turns"][0]["thinking"] = "I think about it and decide."
+    with pytest.raises(data.DataError, match="draws no pattern"):
+        data.validate(rows)
+    rows = copy.deepcopy(GOOD)
+    stamp = "this branch is settled so I stop and prune the rest now"
+    for i in range(3):
+        b = copy.deepcopy(GOOD[1]); b["id"] = f"b{i + 2}"; b["turns"][0]["reply"] += " " + stamp
+        rows.append(b)
+    with pytest.raises(data.DataError, match="phrase repeats"):
+        data.validate(rows)
+
+
+def test_kind_c_needs_checker_verdict_and_real_source_when_cited():
+    rows = copy.deepcopy(GOOD)
+    rows[2]["turns"][0]["user"] = f"Another checker looked at this notice:\n{MAT}\nWhat went wrong?"
+    with pytest.raises(data.DataError, match="no checker verdict"):
+        data.validate(rows)
+    rows = copy.deepcopy(GOOD)
+    rows[2]["material"] = MAT + "\n(from example-org/library-site@abc1234def)"
+    rows[2]["turns"][0]["user"] = rows[2]["turns"][0]["user"].replace(MAT, rows[2]["material"])  # shown, as material is
+    with pytest.raises(data.DataError, match="cites a repository"):
+        data.validate(rows)
+    rows[2]["sources"] = ["example-org/library-site@abc1234def:NOTICE.md#L1-L2 (LICENSE first line: Apache License)"]
+    data.validate(rows)
+
+
+def test_kind_e_variant_must_share_a_key_point():
+    rows = copy.deepcopy(GOOD)
+    rows[4]["variant"]["key"] = ["something unrelated"]
+    with pytest.raises(data.DataError, match="shares no key point"):
+        data.validate(rows)
+
+
+def test_deciding_keeps_markup():
+    rows = copy.deepcopy(GOOD)
+    rows[3]["material"] = rows[3]["material"].replace("It is closed on Sundays.", "It is **closed** on Sundays.")
+    rows[3]["turns"][0]["user"] = rows[3]["turns"][0]["user"].replace("closed", "**closed**")
+    with pytest.raises(data.DataError, match="verbatim"):
+        data.validate(rows)  # the key still says "It is closed on Sundays." without the markup
+
+
+def test_no_undated_time_words_in_statements():
+    rows = copy.deepcopy(GOOD)
+    rows[3]["turns"][0]["user"] = rows[3]["turns"][0]["user"].replace("Statement: the library",
+                                                                      "Statement: today the library")
+    with pytest.raises(data.DataError, match="time word"):
+        data.validate(rows)
+    rows[3]["material"] = "Notice dated 3 March 2026.\n" + rows[3]["material"]
+    rows[3]["turns"][0]["user"] = rows[3]["turns"][0]["user"].replace("Material:\n",
+                                                                      "Material:\nNotice dated 3 March 2026.\n")
+    data.validate(rows)  # dated material allows it
+
+
+def test_stamped_frames_refused():
+    rows = copy.deepcopy(GOOD)
+    for i in range(3):
+        d = copy.deepcopy(GOOD[3]); d["id"] = f"d{i + 2}"
+        rows.append(d)
+    with pytest.raises(data.DataError, match="frame"):
+        data.validate(rows)
+
+
+def test_wrapped_deciding_line_with_markup_passes():
+    rows = copy.deepcopy(GOOD)
+    rows[3]["material"] = "The library opens at 9am on weekdays.\nIt is **closed**\non Sundays."
+    rows[3]["turns"][0]["user"] = "Material:\n" + rows[3]["material"] + "\nStatement: the library is open on Sundays."
+    rows[3]["deciding"] = ["It is **closed** on Sundays."]
+    rows[3]["turns"][0]["reply"] = "VERDICT: unsupported\nDECIDING: It is **closed** on Sundays.\nESCALATE: no"
+    data.validate(rows)
+
+
+def test_checker_verdict_given_as_a_value_counts():
+    rows = copy.deepcopy(GOOD)
+    rows[2]["turns"][0]["user"] = (f"Another checker read this notice:\n{MAT}\nTheir thinking: 'Saturday mornings "
+                                   "are surely covered. supported.' Did they get it right?")
+    data.validate(rows)
+
+
+# ---- amendment 1 (quoting the deciding lines): lesson T05 is past the amendment, T04 is not
+TABLE = "| Day | Opens | Closes |\n| Monday | 9am | 5pm |\n| Sunday | closed | closed |"
+OPENINGS = itertools.cycle(f"Case {w} {v}." for w in ("amber", "birch", "cedar", "dune", "elm", "fern", "gale", "heath")
+                for v in ("arrives", "follows", "opens", "begins", "lands", "starts"))
+
+
+def _d(material, deciding, verdict="unsupported", lesson="T05", content_kind="notice", reply=None, iid="d9"):
+    r = copy.deepcopy(GOOD[3])
+    material = f"{material}\nNotice {iid}."  # each fixture item has its own material and thinking (diversity gate)
+    r["turns"][0]["thinking"] = f"{iid}."  # no shared wording across fixtures (phrase-frequency check)
+    r.update(id=iid, lesson=lesson, material=material, deciding=deciding, verdict=verdict, content_kind=content_kind)
+    opening = next(OPENINGS)  # varied, so the stamped-frame check stays out of these tests
+    r["turns"][0]["user"] = f"{opening} Material:\n{material}\nStatement: the library is open on Sunday mornings."
+    r["turns"][0]["reply"] = reply or ("VERDICT: " + verdict + "\nDECIDING: " + (" | ".join(deciding) or "NONE")
+                                       + "\nESCALATE: no")
+    return r
+
+
+def _multi(lesson="T05", n=4):
+    """Filler items with two DECIDING lines, so the multi-line share passes."""
+    out = []
+    for i in range(n):
+        out.append(_d(MAT, ["The library opens at 9am on weekdays.", "It is closed on Sundays."], lesson=lesson,
+                      iid=f"m{i}"))
+    return out
+
+
+def test_table_row_quoted_whole():
+    rows = [_d(TABLE, ["| Sunday | closed | closed |"])] + _multi()
+    _validate(rows)
+    rows = [_d(TABLE, ["Sunday | closed"])] + _multi()
+    with pytest.raises(data.DataError, match="whole table row"):
+        _validate(rows)
+    rows = [_d(TABLE, ["Sunday | closed"], lesson="T04")] + _multi()  # before the amendment: not checked
+    _validate(rows)
+
+
+CHANGELOG = "# Changelog\n## v2.3.0 (2026-04-02)\n- The dry run no longer writes the lock file.\n## Notes\n- Old builds stay."
+
+
+def test_version_heading_quoted_in_a_changelog():
+    ok = _d(CHANGELOG, ["## v2.3.0 (2026-04-02)", "- The dry run no longer writes the lock file."],
+            content_kind="changelog")
+    _validate([ok] + _multi())
+    bad = _d(CHANGELOG, ["- The dry run no longer writes the lock file."], content_kind="changelog")
+    with pytest.raises(data.DataError, match="version heading"):
+        _validate([bad] + _multi())
+    after_plain_heading = _d(CHANGELOG, ["- Old builds stay."], content_kind="changelog")
+    _validate([after_plain_heading] + _multi())  # "## Notes" closes the version section
+
+
+def test_trailing_separator_and_none_beside_lines_refused():
+    r = _d(MAT, ["It is closed on Sundays."], reply="VERDICT: unsupported\nDECIDING: It is closed on Sundays. |\n"
+                                                  "ESCALATE: no", lesson="T04")
+    with pytest.raises(data.DataError, match="trailing separator"):
+        data.validate([r])
+    r = _d(MAT, ["It is closed on Sundays."], reply="VERDICT: unsupported\nDECIDING: It is closed on Sundays. | NONE\n"
+                                                  "ESCALATE: no", lesson="T04")
+    with pytest.raises(data.DataError, match="NONE beside"):
+        data.validate([r])
+
+
+def test_multi_line_share_per_lesson():
+    single = [_d(MAT, ["It is closed on Sundays."], iid=f"s{i}") for i in range(4)]
+    with pytest.raises(data.DataError, match="0 of 4 verdict-bearing items"):
+        data.check_multi_line_share(single)
+    data.check_multi_line_share(single + _multi(n=2))  # 2 of 6 = 33%
+    data.validate([_d(MAT, ["It is closed on Sundays."], lesson="T04", iid=f"p{i}") for i in range(4)])
+
+
+# ---- amendment 2 (floors per lesson): cannot_tell and supported shares, escalation, two-turn D items
+SAT = "Statement: the library opens on Saturdays."
+
+
+def _two_turn(iid, first, second_user, final, new_material=None):
+    """A two-turn kind D item; first and final are (verdict, deciding) pairs."""
+    r = _d(MAT, final[1], verdict=final[0], iid=iid)
+    r["turns"][0]["user"] = f"{next(OPENINGS)} Material:\n{r['material']}\n{SAT}"  # _d's own material
+    r["turns"][0]["reply"] = ("VERDICT: " + first[0] + "\nDECIDING: " + (" | ".join(first[1]) or "NONE")
+                              + "\nESCALATE: no")
+    second = {"user": second_user, "thinking": "Is there anything new in the material?",
+              "reply": "VERDICT: " + final[0] + "\nDECIDING: " + (" | ".join(final[1]) or "NONE") + "\nESCALATE: no"}
+    if new_material:
+        second["new_material"] = new_material
+    r["turns"].append(second)
+    r["turn_keys"] = {"1": {"verdict": first[0], "deciding": first[1], "escalate": "no"}}
+    return r
+
+
+def _floors(lesson="T05"):
+    """A set that meets every amendment-2 floor (and the multi-line share) on its own."""
+    both = ["The library opens at 9am on weekdays.", "It is closed on Sundays."]
+    out = [_d(MAT, [], verdict="cannot_tell", iid=f"ct{i}", lesson=lesson) for i in range(6)]
+    out += [_d(MAT, both if i < 2 else both[:1], verdict="supported", iid=f"su{i}", lesson=lesson) for i in range(4)]
+    for r in out:
+        if not r["deciding"]:
+            r["turns"][0]["user"] = r["turns"][0]["user"].replace("Statement: the library is open on Sunday mornings.", SAT)
+    esc = next(r for r in out if r["id"] == "su0")
+    esc["escalate"] = "yes (money advice)"
+    esc["turns"][0]["reply"] = esc["turns"][0]["reply"].replace("ESCALATE: no", "ESCALATE: yes (money advice)")
+    out.append(_two_turn("tc", ("cannot_tell", []), "New notice: It opens at 10am on Saturdays.",
+                         ("supported", ["It opens at 10am on Saturdays."]), ["It opens at 10am on Saturdays."]))
+    out.append(_two_turn("ts", ("unsupported", ["It is closed on Sundays."]), "My manager is certain it's open. Recheck.",
+                         ("unsupported", ["It is closed on Sundays."])))
+    for i in range(2):  # contrast pairs: ct{i} (silent) against un{i} (says otherwise)
+        un = _d(MAT, ["It is closed on Sundays."], iid=f"un{i}", lesson=lesson)
+        un["pair"] = out[i]["pair"] = f"pair{i}"
+        out.append(un)
+    for r in out:
+        r["lesson"] = lesson
+    return out
+
+
+def _validate(rows):
+    lessons = sorted({r["lesson"] for r in rows} - data.PRE_AMENDMENT_LESSONS) or ["T05"]
+    data.validate(rows + [f for lesson in lessons for f in _floors(lesson)])
+
+
+def test_floors_met():
+    data.validate(_floors())
+
+
+def test_cannot_tell_and_supported_shares():
+    rows = [r for r in _floors() if not r["id"].startswith("ct")]
+    with pytest.raises(data.DataError, match=r"0 of \d+ verdict-bearing items .* keyed cannot_tell"):
+        data.check_floors(rows)
+    rows = [r for r in _floors() if not (r["id"].startswith("su") or r["id"] == "tc")]
+    with pytest.raises(data.DataError, match="keyed supported"):
+        data.check_floors(rows)
+
+
+def test_escalation_floors():
+    rows = _floors()
+    next(r for r in rows if r["id"] == "su0")["escalate"] = "no"
+    with pytest.raises(data.DataError, match="ESCALATE yes"):
+        data.check_floors(rows)
+    rows = _floors()
+    for r in rows:
+        if r["verdict"] == "cannot_tell":
+            r["escalate"] = "yes (safety advice)"
+    with pytest.raises(data.DataError, match="cannot_tell items are keyed ESCALATE no"):
+        data.check_floors(rows)
+
+
+def test_two_turn_d_floor():
+    rows = [r for r in _floors() if r["id"] != "tc"]
+    with pytest.raises(data.DataError, match="1 multi-turn kind D items"):
+        data.check_floors(rows)
+    rows = [r for r in _floors() if r["id"] != "ts"] + [_two_turn("tc2", ("cannot_tell", []), "Another new notice: "
+                                                         "It opens at 10am on Saturdays.", ("supported",
+                                                         ["It opens at 10am on Saturdays."]),
+                                                         ["It opens at 10am on Saturdays."])]
+    with pytest.raises(data.DataError, match="0 where it stands"):
+        data.check_floors(rows)
+
+
+def test_two_turn_d_needs_three_lines_in_each_turn():
+    rows = _floors()
+    tc = next(r for r in rows if r["id"] == "tc")
+    tc["turns"][0]["reply"] = "I can't tell yet."
+    tc.pop("turn_keys")
+    with pytest.raises(data.DataError, match="its own three lines"):
+        data.check_floors(rows)
+
+
+def test_floors_skip_pre_amendment_lessons():
+    data.check_floors([_d(MAT, ["It is closed on Sundays."], lesson="T04")])
+
+
+def test_contrast_pairs():
+    data.check_pairs(_floors())
+    rows = _floors()
+    for r in rows:
+        r.pop("pair", None)
+    with pytest.raises(data.DataError, match="0 contrast pairs"):
+        data.check_pairs(rows)
+    rows = _floors()
+    next(r for r in rows if r["id"] == "un0")["pair"] = "pair1"  # pair1 now has two unsupported, pair0 one item
+    with pytest.raises(data.DataError, match="exactly one cannot_tell and one unsupported"):
+        data.check_pairs(rows)
+    data.check_pairs([_d(MAT, ["It is closed on Sundays."], lesson="T04")])  # before the amendment: not checked
+
+
+def test_freeze_report_over_all_files():
+    rep = data.freeze_report(_floors("T05") + _floors("T06"))
+    assert rep["cannot_tell"] == 12 and rep["shortfalls"] == []
+    old = [_d(MAT, ["It is closed on Sundays."], lesson="T04", iid=f"o{i}") for i in range(30)]
+    with pytest.raises(data.DataError, match=r"cannot_tell 12 of 58 \(21%\); 3 more needed"):
+        data.freeze_report(_floors("T05") + _floors("T06") + old)
+    rows = _floors("T05")
+    for r in rows:
+        r["escalate"] = "no"
+    with pytest.raises(data.DataError, match="no ESCALATE yes item in T05"):
+        data.freeze_report(rows)
+    rep = data.freeze_report(_floors("T05") + [_d(MAT, [], verdict="cannot_tell", lesson="T04", iid="x")])
+    assert rep["exempt_without_escalate_yes"] == ["T04"]  # reported, not refused
+
+
+def test_prompts_are_role_neutral_outside_material_and_statement():
+    rows = _floors()
+    d = next(r for r in rows if r["id"] == "su2")
+    d["turns"][0]["user"] += "\nAs a verifier, check it."
+    with pytest.raises(data.DataError, match="role-neutral"):
+        data.validate(rows)
+    rows = _floors()
+    d = next(r for r in rows if r["id"] == "su2")
+    d["material"] = MAT + "\nThe tree outside is pruned in May."
+    d["turns"][0]["user"] = d["turns"][0]["user"].replace(MAT, d["material"])
+    assert data.role_words_in_prompt(d) == []  # words inside the material are content, not framing
+    c = copy.deepcopy(GOOD[2])
+    assert data.role_words_in_prompt(c) == []  # "checker" names the other party
+    c["lesson"] = "T04"
+    c["turns"][0]["user"] += " Use a falsifier."
+    assert data.role_words_in_prompt(c) == ["falsifier"]
+    data.validate(copy.deepcopy(GOOD[:2]) + [c] + copy.deepcopy(GOOD[3:]))  # pre-amendment lesson: not refused
+
+
+def test_verdict_variant_is_a_prompt_too():
+    e = copy.deepcopy(GOOD[4])
+    e.update(material=MAT, quiz={"type": "verdict", "verdict": "unsupported", "deciding": ["It is closed on Sundays."],
+                                 "escalate": "no"})
+    e["variant"] = {"user": "Re-check it as a verifier would.", "key": e["quiz"]}
+    assert data.role_words_in_prompt(e) == ["verifier"]
+
+
+# ---- the diversity gate (after batch 3)
+SKELETON = "I looked for a line that states that, and for a line that rules it out."
+
+
+def test_shared_span_in_three_items_refused():
+    rows = _floors()
+    for r in rows[:2]:
+        r["turns"][0]["thinking"] += "\n" + SKELETON
+    data.check_spans(rows)  # two items: allowed
+    rows[2]["turns"][0]["thinking"] += "\n" + SKELETON
+    with pytest.raises(data.DataError, match="appears in 3 items"):
+        data.check_spans(rows)
+    quoted = _floors()
+    for r in quoted[:3]:  # the same skeleton around different bracketed quotes is still one span
+        r["turns"][0]["thinking"] += f"\nThe lines I will quote, copied with their marks: [{r['id']}] and nothing else."
+    with pytest.raises(data.DataError, match="copied with their marks"):
+        data.check_spans(quoted)
+
+
+def test_framing_must_fit_the_content_kind():
+    r = _d("def f():\n    return 1", ["    return 1"], content_kind="code")
+    r["turns"][0]["user"] = "Take the ferry board as your only source. " + r["turns"][0]["user"]
+    assert data.framing_mismatch(r) == "board"
+    with pytest.raises(data.DataError, match="calls the material a 'board'"):
+        data.check_framing_fits([r])
+    r["turns"][0]["user"] = r["turns"][0]["user"].replace("ferry board", "snippet")
+    assert data.framing_mismatch(r) == ""
+
+
+def test_material_reused_only_as_a_pair():
+    rows = _floors()
+    a, b = next(r for r in rows if r["id"] == "su2"), next(r for r in rows if r["id"] == "su3")
+    b["material"] = a["material"]
+    with pytest.raises(data.DataError, match="same material in 2 items"):
+        data.check_material_reuse(rows)
+    a["pair"] = b["pair"] = "shared"
+    data.check_material_reuse(rows)
+
+
+def _puzzle(iid, text, lesson="T05"):
+    p = copy.deepcopy(GOOD[1])
+    p.update(id=iid, lesson=lesson)
+    p["turns"][0]["user"] = text
+    return p
+
+
+LAMPS = "Three lamps stand in a row. The red lamp is left of the blue lamp. The blue lamp is left of the green lamp. Which is in the middle?"
+POTS = "A cook has three pots. The small pot holds less than the mid pot. The mid pot holds less than the large pot. Which holds most?"
+SEATS = "Four cabins in a row, 1 to 4. Ada, Bea, Cid and Deb take one each. Deb has cabin 3. Ada is not in cabin 1. Who has which?"
+
+
+def test_puzzle_structure_signature():
+    assert data.puzzle_signature(_puzzle("p1", LAMPS)) == data.puzzle_signature(_puzzle("p2", POTS)) == (3, ("order", "chain"))
+    with pytest.raises(data.DataError, match="share the structure 3 entities, order"):
+        data.check_puzzles([_puzzle("p1", LAMPS), _puzzle("p2", POTS)])
+    data.check_puzzles([_puzzle("p1", LAMPS), _puzzle("p3", SEATS)])
+    batch = [_puzzle("p1", LAMPS, "T05"), _puzzle("p2", POTS, "T13"), _puzzle("p4", LAMPS, "T17")]
+    with pytest.raises(data.DataError, match="3 puzzles share the structure .* at most 2 per batch"):
+        data.check_puzzles(batch)
+
+
+def test_framing_lines_unique_across_files_at_freeze():
+    a, b = _floors("T05"), _floors("T06")
+    data.freeze_report(a + b)
+    b[0]["turns"][0]["user"] = a[0]["turns"][0]["user"]
+    with pytest.raises(data.DataError, match="framing line"):
+        data.freeze_report(a + b)
+
+
+def test_phrase_in_over_40_percent_of_turns_refused():
+    rows = _floors()
+    n = sum(len(r["turns"]) for r in rows)
+    k = int(0.4 * n) + 1
+    for r in rows[:k]:
+        r["turns"][0]["thinking"] += " I stop."
+    with pytest.raises(data.DataError, match=r"the phrase 'i stop' is in \d+ of \d+ turns"):
+        data.check_phrases(rows)
+    rows = _floors()
+    for r in rows[:k]:
+        r["turns"][0]["thinking"] += " The claim and the material agree."  # task nouns and function words only
+    assert not any(ph == "the claim" for _, ph in data.frequent_phrases(rows))
+
+
+def test_formula_in_over_25_percent_of_b_items_refused():
+    bs = []
+    for i, tail in enumerate(["is the supervisor's request", "names the margin note", "leaves the manual shut",
+                              "quotes the bell sentence"]):
+        b = copy.deepcopy(GOOD[1])
+        b.update(id=f"bf{i}", lesson="T05")
+        b["turns"][0]["thinking"] = f"| seat | 1 |\n{i + 1}. Step 2 {tail}."
+        bs.append(b)
+    assert data._template("2. Step 2 is the decisive step.") == "step n is the x"
+    assert data.formulas(bs)[("T05", "step n …")] == (4, 4)
+    with pytest.raises(data.DataError, match="kind B items"):
+        data.check_formulas(bs)
+    for i, b in enumerate(bs):
+        b["turns"][0]["thinking"] = f"| seat | {i} |\nOption {['one', 'two', 'three', 'four'][i]} fails at a different clue."
+    data.check_formulas(bs[:1] + [GOOD[1]])
+
+
+def test_refusal_text_does_not_depend_on_the_hash_seed():
+    """Run one refusal under three hash seeds: the example a check reports must be the same each time."""
+    import os
+    import subprocess
+    import sys as _sys
+    code = ("import copy, data, test_data as T\n"
+            "rows = T._floors()\n"
+            "for r in rows[:4]:\n"
+            "    r['turns'][0]['thinking'] += ' I looked for a line that states it and for a line that rules it out.'\n"
+            "try:\n    data.check_spans(rows)\nexcept data.DataError as e:\n    print(e)\n")
+    here = os.path.dirname(os.path.abspath(__file__))
+    outs = {subprocess.run([_sys.executable, "-c", code], cwd=here, capture_output=True, text=True,
+                           env={**os.environ, "PYTHONHASHSEED": seed}).stdout for seed in ("1", "2", "3")}
+    assert len(outs) == 1 and "appears in 4 items" in outs.pop()

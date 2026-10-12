@@ -1,17 +1,21 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-07 from commit 5c5346d by Atlas 1.24.0.
+Mapped at 2026-10-12 from commit f9f4901 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (142 files), shell (5), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (231 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-07 (ddf58ce)
+## What changed since 2026-10-12 (388a6bc)
 
-- examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_b.sh.
-- 6 files added and 4 changed content, across 3 parts.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl is now read by packages/aspire-si-gates/tests/test_model_signature.py.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl is now read by packages/aspire-si-gates/tests/test_model_signature.py.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl is new and belongs to no part, so atlas check fails on it against the previous map.
+- packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl is new and belongs to no part, so atlas check fails on it against the previous map.
+- packages/aspire-si-gates/tests/test_model_signature.py is new and belongs to no part, so atlas check fails on it against the previous map.
+- 3 files added and 5 changed content, across 1 part.
 
 ## What comes in
 
@@ -46,17 +50,27 @@ CI writes nothing this map can see.
 
 ## What tends to change together
 
-No two source files changed together often enough to name.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 8 of 8 commits.
+- **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 9 commits, inside the examples part.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 7 of 8 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 7 of 8 commits.
+- **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
-Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits.
+1 file changed together with its own test, as expected.
+
+Confidence is low: fewer than 25 source files reach 10 revisions in the window.
+
+Window: 180 days; a pair counts from 3 shared commits, since 3 source files reach 10 revisions; the floor rises to 10 when 25 do.
 
 ## What no test touches
 
 Every code part is imported by at least one test.
 
+21 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 18 more.
+
 ## Written but never read
 
-No place this map can see is written, so none goes unread.
+Every written place has a reader.
 
 ## Helpers that look duplicated
 
@@ -64,11 +78,12 @@ No two parts export a helper that looks alike.
 
 ## Generated, never hand-edited
 
-Nothing in this repository writes to a tracked place this map can see.
+- **docs/runs/stage1-training-data/** is written by docs (7 files).
+- **docs/runs/stage1-training-data/pilot-t04.jsonl** has a block written by docs/runs/stage1-training-data/_fix_pilot_sources.py, docs/runs/stage1-training-data/_pilot_fixes.py and docs/runs/stage1-training-data/_pilot_fixes_r2.py.
 
 ## Hand-authored
 
-People write .github/, docs/, the repository root and site/; 3 writes with paths built at run time may land here.
+People write .github/, the repository root and site/; 16 writes with paths built at run time may land here.
 
 ## Where to start
 
@@ -79,10 +94,11 @@ Read those in order to follow one pull request end to end.
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
-- 3 writes and 13 reads use paths built at run time and are not named here.
-- 20 writes and 32 reads go to a path their caller passes, not to this repository.
+- 15 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 12 more.
+- 16 writes and 35 reads use paths built at run time and are not named here.
+- 66 writes and 82 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
-- Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
+- 15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.
+- Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.
