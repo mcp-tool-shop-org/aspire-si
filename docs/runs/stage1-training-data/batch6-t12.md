@@ -176,25 +176,31 @@ I do not quote a charge. These notes are version 2.0, and the buyer asked about 
 
 **User:**
 ```text
-1. Three fare cards are posted, the spans are January to June, July to December and the asked day, and the fares are 4 and 9.
-2. The south card does not cover January to June.
-3. 14 May is the asked day.
-4. If the north card covers January to June, 14 May draws fare 4.
-Question: What was the fare on 14 May?
+1. Three ferry fare cards, the red card, the white card and the black card, were in force one after another, one card to each span, in this order: 1 March to 31 May, 1 June to 31 August and 1 September to 30 November.
+2. The red card and the black card were never in force back to back.
+3. The black card came into force before the red card.
+Question: Which card was in force on 31 May?
 ```
 
 **Thinking:**
 ```text
-1. South is off the January-to-June span, so north holds it. 14 May is the asked day, and that span copies fare 4 onto it. The other printed fare is 9.
+The red card and the black card were never in force back to back, so they hold the first and the last span and the white card holds 1 June to 31 August. The black card came first, so it ran from 1 March to 31 May and the red card ran last.
+31 May is the closing day of the first span, which is the black card's. Handing the end of May to the card that starts in June would name the white card, and the dates say otherwise.
 ```
 
 **Reply:**
 ```text
-North holds January to June, and 14 May draws fare 4 from that span.
-4
+31 May closes the first span, and the black card held it.
+
+| card | span |
+| --- | --- |
+| the black card | 1 March to 31 May |
+| the white card | 1 June to 31 August |
+| the red card | 1 September to 30 November |
+the black card
 ```
 
-**Key:** answer: 4
+**Key:** answer: the black card
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -202,25 +208,31 @@ North holds January to June, and 14 May draws fare 4 from that span.
 
 **User:**
 ```text
-1. Three timetable sheets are posted, the spans are 05:00 to 11:00, 11:00 to 17:00 and the asked hour, and the fares are 3 and 8.
-2. The dawn sheet sits before the dusk sheet.
-3. 14:00 is the asked hour.
-4. If the dawn sheet covers 05:00 to 11:00, 14:00 draws fare 3.
-Question: What was the fare at 14:00?
+1. A harbour notice board kept three issues of its mooring rules, issue 4, issue 5 and issue 6, one issue to each span, the spans running 1 January to 30 April, 1 May to 31 August and 1 September to 31 December.
+2. Issue 4 was not in force from 1 January to 30 April.
+3. Issue 5 came into force next on from issue 4.
+Question: Which issue was in force on 14 July?
 ```
 
 **Thinking:**
 ```text
-1. Dawn sits before dusk, so dawn holds 05:00 to 11:00. 14:00 is the asked hour and draws fare 3 from that sheet. The other printed fare is 8.
+Issue 5 followed issue 4 directly, and issue 4 was not first, so issue 4 ran from 1 May to 31 August and issue 5 ran last. Issue 6 is left with 1 January to 30 April.
+14 July falls between 1 May and 31 August, so issue 4 was the one in force. Issue 6 has the highest number and issue 5 is the newest, and neither covered July.
 ```
 
 **Reply:**
 ```text
-Dawn holds the early span, and 14:00 draws fare 3.
-3
+14 July sits in 1 May to 31 August, and issue 4 held that span.
+
+| issue | span |
+| --- | --- |
+| issue 6 | 1 January to 30 April |
+| issue 4 | 1 May to 31 August |
+| issue 5 | 1 September to 31 December |
+issue 4
 ```
 
-**Key:** answer: 3
+**Key:** answer: issue 4
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -228,26 +240,33 @@ Dawn holds the early span, and 14:00 draws fare 3.
 
 **User:**
 ```text
-1. Four changelog rows are posted, the spans are 1.0 to 1.4, 1.5 to 1.9, 2.0 to 2.4 and the asked build, and the limits are 7 and 2.
-2. The beta row does not cover 1.0 to 1.4.
-3. The gamma row does not cover 1.0 to 1.4.
-4. 14 March is the asked build.
-5. If the alpha row covers 1.0 to 1.4, 14 March draws limit 7.
-Question: What was the limit on 14 March?
+1. A bus depot posted four timetable sheets, sheet A, sheet B, sheet C and sheet D, each for its own quarter, the quarters in turn: 1 January to 31 March, 1 April to 30 June, 1 July to 30 September and 1 October to 31 December.
+2. Sheet C was in force from 1 October to 31 December.
+3. Sheet A was in force next to sheet C.
+4. Sheet B came into force before sheet D.
+Question: Which sheet was in force on 30 June?
 ```
 
 **Thinking:**
 ```text
-1. Beta and gamma are both off 1.0 to 1.4, so alpha holds that span. 14 March is the asked build and draws limit 7. The other printed limit is 2.
+Sheet C ran last, from 1 October, and sheet A sat next to it, so sheet A ran from 1 July to 30 September. Sheet B came before sheet D, which puts sheet B first and sheet D on 1 April to 30 June.
+30 June is the last day of that span, so sheet D was in force. The sheet that starts on 1 July is sheet A, and it hadn't started yet.
 ```
 
 **Reply:**
 ```text
-Alpha holds 1.0 to 1.4, and 14 March draws limit 7.
-7
+30 June closes the second span, and sheet D held it.
+
+| sheet | span |
+| --- | --- |
+| sheet B | 1 January to 31 March |
+| sheet D | 1 April to 30 June |
+| sheet A | 1 July to 30 September |
+| sheet C | 1 October to 31 December |
+sheet D
 ```
 
-**Key:** answer: 7
+**Key:** answer: sheet D
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -255,25 +274,31 @@ Alpha holds 1.0 to 1.4, and 14 March draws limit 7.
 
 **User:**
 ```text
-1. Three fare sheets overlap at a boundary, the spans are March to June, June to October and the asked day, and the fares are 5 and 12.
-2. The south sheet owns June to October, including the shared June day.
-3. 30 June is the asked day.
-4. If the north sheet covers March to June, 30 June draws fare 5.
-Question: What was the fare on 30 June?
+1. A ropewalk's price list went through three printings, the Ash printing, the Birch printing and the Cedar printing, one printing per span, as listed: 1 February to 31 May, 1 June to 30 September and 1 October to 31 January.
+2. The Birch printing was in force from 1 February to 31 May or from 1 October to 31 January.
+3. The Birch printing came into force next on from the Cedar printing.
+Question: Which printing was in force on 9 August?
 ```
 
 **Thinking:**
 ```text
-1. South owns June to October, so north holds March to June, the span that includes the shared June day. 30 June draws fare 5. Twelve sits on the other card.
+Nothing was in force before the first span, so the Cedar printing can't sit straight before a Birch printing that ran first. The Birch printing ran last, from 1 October, the Cedar printing ran from 1 June to 30 September, and the Ash printing ran first.
+9 August falls in 1 June to 30 September, so the Cedar printing was in force. The newest printing, the Birch, only started in October.
 ```
 
 **Reply:**
 ```text
-North holds March to June, and 30 June draws fare 5 from the overlap.
-5
+9 August sits in 1 June to 30 September, and the Cedar printing held that span.
+
+| printing | span |
+| --- | --- |
+| the Ash printing | 1 February to 31 May |
+| the Cedar printing | 1 June to 30 September |
+| the Birch printing | 1 October to 31 January |
+the Cedar printing
 ```
 
-**Key:** answer: 5
+**Key:** answer: the Cedar printing
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -281,25 +306,31 @@ North holds March to June, and 30 June draws fare 5 from the overlap.
 
 **User:**
 ```text
-1. Exactly one board lists the three ticket prices, the spans are March to May, September to November and the asked day, and the prices are 6 and 15.
-2. The late ticket sits one span past the early ticket.
-3. Noon is the asked day.
-4. If the early ticket covers March to May, noon draws price 6.
-Question: What was the price at noon?
+1. A seed merchant's catalogue ran four editions over one trading year, the 9th edition, the 10th edition, the 11th edition and the 12th edition, one edition per quarter, in calendar order: 1 February to 30 April, 1 May to 31 July, 1 August to 31 October and 1 November to 31 January.
+2. The 12th edition was not in force from 1 August to 31 October.
+3. The 10th edition came into force next on from the 12th edition.
+4. The 9th edition came into force before the 11th edition.
+Question: Which edition was in force on 2 November?
 ```
 
 **Thinking:**
 ```text
-1. The late ticket sits one span past the early ticket, so the early ticket holds March to May. Noon is the asked day and draws price 6. The other printed price is 15.
+The 12th edition didn't run from 1 August, and the 10th followed it directly, so the pair took either the first two spans or the middle two. If the pair ran first, the 9th and the 11th share the last two spans, the 9th first. If the pair ran in the middle, the 9th ran first and the 11th last. Either way the 11th ran from 1 November to 31 January.
+2 November falls in that span, so the 11th edition was in force. The 12th has the highest number, and it never covered November.
 ```
 
 **Reply:**
 ```text
-The early ticket holds March to May, and noon draws price 6.
-6
+2 November sits in the last span, and the 11th edition holds it in both placings the lines allow.
+
+└─ the 12th is not in 1 August to 31 October, and the 10th comes next on from it
+   ├─ 12th, 10th, 9th, 11th
+   └─ 9th, 12th, 10th, 11th
+      └─ the 11th holds 1 November to 31 January
+the 11th edition
 ```
 
-**Key:** answer: 6
+**Key:** answer: the 11th edition
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 

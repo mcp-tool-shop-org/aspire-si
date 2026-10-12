@@ -408,21 +408,21 @@ Material:
 The rye jar is shut.
 The wick jar is shut.
 The lyn jar is shut if the afternoon seal was the seal that was filed.
-Question: does the card say the lyn jar is shut?
+Claim: the lyn jar is shut.
 ```
 
 **Thinking:**
 ```text
-1. The lyn line is shut only when the afternoon seal was filed. Rye and wick being shut do not file that seal. Dropping the seal would call lyn shut. The card as written does not.
+Before I accept the lyn jar as shut, I look for the line that settles it either way. The lyn line makes shut depend on the afternoon seal being the one filed, and nothing on the card says which seal was filed. The rye and wick lines are about other jars. No line breaks the claim, and none confirms it, so it stays open.
 ```
 
 **Reply:**
 ```text
-Lyn is shut only together with a seal the card never files.
+The lyn jar is shut only if the afternoon seal was filed, and the card never says it was.
 
-└─ rye is shut
-   └─ wick is shut
-      └─ lyn still waits on the seal
+└─ the lyn line holds a condition
+   └─ the card never files the afternoon seal
+      └─ lyn shut stays open
 
 VERDICT: cannot_tell
 DECIDING: NONE
