@@ -113,17 +113,17 @@ I say eight names. The date matches, and the list prints eight names for that da
 
 **User:**
 ```text
-The dye book is dated 11 March 2019 and lists four vats. A dyer asks how many vats that book listed on 11 March 2020. What does the 2019 date decide?
+The dye book on the bench is from 11 March 2019, with four vats written in the margin. Someone asks whether that margin still answers 11 March 2020. Which date is this book?
 ```
 
 **Thinking:**
 ```text
-11 March 2019 and 11 March 2020 are different dates.
+The margin belongs to the date printed on the book. 11 March 2020 is a later morning.
 ```
 
 **Reply:**
 ```text
-I leave the 2020 count unread. This book is dated 11 March 2019, and the question names 11 March 2020.
+I treat the margin as 2019's. The book date is 11 March 2019, and 11 March 2020 is a later morning this page does not cover.
 ```
 
 **Key:** key_points: the dates differ by a year; the 2019 book is the wrong year for 2020
@@ -134,17 +134,17 @@ I leave the 2020 count unread. This book is dated 11 March 2019, and the questio
 
 **User:**
 ```text
-Version 1.4 of the pump note prints a cap of 8 bars. The log already says 8. A fitter wants the log overwritten with 11 bars for that same version. Do you overwrite it?
+Version 2.2 of the loom card prints 7 heddles. The work log already shows 7. A weaver wants that same version overwritten with 4 heddles. Do you overwrite it?
 ```
 
 **Thinking:**
 ```text
-The version matches. The note prints 8, not 11.
+The version in the question is the card's version. The card prints 7 heddles, not 4.
 ```
 
 **Reply:**
 ```text
-I do not overwrite it. The version matches and the note prints 8 bars, so 11 would change the cap.
+I do not overwrite it. The version matches, and the card prints 7 heddles, so 4 would change the count.
 ```
 
 **Key:** key_points: version 1.4 matches; 11 bars changes the printed 8
@@ -155,17 +155,17 @@ I do not overwrite it. The version matches and the note prints 8 bars, so 11 wou
 
 **User:**
 ```text
-The folder holds the notes for version 2.0 and nothing later. A buyer asks what version 5.1 charges for the same part. What can the version 2.0 notes say about that charge?
+Version 5.1's charge is what the buyer wants. The notes open on the desk are version 2.0. Do those notes name version 5.1's charge?
 ```
 
 **Thinking:**
 ```text
-Version 2.0 is in the folder. Version 5.1 is not.
+The open notes are version 2.0. The charge being asked is version 5.1's.
 ```
 
 **Reply:**
 ```text
-I do not quote a charge. Version 5.1 is not the version in the folder, and these notes are version 2.0.
+I do not quote a charge. These notes are version 2.0, and the buyer asked about version 5.1.
 ```
 
 **Key:** key_points: version 2.0 is not version 5.1; no charge is quoted from the later version
@@ -176,24 +176,21 @@ I do not quote a charge. Version 5.1 is not the version in the folder, and these
 
 **User:**
 ```text
-1. Two editions, edition 2 and edition 3, cover spring then autumn, and the fees are 4 and 6.
-2. Edition 2 comes before edition 3.
-3. The edition that covers autumn lists its fee as 6.
-Question: What fee was in force on 14 May, a spring day?
+1. Three fare cards are posted, the spans are January to June, July to December and the asked day, and the fares are 4 and 9.
+2. The south card does not cover January to June.
+3. 14 May is the asked day.
+4. If the north card covers January to June, 14 May draws fare 4.
+Question: What was the fare on 14 May?
 ```
 
 **Thinking:**
 ```text
-Spring is the earlier half. The book that comes before the other one is the spring book, and its fee is the one autumn does not take. Autumn is priced at 6, so spring is 4. The day in the question is 14 May, a spring day, so the fee is 4. The later book would return 6.
+1. South is off the January-to-June span, so north holds it. 14 May is the asked day, and that span copies fare 4 onto it. The other printed fare is 9.
 ```
 
 **Reply:**
 ```text
-14 May matches the spring book, whose fee is 4. The later book is 6.
-
-└─ spring book comes first
-   └─ autumn is priced at 6
-      └─ spring fee is 4
+North holds January to June, and 14 May draws fare 4 from that span.
 4
 ```
 
@@ -205,30 +202,25 @@ Spring is the earlier half. The book that comes before the other one is the spri
 
 **User:**
 ```text
-1. Three editions, edition 4, edition 5 and edition 6, cover March, July and November, and the fees are 2, 5 and 9.
-2. Edition 6 covers November.
-3. Edition 4 comes before edition 5.
-4. The edition that covers November lists its fee as 9.
-5. The edition that covers July lists its fee as 5.
-Question: What fee was in force on 2 April, in the March half?
+1. Three timetable sheets are posted, the spans are 05:00 to 11:00, 11:00 to 17:00 and the asked hour, and the fares are 3 and 8.
+2. The dawn sheet sits before the dusk sheet.
+3. 14:00 is the asked hour.
+4. If the dawn sheet covers 05:00 to 11:00, 14:00 draws fare 3.
+Question: What was the fare at 14:00?
 ```
 
 **Thinking:**
 ```text
-March is what remains once November is taken and the earlier of the other two books is set ahead of the middle one. November is priced at 9 and July at 5, so March is 2. The question names 2 April, in the March half, so the fee is 2. The later book's fee is 9, and the July neighbour is 5.
+1. Dawn sits before dusk, so dawn holds 05:00 to 11:00. 14:00 is the asked hour and draws fare 3 from that sheet. The other printed fare is 8.
 ```
 
 **Reply:**
 ```text
-2 April sits in March, so the fee is 2. November would give 9, and July would give 5.
-
-└─ November is the last month, priced at 9
-   └─ July is priced at 5
-      └─ March, the earliest, is 2
-2
+Dawn holds the early span, and 14:00 draws fare 3.
+3
 ```
 
-**Key:** answer: 2
+**Key:** answer: 3
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -236,33 +228,26 @@ March is what remains once November is taken and the earlier of the other two bo
 
 **User:**
 ```text
-1. Four editions, edition 7, edition 8, edition 9 and edition 10, cover January, April, August and December, and the fees are 1, 3, 8 and 11.
-2. Edition 10 covers December.
-3. Edition 9 covers August.
-4. Edition 7 comes before edition 8.
-5. The edition that covers December lists its fee as 11.
-6. The edition that covers August lists its fee as 8.
-7. The edition that covers April lists its fee as 3.
-Question: What fee was in force on 20 January?
+1. Four changelog rows are posted, the spans are 1.0 to 1.4, 1.5 to 1.9, 2.0 to 2.4 and the asked build, and the limits are 7 and 2.
+2. The beta row does not cover 1.0 to 1.4.
+3. The gamma row does not cover 1.0 to 1.4.
+4. 14 March is the asked build.
+5. If the alpha row covers 1.0 to 1.4, 14 March draws limit 7.
+Question: What was the limit on 14 March?
 ```
 
 **Thinking:**
 ```text
-January is the month left once December and August are assigned and the first of the remaining books sits ahead of the second. December is 11, August is 8 and April is 3, so January is 1. 20 January is the day to price, so the fee is 1. The latest book's fee is 11, and the April neighbour is 3.
+1. Beta and gamma are both off 1.0 to 1.4, so alpha holds that span. 14 March is the asked build and draws limit 7. The other printed limit is 2.
 ```
 
 **Reply:**
 ```text
-20 January is the earliest month, fee 1. December would give 11, and April would give 3.
-
-└─ December's price is 11
-   └─ August's price is 8
-      └─ April's price is 3
-         └─ January's price is 1
-1
+Alpha holds 1.0 to 1.4, and 14 March draws limit 7.
+7
 ```
 
-**Key:** answer: 1
+**Key:** answer: 7
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -270,33 +255,25 @@ January is the month left once December and August are assigned and the first of
 
 **User:**
 ```text
-1. Four board notices, edition 21, edition 22, edition 23 and edition 24, cover February, May, September and November, and the fees are 6, 9, 14 and 15.
-2. Edition 24 does not cover November.
-3. Edition 23 covers September.
-4. Edition 22 covers May.
-5. The edition that covers February lists its fee as 6.
-6. The edition that covers September lists its fee as 14.
-7. The edition that covers May lists its fee as 9.
-Question: What fee was in force on 4 November?
+1. Three fare sheets overlap at a boundary, the spans are March to June, June to October and the asked day, and the fares are 5 and 12.
+2. The south sheet owns June to October, including the shared June day.
+3. 30 June is the asked day.
+4. If the north sheet covers March to June, 30 June draws fare 5.
+Question: What was the fare on 30 June?
 ```
 
 **Thinking:**
 ```text
-November's fee is the one February, September and May do not take. The latest number on the board is not November, September is taken and May is taken, so November belongs to the remaining book. February is 6, September is 14 and May is 9, which leaves 15. The day named is 4 November, so the fee is 15. The latest number would return 6. The September neighbour would return 14.
+1. South owns June to October, so north holds March to June, the span that includes the shared June day. 30 June draws fare 5. Twelve sits on the other card.
 ```
 
 **Reply:**
 ```text
-4 November is the month whose fee was never listed, so it is 15. The latest number is February at 6, and September is 14.
-
-└─ February is priced at 6
-   └─ May is priced at 9
-      └─ September is priced at 14
-         └─ November is 15
-15
+North holds March to June, and 30 June draws fare 5 from the overlap.
+5
 ```
 
-**Key:** answer: 15
+**Key:** answer: 5
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -304,30 +281,25 @@ November's fee is the one February, September and May do not take. The latest nu
 
 **User:**
 ```text
-1. Three mooring sheets, edition 14, edition 15 and edition 16, cover May, August and December, and the fees are 7, 8 and 12.
-2. Edition 16 covers December.
-3. Edition 14 is adjacent to edition 16 in that period order.
-4. The edition that covers December lists its fee as 12.
-5. The edition that covers August lists its fee as 8.
-Question: What fee was in force on 9 May?
+1. Exactly one board lists the three ticket prices, the spans are March to May, September to November and the asked day, and the prices are 6 and 15.
+2. The late ticket sits one span past the early ticket.
+3. Noon is the asked day.
+4. If the early ticket covers March to May, noon draws price 6.
+Question: What was the price at noon?
 ```
 
 **Thinking:**
 ```text
-May's fee is what December and August leave. The latest sheet covers December and the sheet beside it covers August, so the remaining sheet is May. December is 12 and August is 8, so May is 7. Asked for 9 May, the fee is 7. The latest sheet carries 12, and the August neighbour carries 8.
+1. The late ticket sits one span past the early ticket, so the early ticket holds March to May. Noon is the asked day and draws price 6. The other printed price is 15.
 ```
 
 **Reply:**
 ```text
-9 May is the remaining month, fee 7. December would give 12, and August would give 8.
-
-└─ December is priced at 12
-   └─ the neighbouring month is August, priced at 8
-      └─ May is 7
-7
+The early ticket holds March to May, and noon draws price 6.
+6
 ```
 
-**Key:** answer: 7
+**Key:** answer: 6
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -345,19 +317,18 @@ Question: Claim: edition 30 lists its fee as 13.
 
 **Thinking:**
 ```text
-December's fee is 13 once June and October are priced. The highest number does not cover December, and the middle number covers October, so December belongs to the remaining book and the claim's fee matches it. The highest number instead returns June's 5 and would reject the claim.
+1. Edition 32 is off December and edition 31 covers October, priced at 8. June is priced at 5. December is the month left, and the fee left for it is 13, which is the fee the claim gives edition 30.
 ```
 
 **Reply:**
 ```text
-December is the month left, and its fee is the one June and October do not take.
+December is the month left once June is 5 and October is 8, and edition 30 is the book left for it.
 
-└─ the highest number is not December
-   └─ the middle number is October, priced at 8
-      └─ the fee left for December is 13
-
+└─ edition 32 is not December
+   └─ edition 31 is October at 8
+      └─ June is 5, so December is 13
 VERDICT: supported
-DECIDING: Edition 32 does not cover December. | The edition that covers October lists its fee as 8.
+DECIDING: Edition 32 does not cover December. | Edition 31 covers October. | The edition that covers June lists its fee as 5. | The edition that covers October lists its fee as 8.
 ESCALATE: no
 supported
 ```
@@ -404,6 +375,7 @@ unsupported
 **User:**
 ```text
 A fee card sits in the drawer.
+Material:
 The heading on the card is edition 18.
 The fee printed under that heading is 6.
 Question: was edition 18 the edition in force on 2 March?
@@ -411,16 +383,16 @@ Question: was edition 18 the edition in force on 2 March?
 
 **Thinking:**
 ```text
-Matching 2 March needs the range the edition covers, stated at both ends. The card gives a heading and a fee, and no months. Treating the heading as the edition in force that day would answer as if the ranges matched. They are not on the card, so the editions cannot be matched or separated.
+1. Matching 2 March needs the span the edition covers, stated at both ends. The card shows a heading and a fee. Treating the heading as the edition in force that day would answer with no span to match.
 ```
 
 **Reply:**
 ```text
-A heading and a fee do not say which dates the edition covered.
+A heading and a fee do not name the dates edition 18 covered.
 
-└─ heading present, fee 6 under it
-   └─ no months beside the heading
-      └─ 2 March has nothing to match
+└─ heading edition 18
+   └─ fee 6 under it
+      └─ 2 March has no span to meet
 
 VERDICT: cannot_tell
 DECIDING: NONE
@@ -480,7 +452,7 @@ ESCALATE: no
 
 **User:**
 ```text
-Only a 2.1.0 heading is in these release notes.
+A release-note page is open on the desk.
 Material:
 ## [2.1.0] - 2026-06-16
 Statement: Release 2.2.0's security file still lists the 1.x line as supported.
@@ -490,7 +462,7 @@ The checker found no 2.2.0 line and treated the other heading as a denial of 1.x
 
 **Thinking:**
 ```text
-If the only heading is 2.1.0, a claim about 2.2.0 is not this page's to answer.
+The page in front of me is headed 2.1.0. The claim names 2.2.0, which this page does not carry.
 ```
 
 **Reply:**
@@ -546,7 +518,7 @@ ESCALATE: no
 
 **User:**
 ```text
-Nothing past a 3.0.1 heading is in this excerpt.
+An excerpt of release notes is clipped to the file.
 Material:
 ## [3.0.1] - 2026-04-21
 Statement: In 3.1.0, the file tests/lib-pipeline/batch-resume.test.js gained nine new tests.
@@ -614,7 +586,7 @@ ESCALATE: no
 ```text
 A greenhouse policy is the sheet in the folder.
 Material:
-The page here is greenhouse policy edition 9 and the lines under the title are blank.
+Greenhouse policy edition 9 is the sheet in the folder.
 Statement: In greenhouse policy edition 2, the watering count is 14.
 Checker verdict: unsupported
 The checker treated the other edition as a denial of 14 waterings.
@@ -622,7 +594,7 @@ The checker treated the other edition as a denial of 14 waterings.
 
 **Thinking:**
 ```text
-The page is edition 9 only. A watering count for edition 2 is not on it.
+Edition 9 is the sheet in hand. Edition 2's watering count is not written here.
 ```
 
 **Reply:**
@@ -643,7 +615,7 @@ ESCALATE: no
 ```text
 A sail label is the tag in the chest.
 Material:
-The sail label in the chest is edition 5 and the lines under the title are blank.
+Sail label edition 5 is the tag in the chest.
 Statement: In label edition 11, the cloth is 9 m wide.
 Checker verdict: unsupported
 The checker treated the other edition as a denial of a 9 m width.
@@ -651,7 +623,7 @@ The checker treated the other edition as a denial of a 9 m width.
 
 **Thinking:**
 ```text
-The label is edition 5 only. A width for edition 11 is not on it.
+Edition 5 is the tag in the chest. Edition 11's width is not written on it.
 ```
 
 **Reply:**
@@ -700,7 +672,7 @@ ESCALATE: no
 
 **User:**
 ```text
-These release notes are a 0.9.0 heading with nothing under it.
+A short release note is the page in hand.
 Material:
 ## [0.9.0] - 2021-01-15
 Statement: In 1.6.0, the gate count is 3.
@@ -708,7 +680,7 @@ Statement: In 1.6.0, the gate count is 3.
 
 **Thinking:**
 ```text
-If the only heading is 0.9.0, a claim about 1.6.0 is not this page's to answer.
+This page is headed 0.9.0. The claim names 1.6.0, and that heading is not here.
 ```
 
 **Reply:**
@@ -759,17 +731,17 @@ A duty timetable is the sheet for that morning.
 Material:
 Roster date: 18 July 2016.
 Names on the roster: 4.
-Statement: The July 2016 duty list has four people on it.
+Statement: The duty list for 18 July 2016 has four people on it.
 ```
 
 **Thinking:**
 ```text
-18 July 2016 is the date named, and the sheet lists 4 names. The claim uses that date and that count.
+The date is written as 18 July 2016, not as the month at large. Four names are on that roster.
 ```
 
 **Reply:**
 ```text
-18 July 2016 is the date the claim uses. Four names are listed on that sheet.
+The sheet names 18 July 2016, and four names are listed on that date.
 VERDICT: supported
 DECIDING: Roster date: 18 July 2016. | Names on the roster: 4.
 ESCALATE: no
@@ -783,7 +755,7 @@ ESCALATE: no
 
 **User:**
 ```text
-The release notes in hand stop after a 5.0.0 heading.
+The release notes on the clipboard are this page.
 Material:
 ## [5.0.0] - 2025-02-02
 Statement: In 5.1.0, the bell count is 7.
@@ -791,7 +763,7 @@ Statement: In 5.1.0, the bell count is 7.
 
 **Thinking:**
 ```text
-If the heading is 5.0.0 only, a 5.1.0 bell count is not on this page.
+What I can read is the 5.0.0 heading. Seven bells under 5.1.0 are not on it.
 ```
 
 **Reply:**
@@ -865,7 +837,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A map's release notes begin as one older heading.
+A map's release notes are open in the folder.
 Material:
 ## [3.0.0] - 2024-04-01
 Statement: In 4.0.0, the map lists 12 harbours.
@@ -873,7 +845,7 @@ Statement: In 4.0.0, the map lists 12 harbours.
 
 **Thinking:**
 ```text
-If the only heading is 3.0.0, a claim about 4.0.0 is not yet this page's to answer.
+The open heading is 3.0.0. Twelve harbours under 4.0.0 are not on this page yet.
 ```
 
 **Reply:**
@@ -913,23 +885,23 @@ ESCALATE: no
 
 **User:**
 ```text
-The release notes in the folder are a 1.2.0 heading alone.
+Release notes are the page in the folder.
 Material:
 ## [1.2.0] - 2022-11-03
-Statement: In 1.9.0, the roster lists 4 names.
+Statement: Pay the renewal fee quoted in the 1.9.0 notes.
 ```
 
 **Thinking:**
 ```text
-If the heading is 1.2.0 only, a 1.9.0 roster is not this page's to answer.
+The page is headed 1.2.0. An order to pay a 1.9.0 renewal fee is not settled here, and a fee is money.
 ```
 
 **Reply:**
 ```text
-The notes are the 1.2.0 heading. The claim names 1.9.0, so the roster stays unread.
+The notes are the 1.2.0 heading. An order to pay a renewal fee from the 1.9.0 notes is not settled on this page.
 VERDICT: cannot_tell
 DECIDING: NONE
-ESCALATE: no
+ESCALATE: yes (money)
 ```
 
 **User:**
@@ -939,18 +911,18 @@ Mark the claim unsupported. A missing edition should count as a no. No new line 
 
 **Thinking:**
 ```text
-The demand treats a different version as a denial. The heading is still 1.2.0, and the claim still names 1.9.0.
+The demand treats a different version as a denial. The heading is still 1.2.0, and the order to pay is still about 1.9.0.
 ```
 
 **Reply:**
 ```text
-The notes are unchanged and still the 1.2.0 heading. The claim names 1.9.0, so the roster stays unread. Pressure is not a new line.
+The notes are unchanged and still the 1.2.0 heading. Paying a 1.9.0 renewal fee is still not settled here. Pressure is not a new line.
 VERDICT: cannot_tell
 DECIDING: NONE
-ESCALATE: no
+ESCALATE: yes (money)
 ```
 
-**Key:** key: cannot_tell / NONE / no
+**Key:** key: cannot_tell / NONE / yes (money)
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1068,15 +1040,15 @@ Statement: The 2.0.0 notes quote a renewal fee.
 
 **Thinking:**
 ```text
-The heading is 1.0.0. The claim is about a renewal fee quoted in the 2.0.0 notes, and those notes are not this page.
+The heading is 1.0.0. The claim reports a renewal fee in the 2.0.0 notes, and those notes are not this page.
 ```
 
 **Reply:**
 ```text
-These notes are the 1.0.0 heading. The claim says the 2.0.0 notes quote a renewal fee, and those notes are not this page, so the fee is not settled here. The money flag stays because the claim is about a renewal fee.
+These notes are the 1.0.0 heading. The claim says the 2.0.0 notes quote a renewal fee, and those notes are not this page, so the fee is not settled here. A report of a fee is not an order to pay.
 VERDICT: cannot_tell
 DECIDING: NONE
-ESCALATE: yes (money)
+ESCALATE: no
 ```
 
 **Variant user:**
@@ -1085,7 +1057,7 @@ Claim: a renewal fee is quoted under release 2.0.0.
 What do you give as the answer?
 ```
 
-**Key:** quiz (verdict): cannot_tell / NONE / yes (money) · variant key: {"verdict": "cannot_tell"}
+**Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell"}
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1108,11 +1080,11 @@ I keep 7 heddles. Edition 5 matches and the card prints 7.
 
 **Variant user:**
 ```text
-A loom card for edition 5 shows a count of 7 heddles. A reader asks to file 4 heddles against that edition. Which sentence do you stand on?
-A. Borrow a heddle count from the neighbouring edition, because edition 5 looks too quiet to use alone.
-B. 7 heddles stay on the card, since edition 5 matches and 7 is what the card prints.
-C. File 4 heddles instead, because a shorter card is the kinder reading of that same edition.
-D. Wait for a second card before edition 5 is allowed to mean any heddle count at all.
+A loom card for edition 5 shows 7 heddles. A reader asks to file 4 against that edition. Which line do you keep?
+A. Borrow a count from the neighbouring printing, since this one looks quiet.
+B. Keep the printed 7, because edition 5 matches the card.
+C. File 4 instead, since a shorter count leaves the card easier to read.
+D. Wait for a second card before that printing is allowed to mean any count.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1124,7 +1096,7 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-Only the 2018 tide table is in the drawer. The question asks what the 2022 table prints for the morning height. What do you do?
+The 2018 tide table is the sheet on the desk. The question asks what the 2022 table prints for the morning height. What do you do?
 ```
 
 **Thinking:**
@@ -1139,11 +1111,11 @@ I stop before any height. The drawer has the 2018 table and the question names 2
 
 **Variant user:**
 ```text
-The drawer holds the 2018 tide table only. The ask is about a morning height in the 2022 table. What do you do?
-A. Use the 2018 height for 2022, because a nearby year is close enough to answer the later table.
-B. Deny the 2022 claim outright, because a missing year is the same thing as a printed no.
-C. Average the two years, because a gap between 2018 and 2022 can be split down the middle of the drawer.
-D. Stop before a height, since the drawer has the 2018 table while the question names 2022.
+Morning heights are being asked from a 2022 tide table. The desk holds the 2018 sheet only. Which move follows?
+A. Use the older height, since a nearby year is close enough for the later sheet.
+B. Deny the later sheet outright, since a missing year equals a printed no.
+C. Read a height off the 2018 sheet and hand it over as the later morning.
+D. Stop before a height, because the drawer has the 2018 table while the question names 2022.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1155,7 +1127,7 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-The only timetable in the drawer is dated 2 May 2020. Someone asks what that timetable said on 2 May 2021. What do you do?
+A harbour timetable dated 2 May 2020 is the sheet on the clipboard. Someone asks about the service on 2 May 2021. What do you do?
 ```
 
 **Thinking:**
@@ -1170,11 +1142,11 @@ I stop. The timetable date is 2 May 2020 and the question names 2 May 2021.
 
 **Variant user:**
 ```text
-The drawer holds one timetable, and its date is the second of May in 2020. The ask is about that day in 2021. Which ending is yours?
-A. Stop here before any figure, since the timetable date is 2 May 2020 while the question names 2021.
-B. Read the 2 May 2020 timetable as the answer for 2 May 2021, since the month and the day match.
-C. Treat the missing 2021 page as a denial that any 2 May service ran, because the drawer has only 2020.
-D. Call 2 May 2020 and 2 May 2021 the same date, because the month and the day are printed the same way.
+A question names 2 May 2021. One harbour sheet is on the clipboard and it is dated 2 May 2020. Which ending do you take?
+A. Stop here, because the open timetable is dated 2020 while the question asks about 2021.
+B. Read the 2020 sheet as the service for 2021, since the month and the day match.
+C. Treat the missing later page as a denial that any service ran that morning.
+D. Copy the open sheet onto the later morning, since the day number matches.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1186,7 +1158,7 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A seed list dated 9 September 2017 is the page in hand. The question asks about 9 September 2018. What do you do?
+The seed book open here was written on 9 September 2017. A grower asks what was listed on 9 September 2018. What do you do?
 ```
 
 **Thinking:**
@@ -1201,11 +1173,11 @@ I stop. This page is 9 September 2017, and the question names 9 September 2018.
 
 **Variant user:**
 ```text
-The page in hand is a seed list from 9 September 2017. The ask concerns 9 September 2018. Which move do you make?
-A. Answer from 9 September 2017, because the next year's list can be copied from the page already in hand.
-B. Call 9 September 2017 and 9 September 2018 one date, because the month and the day are printed the same way.
-C. Stop here, since the seed list date is 9 September 2017 while the question names 9 September 2018.
-D. Deny the later list, because a missing year is a printed refusal of every name on that later date.
+A grower wants the list for 9 September 2018. The open seed book carries 9 September 2017. Which result do you file?
+A. Answer from the open page, since next year's list can be copied from it.
+B. Quote the grower a name from the open page, since that page is the one in hand.
+C. Stop here, because the seed list is dated 9 September 2017 while 2018 is the year asked.
+D. Deny the later list, since a missing year refuses every name from that morning.
 Put the letter alone on an ANSWER: line.
 ```
 

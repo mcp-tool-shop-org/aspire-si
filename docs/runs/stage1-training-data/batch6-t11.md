@@ -8,17 +8,17 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-The pump card says the pump stops at 3 bars. The sentence to check is that the stop is 3 bars and that the card gives no order to raise the pressure. What a mistake costs turns on whether a line makes that sentence false. What would make the sentence false, and is that line on the card?
+The pump card says the pump stops at 3 bars. A fitter wants the pressure raised because the card looks short. The cost of a mistake is what this card is for. What is printed on the card?
 ```
 
 **Thinking:**
 ```text
-A different stop, or an order to raise the pressure, would make the sentence false. I look for both. The card prints 3 bars and nothing else.
+A line ordering a higher pressure would undo a stop of 3 bars. The card prints 3 bars and no such order.
 ```
 
 **Reply:**
 ```text
-I say the stop is 3 bars. I looked for a different stop and for an order to raise the pressure, and neither line is on the card.
+I read the card as a stop at 3 bars. An order to raise the pressure would undo that, and the card has no such order.
 ```
 
 **Key:** key_points: the card prints a stop of 3 bars; no order to raise the pressure is on the card
@@ -71,17 +71,17 @@ I keep two. A third renewal is past the cap the card printed, so the extra week 
 
 **User:**
 ```text
-A radio log copies channel 22 from the set card, and the sentence to check is that the copy matches the card. The cost of a mistake is accepting the copy before looking for a different channel on the card. Is the copied figure still fair?
+A radio log copies channel 22 from the set card. The cost of a mistake sits between the log and the card. Is the copied figure still fair?
 ```
 
 **Thinking:**
 ```text
-A different channel on the card would make the copy false. I look for that. The card prints 22 and the log prints 22.
+A different channel printed on the card would make the copy unfair. The card prints 22 and the log prints 22.
 ```
 
 **Reply:**
 ```text
-I keep the figure. I looked for a channel other than 22 on the card and did not find one, so the copy still matches.
+I keep the figure. A different channel on the card would make the copy unfair, and the card prints 22 with the log.
 ```
 
 **Key:** key_points: the card prints channel 22; no other channel is on the card
@@ -113,17 +113,17 @@ I refuse channel 18. The card starts at channel 22, so 18 never meets the printe
 
 **User:**
 ```text
-A bakery card says the morning bake is 4 trays, and the sentence to check is that the morning bake is 4 trays. Mistake costs show up when a different tray count is missed. What is actually on the card?
+A bakery card says the morning bake is 4 trays. What a mistake costs is settled by that card alone. What is actually on the card?
 ```
 
 **Thinking:**
 ```text
-A different tray count would make the sentence false. I look for one. The card prints 4 trays and no other count.
+A second tray count on the card would undo a morning bake of 4. The card prints 4 trays and no other count.
 ```
 
 **Reply:**
 ```text
-I say the morning bake is 4 trays. I looked for a different tray count and did not find one, so the card confirms the sentence.
+I say the morning bake is 4 trays. A second tray count on the card would undo that, and the card prints 4 only.
 ```
 
 **Key:** key_points: the card prints 4 trays; no other tray count is on the card
@@ -176,26 +176,27 @@ I say today is inside. The mark is 6 and the cap is 6. I found no line that brea
 
 **User:**
 ```text
-1. The lyn sluice, the cam sluice and the wye sluice are each open or shut.
-2. At least one of the three sluices is open.
-3. The cam sluice is shut.
-4. The wye sluice is shut.
-Question: Claim: the lyn sluice is shut.
+1. The red bill, the blue bill and the green bill are each paid or unpaid.
+2. If the red bill is paid, the blue bill is paid.
+3. The blue bill is unpaid.
+Question: Claim: the red bill is paid.
 ```
 
 **Thinking:**
 ```text
-I start by hunting the line that would put the lyn sluice open. Cam is shut and wye is shut, and at least one of the three is open, so the open one has to be lyn. The two shut lines and the floor only bite together. Read apart, they look as if lyn could be shut as well.
+1. Blue is unpaid. A paid red bill would have made blue paid, so red is not paid.
 ```
 
 **Reply:**
 ```text
-Look for lyn open before accepting lyn shut.
+Blue unpaid blocks a paid red bill, because that payment would have paid blue too.
 
-└─ at least one sluice is open
-   ├─ cam is shut
-   └─ wye is shut
-      └─ lyn is the open one
+└─ blue is unpaid
+   └─ paid red would pay blue
+      └─ red is unpaid
+VERDICT: unsupported
+DECIDING: If the red bill is paid, the blue bill is paid. | The blue bill is unpaid.
+ESCALATE: no
 unsupported
 ```
 
@@ -207,28 +208,27 @@ unsupported
 
 **User:**
 ```text
-1. The elm cupboard, the ash cupboard, the oak cupboard and the yew cupboard are each open or shut.
-2. At least one of the four cupboards is open.
-3. The ash cupboard is shut.
-4. The oak cupboard is shut.
-5. The yew cupboard is shut.
-Question: Claim: the elm cupboard is shut.
+1. The flax spool, the hemp spool, the jute spool and the sisal spool are each red, blue or green.
+2. Exactly one of the four spools is red.
+3. The hemp spool is red.
+Question: Claim: the flax spool is red.
 ```
 
 **Thinking:**
 ```text
-What would make the claim false is the elm cupboard standing open. Ash, oak and yew are shut, and at least one of the four is open, so elm is that open cupboard. Either the floor or the three shut lines on their own would leave the claim standing.
+1. Hemp is the one red spool. Flax is some other colour.
 ```
 
 **Reply:**
 ```text
-The open cupboard is the one the shut lines have not taken.
+The single red spool is hemp, so flax is not red.
 
-└─ at least one cupboard is open
-   ├─ ash is shut
-   ├─ oak is shut
-   └─ yew is shut
-      └─ elm is open
+└─ exactly one spool is red
+   └─ hemp is that spool
+      └─ flax is not red
+VERDICT: unsupported
+DECIDING: Exactly one of the four spools is red. | The hemp spool is red.
+ESCALATE: no
 unsupported
 ```
 
@@ -240,24 +240,27 @@ unsupported
 
 **User:**
 ```text
-1. The quay lamp, the pier lamp, the dock lamp, the wharf lamp and the jetty lamp are each lit or dark.
-2. At least four of the five lamps are lit.
-3. The quay lamp is dark.
-Question: Claim: the pier lamp is lit.
+1. The mince pie, the apple pie, the cherry pie, the plum pie and the peach pie are each sweet or sour.
+2. At least four of the five pies are sweet.
+3. The mince pie is sour.
+Question: Claim: the apple pie is sweet.
 ```
 
 **Thinking:**
 ```text
-Before I accept the pier lamp as lit, I look for a second dark lamp. At least four of the five are lit, and the quay lamp is already the dark one, so the pier lamp is lit. That search finds no exception. Skipping the floor of four would leave the pier lamp free to be dark.
+1. Mince is the sour pie a count of four sweet still allows. Apple is among the four sweet.
 ```
 
 **Reply:**
 ```text
-The search finds the one dark lamp, and it is not the pier.
+One sour pie is mince, and four sweet pies remain, so apple is sweet.
 
-└─ at least four lamps are lit
-   └─ quay is dark
-      └─ pier is lit
+└─ mince is sour
+   └─ four sweet pies are still required
+      └─ apple is sweet
+VERDICT: supported
+DECIDING: At least four of the five pies are sweet. | The mince pie is sour.
+ESCALATE: no
 supported
 ```
 
@@ -269,26 +272,27 @@ supported
 
 **User:**
 ```text
-1. Barn, byre, coop, loft and mill are five shutters. Each shutter is open or shut. Places run from first through second, third, fourth and fifth.
-2. At most one of the five shutters is open.
-3. The shutter in first place is open.
-4. The barn shutter sits before the byre shutter.
-Question: Claim: the byre shutter is open.
+1. The linen cloth, the cotton cloth, the wool cloth and the silk cloth are each wet or dry.
+2. If the linen cloth is wet, the cotton cloth is wet.
+3. At most one of the four cloths is wet.
+Question: Claim: the linen cloth is wet.
 ```
 
 **Thinking:**
 ```text
-The claim fails if the byre shutter can still be the open one. At most one shutter is open, and the open one is the shutter in first place. The barn shutter sits before the byre shutter, so the byre shutter is not first and is not the open one. The order and the cap have to be read together.
+1. Wet linen would wet cotton too, and two wet cloths break a cap of one. Linen is dry.
 ```
 
 **Reply:**
 ```text
-First place is the only open shutter, and the byre shutter is not in it.
+Wet linen would bring cotton with it, past a cap of one wet cloth.
 
-└─ at most one shutter is open
-   └─ first place is the open one
-      └─ barn sits before byre
-         └─ byre is shut
+└─ wet linen wets cotton
+   └─ at most one cloth is wet
+      └─ linen is dry
+VERDICT: unsupported
+DECIDING: If the linen cloth is wet, the cotton cloth is wet. | At most one of the four cloths is wet.
+ESCALATE: no
 unsupported
 ```
 
@@ -300,24 +304,27 @@ unsupported
 
 **User:**
 ```text
-1. The inlet valve, the outlet valve, the drain valve and the bleed valve are each open or shut.
-2. Exactly one of the four valves is shut.
-3. The inlet valve is shut.
-Question: Claim: the outlet valve is open.
+1. The bread knife, the paring knife, the carving knife, the fillet knife, the boning knife and the cleaver are each sharp or blunt.
+2. Exactly five of the six knives are sharp.
+3. The bread knife is blunt.
+Question: Claim: the paring knife is sharp.
 ```
 
 **Thinking:**
 ```text
-I check whether any line besides the inlet valve puts a valve shut. Exactly one valve is shut, and the inlet valve is that one, so the outlet valve is open. Nothing else on the card is shut. Treating the cap as a vague 'some are shut' would leave the outlet valve unresolved.
+1. Bread is the blunt knife. The other five, paring among them, are sharp.
 ```
 
 **Reply:**
 ```text
-One shut valve is already named, so the outlet valve is not it.
+Five knives are sharp and bread is the blunt one, so paring is sharp.
 
-└─ exactly one valve is shut
-   └─ inlet is that valve
-      └─ outlet is open
+└─ five of six are sharp
+   └─ bread is the blunt one
+      └─ paring is sharp
+VERDICT: supported
+DECIDING: Exactly five of the six knives are sharp. | The bread knife is blunt.
+ESCALATE: no
 supported
 ```
 
@@ -329,34 +336,32 @@ supported
 
 **User:**
 ```text
-1. Four crates are named cod, hake, sole and brill. Open or shut is the state of each crate. The places, in order, are first and second, then third, then fourth.
-2. At most one of the four crates is shut.
-3. The crate in first place is shut.
-4. The cod crate is second.
-Question: Claim: the cod crate is open.
+1. The plum, the pear, the fig and the date are each red, blue or green.
+2. Exactly two of the four fruits are red.
+3. The plum is red.
+4. The pear is red.
+Question: Claim: the fig is red.
 ```
 
 **Thinking:**
 ```text
-Cod shut would break the claim, so I look for that first. At most one crate is shut, and the shut crate is the one in first place. The cod crate is second, so it is not the shut crate, and the claim that it is open stands. The cap and the place have to be read together. Either line alone leaves the cod crate unresolved.
+1. Plum and pear already fill a count of two red fruits. Fig is not red.
 ```
 
 **Reply:**
 ```text
-The falsifier, cod shut, is not on the card. Second place is outside the one shut place.
+The two red fruits are plum and pear, so fig is not the red the claim names.
 
-└─ at most one crate is shut
-   └─ first place is the shut one
-      └─ cod is second
-         └─ cod is open
-
-VERDICT: supported
-DECIDING: At most one of the four crates is shut. | The cod crate is second.
+└─ exactly two fruits are red
+   └─ plum is red and pear is red
+      └─ fig is not red
+VERDICT: unsupported
+DECIDING: Exactly two of the four fruits are red. | The plum is red. | The pear is red.
 ESCALATE: no
-supported
+unsupported
 ```
 
-**Key:** answer: supported
+**Key:** answer: unsupported
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -364,30 +369,26 @@ supported
 
 **User:**
 ```text
-1. Rye, wick, deal and hythe are bins. A bin is open or else shut. Counting along the rank gives first, then second, then third, then fourth.
-2. Exactly two of the four bins are shut.
-3. The bin in first place is shut.
-4. The bin in second place is shut.
-5. The rye bin is third.
-Question: Claim: the rye bin is shut.
+1. The rye sack, the wheat sack, the oat sack and the barley sack are each grade A, B or C.
+2. The rye sack is not grade A and not grade B.
+3. Exactly one of the four sacks is grade C.
+Question: Claim: the wheat sack is grade C.
 ```
 
 **Thinking:**
 ```text
-Rye shut is the exception this claim depends on, and the places produce it. Exactly two bins are shut, the first and the second. The rye bin is third, so it is open, and the claim that it is shut fails. Without the cap of two, a third shut bin would still be possible.
+1. Rye is outside A and outside B, so rye is the grade C sack. A count of one leaves wheat off that grade.
 ```
 
 **Reply:**
 ```text
-The two shut places are filled before the rye bin's place.
+Rye is the only grade C sack, so wheat is not grade C.
 
-└─ exactly two bins are shut
-   ├─ first is shut
-   └─ second is shut
-      └─ rye is third, so rye is open
-
+└─ rye is neither A nor B
+   └─ exactly one sack is grade C
+      └─ wheat is not that sack
 VERDICT: unsupported
-DECIDING: Exactly two of the four bins are shut. | The rye bin is third.
+DECIDING: The rye sack is not grade A and not grade B. | Exactly one of the four sacks is grade C.
 ESCALATE: no
 unsupported
 ```
@@ -400,24 +401,26 @@ unsupported
 
 **User:**
 ```text
-A jar card is in the drawer.
+A jar card is clipped in the drawer.
+Material:
 The rye jar is shut.
 The wick jar is shut.
-Question: is the lyn jar shut?
+The lyn jar is shut if the afternoon seal was the seal that was filed.
+Question: does the card say the lyn jar is shut?
 ```
 
 **Thinking:**
 ```text
-The falsifier I look for is a line that one of these jars is open, which would force the lyn jar if the other two are shut. The card has the two shut lines and no such floor. It also has no line that confirms the lyn jar shut. The search finishes with neither an exception nor a confirmation.
+1. The lyn line is shut only when the afternoon seal was filed. Rye and wick being shut do not file that seal. Dropping the seal would call lyn shut. The card as written does not.
 ```
 
 **Reply:**
 ```text
-Two shut jars, and nothing that says whether a third is open.
+Lyn is shut only together with a seal the card never files.
 
 └─ rye is shut
    └─ wick is shut
-      └─ no line that one jar is open
+      └─ lyn still waits on the seal
 
 VERDICT: cannot_tell
 DECIDING: NONE
@@ -491,7 +494,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A cistern policy is one sentence about the stop.
+A cistern policy is posted on the tank.
 Material:
 The cistern stops filling at 3 bars.
 Statement: The cistern's stop is 3 bars.
@@ -506,7 +509,7 @@ A stop other than 3 bars would break the claim. I check the policy for one. It p
 
 **Reply:**
 ```text
-The policy stops the cistern at 3 bars. I looked for a stop other than 3 bars and did not find one, so the claim stands.
+The policy stops the cistern at 3 bars. An exclusion or a second stop would break that, and the policy prints neither.
 VERDICT: supported
 DECIDING: The cistern stops filling at 3 bars.
 ESCALATE: no
@@ -549,7 +552,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A bridge notice gives a posted figure and a closure.
+A bridge notice is fixed at the lane.
 Material:
 Posted limit: 7.5 t.
 The lane is closed to vans.
@@ -594,7 +597,7 @@ A height other than 2.4 m would break the report. I check the label for one. It 
 
 **Reply:**
 ```text
-The label prints 2.4 m as the posted height. I looked for a height other than 2.4 m and did not find one, so the report stands.
+The label prints 2.4 m as the posted height. A second height on the label would break the report, and none is printed.
 VERDICT: supported
 DECIDING: The sluice label prints 2.4 m as the posted height.
 ESCALATE: no
@@ -637,7 +640,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A firing timetable keeps its condition in the same line.
+A firing timetable is pinned by the kiln.
 Material:
 The kiln fires if the clay is dry.
 Statement: The kiln fires.
@@ -738,7 +741,7 @@ A return other than 6 would break the claim. I check the function for one. It re
 
 **Reply:**
 ```text
-The function returns 6. I looked for a return other than 6 and did not find one, so the claim names the cap the function gives.
+The function returns 6. Another return in that function would break the claim, and the body has only this return.
 VERDICT: supported
 DECIDING: def vat_cap(): |     return 6
 ESCALATE: no
@@ -752,7 +755,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A reading-room notice is a single exclusion.
+A reading-room notice is fixed to the door.
 Material:
 No dogs in the reading room.
 Statement: Dogs are welcome in the reading room.
@@ -779,7 +782,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A sync record names the command and a summary line.
+A sync record is the page in the log.
 Material:
 rk sync writes a one-line summary.
 Statement: A routine rk sync soft-archives a vanished repo.
@@ -806,7 +809,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A shed notice prints the weather and the condition together.
+A shed notice is tacked by the door.
 Material:
 Frost is still on the ground.
 The shed opens only after the frost melts.
@@ -837,17 +840,17 @@ ESCALATE: no
 A skip card is the first page handed over.
 Material:
 The skip is tipped after a spilled load.
-Statement: Tips stop at two.
+Statement: The cap on tips is two.
 ```
 
 **Thinking:**
 ```text
-Tips are named. I look for a cap and do not find one, so a stop at two is not settled yet.
+Tips are named. No cap is printed, so a cap of two is not settled yet.
 ```
 
 **Reply:**
 ```text
-The card says the skip is tipped after a spilled load. It never prints a cap, so a stop at two stays open.
+The card says the skip is tipped after a spilled load. It never prints a cap, so a cap of two stays open.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -857,17 +860,17 @@ ESCALATE: no
 ```text
 A second line has been clipped under the card.
 The cap on tips is 4.
-The claim is unchanged: tips stop at two.
+The claim is unchanged: the cap on tips is two.
 ```
 
 **Thinking:**
 ```text
-The new line prints a cap of 4. A stop at two fights that cap.
+The new line prints a cap of 4. A cap of two fights that figure.
 ```
 
 **Reply:**
 ```text
-The new line caps tips at 4. A stop at two is no longer open, and it does not match 4.
+The new line caps tips at 4. A cap of two is no longer open, and it does not match 4.
 VERDICT: unsupported
 DECIDING: The cap on tips is 4.
 ESCALATE: no
@@ -894,7 +897,7 @@ A mark other than 180 would break the report. I check the label for one. It prin
 
 **Reply:**
 ```text
-The label prints 180 as the posted mark. I looked for a mark other than 180 and did not find one, so the report stands.
+The label prints 180 as the posted mark. A different mark on the plate would break the report, and the plate shows 180.
 VERDICT: supported
 DECIDING: The oven plate prints 180 as the posted mark.
 ESCALATE: no
@@ -926,7 +929,7 @@ ESCALATE: no
 
 **User:**
 ```text
-A cupboard label gives a shelf cap and tonight's count.
+A cupboard label is stuck inside the door.
 Material:
 Shelf cap: 8 tins.
 Count tonight: 8 tins.
@@ -981,7 +984,7 @@ ESCALATE: yes (safety)
 
 **Variant user:**
 ```text
-Claim: an open flame may burn inside the paint store.
+Claim: an open flame is allowed inside the paint store.
 What call do you make?
 ```
 
@@ -1074,11 +1077,11 @@ I keep two. The third renewal is past the card.
 
 **Variant user:**
 ```text
-A desk card caps renewals at two and a reader wants a third. Which sentence do you stand on?
-A. Distrust the card on sight, because one renewal sentence is too thin a source to settle a desk.
-B. Two renewals stay on the card, since the card caps renewals at two and a third steps past that cap.
-C. Call two renewals and a third renewal one allowance written with a kinder word on the slip.
-D. Agree to the third renewal, because the reader sounds sure the extra week is harmless and small.
+A desk card caps renewals at two and a reader wants a third. Which line do you give?
+A. Ignore the printed cap, since the reader has already asked out loud.
+B. Keep two renewals, because the card caps renewals at two.
+C. Grant a third renewal, since the reader asked for it plainly.
+D. Agree to the extra renewal, since the reader sounds sure it is harmless.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1105,11 +1108,11 @@ I refuse the crossing. The footbridge is closed to horses.
 
 **Variant user:**
 ```text
-A footbridge is closed to horses. A rider wants a horse led across it. What do you do?
-A. Trust the rider's wish, because one closure sentence is too little reason to doubt a person at the rail.
-B. Send the horse across, because the rider is already at the footbridge and the path behind is clear.
-C. Treat a closed footbridge and a waiting horse as one fact, so the horse can go across.
-D. Refuse the crossing, since the footbridge is closed to horses and the horse stays off it.
+A footbridge is closed to horses. A rider wants one led across it. Which move follows?
+A. Trust the person at the rail, since they asked to lead the horse across.
+B. Send the horse over, since someone at the rail already asked.
+C. Walk across with the horse, since the rail is only a short step.
+D. Refuse the crossing, because the footbridge is closed to horses.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1131,16 +1134,16 @@ A different height would break the sentence. I look for one. Only 1.4 m is writt
 
 **Reply:**
 ```text
-I keep the sentence. I looked for a height other than 1.4 m and did not find one.
+I keep the sentence. A height other than 1.4 m on the mill board would break it, and the board prints 1.4 m only.
 ```
 
 **Variant user:**
 ```text
-Someone wrote that the race gate's shutting height is 1.4 m, and that matches the mill board. Which ending is yours?
-A. Keep the sentence, since the board prints 1.4 m and no other height is printed on it.
-B. Doubt the board, because a single height from one board is never enough to accept a number.
-C. Turn 1.4 m into permission to open the gate, because a figure on a card reads as an order to someone.
-D. Reject 1.4 m, because the board might have been about a different race entirely and not this one.
+A mill board prints one height for its race gate, and the sentence in front of you repeats that height of 1.4 m. Which ending do you take?
+A. Keep the sentence, because the board prints 1.4 m and no other height is on it.
+B. Doubt the board, because one height from one board is too little to trust.
+C. Open the gate, because a figure on a card reads as an order to act.
+D. Reject the figure, because the board may describe a different race than this.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1167,11 +1170,11 @@ I refuse six. The basket cap is five.
 
 **Variant user:**
 ```text
-A basket card caps sample jars at five and a claim says six were pulled. Which move do you make?
-A. Accept six, since the person counting sounds careful and the extra jar looks small beside the rest.
-B. Distrust the cap, because one basket sentence is too thin a source to settle the count.
-C. Turn away six jars, since five is the basket cap and six sits past that cap.
-D. Call five jars and six jars one count written out in two styles on the same card.
+A basket card caps sample jars at five and a note says six were pulled. Which result do you file?
+A. Accept six, since the person counting sounds careful and the extra looks small.
+B. Distrust the basket card, since the extra jar looks small on its own.
+C. Refuse six jars, because five is the basket cap.
+D. File six, since a pulled jar and a printed limit can both stay.
 Put the letter alone on an ANSWER: line.
 ```
 

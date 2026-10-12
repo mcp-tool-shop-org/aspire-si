@@ -206,12 +206,13 @@ Question: What job does the Hull crate have?
 
 **Thinking:**
 ```text
-The job line and the order line are one compound, and the trait step is to split them. The crate in first place has the job pack. Oban is third, and Hull comes before Rye, so Hull is first and Rye is second. Hull therefore has pack. Leaving the compound in one piece and handing Hull the middle job returns ship.
+1. Oban is third, and Hull comes before Rye, so Hull is first and Rye is second.
+2. The crate in first has the job pack, so Hull has pack. A middle crate would have ship, and Hull is not the middle crate.
 ```
 
 **Reply:**
 ```text
-Split the compound. The first place is pack, and Hull is the first place.
+Hull is first, and the first crate has pack.
 
 | crate | place | job |
 | --- | --- | --- |

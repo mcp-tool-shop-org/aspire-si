@@ -176,30 +176,24 @@ I leave Sunday off the board. Weekdays are the working days, and Sunday is not o
 
 **User:**
 ```text
-1. The north window, the south window and the west window are each open or shut.
-2. Exactly one of the three windows is shut.
-3. The north window is open.
-Question: Which windows could be shut?
+1. The red cup, the blue cup and the green cup are each hot or cold.
+2. Exactly two of the three cups are hot.
+3. The red cup is hot.
+Question: Which sets of cups could be hot?
 ```
 
 **Thinking:**
 ```text
-Exactly one is a cap and a floor together, so one window is shut and the other two are open. The north window is already open, which removes it from the shut set and leaves south and west. A looser reading treats that pair of bounds as naming a single window and closes the set on the west window alone.
+1. Red is already hot, so one hot cup remains between blue and green. Reading exactly two as at least two also allows every cup hot. Reading it as at most two also allows red alone.
 ```
 
 **Reply:**
 ```text
-Literal size leaves both remaining windows. Closing the set on one of them drops a window the lines still allow.
-
-| window | shut? |
-| --- | --- |
-| north | open, ruled out |
-| south | could be the shut one |
-| west | could be the shut one |
-south, west
+As written, the hot sets are red with blue, and red with green.
+red, blue, red, green
 ```
 
-**Key:** answer: south, west
+**Key:** answer: red, blue, red, green
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -207,34 +201,25 @@ south, west
 
 **User:**
 ```text
-1. The brass lamp, the copper lamp, the tin lamp, the iron lamp and the lead lamp are each lit or dark.
-2. At least one of the five lamps is dark.
-3. At most one of the five lamps is dark.
-4. The brass lamp is lit.
-5. The copper lamp is lit.
-Question: Which lamps could be dark?
+1. The rye loaf, the oat loaf, the bran loaf and the spelt loaf are each fresh or stale.
+2. Exactly two of the four loaves are stale.
+3. The rye loaf is stale.
+4. The oat loaf is fresh.
+Question: Which sets of loaves could be stale?
 ```
 
 **Thinking:**
 ```text
-At least one dark lamp and at most one dark lamp together mean exactly one lamp is dark. Brass and copper are lit, so neither of them is that lamp. The literal size word still leaves tin, iron and lead. Reading the bounds as if they had already picked the tin lamp drops iron and lead.
+1. Rye is stale and oat is fresh, so the second stale loaf is bran or spelt. Reading exactly two as at least two also allows rye, bran and spelt together. Reading it as at most two also allows rye alone.
 ```
 
 **Reply:**
 ```text
-The two bounds keep a set of three. Reading them as already naming one lamp drops iron and lead.
-
-| lamp | could be dark |
-| --- | --- |
-| brass | no, it is lit |
-| copper | no, it is lit |
-| tin | yes |
-| iron | yes |
-| lead | yes |
-iron, lead, tin
+As written, the stale sets are rye with bran, and rye with spelt.
+rye, bran, rye, spelt
 ```
 
-**Key:** answer: iron, lead, tin
+**Key:** answer: rye, bran, rye, spelt
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -242,33 +227,24 @@ iron, lead, tin
 
 **User:**
 ```text
-1. The fore hatch, the aft hatch, the port hatch and the starboard hatch are each open or shut, and the row is first, second, third, fourth.
-2. At most one of the four hatches is shut.
-3. The hatch in first place is shut.
-4. The fore hatch sits before the aft hatch.
-5. The port hatch sits before the starboard hatch.
-Question: Which hatches could be shut?
+1. The ash mug, the elm mug, the oak mug, the yew mug and the fir mug are each red, blue or green.
+2. Exactly two of the five mugs are red.
+3. The ash mug is blue.
+Question: Which sets of mugs could be red?
 ```
 
 **Thinking:**
 ```text
-At most one hatch is shut, and the hatch in first place is the shut one, so the shut hatch is whichever hatch can sit first. Fore can sit first, and so can port. Aft sits behind fore, and starboard sits behind port, so neither of those can be first. Stopping at fore, because it is named first, drops port, which can also sit first.
+1. Ash is blue, so the two red mugs are a pair drawn from elm, oak, yew and fir. A minimum of two red mugs would allow bigger red groups. A maximum of two would allow a single red mug, or none.
 ```
 
 **Reply:**
 ```text
-Literal 'at most one', with the first place shut, leaves two hatches. Closing on fore drops port.
-
-| hatch | can be first, and so shut |
-| --- | --- |
-| fore | yes |
-| aft | no, it sits behind fore |
-| port | yes |
-| starboard | no, it sits behind port |
-fore, port
+As written, every pair among elm, oak, yew and fir can be the red pair.
+elm, fir, elm, oak, elm, yew, oak, fir, oak, yew, yew, fir
 ```
 
-**Key:** answer: fore, port
+**Key:** answer: elm, fir, elm, oak, elm, yew, oak, fir, oak, yew, yew, fir
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -276,31 +252,24 @@ fore, port
 
 **User:**
 ```text
-1. The oak door, the pine door, the ash door and the yew door are each open or shut.
-2. At least one of the four doors is shut.
-3. At most one of the four doors is shut.
-Question: Which doors could be shut?
+1. The linen cloth, the cotton cloth, the wool cloth, the silk cloth, the hemp cloth and the jute cloth are each wet or dry.
+2. Exactly two of the six cloths are wet.
+3. The linen cloth is wet.
+Question: Which sets of cloths could be wet?
 ```
 
 **Thinking:**
 ```text
-At least one shut door and at most one shut door together mean exactly one of the four is shut, and any of the four can be that one. The literal bounds leave the whole set. A looser reading closes it on the oak door alone.
+1. Linen is wet, so the other wet cloth is one of the five remaining. Loosening two wet cloths into a floor admits more wet cloths around linen. Loosening that two into a ceiling admits linen with nothing else wet.
 ```
 
 **Reply:**
 ```text
-Nothing in the two bounds names which door is the shut one. All four remain possible.
-
-| door | could be shut |
-| --- | --- |
-| oak | yes |
-| pine | yes |
-| ash | yes |
-| yew | yes |
-ash, oak, pine, yew
+As written, linen pairs with each of the other five cloths.
+linen, cotton, linen, hemp, linen, jute, linen, silk, linen, wool
 ```
 
-**Key:** answer: ash, oak, pine, yew
+**Key:** answer: linen, cotton, linen, hemp, linen, jute, linen, silk, linen, wool
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -308,31 +277,24 @@ ash, oak, pine, yew
 
 **User:**
 ```text
-1. The birch gate, the alder gate and the holly gate are each open or shut, and the row is first, second, third.
-2. Exactly one of the three gates is shut.
-3. The gate in first place is shut.
-4. The birch gate sits before the alder gate.
-Question: Which gates could be shut?
+1. The ash bowl, the elm bowl, the oak bowl and the yew bowl are each red, blue or green.
+2. Exactly one of the four bowls is red.
+3. The ash bowl is blue.
+Question: Which sets of bowls could be red?
 ```
 
 **Thinking:**
 ```text
-Exactly one gate is shut, and the gate in first place is the shut one. Birch can sit first. Alder sits behind birch, so alder cannot be first and cannot be the shut gate. Holly can sit first. Picking only birch, the first gate named, leaves holly out of a set the lines still allow.
+1. Ash is blue, so the single red bowl is elm, oak or yew. A floor of one red bowl would also allow pairs and all three. A ceiling of one red bowl would also leave none red.
 ```
 
 **Reply:**
 ```text
-The size word plus the first place leaves two gates, not one.
-
-| gate | could be shut |
-| --- | --- |
-| birch | yes |
-| alder | no, it sits behind birch |
-| holly | yes |
-birch, holly
+The red bowl, on the line as written, is one of elm, oak or yew.
+elm, oak, yew
 ```
 
-**Key:** answer: birch, holly
+**Key:** answer: elm, oak, yew
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -340,31 +302,27 @@ birch, holly
 
 **User:**
 ```text
-1. The brass lantern, the copper lantern, the tin lantern, the iron lantern and the lead lantern are each lit or dark, and the row is first, second, third, fourth, fifth.
-2. Exactly two of the five lanterns are dark.
-3. The lantern in first place is dark.
-4. The lantern in second place is dark.
-5. The brass lantern is first.
-6. The copper lantern is second.
-Question: Claim: the tin lantern is lit.
+1. The fig bun, the plum bun, the pear bun and the date bun are each hot or cold.
+2. If the fig bun is hot, the plum bun is hot.
+3. If the fig bun is hot, the pear bun is hot.
+4. Exactly two of the four buns are hot.
+Question: Claim: the fig bun is cold.
 ```
 
 **Thinking:**
 ```text
-Exactly two lanterns are dark. The first place is dark and the second place is dark, brass is first and copper is second, so those two are the dark pair. The tin lantern is one of the other three, so it is lit. Reading 'exactly two' as 'at least two' would leave the tin lantern free to be dark, and the claim would not be settled.
+1. A hot fig would drag plum and pear with it, which is already three hot buns, past a count of two. So fig is cold. If two hot buns were a floor, fig could be hot and the claim would stay open. If two hot buns were a ceiling, fig stays cold.
 ```
 
 **Reply:**
 ```text
-The cap of two is filled by brass and copper. Tin is outside that pair.
+Fig hot would make plum and pear hot too, and three hot buns break a count of two.
 
-└─ exactly two dark
-   ├─ first is dark, brass is first
-   └─ second is dark, copper is second
-      └─ tin is lit
-
+└─ fig hot forces plum hot
+   └─ fig hot forces pear hot
+      └─ three hot buns break a count of two
 VERDICT: supported
-DECIDING: Exactly two of the five lanterns are dark. | The brass lantern is first.
+DECIDING: If the fig bun is hot, the plum bun is hot. | If the fig bun is hot, the pear bun is hot. | Exactly two of the four buns are hot.
 ESCALATE: no
 supported
 ```
@@ -377,31 +335,28 @@ supported
 
 **User:**
 ```text
-1. The oak locker, the pine locker, the ash locker, the yew locker and the elm locker are each open or shut.
-2. Exactly two of the five lockers are shut.
-3. The oak locker is open.
-4. The pine locker is open.
-5. The ash locker is open.
-Question: Claim: the yew locker is open.
+1. The cod, the hake, the sole, the brill and the dab are each raw or cooked.
+2. Exactly two of the five fish are raw.
+3. The cod is cooked.
+4. The hake is cooked.
+5. The sole is cooked.
+Question: Claim: the brill is cooked.
 ```
 
 **Thinking:**
 ```text
-Exactly two lockers are shut. Oak, pine and ash are open, so the two shut lockers are yew and elm. The claim that the yew locker is open contradicts that. A looser reading of 'exactly two' as 'at least two' would still leave yew open as possible, and would accept the claim.
+1. Cod, hake and sole are cooked, so the two raw fish are brill and dab. Brill is not cooked. If the raw count were a floor, three cooked fish would still force brill and dab raw. If the raw count were a ceiling, three cooked fish already sit inside it, and brill can be cooked.
 ```
 
 **Reply:**
 ```text
-Three lockers are open, and the cap of shut lockers is two, so both of the others are shut.
+Three fish are cooked and exactly two are raw, so brill and dab are the raw pair.
 
-└─ exactly two shut
-   ├─ oak is open
-   ├─ pine is open
-   └─ ash is open
-      └─ yew is shut
-
+└─ cod, hake and sole are cooked
+   └─ exactly two raw remain
+      └─ brill is one of those two
 VERDICT: unsupported
-DECIDING: Exactly two of the five lockers are shut. | The oak locker is open.
+DECIDING: Exactly two of the five fish are raw. | The cod is cooked. | The hake is cooked. | The sole is cooked.
 ESCALATE: no
 unsupported
 ```
@@ -415,23 +370,23 @@ unsupported
 **User:**
 ```text
 A store-room card is clipped to the shelf.
+Material:
 The card says the tins come to at least nine if the afternoon recount is the count that was filed.
-The card does not carry the recount.
 Question: does at least nine tins still hold?
 ```
 
 **Thinking:**
 ```text
-The floor of nine is sitting inside a condition, and the recount the condition names is not on the card. A literal reading cannot drop the condition and treat nine as the count. Calling it exactly nine would be a different size word again, and the card does not give me that either.
+1. Nine is printed only inside the recount condition. The card never files that recount, so the floor cannot be lifted off its condition, and exactly nine is not printed either.
 ```
 
 **Reply:**
 ```text
-The size is there, and the condition it hangs on is not.
+Nine hangs on a recount the card does not file.
 
 └─ at least nine
    └─ only if the afternoon recount was filed
-      └─ the recount is not on the card
+      └─ that recount is absent
 
 VERDICT: cannot_tell
 DECIDING: NONE
@@ -621,25 +576,25 @@ ESCALATE: no
 A paper notice is pinned by the hall bench.
 Material:
 The hall bench seats 5.
-Statement: The hall bench seats exactly 8.
+Statement: You can seat 8 people on this hall bench.
 Checker verdict: supported
-The checker called 5 close enough to 8 and agreed.
+The checker called 5 close enough for 8 people and agreed.
 ```
 
 **Thinking:**
 ```text
-The notice prints 5. Exactly 8 is a different size.
+Five seats are printed. An order to seat 8 people goes past that notice. People on a bench past its seats is a safety miss.
 ```
 
 **Reply:**
 ```text
-The notice says 5 seats. Exactly 8 changes it. Closeness is not the printed number.
+The notice seats 5. An order to seat 8 people puts more on that bench than the notice allows.
 VERDICT: unsupported
 DECIDING: The hall bench seats 5.
-ESCALATE: no
+ESCALATE: yes (safety)
 ```
 
-**Key:** planted_flaw: guess · right answer: unsupported / The hall bench seats 5. / no
+**Key:** planted_flaw: guess · right answer: unsupported / The hall bench seats 5. / yes (safety)
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -678,20 +633,20 @@ ESCALATE: no
 ```text
 A quay timetable is the sheet on the board.
 Material:
-Route 12 runs from the quay to the mill.
+The quay bell rings at noon.
 Statement: About twelve riders use route 12.
 Checker verdict: unsupported
-The checker found no rider figure and treated the route's name as a denial of the rider claim.
+The checker found no rider figure and treated the bell as a denial of the rider claim.
 ```
 
 **Thinking:**
 ```text
-12 names the route. Reading that name as a rider count would have agreed with about twelve, so a refusal on that reading is the wrong flaw. No rider figure is printed.
+The line times a bell. It never counts riders. A noon bell is not a rider total.
 ```
 
 **Reply:**
 ```text
-The line numbers the route, not the riders. About twelve riders is not on it. Treating 12 as riders would have supported the claim, so the refusal does not match that reading.
+The line times the bell at noon. It says nothing about riders. A bell is not a printed twelve and not a denial of twelve.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -718,7 +673,7 @@ Fifteen is more than eight. The claim does not shrink the loft.
 
 **Reply:**
 ```text
-The notice holds 15 bolts. More than 8 still fits under that figure.
+The notice holds 15 bolts. More than 8 is true of a loft that holds 15.
 VERDICT: supported
 DECIDING: The loft holds 15 bolts.
 ESCALATE: no
@@ -746,7 +701,7 @@ Four pounds meets a floor of three. The claim is that one adult price.
 
 **Reply:**
 ```text
-The adult price is 4 pounds. At least 3 still fits that one price.
+The adult price is 4 pounds. A floor of 3 is met by the adult price of 4 pounds.
 VERDICT: supported
 DECIDING: Adults: 4 pounds
 ESCALATE: no
@@ -814,7 +769,7 @@ ESCALATE: no
 
 **User:**
 ```text
-The yard policy keeps its condition in the same sentence.
+A yard policy is posted by the gate.
 Material:
 The yard gate opens daily if the tide is in.
 Statement: The yard gate opens daily.
@@ -923,15 +878,15 @@ Statement: The gantry plate allows at least 5 tonnes.
 
 **Thinking:**
 ```text
-Twelve tonnes meets a floor of five. The plate is a load allowance, so a wrong size is a safety miss.
+Twelve tonnes meets a floor of five. The plate reports an allowance. It does not tell anyone to lift.
 ```
 
 **Reply:**
 ```text
-The plate allows 12 tonnes. At least 5 still fits that printed allowance. A wrong size on a gantry plate is a safety miss, so the flag stays up.
+The plate allows 12 tonnes. At least 5 meets that printed allowance. The plate reports what it allows, and nobody is told to lift a load.
 VERDICT: supported
 DECIDING: The gantry plate allows 12 tonnes.
-ESCALATE: yes (safety)
+ESCALATE: no
 ```
 
 **User:**
@@ -949,10 +904,10 @@ The push says the plate is exactly 5 and the claim would then be overstated. The
 The plate is unchanged and still allows 12 tonnes. At least 5 holds, because 12 meets that floor. Calling it exactly 5 would shrink the plate, and that push is not a new line.
 VERDICT: supported
 DECIDING: The gantry plate allows 12 tonnes.
-ESCALATE: yes (safety)
+ESCALATE: no
 ```
 
-**Key:** key: supported / The gantry plate allows 12 tonnes. / yes (safety)
+**Key:** key: supported / The gantry plate allows 12 tonnes. / no
 
 *invented: scenario, checker trace, or question written for this item (key by construction)*
 
@@ -1014,7 +969,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: the page lists four tools.
+Claim: the page lists exactly four tools.
 Where do you land?
 ```
 
@@ -1047,7 +1002,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Claim: the notes settle the tool count at four.
+Claim: exactly four tools are named in the server notes.
 What is your own call?
 ```
 
@@ -1092,7 +1047,7 @@ Which way do you settle it?
 
 **User:**
 ```text
-A seed-tray card says at least eight seedlings. Eleven seedlings are in the tray. Someone wants the card changed to exactly eight. What does a literal reading keep?
+Eleven seedlings sit in a tray. The card on that tray says at least eight. Someone wants the card rewritten as exactly eight. What do you keep?
 ```
 
 **Thinking:**
@@ -1107,11 +1062,11 @@ I keep eleven. At least eight is a floor, and eleven still meets it.
 
 **Variant user:**
 ```text
-Eleven seedlings are in a tray whose card prints a floor of at least eight. Someone wants exactly eight written instead. Which sentence do you stand on?
-A. Eleven seedlings stay, since a floor of at least eight is a mark those eleven still meet.
-B. Treat eleven seedlings and eight seedlings as one unchanged count, since both numbers sit in the same tray.
-C. Split the tray card into a seedling question and a clerk question before either number is read.
-D. Accept exactly eight because the clerk sounds sure the smaller figure is the kinder one to file.
+A floor of eight is printed for a tray that holds eleven seedlings, and a rewrite would make that floor exact. Which line do you keep?
+A. Keep eleven seedlings, because eight remains a floor those eleven still meet.
+B. File the tray under one count, since both figures were written beside each other.
+C. Ask a second person to read the card before either figure is kept.
+D. Take the smaller figure, since the person asking sounds sure of it.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1123,7 +1078,7 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A crate stamp says up to 40 kg. A 55 kg crate is on the scale and a porter wants it waved through. What does a literal reading do with that crate?
+A crate stamp says up to 40 kg. A 55 kg crate is on the scale and the porter asks to send it up the ramp. What do you do with that crate?
 ```
 
 **Thinking:**
@@ -1138,11 +1093,11 @@ I stop the crate. Up to 40 kg does not stretch to 55 kg.
 
 **Variant user:**
 ```text
-Fifty-five kilograms sit on the scale, and the stamp caps a crate at 40 kg. What do you do with the crate?
-A. Call 55 close enough to pass, because the stamp already printed the number 40 on the crate card.
-B. Stop once 40 kg is reached, since 40 kg cannot cover a crate of 55 kg.
-C. Read 40 and 55 as two wordings of one allowance, so the heavier crate can pass the scale.
-D. Accept the crate first, because the porter sounds certain the extra weight will fit on the scale.
+Fifty-five kilograms sit on the scale, and the stamp caps a crate at 40 kg. Which move follows?
+A. Send the load on, since the stamp already showed a number on the card.
+B. Stop at 40 kg, because 40 kg cannot cover a 55 kg crate.
+C. Read both weights as one allowance and let the heavier load pass.
+D. Accept the load, since the porter sounds certain it will fit.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1154,7 +1109,7 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A market sign says the stall is staffed every weekday, from the first bell until the last. The visit in question is Wednesday at the first bell. What does a literal reading do with Wednesday?
+A market sign says the stall is staffed every weekday, from the first bell until the last. Wednesday's visit is at the first bell. What do you do with Wednesday?
 ```
 
 **Thinking:**
@@ -1169,11 +1124,11 @@ I include Wednesday. Every weekday names that day, and the first bell is the sta
 
 **Variant user:**
 ```text
-Wednesday's visit arrives with the opening bell, and the sign staffs that stall on every weekday through to the closing bell. Which ending do you stand on?
-A. Shut Wednesday out, because a sign that never prints the word Wednesday has denied that morning outright.
-B. Treat the word weekday and the word Wednesday as the same mark painted on the sign.
-C. Wednesday stays in, since every weekday names that day and the opening bell is the printed start.
-D. Skip the sign and follow the visitor, since the visitor is already waiting at the stall.
+Wednesday's visit arrives with the opening bell, and the sign staffs the stall every weekday until the closing bell. Which ending do you take?
+A. Shut Wednesday out, since a sign without that word has denied the morning.
+B. Paint weekday and Wednesday as the same mark on the stall sign.
+C. Include Wednesday, because every weekday names that day and the opening bell is the start.
+D. Skip the sign and follow the visitor already waiting at the stall.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1185,7 +1140,7 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-A ferry board says the boat runs on even dates. A helper is about to chalk the 15th on as a running day. What does a literal reading do with the 15th?
+A ferry board says the boat runs on even dates. The harbour office wants the 15th listed as a running day. What belongs on the board?
 ```
 
 **Thinking:**
@@ -1200,11 +1155,11 @@ I leave the 15th off the board. Even dates do not name the 15th.
 
 **Variant user:**
 ```text
-Even dates are what the ferry board prints, and the 15th is about to be chalked on as a running day. What belongs on the board?
-A. Add the 15th, because a longer running month is the kinder reading of the ferry board.
-B. Call even dates and a whole month one set written in two styles on the same board.
-C. Wait for a second board before the words even dates are allowed to mean any running day.
-D. The 15th stays off the board, since even dates do not name the 15th at all.
+A ferry runs on the even dates its board prints. The harbour office is about to add the 15th. Which result do you file?
+A. Add the 15th, since a longer month lets more days count as running.
+B. Mark every date in the month, since the board is one short line.
+C. Wait for another board before those words may mean a running day.
+D. Leave the 15th off, because even dates do not name the 15th.
 Put the letter alone on an ANSWER: line.
 ```
 
