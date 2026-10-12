@@ -389,7 +389,12 @@ def puzzle_signature(r: dict) -> tuple:
 
 
 def _is_puzzle(r: dict) -> bool:
-    return r.get("kind") == "B" and not re.search(r"(?m)^\s*VERDICT\s*:", r["turns"][-1]["reply"])
+    """A non-verification B puzzle: tagged "non-verification" (R&D's T18 ruling: claim-keyed puzzles keep their
+    three lines and are tagged), or, for items written before the tag, a B item whose reply has no VERDICT line."""
+    if r.get("kind") != "B":
+        return False
+    return "non-verification" in (r.get("tags") or []) or \
+        not re.search(r"(?m)^\s*VERDICT\s*:", r["turns"][-1]["reply"])
 
 
 def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS) -> dict:
@@ -769,6 +774,15 @@ def _reply_matches(where, reply, keys):
         raise DataError(f"{where}: reply's ESCALATE {p['escalate']!r} != key {keys['escalate']!r}")
 
 
+# Every non-empty line of an item's `material` appears in its first user turn (R&D, 2026-10-11: batch 6's rebuilt
+# verdict B items kept an older item's material, and leakage and source checks read that field). Two older items
+# are exempt by id, each with its reason (R&D's ruling).
+MATERIAL_IN_TURN_EXEMPT = {
+    "T01-C-02": "batch 2: the turn quotes the material with escaped quotation marks; the lines are the same text",
+    "T04-B-04": "pilot: the material is written as sentences, the turn shows the same rules as bullets",
+}
+
+
 def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=None, closed_form=None) -> None:
     """Every check on one row that needs no other row. `n` is its line number in the file (for messages);
     `seen`, when given, is the set of ids before it (the duplicate-id check)."""
@@ -785,6 +799,12 @@ def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=No
     if r["tier"] < 1 or r["key_basis"] not in ("construction", "source") or not r["turns"]:
         raise DataError(f"{where}: tier, key_basis or turns")
     material = r.get("material") or ""
+    if r["id"] not in MATERIAL_IN_TURN_EXEMPT:
+        shown = ws(r["turns"][0]["user"])
+        missing = [line.strip() for line in material.splitlines() if line.strip() and ws(line) not in shown]
+        if missing:
+            raise DataError(f"{where}: material line not in the first user turn: {missing[0][:80]!r} (the material "
+                            "field must be what the turn shows)")
     available = []  # material available at each turn: the item's material plus new lines brought so far
     for i, t in enumerate(r["turns"], 1):
         for k in ("user", "thinking", "reply"):

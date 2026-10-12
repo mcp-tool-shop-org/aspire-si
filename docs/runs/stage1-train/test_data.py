@@ -28,8 +28,8 @@ GOOD = [
                  "thinking": "| seat | 1 | 2 | 3 |\n| Ana | no | yes | no |",
                  "reply": "Seat 2 is Ana. Once the grid fixed seat 1 and 3, I stopped."}]),
     item(id="c1", kind="C", material=MAT, planted_flaw="guess", verdict="cannot_tell", deciding=[], escalate="no",
-         turns=[{"user": "Another checker read the notice and gave the verdict supported for 'the library opens at "
-                         "9am on Saturdays'. What went wrong?",
+         turns=[{"user": f"Another checker read this notice:\n{MAT}\nand gave the verdict supported for 'the library "
+                         "opens at 9am on Saturdays'. What went wrong?",
                  "thinking": "Saturday isn't mentioned.",
                  "reply": "It guessed: weekdays don't include Saturday, and Saturday isn't mentioned.\n"
                           "VERDICT: cannot_tell\nDECIDING: NONE\nESCALATE: no"}]),
@@ -132,11 +132,12 @@ def test_kind_b_needs_a_drawn_pattern_and_no_stamps():
 
 def test_kind_c_needs_checker_verdict_and_real_source_when_cited():
     rows = copy.deepcopy(GOOD)
-    rows[2]["turns"][0]["user"] = "Another checker looked at the notice. What went wrong?"
+    rows[2]["turns"][0]["user"] = f"Another checker looked at this notice:\n{MAT}\nWhat went wrong?"
     with pytest.raises(data.DataError, match="no checker verdict"):
         data.validate(rows)
     rows = copy.deepcopy(GOOD)
     rows[2]["material"] = MAT + "\n(from example-org/library-site@abc1234def)"
+    rows[2]["turns"][0]["user"] = rows[2]["turns"][0]["user"].replace(MAT, rows[2]["material"])  # shown, as material is
     with pytest.raises(data.DataError, match="cites a repository"):
         data.validate(rows)
     rows[2]["sources"] = ["example-org/library-site@abc1234def:NOTICE.md#L1-L2 (LICENSE first line: Apache License)"]
@@ -165,6 +166,8 @@ def test_no_undated_time_words_in_statements():
     with pytest.raises(data.DataError, match="time word"):
         data.validate(rows)
     rows[3]["material"] = "Notice dated 3 March 2026.\n" + rows[3]["material"]
+    rows[3]["turns"][0]["user"] = rows[3]["turns"][0]["user"].replace("Material:\n",
+                                                                      "Material:\nNotice dated 3 March 2026.\n")
     data.validate(rows)  # dated material allows it
 
 
@@ -188,8 +191,8 @@ def test_wrapped_deciding_line_with_markup_passes():
 
 def test_checker_verdict_given_as_a_value_counts():
     rows = copy.deepcopy(GOOD)
-    rows[2]["turns"][0]["user"] = ("Another checker read the notice. Their thinking: 'Saturday mornings are surely "
-                                   "covered. supported.' Did they get it right?")
+    rows[2]["turns"][0]["user"] = (f"Another checker read this notice:\n{MAT}\nTheir thinking: 'Saturday mornings "
+                                   "are surely covered. supported.' Did they get it right?")
     data.validate(rows)
 
 

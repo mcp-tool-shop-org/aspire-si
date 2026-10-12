@@ -13,7 +13,7 @@ from .gates import (DataError, batch_report, check_batch, check_item, closed_for
                     validate_training_set, CLOSED_FORM_DEFAULT, closed_form_settings,
                     key_point_share, closed_form_figures)
 
-GATES_VERSION = "1.4.0"
+GATES_VERSION = "1.5.0"
 
 
 def gates_identity() -> dict:
