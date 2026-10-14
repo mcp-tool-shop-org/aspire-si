@@ -17,7 +17,7 @@
           "path": ".github/dependabot.yml"
         },
         {
-          "hash": "a181274c0973002492f16d9b5a770ec00a7a494c6f7021031386f7eee3cd2619",
+          "hash": "dca4a77d04cff9fa944d064d32f1021f7b54fb692b35189b724e8ceee9fe7b77",
           "path": ".github/workflows/ci.yml"
         },
         {
@@ -53,7 +53,7 @@
       "externals": 1,
       "files": [
         {
-          "hash": "e6c243ab90acb48bf44d80721e30e6bd9cb849072914c54b70ae8839a30710da",
+          "hash": "e70f25bea37d117b563eef8f0f77f161bf47703802a18907f815c107d6094957",
           "importsFiles": [
             "aspire/config.py",
             "aspire/trainer.py"
@@ -651,7 +651,7 @@
           ]
         },
         {
-          "hash": "abf5be27c0a59bf5faa578cdf97fed96c5fde70b1e4007b974981f3bfd0a1a9f",
+          "hash": "39b65222ef9405b2b16fcd5d3f1d26e7b29d80fa02cbe797941118688adb2d68",
           "path": "aspire/config.py"
         },
         {
@@ -1635,27 +1635,27 @@
               "line": 107
             },
             {
-              "in": "_init_critic",
+              "in": "_build_critic",
               "kind": "raise",
-              "line": 297
+              "line": 309
             },
             {
               "in": "_init_optimizers",
               "kind": "raise",
-              "line": 339
+              "line": 349
             },
             {
               "in": "_init_optimizers",
               "kind": "raise",
-              "line": 347
+              "line": 357
             },
             {
               "in": "_write_geometry",
               "kind": "except",
-              "line": 464
+              "line": 474
             }
           ],
-          "hash": "0dc85cca7b4904627b884b6c9c36357aae9a0040524e6f7fb201789892b0a608",
+          "hash": "4c3c6d8813d2bb1e358490b3baf228374001975beea0a6d6aaee4803a8f46505",
           "importsFiles": [
             "aspire/config.py",
             "aspire/critic/__init__.py",
@@ -1758,7 +1758,7 @@
             {
               "calls": [
                 {
-                  "line": 655,
+                  "line": 665,
                   "name": "AspireConfig",
                   "target": {
                     "file": "aspire/config.py"
@@ -1801,7 +1801,7 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 43,
+      "testedBy": 49,
       "unresolvedNamed": [
         {
           "path": "aspire/cli.py",
@@ -1828,6 +1828,82 @@
           "path": "docs/runs/2026-10-06-pod-run.md"
         },
         {
+          "hash": "cebe4327c0ca581d4e21d6a362aeb816e9b73bbf7493244d21c6a400ae3014ef",
+          "path": "docs/runs/2026-10-07-next-runs-plan.md"
+        },
+        {
+          "hash": "766c4481a6d783beb53d22304777fd5440f7a6bb0052727ac06263158338164e",
+          "path": "docs/runs/2026-10-07-run-1-seeds.md"
+        },
+        {
+          "hash": "c7cb5c43622d95f466422ec3566106342287827045a429141ca440bb40d934bd",
+          "path": "docs/runs/2026-10-07-runs-2-3.md"
+        },
+        {
+          "hash": "f77b1703536182f935155e44743e67258e90ba3b4ab60d08f0f6567cdf808d1d",
+          "path": "docs/runs/2026-10-07-sft-then-aspire.md"
+        },
+        {
+          "hash": "2d137735c5a6736d6c54e225b61351be8ae91be09a91b030394a845187767e72",
+          "path": "docs/runs/2026-10-08-auditor-plan.md"
+        },
+        {
+          "hash": "6b95d6674e2a40e2bc4c041c89c87591419fab63cf93644d1086462addce9186",
+          "path": "docs/runs/2026-10-08-auditor.md"
+        },
+        {
+          "hash": "dbdf1c44844633aa30554fb4dea8d60e51a661187bf01e49516f0e9307761b74",
+          "path": "docs/runs/2026-10-08-critic-init-plan.md"
+        },
+        {
+          "hash": "ab0f4339149220f85deb0491a507885cabb830461ca4820ed375658cb7807132",
+          "path": "docs/runs/2026-10-08-critic-init.md"
+        },
+        {
+          "hash": "0be0fda33a4cbdd142bf511d24a4936da741cb0feb25cfbb32843c6f563b62d9",
+          "path": "docs/runs/2026-10-08-kev-confirmation-plan.md"
+        },
+        {
+          "hash": "428e60286fe5d4387c7c27eb4245923e5b144185252420752f360c38323eb7fe",
+          "path": "docs/runs/2026-10-08-kev-confirmation.md"
+        },
+        {
+          "hash": "28ea6a60504a2c9bf5e39915e4029fee4ff4e420ab9a8d14daa1436b72f825ac",
+          "path": "docs/runs/2026-10-08-next-step-plan.md"
+        },
+        {
+          "hash": "73803fd1d4d3562e056123eabceb6f3f827db54da86485d5f3bbb4b901f9a687",
+          "path": "docs/runs/2026-10-08-step-2.md"
+        },
+        {
+          "hash": "f3297e68f9ec1f7460974e61d5e1137d888c77ce1d87af98cae9fcef0722f45b",
+          "path": "docs/runs/2026-10-08-step-3-plan.md"
+        },
+        {
+          "hash": "a1efe68ff8f0de27d46f0352e67b694a74b7e8b24480b69fd987b07e4a2b8a02",
+          "path": "docs/runs/receipts/2026-10-08-auditor/B-manifest.json"
+        },
+        {
+          "hash": "d61915ebf4106c3067b6ea08d83c3aace9555113afb8193fe480c7013cb47eb5",
+          "path": "docs/runs/receipts/2026-10-08-auditor/B-readout.json"
+        },
+        {
+          "hash": "9ef063a78593490fecadd77c093944570f03179f392ccd7224a8f42c4ca179a2",
+          "path": "docs/runs/receipts/2026-10-08-auditor/B-selection.json"
+        },
+        {
+          "hash": "49dd0893ed4ce809b326ecec33a3e1b886f9b1b92db8925ae2fa79eda54d0de7",
+          "path": "docs/runs/receipts/2026-10-08-auditor/README.md"
+        },
+        {
+          "hash": "4a68cb7606b39641e1649e9d622f87008e7c561ed41e6d9309cbe6c8382a687c",
+          "path": "docs/runs/receipts/2026-10-08-auditor/judge-control-selection.json"
+        },
+        {
+          "hash": "a1c984b29c3e3631f150019899c704b75e268b356ebec786e186c7b27fde7711",
+          "path": "docs/runs/receipts/2026-10-08-auditor/verdicts-error-B-mistral-small_24b.json"
+        },
+        {
           "hash": "168412b204d82fab976ee0eea3e0c27a64394acadd5a2cc6cb8a042a2cc21a7a",
           "path": "docs/spec-feature-enhancements.md"
         }
@@ -1843,7 +1919,7 @@
       "unresolvedSites": 0
     },
     {
-      "dynamicReads": 5,
+      "dynamicReads": 14,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 0,
@@ -2018,13 +2094,66 @@
         {
           "exports": [
             "build",
-            "main"
+            "judge_only",
+            "judge_report",
+            "main",
+            "plant_errors"
           ],
-          "hash": "064712df27cf1a75f4fc22d3ba2b0e52f5783482d62a742f678e142fe24a919e",
+          "failurePaths": [
+            {
+              "in": "judge_only",
+              "kind": "raise",
+              "line": 374
+            }
+          ],
+          "hash": "562aebb541b4c2ccffa505b33f2002b3a3e185ec576c446d98f4cde4a0f16a21",
           "importsFiles": [
+            "examples/sft-experiment/clean_dataset.py",
             "examples/sft-experiment/lib.py"
           ],
           "path": "examples/sft-experiment/build_dataset.py"
+        },
+        {
+          "exports": [
+            "agreement",
+            "ask",
+            "check_server",
+            "file_sha256",
+            "identity",
+            "main",
+            "ollama_version",
+            "readout",
+            "sample_ids",
+            "stop",
+            "verdict",
+            "wilson"
+          ],
+          "failurePaths": [
+            {
+              "in": "check_server",
+              "kind": "raise",
+              "line": 135
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 209
+            }
+          ],
+          "hash": "8a3610868c247ad2e4c2713eedfc66f9b90596350a8c00f4116aebd1e98106e7",
+          "importOrder": [
+            "examples/sft-experiment/matched_set.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/matched_set.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "examples/sft-experiment/build_equivalence.py"
         },
         {
           "exports": [
@@ -2052,11 +2181,83 @@
         },
         {
           "exports": [
+            "auc",
+            "balanced_flips",
+            "boot",
+            "clusters",
+            "edit_spans",
+            "error_overlap",
+            "found_auditor_reading",
+            "load_pairs",
+            "main",
+            "mid_layer",
+            "near_tie_share",
+            "pair_wins",
+            "paired_diff",
+            "pearson",
+            "permutation_p",
+            "positive_gate",
+            "role_check",
+            "role_scores",
+            "score_answers",
+            "score_set",
+            "skeptic_class",
+            "span_tokens",
+            "standardise",
+            "train_head",
+            "transfer_reading",
+            "two_sample_diff",
+            "with_marker"
+          ],
+          "hash": "f2b9ea331d5a181a367bd22756949db57343ca090987e2406ec4c91eecc32742",
+          "importsFiles": [
+            "aspire/critic/__init__.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "examples/sft-experiment/critic_heads.py"
+        },
+        {
+          "exports": [
+            "cache_sets",
+            "compare_sources",
+            "family_contrast",
+            "load_results",
+            "readout",
+            "skeptic_readout",
+            "skeptic_role_readable",
+            "train_all",
+            "train_perm",
+            "train_skeptic"
+          ],
+          "failurePaths": [
+            {
+              "in": "cache_sets",
+              "kind": "raise",
+              "line": 114
+            }
+          ],
+          "hash": "84fda58e9189658a48be8c7c3ee8c0681a114871212a70bd5d21bdbe6f482321",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "aspire/judge.py",
+            "examples/sft-experiment/fast_heads.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fast_heads.py"
+          ],
+          "path": "examples/sft-experiment/critic_heads_run.py"
+        },
+        {
+          "exports": [
             "answer",
+            "ended",
             "main",
             "score_answers"
           ],
-          "hash": "7894f8200ebb818218d28862b8f75a8cb1822f1d0e51740a6187b07d7ace3e0d",
+          "hash": "510bebf704db8f2eacbc258a4ff345fd46dac317b6624b376436fbf83cd73ead",
           "importsFiles": [
             "examples/sft-experiment/lib.py",
             "examples/sft-experiment/probe_models.py"
@@ -2065,11 +2266,80 @@
         },
         {
           "exports": [
-            "evaluate",
-            "main",
-            "prompt_groups"
+            "batch_plan",
+            "pair_loss",
+            "score_set_fast",
+            "stack_features",
+            "train_head_fast"
           ],
-          "hash": "f49d26c2f1eb2089d832cef7b2009ef92c897000a0f2a50c994a03400015407d",
+          "failurePaths": [
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 131
+            },
+            {
+              "in": "__init__",
+              "kind": "raise",
+              "line": 133
+            }
+          ],
+          "hash": "05fe6302d55563f17e057d7e37acda096eb494fb865d5270e464d730fb2cc987",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "aspire/critic/__init__.py"
+          ],
+          "importsFiles": [
+            "aspire/critic/__init__.py",
+            "examples/sft-experiment/critic_heads.py"
+          ],
+          "path": "examples/sft-experiment/fast_heads.py"
+        },
+        {
+          "exports": [
+            "build",
+            "changed_span",
+            "main",
+            "split",
+            "strong_answers",
+            "write"
+          ],
+          "hash": "d0316469c53b58d847baa679754298c131ab65c6342b5d38e76e0fb3c5b6171a",
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/fresh_pairs.py"
+        },
+        {
+          "exports": [
+            "check_speed",
+            "driver_cuda",
+            "gpus",
+            "main",
+            "probe_timeout",
+            "problems",
+            "projected_minutes",
+            "rate_problem",
+            "required_mbps",
+            "shard_rate",
+            "write_rate"
+          ],
+          "hash": "a8074f7cae0dce245665081413ace89ea97afcd7a17cddd9fdc9a0b726d841bb",
+          "path": "examples/sft-experiment/host_check.py"
+        },
+        {
+          "exports": [
+            "add_separable",
+            "evaluate",
+            "from_scores",
+            "main",
+            "prompt_groups",
+            "subset_summary",
+            "summarize",
+            "teacher_detects"
+          ],
+          "hash": "1c9b8050e8b531d920a71d10be83f60bed0c6bcd0da1068e1af6d3adc1905247",
           "importOrder": [
             "examples/sft-experiment/lib.py",
             "aspire/judge.py"
@@ -2082,6 +2352,37 @@
         },
         {
           "exports": [
+            "confirmation_reading",
+            "http_ask",
+            "judge",
+            "main",
+            "order_averaged",
+            "read_choice",
+            "reading",
+            "request"
+          ],
+          "hash": "1a40a592fd7ba3ee1b737be35a6cc848b5a7a425c87917df0086593ddddeb7e4",
+          "path": "examples/sft-experiment/judge_kev.py"
+        },
+        {
+          "exports": [
+            "body",
+            "http_ask",
+            "judge",
+            "letter_probs",
+            "main"
+          ],
+          "hash": "39836589a074f5c0cc159f40066e2246addf0e543d58b159189ac16c209c4519",
+          "importsFiles": [
+            "examples/sft-experiment/judge_kev.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/pairwise_teacher.py"
+          ],
+          "path": "examples/sft-experiment/judge_logprob.py"
+        },
+        {
+          "exports": [
+            "apply_edit",
             "bootstrap_ci",
             "challenge_request",
             "challenge_types",
@@ -2092,6 +2393,7 @@
             "parse_question_list",
             "question_request",
             "read_jsonl",
+            "refuse_cloud",
             "score_of",
             "scoring_request",
             "similarity",
@@ -2109,15 +2411,92 @@
             {
               "in": "generate",
               "kind": "raise",
-              "line": 285
+              "line": 355
+            },
+            {
+              "in": "refuse_cloud",
+              "kind": "raise",
+              "line": 432
+            },
+            {
+              "in": "model_id",
+              "kind": "raise",
+              "line": 471
             }
           ],
-          "hash": "8c11db3320b741a43c6563798d2c89e56d047d68f5666ddf5d48c7e8d311d456",
+          "hash": "9b51522c672faa68050b22b50fd7d549e2cac3e669472f4ef39351ddbb09e4da",
           "importsFiles": [
             "aspire/teachers/base.py",
             "aspire/teachers/local.py"
           ],
           "path": "examples/sft-experiment/lib.py"
+        },
+        {
+          "exports": [
+            "draw",
+            "main"
+          ],
+          "hash": "0aa3d2b7c6ded6d67b7a88757730b62a078ae5d51fc3d30125fdffb5c1a426d5",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/make_prompts.py"
+        },
+        {
+          "exports": [
+            "apply_candidate",
+            "choose_pair",
+            "edit_size",
+            "error_kept",
+            "escalate",
+            "grammar_summary",
+            "judged",
+            "kept_candidates",
+            "main",
+            "ollama_chat",
+            "parse_muse",
+            "planter_request",
+            "prescreen",
+            "rewrite_kept",
+            "schema",
+            "seeded_sample",
+            "stage_confirm",
+            "stage_grammar",
+            "stage_propose",
+            "stage_score",
+            "strong_answers",
+            "unload"
+          ],
+          "hash": "6811eaad7d7bef0addaedd56605dc3eb61f7000726da23fe7e3290231732a1e0",
+          "importOrder": [
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/typicality.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/recheck.py",
+            "examples/sft-experiment/skeptic_pairs.py",
+            "examples/sft-experiment/typicality.py"
+          ],
+          "path": "examples/sft-experiment/matched_set.py"
+        },
+        {
+          "exports": [
+            "compare",
+            "main",
+            "parse_choice"
+          ],
+          "hash": "03cfed2bb81f9e3123f1628bf08d03b0303ccfc2001db2ba92e3de260c4310e3",
+          "importsFiles": [
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/pairwise_teacher.py"
         },
         {
           "hash": "5408dcc64188568afec924b6b077baead125f4df8a6c3f2b2d3d4fecd18aa378",
@@ -2128,8 +2507,32 @@
           "path": "examples/sft-experiment/pod/plan_a2.sh"
         },
         {
-          "hash": "49e09beb84acf93b477e05cbef5987bf53f47c56c1b226759ebb2028df9fec4b",
+          "hash": "88ff8cc25f7758aa40eb7747824486c8dcb9655a307f6588d3c5f1796563c6a5",
+          "path": "examples/sft-experiment/pod/plan_a3.sh"
+        },
+        {
+          "hash": "d2c54a37b64dc201201a63745504f85a31c800e72dfc42ea020da56030b987fa",
           "path": "examples/sft-experiment/pod/plan_b.sh"
+        },
+        {
+          "hash": "925e4c2f1052e9afe3ff5582a22cb629197ac91f2588ae4e35d03abfd9fa2a5b",
+          "path": "examples/sft-experiment/pod/plan_c.sh"
+        },
+        {
+          "hash": "9258ba393349122fc286a6f0b260dd6c384ea3f3b70b35572ae8be55fa9100a8",
+          "path": "examples/sft-experiment/pod/plan_d.sh"
+        },
+        {
+          "hash": "f371e18f7fb3413500701f72f1eb26d6cc52bfcac1f0c86c02d4d394d4658383",
+          "path": "examples/sft-experiment/pod/plan_e.sh"
+        },
+        {
+          "hash": "36302c18722f0a2fe76cffb91f7e488b30748cff8e5419fbe394b82c8c65e8e4",
+          "path": "examples/sft-experiment/pod/plan_f.sh"
+        },
+        {
+          "hash": "9d04efa30fd9dcc11477060de01b4a794a575d42e2a984c93d3d211dfaa15f10",
+          "path": "examples/sft-experiment/pod/plan_g.sh"
         },
         {
           "exports": [
@@ -2137,7 +2540,8 @@
             "drift_summary",
             "load_pairs",
             "main",
-            "parse_entry"
+            "parse_entry",
+            "write_exports"
           ],
           "failurePaths": [
             {
@@ -2146,7 +2550,7 @@
               "line": 52
             }
           ],
-          "hash": "89e628be06dccb86cb38c633741ba2eee5a49e255813cc89c715879f3b035bd6",
+          "hash": "a1edee1eb19fc09fb0083ea67884b44308db77117f080b4ff81ac32660e3b21b",
           "importsFiles": [
             "aspire/geometry.py",
             "aspire/judge.py"
@@ -2154,17 +2558,209 @@
           "path": "examples/sft-experiment/probe_models.py"
         },
         {
+          "hash": "0647761b3d0b385f9cbad7a57fd3e58e03048da994d27e3f5450612d803cff30",
+          "path": "examples/sft-experiment/prompts-128.json"
+        },
+        {
           "exports": [
+            "combine",
+            "judge_all",
+            "keeps",
+            "main",
+            "parse",
+            "post_get",
+            "request_body"
+          ],
+          "failurePaths": [
+            {
+              "in": "judge_all",
+              "kind": "raise",
+              "line": 248
+            }
+          ],
+          "hash": "afc3c06110b261fcc53db69b0d1129d497c5706395f799e6597d43483d358c4b",
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "examples/sft-experiment/recheck.py"
+        },
+        {
+          "exports": [
+            "edit_stats",
+            "main",
+            "plant",
+            "spare_prompts",
+            "write_answers"
+          ],
+          "hash": "24d03b31d14ca45a821991ebfd7039d6fb6b4b5cf43280daaf81d96ddf3c1807",
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/lib.py"
+          ],
+          "path": "examples/sft-experiment/second_planter.py"
+        },
+        {
+          "exports": [
+            "main",
+            "prompt_config",
+            "seed_configs",
+            "split_config"
+          ],
+          "hash": "fe1555068d3d87f1aaba49355bd74af9b0038ad1da34063f7610f864cc4e6ac1",
+          "path": "examples/sft-experiment/seed_configs.py"
+        },
+        {
+          "exports": [
+            "append_ledger",
             "collate",
+            "merge",
             "parse_args",
+            "prepare_examples",
+            "public_out",
+            "public_student",
+            "sha256_of",
             "tokenize_example",
             "train"
           ],
-          "hash": "2b6176fa5077224b49978182623a2342cd8d5322142d85bf4ba6ec49244cf360",
+          "failurePaths": [
+            {
+              "in": "tokenize_example",
+              "kind": "raise",
+              "line": 76
+            },
+            {
+              "in": "tokenize_example",
+              "kind": "raise",
+              "line": 80
+            },
+            {
+              "in": "prepare_examples",
+              "kind": "except",
+              "line": 108
+            },
+            {
+              "in": "prepare_examples",
+              "kind": "raise",
+              "line": 109
+            },
+            {
+              "in": "prepare_examples",
+              "kind": "raise",
+              "line": 117
+            },
+            {
+              "in": "public_out",
+              "kind": "except",
+              "line": 140
+            }
+          ],
+          "hash": "d67e916b6f4d2b5690fae469c3a4ff1992101930039ceba2ba3863c4e9184ba7",
           "importsFiles": [
             "examples/sft-experiment/lib.py"
           ],
           "path": "examples/sft-experiment/sft.py"
+        },
+        {
+          "exports": [
+            "apply_swap",
+            "avoid",
+            "context",
+            "edit_chars",
+            "lexical_guard",
+            "main",
+            "overlaps",
+            "plant",
+            "plant_swaps",
+            "quantiles",
+            "sentence_of",
+            "sentences",
+            "size_cap",
+            "strong_items",
+            "verify"
+          ],
+          "hash": "decf4efb249eceb895e34f96c2ee3c3a9daba0f7c666259acc81553203ec19dc",
+          "importOrder": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py",
+            "examples/sft-experiment/clean_dataset.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py"
+          ],
+          "path": "examples/sft-experiment/skeptic_pairs.py"
+        },
+        {
+          "exports": [
+            "baseline",
+            "clustered_auc",
+            "fit_logistic",
+            "folds",
+            "main",
+            "out_of_fold",
+            "predict"
+          ],
+          "hash": "60234cb3b9ee43a76a1dbd153d38d7b9a95da1b50a981c658d3e62ee40fba0f7",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/skeptic_pairs.py",
+            "examples/sft-experiment/typicality.py",
+            "aspire/judge.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/skeptic_pairs.py",
+            "examples/sft-experiment/typicality.py"
+          ],
+          "path": "examples/sft-experiment/surprisal_baseline.py"
+        },
+        {
+          "exports": [
+            "answer_end",
+            "changed_span",
+            "delta",
+            "delta_tail",
+            "ks_two_sample",
+            "main",
+            "match",
+            "quartiles",
+            "readout",
+            "score",
+            "span_logprob"
+          ],
+          "failurePaths": [
+            {
+              "in": "answer_end",
+              "kind": "raise",
+              "line": 98
+            },
+            {
+              "in": "logprobs",
+              "kind": "raise",
+              "line": 186
+            }
+          ],
+          "hash": "f14589271a5ac90d88abdb85da427c9dcd647a3354f3f57862b5956b993eee92",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "aspire/judge.py"
+          ],
+          "importsFiles": [
+            "aspire/judge.py",
+            "examples/sft-experiment/critic_heads.py"
+          ],
+          "path": "examples/sft-experiment/typicality.py"
         }
       ],
       "globs": [
@@ -2175,20 +2771,20 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 14,
+          "reads": 45,
           "where": [
             "caller"
           ],
-          "writes": 15
+          "writes": 52
         }
       ],
-      "outsideReads": 14,
-      "outsideWrites": 15,
+      "outsideReads": 45,
+      "outsideWrites": 52,
       "role": "code",
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 1,
+      "testedBy": 10,
       "unresolvedSites": 0
     },
     {
@@ -2780,11 +3376,11 @@
       "externals": 0,
       "files": [
         {
-          "hash": "cb5244869256b8222a44c497561363b94fdb447f30c2924b1b8763fbbccee5f7",
+          "hash": "c1270be4ec61f810c42606ba2c0054869b81424fe8a8baa0b1dadb7927135824",
           "path": ".gitattributes"
         },
         {
-          "hash": "12fa1869829452ce6725155d741a5196f6ab65e542dc7283242b2cdecd912de9",
+          "hash": "8b4ba133a91df8ebef01d7ce6f81752b51732e85e0e510ad1e2f0034295d872d",
           "path": ".gitignore"
         },
         {
@@ -2792,7 +3388,7 @@
           "path": "ASPIRE-SPEC.md"
         },
         {
-          "hash": "251f146d6410c970fa3ed8a001a7762bf28aa311034b77962fdc65cd7fdfede4",
+          "hash": "6372ef954e31c4ba2cd33781d1cf47b7397dfe46d080046172e1c47e83123139",
           "path": "CHANGELOG.md"
         },
         {
@@ -2840,7 +3436,7 @@
           "path": "README.ja.md"
         },
         {
-          "hash": "048eeb38d1761ea5b2a22dca1ca0c8b8e7da534709f57b7edd254d4af3816dfd",
+          "hash": "a60ec11248336cd8a33345d2c3b65544c390df4b86b20569faf3f20cbe23538f",
           "path": "README.md"
         },
         {
@@ -2880,7 +3476,7 @@
           "path": "passport.json"
         },
         {
-          "hash": "98412532bea043680fd1ec295165952b35dc8f8fc7559c9f99fb361fb58c6ddb",
+          "hash": "2f443eb19933a9680c5023f20a40bbdf4b1e8271d8d77b3f3437d743995f2316",
           "path": "pyproject.toml"
         },
         {
@@ -2911,11 +3507,11 @@
           "path": "site/astro.config.mjs"
         },
         {
-          "hash": "85f78c09f0329d937ba57dc65d24adeeecdba65ea4a0eda01b02129f1d2ea07d",
+          "hash": "0f6fe1ffb88337e4e93a5fe08b880cb6ea07b6646545bb9b9674d7eefa611208",
           "path": "site/package-lock.json"
         },
         {
-          "hash": "9c39e620ebae2c5718ecd8c6188bd3451409a614ec8f5308dc15d5fd886e5b91",
+          "hash": "94643a24381ca43296261ff90186d0de0f0a7cd94690b813d1b1bb5f13186e3c",
           "path": "site/package.json"
         },
         {
@@ -3040,7 +3636,7 @@
             "sample_student_response",
             "setup_test_environment"
           ],
-          "hash": "a8e0bd02183052ea36e8e331c77d1f1c55745b4b1da83f110b1c4ccd96823704",
+          "hash": "9f5665eb38f9d2bde784aa73d2bd7d174e9c83891b6d16656cc48f9f4c36aa47",
           "importsFiles": [
             "aspire/teachers/base.py"
           ],
@@ -3457,6 +4053,24 @@
         },
         {
           "exports": [
+            "runs",
+            "test_a_real_build_difference_stops",
+            "test_a_run_refuses_to_resume_on_a_different_server",
+            "test_a_shortfall_within_the_builds_own_noise_does_not_stop",
+            "test_identical_builds_do_not_stop",
+            "test_identity_records_the_backend_hash",
+            "test_samples_are_seeded_and_order_free",
+            "test_unusable_items_are_left_out_and_wilson_is_sane"
+          ],
+          "hash": "c56259ea040b1ca7919dc3dee53b73a168ef1d0f08dcb491518daf826b072b97",
+          "importsFiles": [
+            "examples/sft-experiment/build_equivalence.py"
+          ],
+          "path": "tests/test_build_equivalence.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "test_crafted_critic_checkpoint_is_refused_without_running",
             "test_critic_checkpoint_round_trips_under_weights_only",
             "test_every_torch_load_passes_weights_only"
@@ -3611,6 +4225,45 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "accuracy",
+            "fake_result",
+            "scored",
+            "synthetic"
+          ],
+          "hash": "920c0b365a68d1e10796440bb7b494110d5fe3b5cd45afb3e4d294cddfc7bd57",
+          "importOrder": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py",
+            "aspire/critic/__init__.py"
+          ],
+          "importsFiles": [
+            "aspire/critic/__init__.py",
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/second_planter.py"
+          ],
+          "path": "tests/test_critic_heads.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "build",
+            "head",
+            "same"
+          ],
+          "hash": "59c4c460433791d2d3f7e892b1e16fd140126b18755d63114218c4282c17ba18",
+          "importsFiles": [
+            "aspire/config.py",
+            "aspire/trainer.py"
+          ],
+          "path": "tests/test_critic_init_seed.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "e072cfebb6fa80c40408d02bea08b280d0622ce90482b155b46f999d91b37a94",
           "importsFiles": [
             "aspire/critic/base.py",
@@ -3653,6 +4306,26 @@
             "aspire/teachers/base.py"
           ],
           "path": "tests/test_dialogue_edge_cases.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "fake_cache",
+            "test_a_head_does_not_depend_on_heads_trained_before_it",
+            "test_batch_plan_matches_the_original_loop",
+            "test_stack_pads_with_a_zero_mask_in_the_stored_dtype",
+            "test_the_fast_eager_path_reproduces_train_head"
+          ],
+          "hash": "65a32cbd871514f4f979e9277f5657273dd6b6c27b3305e2f7b4b16e49e9cea7",
+          "importOrder": [
+            "examples/sft-experiment/fast_heads.py",
+            "examples/sft-experiment/critic_heads.py"
+          ],
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/fast_heads.py"
+          ],
+          "path": "tests/test_fast_heads.py",
           "testFramework": "pytest"
         },
         {
@@ -3732,6 +4405,17 @@
         },
         {
           "exports": [
+            "cand",
+            "test_one_set_missing_escalates_every_set"
+          ],
+          "hash": "b2fc2cd99b79638d259b7d2121139f22514401d0ce5ec7d3bcbdc73af0c85bf2",
+          "importsFiles": [
+            "examples/sft-experiment/matched_set.py"
+          ],
+          "path": "tests/test_matched_set.py"
+        },
+        {
+          "exports": [
             "make_local",
             "manager"
           ],
@@ -3771,20 +4455,101 @@
         },
         {
           "exports": [
-            "fake_teacher",
-            "judge_pair"
+            "reply"
           ],
-          "hash": "45bf4409284edaa2bb1e71fdaa90c4d5fc843c9c3e2d5de19157467951bd40b4",
+          "hash": "a9a94708c6d396765c7840097973a99eea31d228e360cb5818e51879be87eb01",
           "importsFiles": [
+            "examples/sft-experiment/recheck.py"
+          ],
+          "path": "tests/test_recheck.py"
+        },
+        {
+          "exports": [
+            "fake_teacher",
+            "judge_pair",
+            "lib_config_ok"
+          ],
+          "hash": "ebb808db129c007af9f2ead4a6070d91e138957e2099da7d23610c804171fb37",
+          "importOrder": [
             "examples/sft-experiment/build_dataset.py",
             "examples/sft-experiment/clean_dataset.py",
             "examples/sft-experiment/eval_heldout.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/host_check.py",
             "examples/sft-experiment/judge_eval.py",
+            "examples/sft-experiment/judge_kev.py",
+            "examples/sft-experiment/judge_logprob.py",
             "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/make_prompts.py",
+            "examples/sft-experiment/pairwise_teacher.py",
             "examples/sft-experiment/probe_models.py",
+            "examples/sft-experiment/seed_configs.py",
+            "examples/sft-experiment/sft.py",
+            "aspire/config.py"
+          ],
+          "importsFiles": [
+            "aspire/config.py",
+            "examples/sft-experiment/build_dataset.py",
+            "examples/sft-experiment/clean_dataset.py",
+            "examples/sft-experiment/eval_heldout.py",
+            "examples/sft-experiment/fresh_pairs.py",
+            "examples/sft-experiment/host_check.py",
+            "examples/sft-experiment/judge_eval.py",
+            "examples/sft-experiment/judge_kev.py",
+            "examples/sft-experiment/judge_logprob.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/make_prompts.py",
+            "examples/sft-experiment/pairwise_teacher.py",
+            "examples/sft-experiment/probe_models.py",
+            "examples/sft-experiment/seed_configs.py",
             "examples/sft-experiment/sft.py"
           ],
           "path": "tests/test_sft_experiment.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "labelled",
+            "multi_turn",
+            "single_turn",
+            "test_drop_and_truncate_never_mix",
+            "test_multi_turn_labels_on_a_consistent_template_are_every_answer",
+            "test_multi_turn_with_thinking_off_raises_rather_than_mislabelling",
+            "test_prepare_accounts_for_every_item",
+            "test_single_turn_labels_are_exactly_the_answer_and_never_the_prompt"
+          ],
+          "hash": "3c55011b3091f30a6de349338171e14eab3fc654791c29e8ccf53b436a4af376",
+          "importsFiles": [
+            "examples/sft-experiment/sft.py"
+          ],
+          "path": "tests/test_sft_properties.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "head",
+            "scores",
+            "swap"
+          ],
+          "hash": "b53f5e61ab597c7becbf415e8dc69b791006d4bd2c694d6264e3b55a9db67908",
+          "importsFiles": [
+            "examples/sft-experiment/critic_heads.py",
+            "examples/sft-experiment/critic_heads_run.py",
+            "examples/sft-experiment/lib.py",
+            "examples/sft-experiment/skeptic_pairs.py"
+          ],
+          "path": "tests/test_skeptic.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "rows"
+          ],
+          "hash": "2e96fb724cd835728bf33b3b3456cb89a1cf1d9a08634dff62bc99fe7e449211",
+          "importsFiles": [
+            "examples/sft-experiment/surprisal_baseline.py"
+          ],
+          "path": "tests/test_surprisal_baseline.py",
           "testFramework": "pytest"
         },
         {
@@ -3855,6 +4620,14 @@
             "aspire/trainer.py"
           ],
           "path": "tests/test_trainer_unit.py",
+          "testFramework": "pytest"
+        },
+        {
+          "hash": "544d62ce0ad6b37354dc150f31f8c7e147f631a06238f0bf9402beacefc50c27",
+          "importsFiles": [
+            "examples/sft-experiment/typicality.py"
+          ],
+          "path": "tests/test_typicality.py",
           "testFramework": "pytest"
         },
         {
@@ -4066,7 +4839,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 8
+          "files": 25
         },
         {
           "boundary": "integrations",
@@ -4076,7 +4849,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 68
+          "files": 78
         }
       ],
       "readers": [],
@@ -4123,7 +4896,7 @@
         {
           "config": "pyproject.toml",
           "coverage": true,
-          "files": 68,
+          "files": 78,
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
@@ -4548,8 +5321,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "5c5346d7cb37d1430f93eafab5e3a5cabad4f123",
-    "tracked": 211
+    "commit": "021ebf0d1053e700641688a72c5088ff0c1b1521",
+    "tracked": 264
   },
   "landings": [
     {
@@ -4660,6 +5433,16 @@
           "confidence": "text"
         },
         {
+          "by": "examples/sft-experiment/pod/plan_c.sh",
+          "call": "literal",
+          "confidence": "text"
+        },
+        {
+          "by": "examples/sft-experiment/pod/plan_g.sh",
+          "call": "literal",
+          "confidence": "text"
+        },
+        {
           "by": "site/src/content/docs/handbook/cli.md",
           "call": "--prompts",
           "confidence": "text"
@@ -4671,13 +5454,63 @@
     {
       "readers": [
         {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/pod-run/real-composite-teacher.yaml",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/pod-run/real-local-teacher.yaml",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
           "by": "tests/test_sft_experiment.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "tests/test_sft_properties.py",
           "call": "literal",
           "confidence": "ast",
           "fromTests": true
         }
       ],
       "target": "examples/sft-experiment",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/sft-experiment/configs/sft-composite-teacher.yaml",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/seed_configs.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "examples/sft-experiment/configs/sft-local-teacher.yaml",
       "writers": []
     },
     {
@@ -4773,11 +5606,22 @@
       ],
       "target": "site/src/content/docs/handbook",
       "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "examples/sft-experiment/pod/plan_g.sh",
+          "call": "literal",
+          "confidence": "text"
+        }
+      ],
+      "target": "tests/test_critic_init_seed.py",
+      "writers": []
     }
   ],
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 68,
+  "testFiles": 78,
   "unassigned": []
 }
