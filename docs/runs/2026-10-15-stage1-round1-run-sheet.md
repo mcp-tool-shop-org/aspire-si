@@ -39,9 +39,18 @@ untreated and doesn't count.
 
 - **Settings parity:** the card's settings (T 0.6, top-p 0.95, top-k 20), sample seeds 0–2, the 16,384-token
   cap, and the prompt and answer-format hashes are all the harness's own, unchanged.
-- **The machine:** the baseline ran on the 5090. Preflight (§6) records the GPU, driver, CUDA, torch and
-  transformers versions and compares them with the baseline run note. A difference is written into the
-  report; it doesn't change the procedure. Times are compared only on a matching machine.
+- **The machine is frozen, and a mismatch is a hard stop** (Argon's Q2, R&D 2026-10-15).
+  - G0 writes the frozen machine line: GPU, driver, torch's CUDA, torch and transformers
+    (`det_run.py --write-machine-line`).
+  - From then on, every sitting checks it before a model loads (`det_run.py --machine-line`). Any difference
+    stops that sitting (exit 5), with nothing generated.
+  - The line changes only by a dated amendment with a new G0.
+  - The machine freeze (no driver, GPU-software or training-environment changes from G0 to round F) is the
+    maintainer's to put in place.
+- **The determinism wrapper:** every batch-1 sitting (DEV, sealed, interview, and G0's M1 and M2) runs through
+  `det_run.py`, with the harness unchanged. It applies deterministic algorithms (warn_only only if strict mode
+  raises, with the warned ops logged), the cuDNN flags and the CUBLAS workspace, and pins SDPA to flash. Its
+  settings are recorded in each sitting's `wrapper-config.json`.
 - **Leakage:**
   - the receipt firewall refuses sealed, interview and DEV ids and text;
   - the leakage gate has been run against the sealed set, the pilot and the interview;
@@ -189,18 +198,18 @@ python docs/runs/stage1-train/quiz.py --adapter outputs/stage1-train/1/A/S/train
 <apply sitting> --adapter outputs/stage1-train/1/A/S/train/adapter --items <APPLY ITEMS> \
     --round 1 --arm A --seed S --sealed <SEALED FILE>
 
-# Block D: DEV (ROLE), each seed S and sample seed K in 0 1 2
-python docs/runs/stage1-train/eval_adapter.py --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
+# Block D: DEV (ROLE), each seed S and sample seed K in 0 1 2; through the wrapper
+python docs/runs/stage1-train/det_run.py --machine-line <FROZEN LINE> -- eval_adapter --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
     --tasks <DEV TASKS> --out outputs/stage1-eval/1/ROLE/S/dev-K --seed K --phase A-round1 --arm ROLE
 
 # Block P: the general-capability panel (ROLE), each seed S, as B3's design sets it
 
-# Block I: the pre-interview (ROLE, after B2), each seed S
-python <interview wrapper> --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
+# Block I: the pre-interview (ROLE), each seed S; through the wrapper
+python docs/runs/stage1-train/det_run.py --machine-line <FROZEN LINE> -- interview_adapter --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
     --out outputs/stage1-eval/1/ROLE/S/interview --seeds 0 1 2 --sitting round1 --arm ROLE
 
-# Block S: sealed (ROLE), each seed S and sample seed K; written, never opened until round F
-python docs/runs/stage1-train/eval_adapter.py --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
+# Block S: sealed (ROLE), each seed S and sample seed K; written, never opened until round F; wrapper
+python docs/runs/stage1-train/det_run.py --machine-line <FROZEN LINE> -- eval_adapter --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
     --tasks <SEALED FILE> --out outputs/stage1-eval/1/ROLE/S/sealed-K --seed K --phase A-round1 --arm ROLE
 ```
 
