@@ -184,6 +184,31 @@ reproduced. The text now matches what runs. The sampler isn't changed.
 
 **Disclosure.** This goes on the disclosure list with the evaluation plan's amendments.
 
+## Amendment, 2026-10-15: STaR matched across the arms, and the panel's decoding
+
+The maintainer's decisions, on R&D's recommendation after Argon's round-1 review. Recorded in the same words
+as rnd's record (`experiments/stage1-role-eval/README.md`, "Amendments, 2026-10-15", rnd #105).
+
+**A. STaR, matched across the arms.**
+- Both arms keep their own right apply answers under the keep rule: all three lines pass the pinned scorer, the
+  lesson's pass rule is met, and the trace isn't stuck under `716dc251`.
+- Per (lesson, kind), the arm with more kept answers is downsampled to the other arm's count, so both arms inject the
+  same number of STaR examples.
+- Each seed runs the same number of optimizer steps in both arms.
+- Near-duplicate kept answers are dropped first, by the gates' 8-word span check.
+- There's a cumulative cap of 8 kept answers per (lesson, kind), the curriculum's count per kind.
+- This replaces "right answers are kept" with "kept up to the matched count", so the arm comparison stays
+  compute- and composition-matched.
+
+**C. The panel's decoding.**
+- The panel keeps the card's sampling settings, with one sampled pass per item, reproducible through the batched
+  path's per-item seeds. It doesn't use greedy decoding, which Qwen3's card warns against in thinking mode.
+- The rest of the panel's shape comes from the review:
+  - 250–300 independent items;
+  - generated through the batched path once its parity check passes;
+  - about 12–15 minutes a sitting;
+  - G1 run as three per-seed grants, each with both arms, with 15-minute rests.
+
 ## Standards compliance
 
 | Standard | Score | Evidence |

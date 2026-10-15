@@ -502,6 +502,17 @@ Changing it later needs a dated amendment.
 **Reporting.** Round-by-round gains are reported as the effect of the steered curriculum, and the
 amendment-of-2026-10-10 disclosure for targeted behaviours applies.
 
+## Amendment, 2026-10-15: the general-capability panel's stop rule
+
+The maintainer's decision, on R&D's recommendation after Argon's round-1 review. Recorded in the same words
+as rnd's record (`experiments/stage1-role-eval/README.md`, "Amendments, 2026-10-15", rnd #105).
+
+**B. The general-capability panel's stop rule.**
+- Round progression stops for the maintainer when the panel drops more than 2.0 points below its baseline **and** the
+  drop is significant at p ≤ 0.05 (paired McNemar). This replaces the plain 2-point guard.
+- **Disclosed sensitivity:** at about 300 items, with roughly 15% discordant pairs, it reliably stops only on drops of
+  about 4–5 points. Smaller drops are reported, not acted on.
+
 ## The pre-interview (descriptive, plus one tested measure)
 
 The pre-interview's 12 questions are given at every sitting: the baseline, after Stage 1, and after domain
