@@ -219,3 +219,21 @@ def test_the_span_is_a_setting():
     out = quiz.sit(ITEMS_FOR_SPANS + [c], Ledger(), 1, {}, model({0: True, 1: True, 2: True}, [c]), count, RULE,
                    rows.append, only=[c["id"]], spent_rule={"span": 11})
     assert rows and out["spent_rule"]["span"] == 11
+
+
+def test_the_batched_path_asks_the_same_questions_and_records_the_same_rows():
+    """generate_many gets every ask at once; the rows written match the per-call path's, in the same order."""
+    items = VERDICT_E[:3] + CLOSED[:1]
+    one_rows, many_rows = [], []
+    gen = model({0: True, 1: False, 2: True}, items)
+    quiz.sit(ITEMS_FOR_SPANS + items, Ledger(), 1, {}, gen, count, RULE, one_rows.append,
+             only=[r["id"] for r in items])
+    seen = []
+
+    def generate_many(asks):
+        seen.extend(asks)
+        return {a["key"]: gen(a["messages"], a["sample"]) for a in asks}
+    quiz.sit(ITEMS_FOR_SPANS + items, Ledger(), 1, {}, None, count, RULE, many_rows.append,
+             only=[r["id"] for r in items], generate_many=generate_many)
+    assert one_rows == many_rows and len(many_rows) == 3 * len(items)
+    assert [a["sample"] for a in seen] == [0, 1, 2] * len(items) and seen[0]["item_id"].endswith("-v0")

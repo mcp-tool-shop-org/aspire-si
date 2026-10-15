@@ -1812,7 +1812,7 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 14,
+      "dynamicReads": 16,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 14,
@@ -1884,7 +1884,7 @@
           "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
         },
         {
-          "hash": "4b81b577813b297665747c43722bde71681642e86bedf03bfef45c1f29c2ab2e",
+          "hash": "18fbad05a247d7cb18f53401f2280c22d32d87cd85fe17352393142e19dd46e5",
           "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
         },
         {
@@ -1924,7 +1924,7 @@
           "path": "docs/runs/2026-10-10-stage1-training-data-kimi-handoff.md"
         },
         {
-          "hash": "7bf62ef1e06373bcd79216b9d077202ac09edc753c668a80eb022107377d07d9",
+          "hash": "ae0bf5045c73c9e9971d42c826e23e107312009dde9cd711cf37b46d8a3f04f8",
           "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
         },
         {
@@ -1938,6 +1938,14 @@
         {
           "hash": "00e4cf45b9c7bf51dc00a1e0ca484842983ffc6e73b3643e4adc53c133f763e3",
           "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
+        },
+        {
+          "hash": "b934b44a5ab255b1ff5f36cbf2dbf36c69213d61322206909f5aa09c2781fc4f",
+          "path": "docs/runs/2026-10-15-stage1-batched-quiz-design.md"
+        },
+        {
+          "hash": "928ea3300d6c6259feb16e6b4e9dd2a5e78d4cdf339465db88da301d83807d34",
+          "path": "docs/runs/2026-10-15-stage1-round1-run-sheet.md"
         },
         {
           "hash": "a1efe68ff8f0de27d46f0352e67b694a74b7e8b24480b69fd987b07e4a2b8a02",
@@ -2192,6 +2200,28 @@
         },
         {
           "exports": [
+            "generate_all",
+            "make_generate_many",
+            "plan",
+            "process_logits",
+            "seed_for",
+            "stop_ids"
+          ],
+          "failurePaths": [
+            {
+              "in": "generate_all",
+              "kind": "raise",
+              "line": 157
+            }
+          ],
+          "hash": "60781a81eb0608ed4c99e727f41e4b187b4c07e7805733780bc9388d87ef87fc",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py"
+          ],
+          "path": "docs/runs/stage1-train/batched.py"
+        },
+        {
+          "exports": [
             "first_difference",
             "load",
             "main",
@@ -2252,35 +2282,35 @@
             {
               "in": "gpu_line",
               "kind": "except",
-              "line": 66
+              "line": 68
             },
             {
               "in": "out_dir",
               "kind": "raise",
-              "line": 91
+              "line": 93
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 102
+              "line": 104
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 113
+              "line": 115
             },
             {
               "in": "main",
               "kind": "except",
-              "line": 158
+              "line": 165
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 164
+              "line": 171
             }
           ],
-          "hash": "31835b70c894453784c722040e4624ad05dadf2170b24d87b972dfdf7b355d8e",
+          "hash": "706f71175c48305a78ec0cc82e94caeab1cd580c545c46510ab7fd57df98dffd",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py"
           ],
@@ -2428,6 +2458,33 @@
         },
         {
           "exports": [
+            "compare_i",
+            "compare_ii",
+            "kappa",
+            "main",
+            "majority",
+            "record",
+            "select"
+          ],
+          "failurePaths": [
+            {
+              "in": "compare_i",
+              "kind": "raise",
+              "line": 110
+            }
+          ],
+          "hash": "ee9cb5bce1432d09a183ebf60ef19fe85df3a5f4262f801c26f88a5cd122c8f7",
+          "importsFiles": [
+            "docs/runs/stage1-train/batched.py",
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/quiz.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+          ],
+          "path": "docs/runs/stage1-train/parity.py"
+        },
+        {
+          "exports": [
             "base_key",
             "load_variants",
             "main",
@@ -2444,25 +2501,30 @@
             {
               "in": "prompt_for",
               "kind": "raise",
-              "line": 75
+              "line": 76
             },
             {
               "in": "load_variants",
               "kind": "raise",
-              "line": 162
+              "line": 163
             },
             {
               "in": "sit",
               "kind": "except",
-              "line": 209
+              "line": 216
+            },
+            {
+              "in": "generate",
+              "kind": "raise",
+              "line": 318
             },
             {
               "in": "write",
               "kind": "except",
-              "line": 306
+              "line": 329
             }
           ],
-          "hash": "ff87ebeac97a0be641f522dba1c6be4769595baa79f07a6c9b6cd429b10160f4",
+          "hash": "9029eb0a9e035a35356b9daefa06c8bd20ab4fe334bbd67649c1a563466a5a56",
           "importOrder": [
             "docs/runs/stage1-train/_evaldir.py",
             "docs/runs/stage1-train/data.py",
@@ -2471,10 +2533,12 @@
             "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
             "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
             "docs/runs/stage1-train/ledger.py",
-            "docs/runs/stage1-train/receipts.py"
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/batched.py"
           ],
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/ledger.py",
             "docs/runs/stage1-train/receipts.py",
@@ -2704,6 +2768,27 @@
         },
         {
           "exports": [
+            "model",
+            "run",
+            "test_a_rows_tokens_do_not_depend_on_its_batch_mates",
+            "test_continuations_carry_ids_and_the_generator_so_chunking_changes_nothing",
+            "test_duplicate_work_keys_are_refused",
+            "test_generate_many_returns_the_harness_fields_for_every_ask",
+            "test_the_cap_and_the_stop_token_are_the_harness_rules",
+            "test_the_plan_holds_first_batches_at_8_and_keeps_every_batch_in_the_budget",
+            "test_the_sampling_settings_are_the_harnesses",
+            "test_the_seed_is_per_item_and_sample_and_stable",
+            "work"
+          ],
+          "hash": "35d63cdec6fd514e39bda84f1de7994067b0093c1b73cdfbdc7540ac1e925878",
+          "importsFiles": [
+            "docs/runs/stage1-train/batched.py"
+          ],
+          "path": "docs/runs/stage1-train/test_batched.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "raw",
             "run",
             "test_a_all_equal_proceeds_and_timing_is_ignored",
@@ -2777,10 +2862,12 @@
             "test_a_strict_deterministic_raise_stops_for_a_warn_only_rerun",
             "test_a_target_outside_the_three_is_refused",
             "test_g0_writes_the_frozen_line",
+            "test_recorded_warnings_are_still_shown",
             "test_the_target_runs_unchanged_inside_the_pinned_settings_and_they_are_recorded",
-            "test_warn_only_logs_every_warned_op"
+            "test_warn_only_logs_every_warned_op",
+            "test_writing_the_frozen_line_refuses_an_existing_file"
           ],
-          "hash": "156ce64f859e4916816b2395fe1aafa30d23ba5dbbcad75a56b4abb64d596321",
+          "hash": "f11575c40a89a8f26b53903aa9bde8cddc77235c3fd6f2a74cfbc6717a26f1eb",
           "importsFiles": [
             "docs/runs/stage1-train/det_run.py"
           ],
@@ -2894,6 +2981,24 @@
         },
         {
           "exports": [
+            "draw",
+            "rec",
+            "test_i_holds_the_thinking_length_tolerances_and_logs_the_logprob_deviation",
+            "test_i_passes_when_batching_changes_nothing_and_fails_on_a_stuck_shift",
+            "test_ii_holds_the_clause_and_truncation_rules",
+            "test_ii_judges_the_batched_loop_against_the_batch_1_noise",
+            "test_kappa_is_one_for_identical_and_low_for_unrelated_labels",
+            "test_the_parity_set_is_two_unspent_verdict_variants_per_lesson"
+          ],
+          "hash": "f83163668148e2ef6c807a2e0973ae24e20afb83e9065b323bf0c86e389ebf9b",
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/parity.py"
+          ],
+          "path": "docs/runs/stage1-train/test_parity.py"
+        },
+        {
+          "exports": [
             "batches",
             "gate_refusals",
             "one_at_a_time",
@@ -2930,12 +3035,13 @@
             "test_closed_form_is_scored_by_the_letter_and_free_text_written_items_stay_out",
             "test_majority_of_three_decides_and_every_sample_is_a_row",
             "test_readout_reports_n0_beside_n_ge_1_and_star_off",
+            "test_the_batched_path_asks_the_same_questions_and_records_the_same_rows",
             "test_the_first_ask_is_the_items_own_variant_with_its_material_never_the_trained_turn",
             "test_the_keyed_key_point_exemption_is_a_setting_and_covers_only_the_keyed_option",
             "test_the_span_is_a_setting",
             "three_lines"
           ],
-          "hash": "a855d36d11f8a99875b4d9d7f2814d74434ee1c15c7c47c481f6f3ba1beb55ce",
+          "hash": "901b092066475eec8261e0b97626c8803ebcce8c44a0e49db132c617ef1cbeb6",
           "importOrder": [
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/quiz.py",
@@ -3908,8 +4014,13 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 21,
+      "testedBy": 23,
       "unresolvedNamed": [
+        {
+          "path": "docs/runs/stage1-train/batched.py",
+          "specifier": "harness",
+          "why": "unplaced"
+        },
         {
           "path": "docs/runs/stage1-train/det_run.py",
           "specifier": null,
@@ -3919,14 +4030,9 @@
           "path": "docs/runs/stage1-train/eval_adapter.py",
           "specifier": "harness",
           "why": "unplaced"
-        },
-        {
-          "path": "docs/runs/stage1-train/eval_adapter.py",
-          "specifier": "mapper",
-          "why": "unplaced"
         }
       ],
-      "unresolvedSites": 16
+      "unresolvedSites": 18
     },
     {
       "dynamicReads": 14,
@@ -6849,7 +6955,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 33
+          "files": 37
         },
         {
           "boundary": "examples",
@@ -6930,7 +7036,7 @@
         },
         {
           "config": "pyproject.toml",
-          "files": 22,
+          "files": 24,
           "job": "ci",
           "runner": "pytest",
           "step": "Stage 1 gates and trainer tests"
@@ -7358,8 +7464,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "bbe8e1e24d9f0ff0454eeabc552413f7686d1ca4",
-    "tracked": 408
+    "commit": "cfd95d36ac8def9bf4046c6cf2d341ed2092819f",
+    "tracked": 414
   },
   "landings": [
     {
@@ -7693,6 +7799,12 @@
       "readers": [
         {
           "by": "docs/runs/stage1-train/test_order.py",
+          "call": "glob",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "docs/runs/stage1-train/test_parity.py",
           "call": "glob",
           "confidence": "ast",
           "fromTests": true
@@ -8159,7 +8271,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 106,
+  "testFiles": 108,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",

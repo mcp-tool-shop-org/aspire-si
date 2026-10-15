@@ -40,8 +40,8 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 2,
-      "changed": 0,
+      "added": 6,
+      "changed": 6,
       "moved": 0,
       "parts": 1,
       "removed": 0
@@ -49,21 +49,21 @@
     "items": [
       {
         "kind": "landing",
-        "sentence": "docs/runs/stage1-train/det_run.py is now read by docs/runs/stage1-train/det_run.py.",
+        "sentence": "docs/runs/stage1-training-data/ is now also read by docs/runs/stage1-train/test_parity.py.",
         "subjects": [
-          "docs/runs/stage1-train/det_run.py",
-          "docs/runs/stage1-train/det_run.py"
+          "docs/runs/stage1-training-data/",
+          "docs/runs/stage1-train/test_parity.py"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "2 files added, across 1 part.",
+        "sentence": "6 files added and 6 changed content, across 1 part.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "4ba517c4a5d6553f7f0a82e52f1ffe6434886b12",
-      "generatedAt": "2026-10-15T21:51:15.338Z"
+      "commit": "bbe8e1e24d9f0ff0454eeabc552413f7686d1ca4",
+      "generatedAt": "2026-10-15T22:00:17.145Z"
     },
     "unchanged": false
   },
@@ -150,9 +150,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 6 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "bbe8e1e24d9f0ff0454eeabc552413f7686d1ca4",
+  "commit": "cfd95d36ac8def9bf4046c6cf2d341ed2092819f",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (238 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (242 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -175,7 +175,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 33
+          "files": 37
         },
         {
           "boundary": "examples",
@@ -332,11 +332,11 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-15T22:00:17.145Z",
+  "generatedAt": "2026-10-15T22:27:13.456Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "18 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/det_run.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; and 15 more.",
-    "17 writes and 36 reads use paths built at run time and are not named here.",
+    "20 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/det_run.py` imports a path built at run time; and 17 more.",
+    "17 writes and 38 reads use paths built at run time and are not named here.",
     "66 writes and 83 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.",
@@ -389,7 +389,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 106,
+  "testFiles": 108,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
