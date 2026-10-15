@@ -1,17 +1,20 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-07 from commit 5c5346d by Atlas 1.24.0.
+Mapped at 2026-10-14 from commit 021ebf0 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (142 files), shell (5), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (169 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-07 (ddf58ce)
+## What changed since 2026-10-07 (5c5346d)
 
-- examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_b.sh.
-- 6 files added and 4 changed content, across 3 parts.
+- examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_c.sh and examples/sft-experiment/pod/plan_g.sh.
+- examples/pod-run/real-composite-teacher.yaml is now read by examples/sft-experiment/seed_configs.py.
+- examples/pod-run/real-local-teacher.yaml is now read by examples/sft-experiment/seed_configs.py.
+- And 4 more new writers and readers of places.
+- 53 files added and 20 changed content, across 7 parts.
 
 ## What comes in
 
@@ -46,9 +49,14 @@ CI writes nothing this map can see.
 
 ## What tends to change together
 
-No two source files changed together often enough to name.
+- **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 10 commits, inside the examples part.
+- **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
-Window: 180 days; a pair counts from 3 shared commits, since the window holds fewer than 30 qualifying commits.
+1 file changed together with its own test, as expected.
+
+Confidence is low: fewer than 25 source files reach 10 revisions in the window.
+
+Window: 180 days; a pair counts from 3 shared commits, since 2 source files reach 10 revisions; the floor rises to 10 when 25 do.
 
 ## What no test touches
 
@@ -80,9 +88,9 @@ Read those in order to follow one pull request end to end.
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
-- 3 writes and 13 reads use paths built at run time and are not named here.
-- 20 writes and 32 reads go to a path their caller passes, not to this repository.
+- 3 writes and 22 reads use paths built at run time and are not named here.
+- 57 writes and 63 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
-- Statistics confidence is low: fewer than 30 qualifying commits in the window, and fewer than 25 source files reach 10 revisions.
+- Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.

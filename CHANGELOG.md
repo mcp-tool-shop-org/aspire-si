@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-14
+
 ### Added
 
 - `examples/sft-experiment/`: the fine-tune-then-ASPIRE experiment (#11) and its
@@ -64,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `aspire.teachers.local`: the scoring request and its parser are module functions
   (`evaluation_request`, `parse_evaluation`, `extract_score`, `extract_improved`), so other code
   scores exactly as the local teacher does. The request text and the parsed scores are unchanged.
+
+### Security
+
+- **Workflow jobs run with a read-only token by default.** `ci.yml` had jobs with no `permissions` block, so they inherited the repository default token. A top-level `permissions: contents: read` now applies to every job that does not set its own (the jobs that publish or write keep theirs). Closes the `actions/missing-workflow-permissions` code-scanning alerts.
 
 ## [1.2.0] - 2026-10-07
 
