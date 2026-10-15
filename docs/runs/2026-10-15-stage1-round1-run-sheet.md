@@ -89,8 +89,8 @@ These come from the evaluation plan, unchanged.
     under the frozen rule (716dc251). Refusals are logged by reason.
   - **The apply material** is unseen. It's kept out of training (only the kept answers enter session 2, as the
     procedure says), the reserve and steering.
-  - **If B6 lags B1** (Q4): round 1 runs with STaR off and E-only steering readings, disclosed in the run note.
-    Round 1 training itself doesn't depend on STaR, because kept answers only enter session 2.
+  - **Round 1 doesn't start without B6** (Q4, ruled), so there's no round 1 without the apply step. Kept answers
+    only enter session 2.
 
   Two questions for R&D before STaR first keeps anything (Q5):
   - **NO-ROLE:** does it keep its own apply answers, to stay compute-matched, or none?
@@ -115,7 +115,7 @@ These come from the evaluation plan, unchanged.
 | B3 | The general-capability panel: a design note (size, item type, mechanical scoring, batching, per-session cost) for Argon and the maintainer, then its base-model baseline in its own grant (G0) | R&D | design to write |
 | B4 | Batched generation for quiz and apply, in batches of 8 as the procedure planned. A short design note pins: quiz and apply only (eval_adapter and the harness untouched); padding side and attention masks; how sample seeds 0–2 map under batching; the card settings kept; and a parity check against batch 1 on a fixed small set (verdict agreement and majority outcome, a distribution check, not bytes). Fixed from round 1: every round uses the same quiz path | ASPIRE builds, R&D reviews | ruled yes (Q2) |
 | B5 | Gates 1.7.0 and 1.7.1 merged, so the trainer validates under the final gates | R&D, then the Publisher | 1.7.0 merged; 1.7.1 in review |
-| B6 | The apply items: 10 per lesson, C and D, written by role-set and key-checked, plus an apply sitting in the runner that writes `rehearsal` receipts with the stuck fields | the Dataset Specialist (items); ASPIRE (the sitting) | not started |
+| B6 | The apply items: 10 per lesson, C and D, written by role-set in the same pass as batches 7–8, and key-checked by R&D with the same instant-agreement check as every training batch before the freeze (a bad key would bias the steering signal); plus an apply sitting in the runner that writes `rehearsal` receipts with the stuck fields | the Dataset Specialist (items); ASPIRE (the sitting) | not started |
 
 ### The composition check (before any counted training run)
 
@@ -123,8 +123,11 @@ The evaluation plan's 2026-10-10 amendment, point 3.
 - `no_role.py --data <FROZEN FILES> --out <NO-ROLE FILE>` prints both arms' composition tables: verdict mix,
   kinds, correction and escalate counts, multi-line share and NONE share. It also prints the exposure per
   material and the target-token ratio.
-- R&D checks the tables match within one item per trait. The NO-ROLE file's sha256 is pinned in the run note.
-- A mismatch stops round 1. The report would otherwise have to say the arm comparison is confounded.
+- **The match is exact** (R&D). NO-ROLE is derived one for one from ROLE, so its tables match by construction:
+  any difference, even one item, is a bug in `no_role.py` or in the data it read, and round 1 stops on it.
+- Tables where an exact match isn't expected by construction (the target-token ratio, exposure per material) are
+  reported, not gated.
+- The NO-ROLE file's sha256 is pinned in the run note.
 
 This needs no card, so it runs as soon as `FROZEN.md` lands.
 
@@ -289,10 +292,13 @@ At the end of each grant, the run note records:
 - **Q3, the panel baseline:** its own grant (G0), before G1.
 
 **Still open:**
+- **Q4, B6 lagging B1 (ruled):** wait for B6. Round 1 doesn't start on E-only readings: every session from round
+  2 on has the apply sitting, so round 1 must too, and a partially steered round 2 would muddy the steered curve.
+  The apply items are written in the same pass as batches 7–8. If they still don't land together, the measured
+  lag goes to the maintainer then; E-only isn't pre-authorized.
+
+**Still open:**
 - **Q5.** STaR in NO-ROLE, and kept answers against TRACE_REUSED (§5).
-- **Q4.** B6's apply items come from role-set, whose session is parked. If B6 isn't ready when B1 is, does
-  round 1 run with E-only steering readings (C and D cells unsteered in round 2, disclosed), or wait for B6?
-  That's for R&D and the maintainer.
 
 ## Standards compliance
 
