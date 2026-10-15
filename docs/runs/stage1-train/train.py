@@ -449,6 +449,7 @@ def train(a, seqs, manifest, out, events):
     over = 0
     saved_at = start_step
     for step in range(start_step, total_steps):
+        faulthandler.cancel_dump_traceback_later()  # the supervisor's pause and any wait are never timed as a stall
         try:
             paused += sup.check()
         except StopRequested as e:
@@ -460,6 +461,10 @@ def train(a, seqs, manifest, out, events):
                 events("checkpoint", step=step)
             faulthandler.cancel_dump_traceback_later()
             raise Stop("card grant ended", EXIT["grant_end"], step=step, checkpoint_step=step, request=str(e)) from e
+        if len(step_times) >= 3:
+            # A stalled step writes its own stack: the dump fires if this step's work (armed after the supervisor's
+            # check, so pauses don't count) takes 5x the median step time.
+            faulthandler.dump_traceback_later(5 * statistics.median(step_times), repeat=False, file=stall_file)
         t_step = time.time()
         for g in opt.param_groups:
             g["lr"] = lr_at(step)
@@ -522,9 +527,6 @@ def train(a, seqs, manifest, out, events):
             with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
             saved_at = step + 1
             events("checkpoint", step=step + 1)
-        if len(step_times) >= 3:
-            # A stalled step writes its own stack: the dump fires if the next step takes 5x the median step time.
-            faulthandler.dump_traceback_later(5 * statistics.median(step_times), repeat=False, file=stall_file)
     faulthandler.cancel_dump_traceback_later()
     elapsed = prior_seconds + time.time() - t0 - paused  # cumulative across resumes, pauses excluded
     with_retry(lambda: model.save_pretrained(out / "adapter"), "adapter", events)
