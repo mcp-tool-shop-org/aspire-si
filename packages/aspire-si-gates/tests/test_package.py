@@ -40,7 +40,55 @@ def test_reason_table_is_pinned():
         "PUZZLE_SHAPE_BATCH": "two puzzles in this batch are already shaped {x}; use another structure",
         "OPENING_REUSED": "the opening '{x}' already opens 2 items of this trait; vary it",
         "B_PHRASE_REUSED": "the phrase '{x}' is already in 2 kind B items of this trait; reword it",
+        "TRACE_REUSED": "the wording '{x}' comes from a stored model trace; item text is never drawn from traces",
     }
+
+
+def test_trace_reused_refuses_wording_from_a_stored_trace():
+    sk = "I looked for a line that states it, and for a line that rules it out."
+    row = d_item("t1", thinking=sk, lesson="T04")  # pre-amendment lessons are checked too
+    trace = "Okay. I looked for a line that states it, and for a line that rules it out. Then I decided."
+    out = G.check_not_from_traces(row, ["unrelated words only here", trace])
+    assert [c for c, _ in out] == ["TRACE_REUSED"]
+    assert "comes from a stored model trace" in out[0][1]
+    assert G.check_not_from_traces(row, ["a short trace", ""]) == []
+    assert G.check_not_from_traces(row, []) == []
+
+
+def test_trace_reused_ignores_the_rows_own_material_quoted_in_a_trace():
+    row = d_item("t2", thinking="Short.")
+    quoting = "The material says: " + row["material"].replace("\n", " ") + " so that settles it."
+    assert G.check_not_from_traces(row, [quoting]) == []
+    # but the same trace with the row's own reasoning in it is refused
+    row["turns"][0]["thinking"] = "so that settles it and the statement is not supported by the notice"
+    trace = quoting + " and the statement is not supported by the notice"
+    assert [c for c, _ in G.check_not_from_traces(row, [trace])] == ["TRACE_REUSED"]
+
+
+def test_trace_reused_leaves_out_wording_an_accepted_row_already_holds():
+    """A trained student reproduces the dataset's wording; that wording isn't model-originated (R&D)."""
+    sk = "I looked for a line that states it, and for a line that rules it out."
+    trace = "First, " + sk + " Then I answered."
+    row = d_item("t3", thinking=sk)
+    assert [c for c, _ in G.check_not_from_traces(row, [trace])] == ["TRACE_REUSED"]
+    assert G.check_not_from_traces(row, [trace], accepted=[d_item("t0", thinking=sk)]) == []
+
+
+def test_trace_reused_leaves_out_the_statement_line_and_the_three_line_block():
+    row = d_item("t4", thinking="Short.")
+    row["turns"][0]["user"] = row["turns"][0]["user"].replace(
+        "Statement: the library is open on Sunday mornings.",
+        "Statement: the library on the corner is open every Sunday morning until noon.")
+    trace = ("The claim is that the library on the corner is open every Sunday morning until noon.\n"
+             "VERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no")
+    assert G.check_not_from_traces(row, [trace]) == []
+
+
+def test_trace_reused_keeps_digits_so_a_different_number_is_a_different_span():
+    row = d_item("t5", thinking="the late fee is 4 dollars per extra hour")
+    assert G.check_not_from_traces(row, ["So the late fee is 7 dollars per extra hour."]) == []
+    assert [c for c, _ in G.check_not_from_traces(row, ["So the late fee is 4 dollars per extra hour."])] \
+        == ["TRACE_REUSED"]
 
 
 def test_check_item_needs_no_other_row():
@@ -103,7 +151,7 @@ def test_a_lesson_rank_is_a_figure_not_a_refusal():
 
 
 def test_scorer_rules_are_exposed():
-    assert G.GATES_VERSION == "1.6.0"
+    assert G.GATES_VERSION == "1.7.0"
     assert G.critic_mismatch(["a b c"], ["x y z"], "a b c\nx y z") is True
     assert G.deciding_covers(["a b c d"], ["a b c"], "a b c d") is True
 

@@ -6,7 +6,7 @@
 import hashlib
 from pathlib import Path
 
-from .context import REASONS, check_against  # noqa: F401
+from .context import REASONS, check_against, check_not_from_traces  # noqa: F401
 from .scorer_rules import critic_mismatch, deciding_covers, deciding_ok, lines_of, norm  # noqa: F401
 from .gates import (DataError, batch_report, check_batch, check_item, closed_form_options,  # noqa: F401
                     freeze_report, leakage, load, parse_choice, role_words_in_prompt, validate,
@@ -14,7 +14,7 @@ from .gates import (DataError, batch_report, check_batch, check_item, closed_for
                     key_point_share, closed_form_figures, load_models,
                     model_signature, row_sha256)
 
-GATES_VERSION = "1.6.0"
+GATES_VERSION = "1.7.0"
 
 
 def gates_identity() -> dict:

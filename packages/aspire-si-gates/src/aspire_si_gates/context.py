@@ -18,6 +18,7 @@ REASONS = {
     "PUZZLE_SHAPE_BATCH": "two puzzles in this batch are already shaped {x}; use another structure",
     "OPENING_REUSED": "the opening '{x}' already opens 2 items of this trait; vary it",
     "B_PHRASE_REUSED": "the phrase '{x}' is already in 2 kind B items of this trait; reword it",
+    "TRACE_REUSED": "the wording '{x}' comes from a stored model trace; item text is never drawn from traces",
 }
 
 
@@ -90,3 +91,27 @@ def check_against(r: dict, accepted: list[dict], pre_amendment=PRE_AMENDMENT_LES
         if hit:
             out.append(_reason("B_PHRASE_REUSED", hit[0]))
     return out
+
+
+
+def check_not_from_traces(r: dict, traces, accepted=()) -> list[tuple]:
+    """[("TRACE_REUSED", message)] when an 8-word span that originated with a model appears in the row; [] otherwise.
+    Traces (the student's or a judge's output, from the role store) are observations, never item text.
+
+    One machinery with the diversity gate (R&D, 2026-10-15): the row's spans are gates._spans (material lines, the
+    Statement line and the three-line block left out, digits kept, a bracketed quote as one token), and each trace
+    line is tokenized by the same gates.line_spans. A trace span counts only when no accepted row holds it: a trained
+    student reproduces the dataset's own wording, and reuse of that is SPAN_REUSED's job, not this gate's. Spans of
+    the row's own material lines don't count either (a trace quotes the material it was given). Every lesson is
+    checked."""
+    mine = G._spans(r)
+    if not mine:
+        return []
+    learned = set().union(*(G._spans(a) for a in accepted)) if accepted else set()
+    own = set().union(*(G.line_spans(x) for x in G._content_lines(r).splitlines() or [""]))
+    hit = set()
+    for t in traces:
+        for line in (t or "").splitlines():
+            hit |= G.line_spans(line) & mine
+    hit -= learned | own
+    return [_reason("TRACE_REUSED", min(hit))] if hit else []
