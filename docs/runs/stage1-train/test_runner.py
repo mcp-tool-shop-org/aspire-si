@@ -133,7 +133,7 @@ def test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run(rig, tmp_pat
     assert row["schema"] == "stage1-receipt-v1" and row["source"] == "diagnostics" and row["round"] == 1
     assert row["arm"] == "ROLE" and row["seed"] == 0 and row["grant_id"] == "G-test"
     assert row["closed_form"] == {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8,
-                                   "distractor_margin": 0.15, "span": 8, "exempt_keyed_key_points": False}
+                                   "distractor_margin": 0.2, "span": 8, "exempt_keyed_key_points": False}
 
 
 @needs_tokenizer

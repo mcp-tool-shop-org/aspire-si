@@ -986,11 +986,14 @@ def parse_choice(answer: str) -> str | None:
 #                every option except a keyed option that passes verbatim.
 # Provenance (R&D, 2026-10-11): share 0.5 and distractor_max 0.8 from batch 5's measured shares; distractor_margin
 # 0.15 from batch 5's paraphrased round (6a01c18): smallest keyed-to-top-distractor gap 0.21, median 0.50, set below
-# the minimum to leave headroom; re-measured after batch 6 and raised if the minimum gap stays above 0.2. There is
+# the minimum to leave headroom; re-measured after batch 6 and raised if the minimum gap stays above 0.2.
+# distractor_margin 0.20 (was 0.15): R&D ruling 2026-10-15, from the batch 5+6 re-measure at 0c181e4. Over 24
+# closed-form written-E items, minimum gap 0.214 (T09-E-07), batch 6 minimum 0.223, median 0.437. Re-measured at the
+# batch 8 freeze. There is
 # no floor on distractor share: on-topic near-misses can share none of the point's words (off-topic stays a
 # key-check judgement).
-CLOSED_FORM_DEFAULT = {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8, "distractor_margin": 0.15,
-                       "span": 8, "exempt_keyed_key_points": False}  # R&D, 2026-10-11, from batch 5's measured shares; the margin is set after its round
+CLOSED_FORM_DEFAULT = {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8, "distractor_margin": 0.2,
+                       "span": 8, "exempt_keyed_key_points": False}  # R&D: 2026-10-11 from batch 5's shares; margin 2026-10-15
 CARRY_MODES = ("verbatim", "paraphrase", "either")
 
 
