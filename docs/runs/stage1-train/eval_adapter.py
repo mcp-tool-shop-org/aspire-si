@@ -41,6 +41,12 @@ def sealed_read_allowed(tasks: Path, adapter: Path) -> str | None:
     content = tasks.read_bytes().replace(b"\r\n", b"\n")
     if hashlib.sha256(content).hexdigest() != SEALED_SHA256:
         return None  # not the sealed set
+    return frozen_adapter_problem(adapter)
+
+
+def frozen_adapter_problem(adapter: Path) -> str | None:
+    """None when the adapter was trained on the whole frozen dataset; otherwise why not. Every sealed read (the
+    sealed tasks here, the sealed interview questions in interview_adapter.py) requires it."""
     manifest = adapter.parent / "manifest.json"
     if not manifest.exists():
         return "no manifest.json beside the adapter: can't show it was trained on the frozen dataset"
