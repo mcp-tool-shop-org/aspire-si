@@ -101,6 +101,11 @@ def _p90(xs):
     return xs[min(len(xs) - 1, int(round(0.9 * (len(xs) - 1))))]
 
 
+def warned_ops(caught: list) -> list:
+    """The ops warn_only let through without a deterministic implementation, as det_run.py records them."""
+    return sorted({str(w.message) for w in caught if "deterministic" in str(w.message).lower()})
+
+
 def kappa(a: list, b: list) -> float:
     n = len(a)
     po = sum(x == y for x, y in zip(a, b)) / n
@@ -207,20 +212,27 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
         (out / f"{name}-batches.json").write_text(json.dumps(log, indent=1), encoding="utf-8")
     torch.use_deterministic_algorithms(True, warn_only=True)  # as det_run.py sets for batch-1 sittings
     torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark = True, False
+    import warnings
+    warned: dict = {}
     for name, seeds in (("P1", (0, 1, 2)), ("P1p", (3, 4, 5))):
         t0 = time.time()
         rows = {}
-        with sdpa_kernel([SDPBackend.FLASH_ATTENTION]):
+        with warnings.catch_warnings(record=True) as caught, sdpa_kernel([SDPBackend.FLASH_ATTENTION]):
+            warnings.simplefilter("always")
             for ask in asks:
                 if ask["sample"] != 0:
                     continue
                 for k, seed in enumerate(seeds):
                     g = harness.generate(model, tok, ask["messages"], "sampled", seed)
                     rows[(ask["item_id"], k)] = record(by_item[ask["item_id"]], g, count, rule)
+        warned[name] = warned_ops(caught)
+        for w in caught:  # recorded, and still shown
+            warnings.showwarning(w.message, w.category, w.filename, w.lineno)
         draws[name], times[name] = rows, round(time.time() - t0, 1)
     report = {"items": [r["id"] for r in chosen], "rules_i": RULES_I, "rules_ii": RULES_II,
               "i": compare_i(draws["LB1"], draws["LB8"]), "ii": compare_ii(draws["LB1"], draws["P1"], draws["P1p"]),
-              "machine_line": det_run.machine_line(), "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
+              "machine_line": det_run.machine_line(), "warned_ops": warned,
+              "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
               "seconds": times, "torch_peak_reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 2),
               "batched_sha256": __import__("hashlib").sha256(Path(batched.__file__).read_bytes()).hexdigest()}
     report["pass"] = report["i"]["pass"] and report["ii"]["pass"]
