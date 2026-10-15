@@ -1,6 +1,6 @@
 # DRAFT: Stage 1 round 1, the run sheet
 
-**Status: draft for R&D's review (2026-10-15).** No card is asked for until R&D has passed it and the Publisher
+**Status: draft, revised for R&D's review of 2026-10-15 (Q1–Q3 ruled; gaps 1–3 closed).** No card is asked for until R&D has passed it and the Publisher
 has heard from the maintainer on any further review. Under the 2026-10-13 rule, the design is settled before
 anything runs, and isn't revised through live rounds.
 
@@ -53,13 +53,20 @@ untreated and doesn't count.
 
 All of these are fixed before round 1. None is written or changed for this sheet.
 
-| Set | Size | Seeds | Use |
-|---|---|---|---|
-| Sealed 130 | 130 tasks | 3 training × 3 sample = 9 sittings | G1, stored unopened until round F |
-| DEV (pilot 30) | 30 tasks | 3 × 3 | the stop rule's first point; descriptive |
-| Quiz | the ledger's due kind-E items: 75 askable today (51 verdict, 24 closed-form), about 105 after batches 7–8 | majority of 3 per ask | mastery ledger; descriptive |
-| Pre-interview | 12 questions | 3 per adapter | descriptive (Q1–11) and the one tested measure |
-| General-capability panel | not named yet (§6, B3) | per the panel | the 2-point guard |
+| Set | Size | Arms | Seeds | Use |
+|---|---|---|---|---|
+| Sealed 130 | 130 tasks | ROLE | 3 training × 3 sample = 9 sittings | G1, stored unopened until round F |
+| DEV (pilot 30) | 30 tasks | ROLE | 3 × 3 | the stop rule's first point; descriptive |
+| Quiz | the ledger's due kind-E items: 75 askable today (51 verdict, 24 closed-form), about 105 after batches 7–8 | both | majority of 3 per ask | the mastery ledger; **the E steering cells' stuck readings** |
+| Apply | 10 fresh items per lesson (21 lessons), kinds C and D, written by role-set, never trained, kept out of the reserve and steering material | both | 1 sample per item | **the C and D steering cells' stuck readings**; STaR stays off (§5) |
+| Pre-interview | 12 questions | ROLE now; NO-ROLE after Stage 1 | 3 per adapter | descriptive (Q1–11) and the one tested measure |
+| General-capability panel | R&D's design (B3) | ROLE | per the design | the 2-point guard, every session |
+
+**Where the steering readings come from** (gap 1). Steering's cells are (lesson, kind) for kinds C, D and E,
+counted at n ≥ 8, pooled across both arms. E readings come from the quiz sitting (`train_quiz` receipts). C and
+D readings come from the apply sitting (`rehearsal` receipts, the store's training-time source). At 10 apply
+items per lesson, split 5 C and 5 D, each arm gives 5 per cell and the pool gives 10, which clears n ≥ 8. The
+apply items don't exist yet (B6). Until they do, round 2 can't be steered as registered.
 
 ## 5. Measures and the decision rule
 
@@ -87,9 +94,21 @@ These come from the evaluation plan, unchanged.
 |---|---|---|---|
 | B1 | Batches 7 (T15, T18) and 8 (L1–L3) merged, then `FROZEN.md`. The grant names `<FROZEN_DATA_SHA>` | the Dataset Specialist (parked) and the writers | not started |
 | B2 | The pre-interview can't load an adapter: `interview.py` has no `--adapter`. It needs a thin wrapper like eval_adapter's (base from `load_student()`, adapter attached unmerged, interview.py's file untouched and its sha recorded), plus tests | ASPIRE | to build, CPU only |
-| B3 | The general-capability panel is named by R&D and scored on the base model before training (the procedure: "before session 1") | R&D, then a short grant | not named |
-| B4 | Quiz time: the quiz generates one sample at a time. The procedure planned batches of 8 inside the loop, which isn't built. Decide: build batched generation for quiz and apply (a design note first, since it changes the generate path), or accept about 1.75 h per seed (§7) | R&D's call, ASPIRE builds | open |
-| B5 | Gates 1.7.0 and 1.7.1 merged, so the trainer validates under the final gates | R&D, then the Publisher | in review |
+| B3 | The general-capability panel: a design note (size, item type, mechanical scoring, batching, per-session cost) for Argon and the maintainer, then its base-model baseline in its own grant (G0) | R&D | design to write |
+| B4 | Batched generation for quiz and apply, in batches of 8 as the procedure planned. A short design note pins: quiz and apply only (eval_adapter and the harness untouched); padding side and attention masks; how sample seeds 0–2 map under batching; the card settings kept; and a parity check against batch 1 on a fixed small set (verdict agreement and majority outcome, a distribution check, not bytes). Fixed from round 1: every round uses the same quiz path | ASPIRE builds, R&D reviews | ruled yes (Q2) |
+| B5 | Gates 1.7.0 and 1.7.1 merged, so the trainer validates under the final gates | R&D, then the Publisher | 1.7.0 merged; 1.7.1 in review |
+| B6 | The apply items: 10 per lesson, C and D, written by role-set and key-checked, plus an apply sitting in the runner that writes `rehearsal` receipts with the stuck fields | the Dataset Specialist (items); ASPIRE (the sitting) | not started |
+
+### The composition check (before any counted training run)
+
+The evaluation plan's 2026-10-10 amendment, point 3.
+- `no_role.py --data <FROZEN FILES> --out <NO-ROLE FILE>` prints both arms' composition tables: verdict mix,
+  kinds, correction and escalate counts, multi-line share and NONE share. It also prints the exposure per
+  material and the target-token ratio.
+- R&D checks the tables match within one item per trait. The NO-ROLE file's sha256 is pinned in the run note.
+- A mismatch stops round 1. The report would otherwise have to say the arm comparison is confounded.
+
+This needs no card, so it runs as soon as `FROZEN.md` lands.
 
 ### Live preflight (on the rig, in the counted run's own grant, before the counted run)
 
@@ -110,40 +129,51 @@ run note. Total about 15 minutes, peak as in §7.
    (partial set). This is the guard that keeps a smoke adapter from spending a sealed read.
 7. **DEV, 2 tasks:** `eval_adapter.py --tasks <DEV> --limit 2` on the 2-step adapter. Record the peak
    memory.used during generation.
-8. **The machine line**, recorded and compared with the baseline's.
+8. **The machine line**, recorded and compared with the baseline's and G0's.
+9. **The apply sitting** on the 2-step adapter, one lesson, writing `rehearsal` receipts with the stuck fields.
+10. **Batched parity** (B4): the check pinned in the batching note, on its fixed small set.
 
 Any failure stops the grant before the counted run, and nothing counted is spent. Scratch outputs are deleted
 after the note is written (§10).
 
 ## 7. The run: commands, size and time
 
-**Round 1, arm ROLE, seeds 0, 1, 2.** The NO-ROLE arm is Phase B's compute-matched control, and is measured
-only after Stage 2's domain training, which isn't built. It isn't in round 1 (see §11, Q1).
+**Round 1, arms ROLE and NO-ROLE in lockstep, seeds 0, 1, 2** (R&D, Q1). Both arms train under the same pins,
+gates and machine in the same grant. ROLE gets the full session. NO-ROLE gets training plus the two sittings that
+write its steering readings (quiz and apply). Phase A's DEV, sealed and panel are ROLE's, and NO-ROLE's
+pre-interview comes after Stage 1, as the plan says.
 
-Environment: `ASPIRE_WATCHDOG_DIR` and `ASPIRE_BACKUP_ROOT` from the rig, `CUDA_VISIBLE_DEVICES=0`. The data
-arguments are every file listed in `FROZEN.md`, in its order.
+Environment: `ASPIRE_WATCHDOG_DIR` and `ASPIRE_BACKUP_ROOT` from the rig, `CUDA_VISIBLE_DEVICES=0`. ROLE's data
+is every file listed in `FROZEN.md`, in its order. NO-ROLE's data is the `no_role.py` output pinned by the
+composition check.
 
 ```
-# Block T: training, for each seed S in 0 1 2
-python docs/runs/stage1-train/run.py --round 1 --arm ROLE --seed S \
+# Block T: training, for each seed S in 0 1 2, and arm A in ROLE NO-ROLE (data as above)
+python docs/runs/stage1-train/run.py --round 1 --arm A --seed S \
     --grant-id <GRANT_ID> --grant-end <GRANT_END> --planned-peak-gb 24 --planned-minutes 10 \
-    -- --data <FROZEN FILES> --order shuffled
+    -- --data <A's FILES> --order shuffled
 # (closed-form settings: the gates' defaults; recorded in the manifest)
 
-# Block Q: the quiz sitting, for each seed S (session 1)
-python docs/runs/stage1-train/quiz.py --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
-    --data <FROZEN FILES> --ledger outputs/stage1-train/1/ROLE/S/ledger.json --session 1 \
-    --round 1 --arm ROLE --seed S --variants <VARIANT STORE> --sealed <SEALED FILE>
+# Block Q: the quiz sitting (session 1), each seed S and arm A
+python docs/runs/stage1-train/quiz.py --adapter outputs/stage1-train/1/A/S/train/adapter \
+    --data <A's FILES> --ledger outputs/stage1-train/1/A/S/ledger.json --session 1 \
+    --round 1 --arm A --seed S --variants <VARIANT STORE> --sealed <SEALED FILE>
 
-# Block D: DEV, for each seed S and sample seed K in 0 1 2
+# Block A: the apply sitting (after B6), each seed S and arm A; writes rehearsal receipts
+<apply sitting> --adapter outputs/stage1-train/1/A/S/train/adapter --items <APPLY ITEMS> \
+    --round 1 --arm A --seed S --sealed <SEALED FILE>
+
+# Block D: DEV (ROLE), each seed S and sample seed K in 0 1 2
 python docs/runs/stage1-train/eval_adapter.py --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
     --tasks <DEV TASKS> --out outputs/stage1-eval/1/ROLE/S/dev-K --seed K --phase A-round1 --arm ROLE
 
-# Block I: the pre-interview (after B2), for each seed S
+# Block P: the general-capability panel (ROLE), each seed S, as B3's design sets it
+
+# Block I: the pre-interview (ROLE, after B2), each seed S
 python <interview wrapper> --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
     --out outputs/stage1-eval/1/ROLE/S/interview --seeds 0 1 2 --sitting round1 --arm ROLE
 
-# Block S: sealed, for each seed S and sample seed K; written, never opened until round F
+# Block S: sealed (ROLE), each seed S and sample seed K; written, never opened until round F
 python docs/runs/stage1-train/eval_adapter.py --adapter outputs/stage1-train/1/ROLE/S/train/adapter \
     --tasks <SEALED FILE> --out outputs/stage1-eval/1/ROLE/S/sealed-K --seed K --phase A-round1 --arm ROLE
 ```
@@ -152,32 +182,42 @@ python docs/runs/stage1-train/eval_adapter.py --adapter outputs/stage1-train/1/R
 train.py stops itself at 28 GB):
 - **Training:** the 2026-10-11 rehearsal measured a 19.08 GB torch peak on the real data (median step 6.73 s).
   With the CUDA context and the idle baseline, that's about 22–23 GB of memory.used. Preflight step 4
+  confirms it. NO-ROLE's sequences are no longer than ROLE's (its target-token ratio is printed by the
+  composition check), so its peak is no higher.
+- **Generation at batch 1** (DEV, sealed, interview): bf16 weights 16.4 GB, the LoRA about 0.35 GB, and the KV
+  cache up to the 16,384-token cap, about 2.4 GB. So about 21–22 GB with the baseline; preflight step 7
   confirms it.
-- **Generation:** bf16 weights 16.4 GB, the LoRA about 0.35 GB, and the KV cache up to the 16,384-token cap,
-  about 2.4 GB. So about 21–22 GB with the baseline. It was never measured with an adapter; preflight step 7
-  confirms it.
+- **Batched generation** (quiz and apply, 8 at a time): the KV cache scales with the batch. Eight sequences at
+  the full 16,384-token cap would need about 19 GB of cache, over the plan. So B4's design note must set a
+  per-batch token budget, or a smaller batch at long lengths, to stay ≤ 26 GB, and preflight step 10 measures
+  it. This is the one sizing open until B4.
 
-**Time** (from measured numbers: rehearsal steps; baseline sittings at 9.7–10.1 min DEV, 42–45 min sealed,
-13.6 min interview, per sample seed; about 20 s per generation):
+**Time** (measured: rehearsal steps; baseline sittings at 9.7–10.1 min DEV, 42–45 min sealed and 13.6 min
+interview per sample seed; about 20 s per batch-1 generation. Batched times are the procedure's estimate, about
+4.7× faster, until B4's parity run measures them):
 
-| Block | Per seed | 3 seeds |
-|---|---|---|
-| T: about 51 steps × 6.7 s, plus about 45 s load | about 7 min | about 21 min |
-| Q: about 105 asks × 3 samples × 20 s (batch 1) | about 1 h 45 min | about 5 h 15 min |
-| D: 3 sittings × about 10 min | about 30 min | about 1 h 30 min |
-| I: one sitting, 36 answers | about 14 min | about 42 min |
-| S: 3 sittings × about 44 min | about 2 h 12 min | about 6 h 36 min |
-| Panel | after B3 | after B3 |
+| Block | Arms | Per seed and arm | Round 1 |
+|---|---|---|---|
+| T: about 51 steps × 6.7 s, plus about 45 s load | both | about 7 min | about 42 min |
+| Q: about 105 asks × 3 samples (batched) | both | about 22 min (1 h 45 min at batch 1) | about 2 h 12 min |
+| A: 210 apply items × 1 sample (batched) | both | about 15 min (70 min at batch 1) | about 1 h 30 min |
+| D: 3 sittings × about 10 min | ROLE | about 30 min | about 1 h 30 min |
+| P: the panel | ROLE | B3's design | B3's design |
+| I: one sitting, 36 answers | ROLE | about 14 min | about 42 min |
+| S: 3 sittings × about 44 min | ROLE | about 2 h 12 min | about 6 h 36 min |
 
-That totals about **14 h 25 min** of card time plus the panel, at batch-1 quiz. A trained model may think
-longer than the untrained baseline did, so each sitting's real time is recorded and the next grant is sized
-from it.
+That totals about **13 h 12 min** of card time plus the panel, with preflight (about 20 min) on top. A trained
+model may think longer than the untrained baseline did, so each sitting's real time is recorded and the next
+grant is sized from it.
 
-**Proposed grants** (the Publisher schedules them; there's no rest coded into the tools):
-- **G1, the round:** preflight, then T, Q and D, seed by seed (T0 Q0 D0, T1 Q1 D1, T2 Q2 D2), then I for all
-  three. About 8 h at batch-1 quiz, or about 4 h if B4 builds batching.
-- **G2, sealed:** S for the 3 × 3 sittings, about 6.6 h. It can be split per seed (three grants of about
-  2.2 h).
+**Proposed grants** (the Publisher schedules them and takes the schedule to the maintainer before booking;
+there's no rest coded into the tools):
+- **G0, the panel baseline** (Q3): the base model on B3's panel, its own grant, before G1. It can run while B1
+  is pending. The machine line is recorded, and compared at G1's preflight.
+- **G1, the round:** preflight, then seed by seed: T (ROLE, NO-ROLE), Q (both), A (both), D, P. Then I for the
+  three ROLE adapters. About 6.6 h plus the panel.
+- **G2, sealed:** S for the 3 × 3 sittings, about 6.6 h. It can be one grant, or three of about 2.2 h, one per
+  seed.
 - **Rest:** owed only after a long run on the same device, as the Publisher's scheduling. G2 doesn't start
   straight after G1 unless the Publisher says so.
 
@@ -205,7 +245,7 @@ A change to the design after any counted run is a dated amendment, and it never 
 
 The harness `4fa52448`, score.py `fd59cb50`, score_v2 `64f52f6f`, score_found `55b4d0ea`, no_role.py
 `63162cf4`, stuck.py `8097b039`, stuck rule `716dc251`, the sealed set `e1e515b4`, the student
-`b968826d9c46`, gates 1.7.1 (after B5), and the data `<FROZEN_DATA_SHA>`. Each run's manifest and receipt
+`b968826d9c46`, gates 1.7.1 (after B5), the data `<FROZEN_DATA_SHA>`, and the NO-ROLE file from the composition check. Each run's manifest and receipt
 records them. A mismatch at start is refused.
 
 ## 10. The cleanup record
@@ -222,14 +262,18 @@ At the end of each grant, the run note records:
 - **In the repo:** a run note with hashes, times, peaks, actions and the DEV and quiz figures. No sealed
   content, no sealed scores before round F, and no machine paths.
 
-## 11. Open questions for the review
+## 11. Rulings on the review's questions (R&D, 2026-10-15)
 
-- **Q1.** NO-ROLE in round 1: leave it out (as drafted), or train its compute-matched round now (about 21 min)
-  so Phase B's control tracks ROLE round by round?
-- **Q2.** B4, batched quiz generation: is it worth building before round 1? It saves about 3.5 h a round, but
-  changes the generate path, so it needs its own design note.
-- **Q3.** Should the panel (B3) be scored on the base model in the same grant as preflight, or in its own
-  grant?
+- **Q1, NO-ROLE:** it trains in round 1, in lockstep. Steering is pooled across both arms, so round 2 needs
+  NO-ROLE's round-1 readings, and both arms then share pins, gates and machine.
+- **Q2, batched quiz and apply:** build it before round 1, as the approved procedure planned, with a short design
+  note (B4). DEV and sealed stay at batch 1.
+- **Q3, the panel baseline:** its own grant (G0), before G1.
+
+**Still open:**
+- **Q4.** B6's apply items come from role-set, whose session is parked. If B6 isn't ready when B1 is, does
+  round 1 run with E-only steering readings (C and D cells unsteered in round 2, disclosed), or wait for B6?
+  That's for R&D and the maintainer.
 
 ## Standards compliance
 
