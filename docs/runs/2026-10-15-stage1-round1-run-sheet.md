@@ -291,7 +291,6 @@ At the end of each grant, the run note records:
   note (B4). DEV and sealed stay at batch 1.
 - **Q3, the panel baseline:** its own grant (G0), before G1.
 
-**Still open:**
 - **Q4, B6 lagging B1 (ruled):** wait for B6. Round 1 doesn't start on E-only readings: every session from round
   2 on has the apply sitting, so round 1 must too, and a partially steered round 2 would muddy the steered curve.
   The apply items are written in the same pass as batches 7–8. If they still don't land together, the measured
