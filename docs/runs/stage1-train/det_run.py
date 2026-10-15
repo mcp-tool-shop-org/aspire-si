@@ -18,7 +18,8 @@ Before anything is imported from torch, it sets CUBLAS_WORKSPACE_CONFIG. Then, a
 
 **The machine line, a hard stop (run sheet §3; Argon's Q2).** The GPU name, the driver, torch's CUDA, torch and
 transformers are read first. With --machine-line, any field that differs from the frozen line stops the sitting
-before a model loads (exit 5). G0 alone writes the frozen line, with --write-machine-line.
+before a model loads (exit 5). G0's M1 alone writes the frozen line, with --write-machine-line, which refuses
+an existing file (exit 7). M2 and every later sitting check it.
 
 `wrapper-config.json` in the target's --out directory records:
 - the settings, the machine line, and this file's sha256;
@@ -31,7 +32,8 @@ Exit codes:
 - the target's own on success;
 - 4: a strict deterministic op raised; rerun with --warn-only into a fresh directory;
 - 5: the machine line differs;
-- 6: a resume under a different wrapper config.
+- 6: a resume under a different wrapper config;
+- 7: --write-machine-line names a file that already exists (the frozen line is never overwritten).
 """
 
 import os
@@ -53,7 +55,7 @@ from _evaldir import EVAL_DIR  # noqa: E402
 sys.path.insert(0, str(EVAL_DIR))
 TARGETS = ("harness", "eval_adapter", "interview_adapter")
 MACHINE_FIELDS = ("gpu", "driver", "cuda", "torch", "transformers")
-EXIT = {"strict_raised": 4, "machine_line": 5, "resume": 6}
+EXIT = {"strict_raised": 4, "machine_line": 5, "resume": 6, "line_exists": 7}
 
 
 def gpu_line() -> dict:
@@ -122,7 +124,12 @@ def main(argv=None) -> int:
             print("machine line differs from the frozen line, stopping: " + "; ".join(diff), flush=True)
             return EXIT["machine_line"]
     else:
-        Path(a.write_machine_line).write_text(json.dumps(now, indent=1), encoding="utf-8")
+        target_line = Path(a.write_machine_line)
+        if target_line.exists():  # a wrong flag must never re-freeze the line and pass (R&D)
+            print(f"refusing to overwrite the frozen machine line {target_line.name}; a new line needs a dated "
+                  "amendment and a new G0", flush=True)
+            return EXIT["line_exists"]
+        target_line.write_text(json.dumps(now, indent=1), encoding="utf-8")
 
     import torch
     from torch.nn.attention import SDPBackend, sdpa_kernel
@@ -166,6 +173,8 @@ def main(argv=None) -> int:
         record["warned_ops"] = sorted({str(w.message) for w in caught or []
                                        if "deterministic" in str(w.message).lower()})
         save()
+        for w in caught or []:  # recording them must not hide them: every warning is shown as usual
+            warnings.showwarning(w.message, w.category, w.filename, w.lineno)
 
 
 if __name__ == "__main__":

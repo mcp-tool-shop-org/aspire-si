@@ -69,6 +69,20 @@ def test_g0_writes_the_frozen_line(rig, tmp_path):
     assert json.loads(line.read_text(encoding="utf-8")) == LINE
 
 
+def test_writing_the_frozen_line_refuses_an_existing_file(rig, capsys):
+    """A wrong flag on a later sitting must not re-freeze the line and pass (R&D on #122)."""
+    rig["frozen"].write_text(json.dumps({**LINE, "driver": "617.14"}), encoding="utf-8")
+    assert det_run.main(args(rig, "--write-machine-line", str(rig["frozen"]))) == 7
+    assert "argv" not in rig["seen"] and "refusing to overwrite" in capsys.readouterr().out
+    assert json.loads(rig["frozen"].read_text(encoding="utf-8"))["driver"] == "617.14"  # untouched
+
+
+def test_recorded_warnings_are_still_shown(rig, capsys):
+    rig["seen"]["warn"] = True
+    with pytest.warns(UserWarning, match="deterministic implementation"):
+        det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--warn-only"))
+
+
 def test_a_strict_deterministic_raise_stops_for_a_warn_only_rerun(rig):
     rig["seen"]["raise"] = True
     assert det_run.main(args(rig, "--machine-line", str(rig["frozen"]))) == 4
