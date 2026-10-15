@@ -87,8 +87,9 @@ compares batched quiz and apply readings against those thresholds. They stay com
 1. **The rule reads only what the batched path keeps the same.** It reads the finished text (spans, quotes,
    re-reads, hedges), the thinking-token count and whether the 16,384 cap was reached. It never reads timing or
    batch shape. The batched path keeps the cap and the total-length rule unchanged. A continuation joins the text
-   exactly, and its thinking tokens are counted by re-tokenizing the final text, the way batch-1 traces are counted.
-   So a long answer split over chunks is measured as one answer.
+   exactly. Thinking tokens are counted by re-tokenizing the final thinking text with the student's tokenizer,
+   as quiz.py counts batch-1 traces. The total the cap clause reads (`total_tokens`) is the sum of the tokens each
+   chunk generated. So a long answer split over chunks is measured as one answer.
 2. **The traces themselves must be alike, so that's measured, not assumed.** Padding and batched bf16 matmuls move
    the logits slightly, and a chunk's re-prefill changes the RNG stream. Either could shift how long or how
    loopy the thinking runs, which is exactly what the thresholds sit on. So §5's parity run compares the rule's own
@@ -102,8 +103,9 @@ on parity, which is what §5 checks.
 
 ## 5. Parity check, before round 1 (pre-registered)
 
-- **The set:** 30 kind-E verdict variants (n = 0) from the frozen data, fixed by id before the run, 2 per lesson
-  where possible, plus 20 apply-style C/D prompts once B6 exists. The base model, no adapter: parity is a
+- **The set:** 30 of the 51 kind-E verdict variants (n = 0) in batches 1–6, none spent (checked at 0c181e4),
+  2 per lesson across the 16 lessons, fixed by id before the run. Batches 7–8 aren't needed, because parity is a
+  property of the path, not of the lessons. Plus 20 apply-style C/D prompts once B6 exists. The base model, no adapter: parity is a
   property of the path, and the base model needs no training run.
 - **Three draws:** batch 1 at seeds 0–2 (P1), batch 1 at seeds 3–5 (P1′), and batched (PB). That's 90
   generations each.
