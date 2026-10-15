@@ -58,7 +58,7 @@ All of these are fixed before round 1. None is written or changed for this sheet
 | Sealed 130 | 130 tasks | ROLE | 3 training × 3 sample = 9 sittings | G1, stored unopened until round F |
 | DEV (pilot 30) | 30 tasks | ROLE | 3 × 3 | the stop rule's first point; descriptive |
 | Quiz | the ledger's due kind-E items: 75 askable today (51 verdict, 24 closed-form), about 105 after batches 7–8 | both | majority of 3 per ask | the mastery ledger; **the E steering cells' stuck readings** |
-| Apply | 10 fresh items per lesson (21 lessons), kinds C and D, written by role-set, never trained, kept out of the reserve and steering material | both | 1 sample per item | **the C and D steering cells' stuck readings**; STaR stays off (§5) |
+| Apply | 10 fresh items per lesson (21 lessons), kinds C and D, written by role-set, never trained, kept out of the reserve and steering material | both | 1 sample per item | **the C and D steering cells' stuck readings**, and STaR's kept answers (§5) |
 | Pre-interview | 12 questions | ROLE now; NO-ROLE after Stage 1 | 3 per adapter | descriptive (Q1–11) and the one tested measure |
 | General-capability panel | R&D's design (B3) | ROLE | per the design | the 2-point guard, every session |
 
@@ -79,6 +79,24 @@ These come from the evaluation plan, unchanged.
     can't fire at round 1.
   - The panel guard: if the panel falls more than 2 points below its baseline, round 2 waits for the
     maintainer.
+- **STaR (the apply step's kept answers).** The approved procedure keeps the apply answers that are right *and*
+  pass the lesson's rule as extra training for the next session. This sheet doesn't change that. R&D's rulings of
+  2026-10-11 set how it runs:
+  - **It's off until the apply items exist.** With no apply items there's nothing to keep, and the quiz readout
+    reports STaR as off. So STaR is on in round 1 exactly when B6 is done.
+  - **The keep rule:** an answer is kept only when all three lines pass the pinned scorer (the verdict, DECIDING
+    verbatim and covering the key, ESCALATE), it meets the lesson's quiz pass rule, and its trace isn't stuck
+    under the frozen rule (716dc251). Refusals are logged by reason.
+  - **The apply material** is unseen. It's kept out of training (only the kept answers enter session 2, as the
+    procedure says), the reserve and steering.
+  - **If B6 lags B1** (Q4): round 1 runs with STaR off and E-only steering readings, disclosed in the run note.
+    Round 1 training itself doesn't depend on STaR, because kept answers only enter session 2.
+
+  Two questions for R&D before STaR first keeps anything (Q5):
+  - **NO-ROLE:** does it keep its own apply answers, to stay compute-matched, or none?
+  - **TRACE_REUSED:** kept answers are model traces entering training through STaR's own channel. That's
+    separate from generated item text, which TRACE_REUSED governs. The store should mark kept answers so the
+    gate doesn't later count them as dataset wording.
 - **Reported for round 1:**
   - DEV accuracy per seed and the mean, with the between-seed SD;
   - the quiz readout: n = 0 against n ≥ 1, per lesson and overall, with the written E left out and counted;
@@ -271,6 +289,7 @@ At the end of each grant, the run note records:
 - **Q3, the panel baseline:** its own grant (G0), before G1.
 
 **Still open:**
+- **Q5.** STaR in NO-ROLE, and kept answers against TRACE_REUSED (§5).
 - **Q4.** B6's apply items come from role-set, whose session is parked. If B6 isn't ready when B1 is, does
   round 1 run with E-only steering readings (C and D cells unsteered in round 2, disclosed), or wait for B6?
   That's for R&D and the maintainer.
