@@ -40,54 +40,30 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 14,
-      "changed": 22,
+      "added": 2,
+      "changed": 0,
       "moved": 0,
-      "parts": 2,
+      "parts": 1,
       "removed": 0
     },
     "items": [
       {
-        "kind": "door",
-        "sentence": "CI's pull request trigger now also names `docs/runs/**`, `packages/**` and `verifier-distill-prereg-draft`.",
-        "subjects": [
-          ".github/workflows/ci.yml"
-        ]
-      },
-      {
-        "kind": "door",
-        "sentence": "CI now also runs docs/runs/stage1-train/ and packages/aspire-si-gates/tests/.",
-        "subjects": [
-          ".github/workflows/ci.yml",
-          "docs/runs/stage1-train/",
-          "packages/aspire-si-gates/tests/"
-        ]
-      },
-      {
         "kind": "landing",
-        "sentence": "docs/runs/stage1-train/interview_adapter.py is now read by docs/runs/stage1-train/interview_adapter.py.",
+        "sentence": "docs/runs/stage1-train/det_run.py is now read by docs/runs/stage1-train/det_run.py.",
         "subjects": [
-          "docs/runs/stage1-train/interview_adapter.py",
-          "docs/runs/stage1-train/interview_adapter.py"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "docs/runs/stage1-training-data/ is now also read by docs/runs/stage1-train/test_puzzle_parity.py.",
-        "subjects": [
-          "docs/runs/stage1-training-data/",
-          "docs/runs/stage1-train/test_puzzle_parity.py"
+          "docs/runs/stage1-train/det_run.py",
+          "docs/runs/stage1-train/det_run.py"
         ]
       },
       {
         "kind": "counts",
-        "sentence": "14 files added and 22 changed content, across 2 parts.",
+        "sentence": "2 files added, across 1 part.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "f9f4901e20e2fde4727d56881f18778a80845dd5",
-      "generatedAt": "2026-10-12T00:48:29.992Z"
+      "commit": "4ba517c4a5d6553f7f0a82e52f1ffe6434886b12",
+      "generatedAt": "2026-10-15T21:51:15.338Z"
     },
     "unchanged": false
   },
@@ -174,9 +150,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 6 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "4ba517c4a5d6553f7f0a82e52f1ffe6434886b12",
+  "commit": "bbe8e1e24d9f0ff0454eeabc552413f7686d1ca4",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (236 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (238 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -199,7 +175,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 31
+          "files": 33
         },
         {
           "boundary": "examples",
@@ -356,11 +332,11 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-15T21:51:15.338Z",
+  "generatedAt": "2026-10-15T22:00:17.145Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "17 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 14 more.",
-    "16 writes and 35 reads use paths built at run time and are not named here.",
+    "18 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/det_run.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; and 15 more.",
+    "17 writes and 36 reads use paths built at run time and are not named here.",
     "66 writes and 83 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.",
@@ -413,13 +389,13 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 105,
+  "testFiles": 106,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
     "integrations": 21
   },
-  "unnamedWrites": 16,
+  "unnamedWrites": 17,
   "unread": [],
   "unreadFiles": 0,
   "unreadNote": [],
