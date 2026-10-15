@@ -18,6 +18,9 @@
     by the seed, until every lesson is used up.
   Every order trains every sequence once per epoch: only the sequence in time changes. A non-default order is
   a measured change: pre-register it before the run it's used in.
+- Rounds chain: round r >= 2 starts from round r-1's adapter (--init-adapter, through run.py's train arguments).
+  Its path and the sha256 of its weights are recorded in the manifest and every checkpoint, and a resume under a
+  different init adapter is refused.
 - Refuses the data on any schema error, a leakage hit against the held-out sets or the pre-interview, or a
   sequence over the length limits (target <= 3,000 tokens, whole sequence <= 4,096): refused, never truncated.
 - Writes: adapter/, manifest.json (data sha256s, seed, settings, adapter sha256, machine line, timing),
@@ -80,6 +83,17 @@ class Stop(Exception):
     def __init__(self, reason: str, code: int, **detail):
         super().__init__(reason)
         self.reason, self.code, self.detail = reason, code, detail
+
+
+def init_adapter_identity(path) -> dict | None:
+    """The round this one continues from (--init-adapter, round r-1's adapter): its path as given and the sha256 of
+    its weights, recorded in the manifest and every checkpoint, so a resume under another init adapter is refused."""
+    if not path:
+        return None
+    weights = Path(path) / "adapter_model.safetensors"
+    if not weights.exists():
+        raise SystemExit(f"--init-adapter {path}: no adapter_model.safetensors there")
+    return {"path": str(path), "sha256": sha256_file(weights)}
 
 
 def sha256_file(p: Path) -> str:
@@ -353,7 +367,7 @@ def main(argv=None):
                           "lessons": None if a.order == "shuffled" else lesson_sequence(seqs, lesson_order)},
                 "freeze_report": freeze, "closed_form": closed_form,
                 "closed_form_figures": data.closed_form_figures(rows),
-                "init_adapter": a.init_adapter}
+                "init_adapter": init_adapter_identity(a.init_adapter)}
     if a.dry_run:
         print(json.dumps({k: v for k, v in manifest.items() if k != "student"}, indent=1))
         return 0
@@ -422,6 +436,9 @@ def train(a, seqs, manifest, out, events):
             raise SystemExit("refusing to resume: code or data differ from the checkpoint")
         if st.get("order", manifest["order"]) != manifest["order"]:
             raise SystemExit("refusing to resume: the training order differs from the checkpoint's")
+        if (st.get("init_adapter") or {}).get("sha256") != (manifest["init_adapter"] or {}).get("sha256"):
+            raise SystemExit("refusing to resume: the init adapter (the previous round's) differs from the "
+                             "checkpoint's")
         model.load_adapter(str(ckpt / "adapter"), adapter_name="default", is_trainable=True)
         opt.load_state_dict(torch.load(ckpt / "optimizer.pt", map_location=dev))
         rng = torch.load(ckpt / "rng.pt", weights_only=False)
@@ -455,6 +472,7 @@ def train(a, seqs, manifest, out, events):
         except StopRequested as e:
             if step > saved_at:  # flush: the steps finished since the last checkpoint are kept
                 state = {"step": step, "code_sha256": manifest["code_sha256"], "data": manifest["data"], "order": manifest["order"],
+                     "init_adapter": manifest["init_adapter"],
                          "train_seconds": prior_seconds + time.time() - t0 - paused,
                          "paused_seconds": prior_paused + paused}
                 with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
@@ -525,6 +543,7 @@ def train(a, seqs, manifest, out, events):
         print(json.dumps(rec), flush=True)
         if (step + 1) % a.ckpt_every == 0 or step + 1 == total_steps:
             state = {"step": step + 1, "code_sha256": manifest["code_sha256"], "data": manifest["data"], "order": manifest["order"],
+                     "init_adapter": manifest["init_adapter"],
                      "train_seconds": prior_seconds + time.time() - t0 - paused,
                      "paused_seconds": prior_paused + paused}
             with_retry(lambda: save_checkpoint(out, model, opt, state, torch), "checkpoint", events)
