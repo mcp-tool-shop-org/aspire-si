@@ -18,6 +18,7 @@ REASONS = {
     "PUZZLE_SHAPE_BATCH": "two puzzles in this batch are already shaped {x}; use another structure",
     "OPENING_REUSED": "the opening '{x}' already opens 2 items of this trait; vary it",
     "B_PHRASE_REUSED": "the phrase '{x}' is already in 2 kind B items of this trait; reword it",
+    "TRACE_REUSED": "the wording '{x}' comes from a stored model trace; item text is never drawn from traces",
 }
 
 
@@ -90,3 +91,24 @@ def check_against(r: dict, accepted: list[dict], pre_amendment=PRE_AMENDMENT_LES
         if hit:
             out.append(_reason("B_PHRASE_REUSED", hit[0]))
     return out
+
+
+def _row_text(r: dict) -> str:
+    return "\n".join(t.get(k) or "" for t in r.get("turns") or [] for k in ("user", "thinking", "reply"))
+
+
+def check_not_from_traces(r: dict, traces) -> list[tuple]:
+    """[("TRACE_REUSED", message)] when any 8-word span of a stored model trace (the student's or a judge's output,
+    from the role store) appears in the row's turns; [] otherwise. Traces are observations, never item text.
+
+    Spans the row's own material lines also hold are not counted: a trace quotes the material it was given, and the
+    material is checked against its cited source by the source gates. Every lesson is checked; the pre-amendment
+    exemptions don't apply to new rows."""
+    own = G._shingles(G._content_lines(r))
+    mine = G._shingles(_row_text(r)) - own
+    if not mine:
+        return []
+    hit = set()
+    for t in traces:
+        hit |= mine & G._shingles(t or "")
+    return [_reason("TRACE_REUSED", min(hit))] if hit else []
