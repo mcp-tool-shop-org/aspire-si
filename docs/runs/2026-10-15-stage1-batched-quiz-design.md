@@ -78,6 +78,28 @@ R&D ruled (#115, Q2) to build it before round 1, with this note first.
 | Numerics | bf16, unpadded | bf16 with left padding: small logit differences, so a distribution-level check |
 | Stuck fields and rule | from the text and token counts | the same inputs, the same rule (716dc251) |
 
+## 4a. Do batched readings stay comparable with the frozen stuck thresholds? (Argon's Q3)
+
+The stuck rule (`716dc251`, `stuck.py` `8097b039`) was frozen from **batch-1** traces of the untrained model:
+the tier p95s of thinking tokens, the re-read baseline of 8.09 per 1,000, and the burst parameters. Steering
+compares batched quiz and apply readings against those thresholds. They stay comparable on three conditions.
+
+1. **The rule reads only what the batched path keeps the same.** It reads the finished text (spans, quotes,
+   re-reads, hedges), the thinking-token count and whether the 16,384 cap was reached. It never reads timing or
+   batch shape. The batched path keeps the cap and the total-length rule unchanged. A continuation joins the text
+   exactly, and its thinking tokens are counted by re-tokenizing the final text, the way batch-1 traces are counted.
+   So a long answer split over chunks is measured as one answer.
+2. **The traces themselves must be alike, so that's measured, not assumed.** Padding and batched bf16 matmuls move
+   the logits slightly, and a chunk's re-prefill changes the RNG stream. Either could shift how long or how
+   loopy the thinking runs, which is exactly what the thresholds sit on. So §5's parity run compares the rule's own
+   inputs and each clause, not only the stuck total.
+3. **The thresholds are never re-frozen on batched traces.** If parity fails on the stuck inputs, B4 stops and R&D
+   decides. A threshold isn't moved to fit the batched path. That keeps the rule one rule from the baseline on.
+
+**Within Stage 1, every quiz and apply reading is on the batched path from round 1** (§2). So round-to-round
+changes in a cell's stuck rate are path-consistent. Only the absolute level against the frozen thresholds depends
+on parity, which is what §5 checks.
+
 ## 5. Parity check, before round 1 (pre-registered)
 
 - **The set:** 30 kind-E verdict variants (n = 0) from the frozen data, fixed by id before the run, 2 per lesson
@@ -96,6 +118,9 @@ R&D ruled (#115, Q2) to build it before round 1, with this note first.
   - PB's median thinking tokens within ±15% of P1's;
   - PB's stuck rate within ±0.10 of P1's;
   - PB's truncations no more than P1's + 1.
+  - **The stuck rule's inputs and clauses (4a):** PB's rate for each clause (A: repeated span; B: the cap; C:
+    long and not progressing), its re-read rate median, its burst share and its median thinking tokens per tier
+    each sit within the P1–P1′ difference plus 0.05 (rates) or 15% (tokens) of P1's.
 
   A fail stops B4 until R&D decides. It never moves the thresholds.
 - **Also measured:** the peak memory.used at `B_tok` (it must be ≤ 26 GB), and the batched speed-up over P1.
