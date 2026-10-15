@@ -452,15 +452,20 @@ def load_models(data_path) -> dict:
     return out
 
 
+def puzzle_sig(r: dict, models: dict | None = None) -> tuple:
+    """A puzzle's structure signature: the model signature where the item has a sidecar model, else the regex
+    signature. The one definition the batch gate (puzzle_repeats) and the one-at-a-time check (check_against)
+    share, so the two can't disagree (R&D, 2026-10-15)."""
+    m = (models or {}).get(r.get("id"))
+    return model_signature(m) if m else puzzle_signature(r)
+
+
 def puzzle_repeats(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, models: dict | None = None) -> dict:
-    """{signature: [(lesson, id)]} for the non-verification B puzzles: the model signature where a sidecar model
-    exists, else the regex signature."""
+    """{signature: [(lesson, id)]} for the non-verification B puzzles, signed by puzzle_sig."""
     seen: dict = {}
     for r in rows:
         if r.get("lesson") not in skip and _is_puzzle(r):
-            m = (models or {}).get(r["id"])
-            sig = model_signature(m) if m else puzzle_signature(r)
-            seen.setdefault(sig, []).append((r["lesson"], r["id"]))
+            seen.setdefault(puzzle_sig(r, models), []).append((r["lesson"], r["id"]))
     return seen
 
 

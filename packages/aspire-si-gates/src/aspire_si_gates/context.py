@@ -26,10 +26,6 @@ def _reason(code: str, x="") -> tuple:
     return code, REASONS[code].format(x=x)
 
 
-def _shape(sig) -> str:
-    return f"{sig[0]} entities, {' + '.join(sig[1]) or 'no cues'}"
-
-
 def _opening(r: dict) -> str:
     words = G.re.findall(r"[a-z']+", r["turns"][0]["user"].lower())[:6]
     return " ".join(words) if len(words) == 6 else ""
@@ -39,9 +35,12 @@ def _b_shingles(r: dict) -> set:
     return G._shingles(" ".join(t["thinking"] + " " + t["reply"] for t in r["turns"]))
 
 
-def check_against(r: dict, accepted: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS) -> list[tuple]:
+def check_against(r: dict, accepted: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS,
+                  models: dict | None = None) -> list[tuple]:
     """[(code, message)] for every exclusivity rule the row breaks against the accepted rows, one example per code,
-    in a fixed order; [] when it may be accepted. Run check_item on the row as well."""
+    in a fixed order; [] when it may be accepted. Run check_item on the row as well. `models` is the {id: model}
+    map of sidecar models (the new row's and the accepted rows'): puzzles are signed by gates.puzzle_sig, as the
+    batch gate signs them."""
     out = []
     if r.get("id") in {a.get("id") for a in accepted}:
         out.append(_reason("DUPLICATE_ID", r.get("id")))
@@ -69,12 +68,12 @@ def check_against(r: dict, accepted: list[dict], pre_amendment=PRE_AMENDMENT_LES
             out.append(_reason("MATERIAL_REUSED"))
     # puzzle structure: once per lesson, twice per batch
     if G._is_puzzle(r):
-        sig = G.puzzle_signature(r)
-        if any(G._is_puzzle(a) and G.puzzle_signature(a) == sig for a in same):
-            out.append(_reason("PUZZLE_SHAPE_REUSED", _shape(sig)))
+        sig = G.puzzle_sig(r, models)
+        if any(G._is_puzzle(a) and G.puzzle_sig(a, models) == sig for a in same):
+            out.append(_reason("PUZZLE_SHAPE_REUSED", G.describe_signature(sig)))
         elif sum(1 for a in accepted if a.get("lesson") not in pre_amendment and G._is_puzzle(a)
-                 and G.puzzle_signature(a) == sig) >= 2:
-            out.append(_reason("PUZZLE_SHAPE_BATCH", _shape(sig)))
+                 and G.puzzle_sig(a, models) == sig) >= 2:
+            out.append(_reason("PUZZLE_SHAPE_BATCH", G.describe_signature(sig)))
     # the 6-word opening of a C, D or E user turn: at most 2 items of a lesson
     if r.get("kind") in ("C", "D", "E"):
         op = _opening(r)
