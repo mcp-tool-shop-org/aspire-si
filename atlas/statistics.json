@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 46,
+      "qualifyingSourceCommits": 49,
       "rebaseline": null
     },
     {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 27,
-        "lines": 644,
+        "commits": 28,
+        "lines": 658,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 27,
-        "lines": 2061,
+        "commits": 28,
+        "lines": 2091,
         "path": "atlas/page.json"
       },
       {
-        "commits": 27,
-        "lines": 7486,
+        "commits": 28,
+        "lines": 7563,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 27,
-        "lines": 17380,
+        "commits": 28,
+        "lines": 17554,
         "path": "atlas/structure.json"
       },
       {
@@ -640,6 +640,11 @@
       },
       {
         "commits": 1,
+        "lines": 169,
+        "path": "docs/runs/2026-10-15-stage1-batched-quiz-design.md"
+      },
+      {
+        "commits": 1,
         "lines": 335,
         "path": "docs/runs/2026-10-15-stage1-round1-run-sheet.md"
       },
@@ -765,6 +770,11 @@
       },
       {
         "commits": 1,
+        "lines": 218,
+        "path": "docs/runs/stage1-train/batched.py"
+      },
+      {
+        "commits": 1,
         "lines": 86,
         "path": "docs/runs/stage1-train/compare_raw.py"
       },
@@ -779,9 +789,14 @@
         "path": "docs/runs/stage1-train/det_run.py"
       },
       {
-        "commits": 4,
-        "lines": 109,
+        "commits": 6,
+        "lines": 129,
         "path": "docs/runs/stage1-train/eval_adapter.py"
+      },
+      {
+        "commits": 2,
+        "lines": 172,
+        "path": "docs/runs/stage1-train/format_report.py"
       },
       {
         "commits": 1,
@@ -800,7 +815,12 @@
       },
       {
         "commits": 2,
-        "lines": 344,
+        "lines": 247,
+        "path": "docs/runs/stage1-train/parity.py"
+      },
+      {
+        "commits": 3,
+        "lines": 392,
         "path": "docs/runs/stage1-train/quiz.py"
       },
       {
@@ -830,6 +850,11 @@
       },
       {
         "commits": 1,
+        "lines": 133,
+        "path": "docs/runs/stage1-train/test_batched.py"
+      },
+      {
+        "commits": 1,
         "lines": 66,
         "path": "docs/runs/stage1-train/test_compare_raw.py"
       },
@@ -847,6 +872,11 @@
         "commits": 1,
         "lines": 39,
         "path": "docs/runs/stage1-train/test_eval_adapter.py"
+      },
+      {
+        "commits": 2,
+        "lines": 112,
+        "path": "docs/runs/stage1-train/test_format_report.py"
       },
       {
         "commits": 1,
@@ -870,12 +900,17 @@
       },
       {
         "commits": 1,
+        "lines": 65,
+        "path": "docs/runs/stage1-train/test_parity.py"
+      },
+      {
+        "commits": 1,
         "lines": 85,
         "path": "docs/runs/stage1-train/test_puzzle_parity.py"
       },
       {
-        "commits": 4,
-        "lines": 249,
+        "commits": 5,
+        "lines": 267,
         "path": "docs/runs/stage1-train/test_quiz.py"
       },
       {
@@ -2224,9 +2259,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-15T22:27:13.456Z",
+  "generatedAt": "2026-10-15T23:46:58.058Z",
   "generatedFrom": {
-    "commit": "cfd95d36ac8def9bf4046c6cf2d341ed2092819f"
+    "commit": "961a6dc0c9bc289a0acd89f8682237e0416f78f8"
   },
   "pairs": [
     {
@@ -2435,43 +2470,43 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 20,
-      "shared": 20,
+      "either": 21,
+      "shared": 21,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 20,
-      "shared": 20,
+      "either": 21,
+      "shared": 21,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 20,
-      "shared": 20,
+      "either": 21,
+      "shared": 21,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 20,
-      "shared": 20,
+      "either": 21,
+      "shared": 21,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 20,
-      "shared": 20,
+      "either": 21,
+      "shared": 21,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 20,
-      "shared": 20,
+      "either": 21,
+      "shared": 21,
       "strength": 1
     },
     {
@@ -2716,16 +2751,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-15T15:12:48-07:00",
-    "inScopeFiles": 419,
+    "headDate": "2026-10-15T19:12:16-04:00",
+    "inScopeFiles": 423,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 194,
+    "qualifyingCommits": 197,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-18T22:12:48.000Z",
+    "since": "2026-04-18T23:12:16.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",

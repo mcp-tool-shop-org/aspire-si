@@ -1812,10 +1812,10 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 16,
+      "dynamicReads": 20,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
-      "dynamicWrites": 14,
+      "dynamicWrites": 17,
       "entryPoints": [],
       "externals": 0,
       "files": [
@@ -2200,6 +2200,74 @@
         },
         {
           "exports": [
+            "check_item",
+            "key_of",
+            "load_items",
+            "main",
+            "match_and_cap",
+            "prior_counts",
+            "sit",
+            "star_rows",
+            "trained_items"
+          ],
+          "failurePaths": [
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 63
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 65
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 67
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 70
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 72
+            },
+            {
+              "in": "load_items",
+              "kind": "raise",
+              "line": 80
+            },
+            {
+              "in": "write",
+              "kind": "except",
+              "line": 251
+            }
+          ],
+          "hash": "3eba5f577a19c04a917b2788d562574703404ed01388bedf10930684ad639bf2",
+          "importOrder": [
+            "docs/runs/stage1-train/quiz.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
+            "docs/runs/stage1-train/batched.py",
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/stuck_adapter.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-train/batched.py",
+            "docs/runs/stage1-train/quiz.py",
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+          ],
+          "path": "docs/runs/stage1-train/apply.py"
+        },
+        {
+          "exports": [
             "generate_all",
             "make_generate_many",
             "plan",
@@ -2319,6 +2387,7 @@
         {
           "exports": [
             "frozen_adapter_problem",
+            "is_sealed",
             "main",
             "sealed_read_allowed",
             "sha256_file"
@@ -2327,19 +2396,30 @@
             {
               "in": "main",
               "kind": "raise",
-              "line": 72
+              "line": 75
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 82
+              "line": 85
             }
           ],
-          "hash": "632ee2c7dad5cfc31501a4aab0a38f498ad727bf82345176793fc0366bf24b85",
+          "hash": "e39a2aec4a1bc83102dba01c1a2e392a9305c70b481384b8ebbf0b5466edfd36",
           "importsFiles": [
-            "docs/runs/stage1-train/_evaldir.py"
+            "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/format_report.py"
           ],
           "path": "docs/runs/stage1-train/eval_adapter.py"
+        },
+        {
+          "exports": [
+            "classify",
+            "main",
+            "summarise",
+            "write"
+          ],
+          "hash": "d7e23204b0ade75cd0ded70995dc9ee87ca6c6cda55f38e64e3eaa70514d0cce",
+          "path": "docs/runs/stage1-train/format_report.py"
         },
         {
           "exports": [
@@ -2470,13 +2550,22 @@
             {
               "in": "compare_i",
               "kind": "raise",
-              "line": 110
+              "line": 116
             }
           ],
-          "hash": "ee9cb5bce1432d09a183ebf60ef19fe85df3a5f4262f801c26f88a5cd122c8f7",
+          "hash": "360143322a7c392d8c5bc8f3065d66e0e6f5cb641af13608e8e0676b26a94f21",
+          "importOrder": [
+            "docs/runs/stage1-train/batched.py",
+            "docs/runs/stage1-train/det_run.py",
+            "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/quiz.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+          ],
           "importsFiles": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/data.py",
+            "docs/runs/stage1-train/det_run.py",
             "docs/runs/stage1-train/quiz.py",
             "docs/runs/stage1-train/stuck_adapter.py",
             "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
@@ -2493,6 +2582,7 @@
             "quiz_type",
             "readout",
             "score_sample",
+            "score_three_lines",
             "sit",
             "stuck_fields",
             "trained_spans"
@@ -2506,25 +2596,25 @@
             {
               "in": "load_variants",
               "kind": "raise",
-              "line": 163
+              "line": 169
             },
             {
               "in": "sit",
               "kind": "except",
-              "line": 216
+              "line": 222
             },
             {
               "in": "generate",
               "kind": "raise",
-              "line": 318
+              "line": 324
             },
             {
               "in": "write",
               "kind": "except",
-              "line": 329
+              "line": 335
             }
           ],
-          "hash": "9029eb0a9e035a35356b9daefa06c8bd20ab4fe334bbd67649c1a563466a5a56",
+          "hash": "1a1d04328ba9789a2989c7fc65bc182775bd7d7e804fb39f2f87ff9ad0f9536f",
           "importOrder": [
             "docs/runs/stage1-train/_evaldir.py",
             "docs/runs/stage1-train/data.py",
@@ -2768,6 +2858,36 @@
         },
         {
           "exports": [
+            "cand",
+            "count",
+            "gen_many",
+            "item",
+            "sit",
+            "test_a_rehearsal_receipt_row_passes_the_firewall",
+            "test_an_untestable_lesson_rule_holds_the_answer_never_keeps_it",
+            "test_each_item_is_asked_once_with_a_per_session_seed_and_scored_by_the_pinned_scorer",
+            "test_item_trained_is_recorded_and_split_per_cell",
+            "test_star_matches_the_arms_caps_cumulatively_and_drops_near_duplicates",
+            "test_star_rows_are_relabelled_for_training",
+            "test_stuck_uses_the_frozen_rule_and_refuses_the_keep",
+            "test_the_schema_shape_is_enforced"
+          ],
+          "hash": "ba61bffd6e4083d0d1bc90798a3cc1712beaba557b64b3b0dec35ad27b025b13",
+          "importOrder": [
+            "docs/runs/stage1-train/apply.py",
+            "docs/runs/stage1-train/stuck_adapter.py",
+            "docs/runs/stage1-train/receipts.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-train/apply.py",
+            "docs/runs/stage1-train/receipts.py",
+            "docs/runs/stage1-train/stuck_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/test_apply.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "model",
             "run",
             "test_a_rows_tokens_do_not_depend_on_its_batch_mates",
@@ -2887,6 +3007,22 @@
             "docs/runs/stage1-train/eval_adapter.py"
           ],
           "path": "docs/runs/stage1-train/test_eval_adapter.py"
+        },
+        {
+          "exports": [
+            "rec",
+            "test_a_truncated_answer_counts_as_truncated_not_as_a_missing_line",
+            "test_each_task_gets_the_first_class_that_holds",
+            "test_the_sealed_set_is_recognised_so_no_report_is_written_for_it",
+            "test_the_summary_counts_classes_apart_from_correctness"
+          ],
+          "hash": "1d096f8ab31f223361df028e33012fd82b80b0c2f2f3708098a0c8be2836db3e",
+          "importsFiles": [
+            "docs/runs/stage1-train/eval_adapter.py",
+            "docs/runs/stage1-train/format_report.py"
+          ],
+          "path": "docs/runs/stage1-train/test_format_report.py",
+          "testFramework": "pytest"
         },
         {
           "exports": [
@@ -4001,21 +4137,26 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 20,
+          "reads": 22,
           "where": [
             "caller"
           ],
-          "writes": 9
+          "writes": 10
         }
       ],
-      "outsideReads": 20,
-      "outsideWrites": 9,
+      "outsideReads": 22,
+      "outsideWrites": 10,
       "role": "docs",
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 23,
+      "testedBy": 25,
       "unresolvedNamed": [
+        {
+          "path": "docs/runs/stage1-train/apply.py",
+          "specifier": "student",
+          "why": "unplaced"
+        },
         {
           "path": "docs/runs/stage1-train/batched.py",
           "specifier": "harness",
@@ -4025,14 +4166,9 @@
           "path": "docs/runs/stage1-train/det_run.py",
           "specifier": null,
           "why": "dynamic"
-        },
-        {
-          "path": "docs/runs/stage1-train/eval_adapter.py",
-          "specifier": "harness",
-          "why": "unplaced"
         }
       ],
-      "unresolvedSites": 18
+      "unresolvedSites": 19
     },
     {
       "dynamicReads": 14,
@@ -6955,7 +7091,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 37
+          "files": 41
         },
         {
           "boundary": "examples",
@@ -7036,7 +7172,7 @@
         },
         {
           "config": "pyproject.toml",
-          "files": 24,
+          "files": 26,
           "job": "ci",
           "runner": "pytest",
           "step": "Stage 1 gates and trainer tests"
@@ -7464,8 +7600,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "cfd95d36ac8def9bf4046c6cf2d341ed2092819f",
-    "tracked": 414
+    "commit": "961a6dc0c9bc289a0acd89f8682237e0416f78f8",
+    "tracked": 418
   },
   "landings": [
     {
@@ -8271,7 +8407,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 108,
+  "testFiles": 110,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
