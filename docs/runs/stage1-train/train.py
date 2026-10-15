@@ -506,6 +506,9 @@ def train(a, seqs, manifest, out, events):
         torch.nn.utils.clip_grad_norm_(params, 1.0)
         opt.step()
         opt.zero_grad(set_to_none=True)
+        # The step's work ends here: the loss log's and the checkpoint's retries (up to 31 s of backoff) are I/O with
+        # their own retry and disk-full rules, never timed against 5x the median step (R&D on #125).
+        faulthandler.cancel_dump_traceback_later()
         history.append(step_loss)
         step_times.append(time.time() - t_step)
         rec = {"step": step + 1, "of": total_steps, "loss": round(step_loss, 5), "lr": lr_at(step),

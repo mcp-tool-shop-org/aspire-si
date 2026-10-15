@@ -14,6 +14,7 @@ Fault injection, for the runner's tests only (environment variables):
   real stall happens: the stall dump times the work, not the supervisor's check before it);
 - TINY_IO_FAIL=N: the first N loss-log writes raise a transient OSError.
 - TINY_SLOW_S=X: every step waits X seconds first (so a test can land an event mid-run).
+- TINY_SLOW_LOG_S=X: every loss-log write takes X seconds (slow I/O after the step's work).
 """
 
 import os
@@ -74,10 +75,13 @@ def install_faults(argv):
 
     train.Supervisor.check = check
     fail = {"left": int(os.environ.get("TINY_IO_FAIL", 0))}
+    slow_log = float(os.environ.get("TINY_SLOW_LOG_S", 0))
     real_retry = train.with_retry
 
     def with_retry(fn, what, events, sleep=time.sleep):
         def flaky():
+            if what == "loss.jsonl" and slow_log:
+                time.sleep(slow_log)
             if what == "loss.jsonl" and fail["left"] > 0:
                 fail["left"] -= 1
                 raise OSError(5, "injected transient I/O error")

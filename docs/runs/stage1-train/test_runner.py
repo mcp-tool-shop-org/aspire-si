@@ -327,6 +327,19 @@ def test_a_pause_before_a_step_is_never_timed_as_a_stall(tmp_path):
     assert not stack.exists() or stack.read_text(encoding="utf-8").strip() == ""
 
 
+
+@needs_tokenizer
+def test_slow_io_after_a_step_is_never_timed_as_a_stall(tmp_path):
+    """The dump is cancelled when the step's work ends, so the loss log's and the checkpoint's I/O (with their own
+    retries) are never timed against 5x the median step (R&D on #125)."""
+    out = tmp_path / "slow-io"
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": "", "TINY_SLOW_LOG_S": "12"}  # over 5x any step seen here (<2 s)
+    p = subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), "--max-steps", "5", "--ckpt-every", "5"],
+                       env=env, capture_output=True, text=True, timeout=900)
+    assert p.returncode == 0, p.stderr[-2000:]
+    stack = out / "stall-stack.txt"
+    assert not stack.exists() or stack.read_text(encoding="utf-8").strip() == ""
+
 def stall_dump_then(tmp_path, dump: bool):
     """A stand-in trainer: optionally writes a stall dump, then dies with an access violation."""
     t = tmp_path / "av.py"
