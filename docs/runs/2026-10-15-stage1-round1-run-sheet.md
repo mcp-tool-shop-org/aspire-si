@@ -123,10 +123,11 @@ The evaluation plan's 2026-10-10 amendment, point 3.
 - `no_role.py --data <FROZEN FILES> --out <NO-ROLE FILE>` prints both arms' composition tables: verdict mix,
   kinds, correction and escalate counts, multi-line share and NONE share. It also prints the exposure per
   material and the target-token ratio.
-- **The match is exact** (R&D). NO-ROLE is derived one for one from ROLE, so its tables match by construction:
-  any difference, even one item, is a bug in `no_role.py` or in the data it read, and round 1 stops on it.
-- Tables where an exact match isn't expected by construction (the target-token ratio, exposure per material) are
-  reported, not gated.
+- **The gate is the registered one:** R&D checks the tables match within one item per trait. A larger
+  difference stops round 1.
+- NO-ROLE is derived one for one from ROLE, so any non-zero difference within that tolerance is still reported in
+  the run note with its cause, before round 1.
+- The target-token ratio and the exposure per material are reported, not gated.
 - The NO-ROLE file's sha256 is pinned in the run note.
 
 This needs no card, so it runs as soon as `FROZEN.md` lands.
