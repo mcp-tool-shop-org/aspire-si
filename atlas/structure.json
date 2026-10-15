@@ -17,7 +17,7 @@
           "path": ".github/dependabot.yml"
         },
         {
-          "hash": "a181274c0973002492f16d9b5a770ec00a7a494c6f7021031386f7eee3cd2619",
+          "hash": "849c282856731f182b54b1e5862405f8ce62d94d24c18b19e437a69c665664ba",
           "path": ".github/workflows/ci.yml"
         },
         {
@@ -2171,24 +2171,46 @@
           "path": "docs/runs/stage1-student-weights.md"
         },
         {
-          "hash": "b7b8f22fcae6458d5fabbfa3775bf181e866d7b7e61285a535dc751793813a50",
+          "hash": "6db74657a50d59be229f7ea81e5a55170b5a76d8856eb23797540822996b967b",
           "path": "docs/runs/stage1-taskset/taskset-pilot-20.jsonl"
         },
         {
-          "hash": "8dfe4057aeac733f36df518e0cf5741cfa3d939c4a64a18206232eab5601e4eb",
+          "hash": "801387fcb5f74cd086d7534c8af060d80312684b200902106df9a94744cd7ea6",
           "path": "docs/runs/stage1-taskset/taskset-pilot-20.md"
         },
         {
-          "hash": "5f8961dd364fab4a69223c4fc2cc28ba634f361f472830fc246e487e05bb0fa1",
+          "hash": "b97652353deb1d674d1542dbf4b5fe582c8934297153c87cbfada71760ea7771",
           "path": "docs/runs/stage1-taskset/taskset-review-10.jsonl"
         },
         {
-          "hash": "f185603c4c72f23b25fce557bb7d84aea8746d761279bdf106a7d298b7932491",
+          "hash": "87353b55ccf1d265982a4efd7120edf0941e54572afe9a5af863d1877376497f",
           "path": "docs/runs/stage1-taskset/taskset-review-10.md"
         },
         {
           "hash": "454947e6a3ac8c623ce0b5e30048504f285f76ce4d8d213ff147ca4cb2cceffb",
           "path": "docs/runs/stage1-train/_evaldir.py"
+        },
+        {
+          "exports": [
+            "first_difference",
+            "load",
+            "main",
+            "verdict"
+          ],
+          "failurePaths": [
+            {
+              "in": "load",
+              "kind": "raise",
+              "line": 35
+            },
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 75
+            }
+          ],
+          "hash": "8485346e67edbafbe088895b5cbd9e33466451921794406f6be754c7869201c8",
+          "path": "docs/runs/stage1-train/compare_raw.py"
         },
         {
           "exports": [
@@ -2218,6 +2240,7 @@
         },
         {
           "exports": [
+            "frozen_adapter_problem",
             "main",
             "sealed_read_allowed",
             "sha256_file"
@@ -2226,19 +2249,44 @@
             {
               "in": "main",
               "kind": "raise",
-              "line": 66
+              "line": 72
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 76
+              "line": 82
             }
           ],
-          "hash": "52a300dbc9f28a3f33ef25dbf2b0484518e7407af1a35b83fff0d7e8d8db9614",
+          "hash": "632ee2c7dad5cfc31501a4aab0a38f498ad727bf82345176793fc0366bf24b85",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py"
           ],
           "path": "docs/runs/stage1-train/eval_adapter.py"
+        },
+        {
+          "exports": [
+            "main",
+            "sha256_file",
+            "with_adapter"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 56
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 64
+            }
+          ],
+          "hash": "9558f528a17941cef6cadd1a120d9b2cb8f3f62099899ac908ff255f7c241a8e",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/eval_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/interview_adapter.py"
         },
         {
           "failurePaths": [
@@ -2608,6 +2656,23 @@
         },
         {
           "exports": [
+            "raw",
+            "run",
+            "test_a_all_equal_proceeds_and_timing_is_ignored",
+            "test_a_malformed_file_gives_no_verdict",
+            "test_a_missing_task_or_turn_counts_as_a_difference",
+            "test_b_runs_agree_but_differ_from_a0_means_re_baseline",
+            "test_c_runs_disagree_means_stop_not_re_baseline"
+          ],
+          "hash": "27976ee17ddc9702fe06522813a5ca4e89d41c354908de58a0de19400e403f7d",
+          "importsFiles": [
+            "docs/runs/stage1-train/compare_raw.py"
+          ],
+          "path": "docs/runs/stage1-train/test_compare_raw.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "item",
             "test_bad_d_items_refused",
             "test_c_needs_a_known_flaw_and_e_a_reworded_variant",
@@ -2670,6 +2735,20 @@
         },
         {
           "exports": [
+            "rig",
+            "test_a_resume_under_a_different_adapter_is_refused",
+            "test_a_smoke_adapter_never_spends_the_sealed_questions",
+            "test_every_question_is_asked_of_the_student_with_the_adapter_attached"
+          ],
+          "hash": "58a3e138ff77ea7cd099590aad9f8f962288fc0c065769a438ac8883f2734873",
+          "importsFiles": [
+            "docs/runs/stage1-train/interview_adapter.py"
+          ],
+          "path": "docs/runs/stage1-train/test_interview_adapter.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
             "ask",
             "fresh",
             "test_a_wrong_answer_returns_to_box_1_next_session_and_counts_a_forgetting_event",
@@ -2728,7 +2807,7 @@
             "test_shuffled_draws_exactly_as_the_trainer_always_has",
             "test_the_order_is_reproducible_from_the_seed_and_changes_with_it"
           ],
-          "hash": "41768dbf139152462e1120389a4633ad84b60d97399223d83b84ecfcd41bbec1",
+          "hash": "74c8d36efe67f4886c6bfb483b498164250752ba15ca4a617276d0981f3d68a7",
           "importOrder": [
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/train.py",
@@ -2743,6 +2822,29 @@
             "docs/runs/stage1-train/tiny_train.py"
           ],
           "path": "docs/runs/stage1-train/test_order.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "batches",
+            "gate_refusals",
+            "one_at_a_time",
+            "test_check_against_refuses_exactly_what_the_batch_gate_implies"
+          ],
+          "hash": "9ee8c4dc35d4051c5ceb0805f0eab5a48ae041d8b7d63ccdd101728d3b6c72f7",
+          "importOrder": [
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/constants.py",
+            "docs/runs/stage1-train/data.py"
+          ],
+          "importsFiles": [
+            "docs/runs/stage1-train/data.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/constants.py",
+            "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+          ],
+          "path": "docs/runs/stage1-train/test_puzzle_parity.py",
           "testFramework": "pytest"
         },
         {
@@ -2765,7 +2867,7 @@
             "test_the_span_is_a_setting",
             "three_lines"
           ],
-          "hash": "9191feff5c9e9e966177d8714dae40e9f9b9252201f818d44c5a14e0250be4ab",
+          "hash": "a855d36d11f8a99875b4d9d7f2814d74434ee1c15c7c47c481f6f3ba1beb55ce",
           "importOrder": [
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/quiz.py",
@@ -2832,7 +2934,7 @@
             "trainer_processes",
             "unmounted_drive"
           ],
-          "hash": "2c7519f15c20f9200d8cc4598252fcf94ae5aa92bfe927422ceb61bf95106ce9",
+          "hash": "cb6aa60af72f875f18fa10c023f921c524e526d9cf785b2f86011d9f42faa242",
           "importOrder": [
             "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/run.py",
@@ -3532,15 +3634,15 @@
           "path": "docs/runs/stage1-training-data/batch3-t05.models.jsonl"
         },
         {
-          "hash": "749c968d6af93f512ee494978befadc32b8085b21ed462d0772bfe9cd5b71b8f",
+          "hash": "4f45c013d698022e6e292c1c5410ab42c2efe4ab6fd01501bee18d6e3257cd5a",
           "path": "docs/runs/stage1-training-data/batch3-t13.jsonl"
         },
         {
-          "hash": "d300bd1428b4cb22fa9f9803ff2021e60d40b3818f20c496fad75bc480b34171",
+          "hash": "4f66d1d1cceb0e3839e6954398a5ae62b194ca03d0c1fb298240729ebabc7e50",
           "path": "docs/runs/stage1-training-data/batch3-t13.md"
         },
         {
-          "hash": "b02e6f6087dd6c1c09845d490ac3e37710552076f0bd0de570b7421f88639dfb",
+          "hash": "aaee4e576a378beba429ef81e058c7126ca90dd72b2ef52df87f5f2ce9f499eb",
           "path": "docs/runs/stage1-training-data/batch3-t13.models.jsonl"
         },
         {
@@ -3580,15 +3682,15 @@
           "path": "docs/runs/stage1-training-data/batch4-t03.models.jsonl"
         },
         {
-          "hash": "b6697a63ebd66daf50fc9dde83080d6387a5030f7c48409ffc8757c0bef66e15",
+          "hash": "ed8eec9b1df322f608c8336e942cffefc9bd44765981cbc8652db4986d420744",
           "path": "docs/runs/stage1-training-data/batch4-t06.jsonl"
         },
         {
-          "hash": "5aaf24d742fedb4a1d96ea97d5a40269f8bd7bfd870c86b74e24aaa2a89f8f3b",
+          "hash": "11e3ed5e07bd7ba6dd1fb655d24505e769abfd893f2d1ba90c7f6f4027dcff8a",
           "path": "docs/runs/stage1-training-data/batch4-t06.md"
         },
         {
-          "hash": "a71576fc156d0e9c37b589892d54d8b48caaf4eefa3172a946c6fdc9235add70",
+          "hash": "0cb62f4764ecd5796cdbde6b1d45cb47ef25f70359af90b674e5e7a431864f6e",
           "path": "docs/runs/stage1-training-data/batch4-t06.models.jsonl"
         },
         {
@@ -3626,6 +3728,42 @@
         {
           "hash": "bd6b7adf472c328c70d2dc5843b8245905655dc18601f067aa323a95397360ef",
           "path": "docs/runs/stage1-training-data/batch5-t09.models.jsonl"
+        },
+        {
+          "hash": "7c6191cbc6fb72462ac48e4615691bc18004d1d62a5ed4c01825e14c0cb46996",
+          "path": "docs/runs/stage1-training-data/batch6-t10.jsonl"
+        },
+        {
+          "hash": "a4ec72d3e0afe9f5134cf275f43b9f48260a0006ad6e2b7ab203663b163e0085",
+          "path": "docs/runs/stage1-training-data/batch6-t10.md"
+        },
+        {
+          "hash": "5fbfcea60d3c39f6dae245d27423e84add7dd918e4ec5b17fb47eb301b41fe3c",
+          "path": "docs/runs/stage1-training-data/batch6-t10.models.jsonl"
+        },
+        {
+          "hash": "4b67f4d4f28ce94fdf034345c85d977259a27fa670ab3efaa6e6e79eb8208be8",
+          "path": "docs/runs/stage1-training-data/batch6-t11.jsonl"
+        },
+        {
+          "hash": "872813512a0984583d78b39f7a2f09e82923462277c47aee1c6223a63ecf8b50",
+          "path": "docs/runs/stage1-training-data/batch6-t11.md"
+        },
+        {
+          "hash": "3995979bd4771ad387e17b77a51152e9e08b680d9cb1a6e3b5e0e6d93cb7500f",
+          "path": "docs/runs/stage1-training-data/batch6-t11.models.jsonl"
+        },
+        {
+          "hash": "b0dbfa21aa79bb8361bb5765673e816a36f44e52e0bb54b546d8072ece4ffcdd",
+          "path": "docs/runs/stage1-training-data/batch6-t12.jsonl"
+        },
+        {
+          "hash": "b3ce715795ada125d179cad0a19906299216578ff452bdedc8657e18c3f161eb",
+          "path": "docs/runs/stage1-training-data/batch6-t12.md"
+        },
+        {
+          "hash": "406ec81ff16e1d5cabc8f3a7cf86de7edb05171259c7741a178ca5513418d441",
+          "path": "docs/runs/stage1-training-data/batch6-t12.models.jsonl"
         },
         {
           "exports": [
@@ -3689,17 +3827,20 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 19,
+          "reads": 20,
           "where": [
             "caller"
           ],
           "writes": 9
         }
       ],
-      "outsideReads": 19,
+      "outsideReads": 20,
       "outsideWrites": 9,
       "role": "docs",
-      "testedBy": 17,
+      "testRunners": [
+        "pytest"
+      ],
+      "testedBy": 20,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
@@ -3717,7 +3858,7 @@
           "why": "unplaced"
         }
       ],
-      "unresolvedSites": 13
+      "unresolvedSites": 15
     },
     {
       "dynamicReads": 14,
@@ -6499,6 +6640,14 @@
           "dir": "",
           "job": "ci",
           "programs": [
+            "pytest"
+          ],
+          "step": "Stage 1 gates and trainer tests"
+        },
+        {
+          "dir": "",
+          "job": "ci",
+          "programs": [
             "python"
           ],
           "step": "Geometry demo writes ScalarScope exports"
@@ -6630,6 +6779,11 @@
           "files": 36
         },
         {
+          "boundary": "docs",
+          "depth": 0,
+          "files": 31
+        },
+        {
           "boundary": "examples",
           "depth": 0,
           "files": 25
@@ -6654,6 +6808,12 @@
           "runKind": "checks"
         },
         {
+          "directory": true,
+          "job": "ci",
+          "path": "docs/runs/stage1-train/",
+          "runKind": "executes"
+        },
+        {
           "job": "ci",
           "path": "examples/geometry_demo.py",
           "runKind": "executes"
@@ -6668,11 +6828,17 @@
         {
           "directory": true,
           "job": "ci",
+          "path": "packages/aspire-si-gates/tests/",
+          "runKind": "executes"
+        },
+        {
+          "directory": true,
+          "job": "ci",
           "path": "tests/",
           "runKind": "executes"
         }
       ],
-      "runsCount": 4,
+      "runsCount": 6,
       "secrets": [],
       "sends": {
         "deploysPages": false,
@@ -6693,20 +6859,30 @@
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
+        },
+        {
+          "config": "pyproject.toml",
+          "files": 21,
+          "job": "ci",
+          "runner": "pytest",
+          "step": "Stage 1 gates and trainer tests"
         }
       ],
       "triggers": [
         {
           "branches": [
-            "main"
+            "main",
+            "verifier-distill-prereg-draft"
           ],
           "event": "pull_request",
           "paths": [
             ".github/workflows/**",
             "aspire/**",
             "atlas/**",
+            "docs/runs/**",
             "examples/**",
             "integrations/**",
+            "packages/**",
             "pyproject.toml",
             "tests/**"
           ]
@@ -7114,8 +7290,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "f9f4901e20e2fde4727d56881f18778a80845dd5",
-    "tracked": 392
+    "commit": "4ba517c4a5d6553f7f0a82e52f1ffe6434886b12",
+    "tracked": 406
   },
   "landings": [
     {
@@ -7369,6 +7545,17 @@
     {
       "readers": [
         {
+          "by": "docs/runs/stage1-train/interview_adapter.py",
+          "call": "read_bytes",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-train/interview_adapter.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
           "by": "docs/runs/stage1-train/run.py",
           "call": "open",
           "confidence": "ast"
@@ -7427,6 +7614,12 @@
       "readers": [
         {
           "by": "docs/runs/stage1-train/test_order.py",
+          "call": "glob",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "docs/runs/stage1-train/test_puzzle_parity.py",
           "call": "glob",
           "confidence": "ast",
           "fromTests": true
@@ -7887,29 +8080,12 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 102,
+  "testFiles": 105,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
     "docs/runs/stage1-eval/test_score_v2.py",
-    "docs/runs/stage1-train/test_answer_format.py",
-    "docs/runs/stage1-train/test_data.py",
-    "docs/runs/stage1-train/test_eval_adapter.py",
-    "docs/runs/stage1-train/test_ledger.py",
-    "docs/runs/stage1-train/test_no_role.py",
-    "docs/runs/stage1-train/test_order.py",
-    "docs/runs/stage1-train/test_quiz.py",
-    "docs/runs/stage1-train/test_receipts.py",
-    "docs/runs/stage1-train/test_runner.py",
-    "docs/runs/stage1-train/test_scorer_rules.py",
-    "docs/runs/stage1-train/test_stuck.py",
-    "docs/runs/stage1-train/test_stuck_adapter.py",
-    "docs/runs/stage1-train/test_validate_union.py",
-    "docs/runs/stage1-training-data/test_checks.py",
-    "packages/aspire-si-gates/tests/test_closed_form.py",
-    "packages/aspire-si-gates/tests/test_material_and_puzzles.py",
-    "packages/aspire-si-gates/tests/test_model_signature.py",
-    "packages/aspire-si-gates/tests/test_package.py"
+    "docs/runs/stage1-training-data/test_checks.py"
   ],
   "unassigned": [
     {
@@ -7917,14 +8093,14 @@
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "630f64825bae71adfae7b4a6182c4dfe89010a382a54b79f89924b936878edaa",
+      "hash": "8655bc79d038a15057145c4b11a01292d948a2fb949ae57322495c16fd017f1f",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "0cee9003af307ddc31364c6032a90e43a942d85008ea945b442d938a96536326",
+      "hash": "db46c84942fcdea9a3f3927bf883bfd72f187cade67a5692bf31a2de92541d12",
       "importOrder": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
         "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py",
@@ -7950,9 +8126,10 @@
     },
     {
       "exports": [
-        "check_against"
+        "check_against",
+        "check_not_from_traces"
       ],
-      "hash": "6c4dbaf562a107012a3416dbafb7bb9b0b3374d364b996b55f8625aebf337a78",
+      "hash": "28419e1cf5f93ba1c24513580e94ae72a642929d2a56d3830f8addc0e94ebb46",
       "importOrder": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
@@ -7998,12 +8175,14 @@
         "frequent_phrases",
         "key_point_share",
         "leakage",
+        "line_spans",
         "load",
         "load_models",
         "model_signature",
         "norm",
         "parse_choice",
         "puzzle_repeats",
+        "puzzle_sig",
         "puzzle_signature",
         "reused_material",
         "role_words_in_prompt",
@@ -8081,122 +8260,107 @@
         {
           "in": "check_spans",
           "kind": "raise",
-          "line": 285
+          "line": 291
         },
         {
           "in": "check_framing_fits",
           "kind": "raise",
-          "line": 325
+          "line": 331
         },
         {
           "in": "check_material_reuse",
           "kind": "raise",
-          "line": 351
+          "line": 357
         },
         {
           "in": "load_models",
           "kind": "raise",
-          "line": 440
+          "line": 446
         },
         {
           "in": "load_models",
           "kind": "raise",
-          "line": 442
+          "line": 448
         },
         {
           "in": "check_puzzles",
           "kind": "raise",
-          "line": 471
+          "line": 482
         },
         {
           "in": "check_puzzles",
           "kind": "raise",
-          "line": 474
+          "line": 485
         },
         {
           "in": "check_phrases",
           "kind": "raise",
-          "line": 575
+          "line": 586
         },
         {
           "in": "check_formulas",
           "kind": "raise",
-          "line": 628
+          "line": 639
         },
         {
           "in": "freeze_report",
           "kind": "raise",
-          "line": 771
+          "line": 782
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 798
+          "line": 809
         },
         {
           "in": "_check_keys",
           "kind": "raise",
-          "line": 801
+          "line": 812
         },
         {
           "in": "_check_keys",
-          "kind": "raise",
-          "line": 803
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 806
-        },
-        {
-          "in": "_check_keys",
-          "kind": "raise",
-          "line": 808
-        },
-        {
-          "in": "_reply_matches",
           "kind": "raise",
           "line": 814
         },
         {
-          "in": "_reply_matches",
+          "in": "_check_keys",
           "kind": "raise",
-          "line": 818
+          "line": 817
+        },
+        {
+          "in": "_check_keys",
+          "kind": "raise",
+          "line": 819
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 821
+          "line": 825
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 824
+          "line": 829
         },
         {
           "in": "_reply_matches",
           "kind": "raise",
-          "line": 826
+          "line": 832
+        },
+        {
+          "in": "_reply_matches",
+          "kind": "raise",
+          "line": 835
+        },
+        {
+          "in": "_reply_matches",
+          "kind": "raise",
+          "line": 837
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 844
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 847
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 850
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 852
+          "line": 855
         },
         {
           "in": "check_item",
@@ -8206,17 +8370,22 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 864
+          "line": 861
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 866
+          "line": 863
         },
         {
           "in": "check_item",
           "kind": "raise",
           "line": 869
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 875
         },
         {
           "in": "check_item",
@@ -8231,27 +8400,17 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 884
+          "line": 888
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 889
+          "line": 891
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 892
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 894
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 896
+          "line": 895
         },
         {
           "in": "check_item",
@@ -8276,72 +8435,67 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 909
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
           "line": 911
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 915
+          "line": 914
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 917
+          "line": 916
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 931
+          "line": 918
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 938
+          "line": 920
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 940
+          "line": 922
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 947
+          "line": 926
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 928
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 942
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 949
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 951
+        },
+        {
+          "in": "check_item",
+          "kind": "raise",
+          "line": 958
         },
         {
           "in": "closed_form_settings",
           "kind": "raise",
-          "line": 995
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1044
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1046
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1050
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1052
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1055
+          "line": 1009
         },
         {
           "in": "_check_closed_form",
@@ -8351,60 +8505,85 @@
         {
           "in": "_check_closed_form",
           "kind": "raise",
+          "line": 1060
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1064
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1066
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1069
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
           "line": 1072
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1085
+          "line": 1086
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1093
+          "line": 1099
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1107
         },
         {
           "in": "check_closed_form_spans",
           "kind": "raise",
-          "line": 1154
+          "line": 1168
         },
         {
           "in": "validate_training_set",
           "kind": "raise",
-          "line": 1219
+          "line": 1233
         },
         {
           "in": "validate_training_set",
           "kind": "except",
-          "line": 1220
+          "line": 1234
         },
         {
           "in": "validate_training_set",
           "kind": "raise",
-          "line": 1221
+          "line": 1235
         },
         {
           "in": "validate_training_set",
           "kind": "except",
-          "line": 1224
+          "line": 1238
         },
         {
           "in": "validate_training_set",
           "kind": "raise",
-          "line": 1226
+          "line": 1240
         },
         {
           "in": "check_frames",
           "kind": "raise",
-          "line": 1243
+          "line": 1257
         },
         {
           "in": "check_stamps",
           "kind": "raise",
-          "line": 1262
+          "line": 1276
         }
       ],
-      "hash": "6b5f00afccd4b95e2b29ad3c9cd00a1887e43b80648ef931abf98db1b336bc3d",
+      "hash": "8c770e3e7086da9b55f7cacee388df39f1e1c009500d309c19953ac94f6577ac",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/answer_format.py",
         "packages/aspire-si-gates/src/aspire_si_gates/constants.py"
@@ -8458,7 +8637,7 @@
         "test_the_span_rule_also_holds_across_items_in_a_batch",
         "written_e"
       ],
-      "hash": "ef096fbeafe32ba1ccf6f38885e03f1b6f550b75b6cbba17b59c9f9d91bcfd72",
+      "hash": "23d32a0b8807d1d9fafd21e3c18e58d1952d51470190d6e0ea914ea477cf4b56",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
@@ -8490,11 +8669,12 @@
         "puzzle",
         "test_a_row_stamped_by_role_set_verifies_and_one_edited_character_fails",
         "test_a_sidecar_line_for_an_item_the_file_lacks_is_refused_and_no_sidecar_means_no_models",
+        "test_check_against_signs_puzzles_as_the_batch_gate_does",
         "test_the_model_decides_the_signature_and_the_regex_is_only_the_fallback",
         "test_the_signature_is_entities_and_the_multiset_of_rules_with_after_folded_into_before",
         "test_the_stamp_ignores_a_crlf_line_ending"
       ],
-      "hash": "d2e2bb6b7890fb65aa93418cc141a2ba8a27aacf3bcad51457ae695e37692bea",
+      "hash": "325355b9cabbac7156a3e6aeaa5173c2597620f3d6c094ed1768ea4322fb7492",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
@@ -8515,9 +8695,14 @@
         "test_identity_is_stable_and_versioned",
         "test_reason_table_is_pinned",
         "test_scorer_rules_are_exposed",
+        "test_trace_reused_ignores_the_rows_own_material_quoted_in_a_trace",
+        "test_trace_reused_keeps_digits_so_a_different_number_is_a_different_span",
+        "test_trace_reused_leaves_out_the_statement_line_and_the_three_line_block",
+        "test_trace_reused_leaves_out_wording_an_accepted_row_already_holds",
+        "test_trace_reused_refuses_wording_from_a_stored_trace",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "95abac8eb0abd668898250e320329a1e4a65aef5abf844cb3c246d21c11f4242",
+      "hash": "2b1a0b75b59d154736b2d3ff0439a0c36eac63128da28a6df9ceb8535dfd5166",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
