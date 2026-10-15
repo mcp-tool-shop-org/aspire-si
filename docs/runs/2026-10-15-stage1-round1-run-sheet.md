@@ -40,9 +40,9 @@ untreated and doesn't count.
 - **Settings parity:** the card's settings (T 0.6, top-p 0.95, top-k 20), sample seeds 0–2, the 16,384-token
   cap, and the prompt and answer-format hashes are all the harness's own, unchanged.
 - **The machine is frozen, and a mismatch is a hard stop** (Argon's Q2, R&D 2026-10-15).
-  - G0 writes the frozen machine line: GPU, driver, torch's CUDA, torch and transformers
-    (`det_run.py --write-machine-line`).
-  - From then on, every sitting checks it before a model loads (`det_run.py --machine-line`). Any difference
+  - G0's M1 writes the frozen machine line: GPU, driver, torch's CUDA, torch and transformers
+    (`det_run.py --write-machine-line`, which refuses to overwrite an existing line).
+  - M2 and every later sitting check it before a model loads (`det_run.py --machine-line`). Any difference
     stops that sitting (exit 5), with nothing generated.
   - The line changes only by a dated amendment with a new G0.
   - The machine freeze (no driver, GPU-software or training-environment changes from G0 to round F) is the
