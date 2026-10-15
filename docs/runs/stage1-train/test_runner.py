@@ -160,7 +160,9 @@ def test_a_stall_stops_with_the_trainers_own_stack(rig):
     p, d, status, actions = run_runner(rig, {"TINY_HANG_AT_STEP": "5"}, slack=2)
     assert p.returncode == 1
     assert status["state"] == "stopped" and status["stop_reason"] == "stall"
-    stall = [x for x in actions if x["trigger"] == "no step within the stall limit"][0]
+    # the runner's stall limit, or the trainer dying in its own dump (an access violation): both are the stall stop
+    stall = [x for x in actions if x["trigger"] in ("no step within the stall limit",
+                                                       "access violation after a stall dump")][0]
     assert stall["stack"] and "File" in stall["stack"]  # faulthandler's dump of the hung step
     assert status["resumes"] == 0
 
@@ -309,3 +311,54 @@ def trainer_processes(marker: str) -> list:
           f"$_.CommandLine -like '*{marker}*' }} | ForEach-Object {{ $_.ProcessId }}")
     out = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True).stdout
     return [x for x in out.split() if x.strip().isdigit()]
+
+
+@needs_tokenizer
+def test_a_pause_before_a_step_is_never_timed_as_a_stall(tmp_path):
+    """The stall-stack timer is armed after the supervisor's check, so a wait there (the heat pause on the rig; the
+    tiny trainer's injected sleep here) never fires a dump. Armed at the end of the step before, a 12 s wait against
+    steps of 1-2 s fired it, and on Windows the dump could crash the trainer (0xC0000005)."""
+    out = tmp_path / "paused"
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": "", "TINY_SLOW_S": "12"}  # over 5x any step seen here (<2 s)
+    p = subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), "--max-steps", "5", "--ckpt-every", "5"],
+                       env=env, capture_output=True, text=True, timeout=900)
+    assert p.returncode == 0, p.stderr[-2000:]
+    stack = out / "stall-stack.txt"
+    assert not stack.exists() or stack.read_text(encoding="utf-8").strip() == ""
+
+
+
+@needs_tokenizer
+def test_slow_io_after_a_step_is_never_timed_as_a_stall(tmp_path):
+    """The dump is cancelled when the step's work ends, so the loss log's and the checkpoint's I/O (with their own
+    retries) are never timed against 5x the median step (R&D on #125)."""
+    out = tmp_path / "slow-io"
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": "", "TINY_SLOW_LOG_S": "12"}  # over 5x any step seen here (<2 s)
+    p = subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), "--max-steps", "5", "--ckpt-every", "5"],
+                       env=env, capture_output=True, text=True, timeout=900)
+    assert p.returncode == 0, p.stderr[-2000:]
+    stack = out / "stall-stack.txt"
+    assert not stack.exists() or stack.read_text(encoding="utf-8").strip() == ""
+
+def stall_dump_then(tmp_path, dump: bool):
+    """A stand-in trainer: optionally writes a stall dump, then dies with an access violation."""
+    t = tmp_path / "av.py"
+    t.write_text("import os, sys\n"
+                 "out = sys.argv[sys.argv.index('--out') + 1]\n"
+                 "os.makedirs(out, exist_ok=True)\n"
+                 + ("open(os.path.join(out, 'stall-stack.txt'), 'a').write('Timeout (0:00:04)! (a stall dump)')\n"
+                    if dump else "")
+                 + "os._exit(-1073741819)\n")  # 0xC0000005 as Windows reports it
+    return t
+
+
+def test_an_access_violation_after_a_stall_dump_is_a_stall_stop_not_a_crash_resume(rig, tmp_path):
+    p, d, status, actions = run_runner(rig, None, "--trainer", str(stall_dump_then(tmp_path, dump=True)))
+    assert status["state"] == "stopped" and status["stop_reason"] == "stall" and status["resumes"] == 0
+    assert [x["action"] for x in actions if x["trigger"] == "access violation after a stall dump"] == \
+        ["stop (never resumed)"]
+
+
+def test_an_access_violation_with_no_stall_dump_is_still_a_crash(rig, tmp_path):
+    p, d, status, actions = run_runner(rig, None, "--trainer", str(stall_dump_then(tmp_path, dump=False)))
+    assert status["resumes"] >= 1 and any(x["trigger"].startswith("crash (exit code 3221225477)") for x in actions)

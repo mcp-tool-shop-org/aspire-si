@@ -23,7 +23,9 @@ the evaluation) is never touched: the run stops and a person decides. The automa
 4. GPU at or above 85 C for 60 s: pause between steps until it is below 75 C. At most 30 minutes of pause in a
    run, then stop. Paused time is excluded from train_seconds; wall time is reported beside it.
 5. A stall (no step within 5x the median step time; before the 3rd step, the startup allowance): train.py
-   dumps its own stack, then the run stops. Never restarted by itself.
+   dumps its own stack, then the run stops. Never restarted by itself. The dump times a step's work only, never the
+   supervisor's pause before it. If the trainer dies with an access violation after its dump fired in that attempt
+   (a dump can crash it on Windows), that's this stop too, not a crash to resume.
 6. The card grant's planned end passes: train.py is asked to stop, writes its checkpoint at the last finished
    step, and exits; the run stops and is never resumed by itself. Extending a grant is the Publisher's call, made
    before the end, never the runner's.
@@ -66,6 +68,9 @@ HEAT = {"pause_c": 85, "hold_s": 60, "resume_c": 75}
 STALL_FACTOR = 5
 WATCHDOG_MAX_AGE_S = 60
 CARD_SLACK_MIB = 1024
+# 0xC0000005, an access violation, as Windows reports it (unsigned) and as a signed int. faulthandler's stall dump
+# walks the main thread's frames from a watchdog thread; caught in native code it can crash the trainer this way.
+ACCESS_VIOLATION = {0xC0000005, 0xC0000005 - 2**32}
 EXIT_REASON = {71: "VRAM self-stop (28 GB)", 72: "non-finite loss", 73: "loss spike", 74: "disk full",
                75: "supervisor heartbeat lost", 76: "I/O still failing after 5 tries", 77: "card grant ended"}
 
@@ -328,6 +333,8 @@ class Runner:
         started, last_step_at, last_probe = time.time(), time.time(), 0.0
         hot_since, pause_started = None, None
         n_steps = len(self.steps)
+        stack = self.train_dir / "stall-stack.txt"
+        stack_at_start = stack.stat().st_size if stack.exists() else 0
         grant_end = parse_iso(self.a.grant_end)
         new_steps = 0  # steps this attempt has completed (a resumed trainer reloads the model first)
         try:
@@ -390,13 +397,13 @@ class Runner:
                 self.write_live(t, started, pause_started)
                 if code is not None:
                     job.close()
-                    return self.exit_state(code, started)
+                    return self.exit_state(code, started, stack_at_start)
                 self.sleep(self.a.poll_every)
         finally:
             if job.poll() is None:
                 job.kill()
 
-    def exit_state(self, code: int, started: float) -> tuple:
+    def exit_state(self, code: int, started: float, stack_at_start: int = 0) -> tuple:
         if code == 0:
             return "done", None
         if code in EXIT_REASON:
@@ -406,6 +413,12 @@ class Runner:
         if self.watchdog.killed_since(started):
             self.act("the rig watchdog killed train.py", "stop (never resumed)", exit_code=code)
             return "stopped", "watchdog kill"
+        stack = self.train_dir / "stall-stack.txt"
+        if code in ACCESS_VIOLATION and stack.exists() and stack.stat().st_size > stack_at_start:
+            # the trainer's own stall dump fired in this attempt, then the process died: a stall, never resumed (rule 5)
+            self.act("access violation after a stall dump", "stop (never resumed)", exit_code=code,
+                     stack=stack.read_text(encoding="utf-8", errors="replace")[-4000:])
+            return "stopped", "stall"
         return "crashed", f"exit code {code}"
 
     def write_live(self, t, started, pause_started):
