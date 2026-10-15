@@ -1,6 +1,7 @@
 # DRAFT: Batched generation for the quiz and apply sittings (run sheet B4)
 
-**Status: design for R&D's review (2026-10-15).** Nothing is built or run until R&D passes it. The parity run in
+**Status: passed by R&D (2026-10-15), with the required change below made; §7's questions are ruled.** Nothing is
+built until the Publisher says go. The parity run in
 §5 needs a short card grant, asked for separately after this passes.
 
 **What it builds.** The approved training procedure says apply and quiz "generate in batches of 8", while DEV
@@ -51,8 +52,9 @@ R&D ruled (#115, Q2) to build it before round 1, with this note first.
   and V × bf16). Eight rows at the full 18k tokens (prompt plus the 16,384 cap) would be about 21 GB of cache.
   That's over the 26 GB plan, because the batch's cache grows to its longest row. So:
   - **Chunked:** the batch generates at most `chunk` new tokens (proposed 2,048) per row. Rows that ended are
-    done. Rows still going are re-queued as continuations: the prompt plus the text so far, re-prefilled, and
-    generated on toward the 16,384 total. Continuations are batched with each other under the same budget, so
+    done. Rows still going are re-queued as continuations, **built from token ids** (R&D's required change): the
+    prompt's ids plus the ids generated so far, re-prefilled as they are and never decoded and re-encoded, so
+    the continuation sees exactly the tokens the row produced. They're generated on toward the 16,384 total. Continuations are batched with each other under the same budget, so
     the long tail ends at batch 1 or 2.
   - **Budget:** a batch is at most 8 rows and at most `B_tok` tokens of cache. That's rows × (longest prompt +
     chunk) ≤ `B_tok`, proposed 28,000 tokens (about 4.1 GB). With 16.4 GB of weights, the LoRA, activations
@@ -86,8 +88,8 @@ compares batched quiz and apply readings against those thresholds. They stay com
 
 1. **The rule reads only what the batched path keeps the same.** It reads the finished text (spans, quotes,
    re-reads, hedges), the thinking-token count and whether the 16,384 cap was reached. It never reads timing or
-   batch shape. The batched path keeps the cap and the total-length rule unchanged. A continuation joins the text
-   exactly. Thinking tokens are counted by re-tokenizing the final thinking text with the student's tokenizer,
+   batch shape. The batched path keeps the cap and the total-length rule unchanged. A continuation carries the row's own token ids, so
+   its text joins exactly. Thinking tokens are counted by re-tokenizing the final thinking text with the student's tokenizer,
    as quiz.py counts batch-1 traces. The total the cap clause reads (`total_tokens`) is the sum of the tokens each
    chunk generated. So a long answer split over chunks is measured as one answer.
 2. **The traces themselves must be alike, so that's measured, not assumed.** Padding and batched bf16 matmuls move
@@ -133,20 +135,24 @@ on parity, which is what §5 checks.
 
 - The batching plan is deterministic: the same work list always makes the same batches, and no batch exceeds
   8 rows or `B_tok`.
-- Continuations: a row that hits the chunk is re-queued with its text so far, and the total stays under 16,384.
-  Tested with a fake model that "ends" at set lengths.
+- Continuations: a row that hits the chunk is re-queued with its prompt ids plus its generated ids, and the total
+  stays under 16,384. Tested with a fake model that "ends" at set lengths.
+- **Token ids, never re-encoded:** a test whose fake tokenizer doesn't round-trip (decode then encode gives
+  different ids at the chunk boundary) checks the continuation's input ids equal the prompt ids plus the
+  generated ids, and that the final record's ids are the chunks' ids joined.
 - Records carry every harness field, plus batch, seed and path. A resume under a different path or budget is
   refused.
 - The quiz's majority-of-3 and stuck fields read batched records exactly as they read batch-1 records.
 - Settings are imported from the harness, not copied: a test asserts identity with `harness.DECODING`.
 
-## 7. Open for R&D
+## 7. Rulings (R&D, 2026-10-15)
 
-- **(A) or (B)** for seeds.
-- **`chunk` 2,048 and `B_tok` 28,000,** or other values. They're sized for ≤ 26 GB, and the parity run measures
-  the peak.
-- **The parity set's composition**, and whether apply prompts wait for B6 (proposed: run E now, add C/D when B6
-  lands, before round 1).
+- **Seeds:** (A), one seed per batch, `base + batch_index`, recorded per row.
+- **Chunk and budget:** `chunk` 2,048 and `B_tok` 28,000. The gate is the measured peak, ≤ 26 GB of memory.used
+  in the parity run.
+- **The parity set:** as proposed. The E variants now, and the C/D apply prompts when B6 lands, both before
+  round 1.
+- **Required change, made:** continuations are built from token ids (§3), with a test (§6).
 
 ## Standards compliance
 
