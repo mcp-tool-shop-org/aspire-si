@@ -65,6 +65,32 @@ def test_trace_reused_ignores_the_rows_own_material_quoted_in_a_trace():
     assert [c for c, _ in G.check_not_from_traces(row, [trace])] == ["TRACE_REUSED"]
 
 
+def test_trace_reused_leaves_out_wording_an_accepted_row_already_holds():
+    """A trained student reproduces the dataset's wording; that wording isn't model-originated (R&D)."""
+    sk = "I looked for a line that states it, and for a line that rules it out."
+    trace = "First, " + sk + " Then I answered."
+    row = d_item("t3", thinking=sk)
+    assert [c for c, _ in G.check_not_from_traces(row, [trace])] == ["TRACE_REUSED"]
+    assert G.check_not_from_traces(row, [trace], accepted=[d_item("t0", thinking=sk)]) == []
+
+
+def test_trace_reused_leaves_out_the_statement_line_and_the_three_line_block():
+    row = d_item("t4", thinking="Short.")
+    row["turns"][0]["user"] = row["turns"][0]["user"].replace(
+        "Statement: the library is open on Sunday mornings.",
+        "Statement: the library on the corner is open every Sunday morning until noon.")
+    trace = ("The claim is that the library on the corner is open every Sunday morning until noon.\n"
+             "VERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no")
+    assert G.check_not_from_traces(row, [trace]) == []
+
+
+def test_trace_reused_keeps_digits_so_a_different_number_is_a_different_span():
+    row = d_item("t5", thinking="the late fee is 4 dollars per extra hour")
+    assert G.check_not_from_traces(row, ["So the late fee is 7 dollars per extra hour."]) == []
+    assert [c for c, _ in G.check_not_from_traces(row, ["So the late fee is 4 dollars per extra hour."])] \
+        == ["TRACE_REUSED"]
+
+
 def test_check_item_needs_no_other_row():
     G.check_item(d_item("a"))
     bad = d_item("b", deciding=("It is closed on Mondays.",))

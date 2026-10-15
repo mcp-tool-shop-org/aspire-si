@@ -259,9 +259,15 @@ def _spans(r: dict) -> set:
                 bare = ws(line).replace('\\"', '"').strip("\"'“” ").lower()
                 if not bare or THREE_LINE.match(line) or STATEMENT_RE.match(line) or bare in content:
                     continue
-                words = re.findall(r"[a-z0-9']+|\[q\]", re.sub(r"\[[^\]]*\]", " [q] ", line.lower()))
-                out |= {" ".join(words[i:i + SPAN_WORDS]) for i in range(len(words) - SPAN_WORDS + 1)}
+                out |= line_spans(line)
     return out
+
+
+def line_spans(line: str) -> set:
+    """The 8-word spans of one line, tokenized as the diversity gate tokenizes: lower case, digits kept, and a
+    bracketed quote as the one token [q]. _spans applies it to an item's lines; a trace's lines go through it too."""
+    words = re.findall(r"[a-z0-9']+|\[q\]", re.sub(r"\[[^\]]*\]", " [q] ", line.lower()))
+    return {" ".join(words[i:i + SPAN_WORDS]) for i in range(len(words) - SPAN_WORDS + 1)}
 
 
 STATEMENT_RE = re.compile(r"^\s*statement\s*:", re.I)

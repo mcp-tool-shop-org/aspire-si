@@ -93,22 +93,25 @@ def check_against(r: dict, accepted: list[dict], pre_amendment=PRE_AMENDMENT_LES
     return out
 
 
-def _row_text(r: dict) -> str:
-    return "\n".join(t.get(k) or "" for t in r.get("turns") or [] for k in ("user", "thinking", "reply"))
 
+def check_not_from_traces(r: dict, traces, accepted=()) -> list[tuple]:
+    """[("TRACE_REUSED", message)] when an 8-word span that originated with a model appears in the row; [] otherwise.
+    Traces (the student's or a judge's output, from the role store) are observations, never item text.
 
-def check_not_from_traces(r: dict, traces) -> list[tuple]:
-    """[("TRACE_REUSED", message)] when any 8-word span of a stored model trace (the student's or a judge's output,
-    from the role store) appears in the row's turns; [] otherwise. Traces are observations, never item text.
-
-    Spans the row's own material lines also hold are not counted: a trace quotes the material it was given, and the
-    material is checked against its cited source by the source gates. Every lesson is checked; the pre-amendment
-    exemptions don't apply to new rows."""
-    own = G._shingles(G._content_lines(r))
-    mine = G._shingles(_row_text(r)) - own
+    One machinery with the diversity gate (R&D, 2026-10-15): the row's spans are gates._spans (material lines, the
+    Statement line and the three-line block left out, digits kept, a bracketed quote as one token), and each trace
+    line is tokenized by the same gates.line_spans. A trace span counts only when no accepted row holds it: a trained
+    student reproduces the dataset's own wording, and reuse of that is SPAN_REUSED's job, not this gate's. Spans of
+    the row's own material lines don't count either (a trace quotes the material it was given). Every lesson is
+    checked."""
+    mine = G._spans(r)
     if not mine:
         return []
+    learned = set().union(*(G._spans(a) for a in accepted)) if accepted else set()
+    own = set().union(*(G.line_spans(x) for x in G._content_lines(r).splitlines() or [""]))
     hit = set()
     for t in traces:
-        hit |= mine & G._shingles(t or "")
+        for line in (t or "").splitlines():
+            hit |= G.line_spans(line) & mine
+    hit -= learned | own
     return [_reason("TRACE_REUSED", min(hit))] if hit else []
