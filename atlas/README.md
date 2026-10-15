@@ -1,20 +1,17 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-15 from commit 4ba517c by Atlas 1.24.0.
+Mapped at 2026-10-15 from commit bbe8e1e by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (236 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (238 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-12 (f9f4901)
+## What changed since 2026-10-15 (4ba517c)
 
-- CI's pull request trigger now also names `docs/runs/**`, `packages/**` and `verifier-distill-prereg-draft`.
-- CI now also runs docs/runs/stage1-train/ and packages/aspire-si-gates/tests/.
-- docs/runs/stage1-train/interview_adapter.py is now read by docs/runs/stage1-train/interview_adapter.py.
-- docs/runs/stage1-training-data/ is now also read by docs/runs/stage1-train/test_puzzle_parity.py.
-- 14 files added and 22 changed content, across 2 parts.
+- docs/runs/stage1-train/det_run.py is now read by docs/runs/stage1-train/det_run.py.
+- 2 files added, across 1 part.
 
 ## What comes in
 
@@ -82,7 +79,7 @@ No two parts export a helper that looks alike.
 
 ## Hand-authored
 
-People write .github/, the repository root and site/; 16 writes with paths built at run time may land here.
+People write .github/, the repository root and site/; 17 writes with paths built at run time may land here.
 
 ## Where to start
 
@@ -93,8 +90,8 @@ Read those in order to follow one pull request end to end.
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 17 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/eval_adapter.py` imports `mapper`, which is no module on its import path and no declared dependency; and 14 more.
-- 16 writes and 35 reads use paths built at run time and are not named here.
+- 18 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/det_run.py` imports a path built at run time; `docs/runs/stage1-train/eval_adapter.py` imports `harness`, which is no module on its import path and no declared dependency; and 15 more.
+- 17 writes and 36 reads use paths built at run time and are not named here.
 - 66 writes and 83 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - 15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.

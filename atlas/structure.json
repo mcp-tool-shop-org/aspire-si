@@ -1812,10 +1812,10 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 13,
+      "dynamicReads": 14,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
-      "dynamicWrites": 13,
+      "dynamicWrites": 14,
       "entryPoints": [],
       "externals": 0,
       "files": [
@@ -2237,6 +2237,54 @@
             "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
           ],
           "path": "docs/runs/stage1-train/data.py"
+        },
+        {
+          "exports": [
+            "gpu_line",
+            "is_determinism_error",
+            "line_differences",
+            "machine_line",
+            "main",
+            "out_dir",
+            "rng_digest"
+          ],
+          "failurePaths": [
+            {
+              "in": "gpu_line",
+              "kind": "except",
+              "line": 66
+            },
+            {
+              "in": "out_dir",
+              "kind": "raise",
+              "line": 91
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 102
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 113
+            },
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 158
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 164
+            }
+          ],
+          "hash": "31835b70c894453784c722040e4624ad05dadf2170b24d87b972dfdf7b355d8e",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py"
+          ],
+          "path": "docs/runs/stage1-train/det_run.py"
         },
         {
           "exports": [
@@ -2717,6 +2765,26 @@
             "docs/runs/stage1-train/data.py"
           ],
           "path": "docs/runs/stage1-train/test_data.py",
+          "testFramework": "pytest"
+        },
+        {
+          "exports": [
+            "args",
+            "config",
+            "rig",
+            "test_a_machine_line_difference_stops_before_the_target",
+            "test_a_resume_under_a_different_wrapper_config_is_refused",
+            "test_a_strict_deterministic_raise_stops_for_a_warn_only_rerun",
+            "test_a_target_outside_the_three_is_refused",
+            "test_g0_writes_the_frozen_line",
+            "test_the_target_runs_unchanged_inside_the_pinned_settings_and_they_are_recorded",
+            "test_warn_only_logs_every_warned_op"
+          ],
+          "hash": "156ce64f859e4916816b2395fe1aafa30d23ba5dbbcad75a56b4abb64d596321",
+          "importsFiles": [
+            "docs/runs/stage1-train/det_run.py"
+          ],
+          "path": "docs/runs/stage1-train/test_det_run.py",
           "testFramework": "pytest"
         },
         {
@@ -3840,8 +3908,13 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 20,
+      "testedBy": 21,
       "unresolvedNamed": [
+        {
+          "path": "docs/runs/stage1-train/det_run.py",
+          "specifier": null,
+          "why": "dynamic"
+        },
         {
           "path": "docs/runs/stage1-train/eval_adapter.py",
           "specifier": "harness",
@@ -3851,14 +3924,9 @@
           "path": "docs/runs/stage1-train/eval_adapter.py",
           "specifier": "mapper",
           "why": "unplaced"
-        },
-        {
-          "path": "docs/runs/stage1-train/eval_adapter.py",
-          "specifier": "student",
-          "why": "unplaced"
         }
       ],
-      "unresolvedSites": 15
+      "unresolvedSites": 16
     },
     {
       "dynamicReads": 14,
@@ -6781,7 +6849,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 31
+          "files": 33
         },
         {
           "boundary": "examples",
@@ -6862,7 +6930,7 @@
         },
         {
           "config": "pyproject.toml",
-          "files": 21,
+          "files": 22,
           "job": "ci",
           "runner": "pytest",
           "step": "Stage 1 gates and trainer tests"
@@ -7290,8 +7358,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "4ba517c4a5d6553f7f0a82e52f1ffe6434886b12",
-    "tracked": 406
+    "commit": "bbe8e1e24d9f0ff0454eeabc552413f7686d1ca4",
+    "tracked": 408
   },
   "landings": [
     {
@@ -7523,6 +7591,17 @@
         }
       ],
       "target": "docs/runs/stage1-train/data.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/det_run.py",
+          "call": "read_bytes",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-train/det_run.py",
       "writers": []
     },
     {
@@ -8080,7 +8159,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 105,
+  "testFiles": 106,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
