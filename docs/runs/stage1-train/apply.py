@@ -18,10 +18,13 @@ own generator, seeded by (item id and session, sample 0). The sitting then:
 - the lesson's pass rule is met;
 - the trace isn't stuck.
 
-Most lesson pass rules are set-level: twins, pairs, or rank checks across items (the lesson plan's quiz pass
-rules). One apply item can't show them, so they're "not yet testable" and never approximated (R&D, 2026-10-11).
-`LESSON_RULES` maps a lesson to an item-level check where one exists; it's empty until R&D rules. Until then a
-candidate whose lesson has no item-level rule is **held**, not kept, and the reason is recorded.
+The lesson's pass rule is tested as the quiz tests it (R&D's ruling on #128), in apply_rules.py:
+- the any-item rules (R2, H3);
+- the single-answer rules;
+- twin rules, on a twin made by rule, with twins never kept or counted;
+- the set rule (R7), on the lesson's apply set per arm per session.
+
+Lessons untestable by rule (T10, T14 and T16) hold every answer, as does an item whose twin can't be made by rule.
 
 **star** matches and caps across the arms (amendment A) and writes the session's STaR rows (R&D's addition 1).
 For each (lesson, kind):
@@ -44,12 +47,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import quiz  # noqa: E402  (puts the harness, the scorer and the gates on the path)
+import apply_rules as rules  # noqa: E402
 from aspire_si_gates import gates  # noqa: E402
 
 harness = quiz.harness
 KINDS = ("C", "D")
 CAP = 8  # kept answers per (lesson, kind), cumulative over the stage (amendment A)
-LESSON_RULES: dict = {}  # lesson -> callable(item, answer) -> bool; item-level pass rules only, as R&D rules them
 
 
 class ApplyItemError(ValueError):
@@ -93,47 +96,99 @@ def key_of(r: dict) -> dict:
 
 
 def sit(items: list, session: int, generate_many, count, rule: dict, write, trained: set) -> tuple[dict, list]:
-    """One arm's apply sitting. Returns (readout, kept candidates)."""
-    asks = [{"key": r["id"], "item_id": f"{r['id']}@session{session}", "sample": 0,
-             "messages": [{"role": "user", "content": r["turns"][0]["user"]}]} for r in items]
-    gens = generate_many(asks)
-    cells: dict = {}
-    kept = []
+    """One arm's apply sitting. Returns (readout, kept candidates). Four passes:
+    1. every item's first user turn, in one batched call;
+    2. the three lines, stuck, and the any-item and single-answer rules;
+    3. twins (apply_rules.TWIN), only for items still candidates, in one batched call;
+    4. the twin and set rules, and each item's keep decision.
+    Untestable lessons (apply_rules.UNTESTABLE) hold every answer."""
+    def ask(key, item_id, sample, messages):
+        return {"key": key, "item_id": f"{item_id}@session{session}", "sample": sample, "messages": messages}
+    gens = generate_many([ask(r["id"], r["id"], 0, [{"role": "user", "content": r["turns"][0]["user"]}])
+                          for r in items])
+    res = {}
     for r in items:
         g = gens[r["id"]]
         thinking, answer, _ = harness.split_thinking(g["text"])
         s = quiz.score_three_lines(key_of(r), r.get("material") or "", answer)
+        parsed = harness.parse_answer(answer)
+        verbatim = harness.grade({"key": key_of(r), "material": r.get("material") or ""}, parsed)["deciding_verbatim"]
         target = count(r["turns"][0].get("thinking", ""))
         f = quiz.stuck_fields(thinking, r.get("material") or "", r["tier"], target, g["new_tokens"], count, rule)
-        lesson_rule = LESSON_RULES.get(r["lesson"])
-        lesson_ok = lesson_rule(r, answer) if lesson_rule else None
+        ok_any, why_any = rules.any_item(verbatim, thinking, g["truncated"])
+        ok_single, why_single = rules.single(r["lesson"], answer)
         if not s["right"]:
             star = "refused: the three lines don't pass"
         elif f["stuck"]:
             star = "refused: stuck"
-        elif lesson_ok is None:
-            star = "held: the lesson's pass rule isn't testable on one item"
-        elif not lesson_ok:
-            star = "refused: the lesson's pass rule"
+        elif not ok_any:
+            star = f"refused: {why_any}"
+        elif not ok_single:
+            star = f"refused: {why_single}"
+        elif r["lesson"] in rules.UNTESTABLE:
+            star = f"held: untestable by rule ({rules.UNTESTABLE[r['lesson']]})"
         else:
-            star = "candidate"
-            kept.append({"item": r, "thinking": thinking, "answer": answer})
+            star = "pending"
+        res[r["id"]] = {"r": r, "g": g, "thinking": thinking, "answer": answer, "s": s, "f": f, "star": star,
+                        "given": parsed["verdict"], "twin": None}
+    twin_asks = []
+    for rid, x in res.items():
+        lesson = x["r"]["lesson"]
+        if x["star"] != "pending" or lesson not in rules.TWIN:
+            continue
+        convs = rules.make_twin(x["r"], rules.TWIN[lesson], x["answer"])
+        if convs is None:
+            x["star"] = "held: no twin can be made by rule for this item"
+            continue
+        x["twin"] = {"rule": rules.TWIN[lesson], "n": len(convs)}
+        twin_asks += [ask(f"{rid}#twin{k}", f"{rid}#twin{k}", 0, msgs) for k, msgs in enumerate(convs)]
+    twin_gens = generate_many(twin_asks) if twin_asks else {}
+    for rid, x in res.items():
+        if x["twin"] is None or x["star"] != "pending":
+            continue
+        verdicts = [harness.parse_answer(harness.split_thinking(twin_gens[f"{rid}#twin{k}"]["text"])[1])["verdict"]
+                    for k in range(x["twin"]["n"])]
+        ok, why = rules.twin_pass(x["r"]["lesson"], x["given"], verdicts)
+        x["twin"]["verdicts"], x["twin"]["pass"] = verdicts, ok
+        x["star"] = "pending" if ok else f"refused: {why}"
+    for lesson in rules.SET:
+        rows = [{"id": rid, "tier": x["r"]["tier"], "thinking_tokens": x["f"]["thinking_tokens"]}
+                for rid, x in res.items() if x["r"]["lesson"] == lesson]
+        if not rows:
+            continue
+        sr = rules.set_rule(lesson, rows, rule)
+        for row in rows:
+            x = res[row["id"]]
+            x["set_rule"] = {k: v for k, v in sr.items() if k != "pass_ids"}
+            if x["star"] == "pending":
+                if not sr["testable"]:
+                    x["star"] = f"held: {sr['why']}"
+                elif row["id"] not in sr["pass_ids"]:
+                    x["star"] = f"refused: {sr['why'] or 'R7: over its tier cap'}"
+    cells: dict = {}
+    kept = []
+    for r in items:
+        x = res[r["id"]]
+        if x["star"] == "pending":
+            x["star"] = "candidate"
+            kept.append({"item": r, "thinking": x["thinking"], "answer": x["answer"]})
         item_trained = r["id"] in trained
         write({"question_id": r["id"], "base_item_id": r["id"], "lesson": r["lesson"], "kind": r["kind"],
-               "tier": r["tier"], "session": session, "item_trained": item_trained, **s, **f,
-               "lesson_rule": "not yet testable" if lesson_ok is None else lesson_ok, "star": star,
-               "flaw_named": "not scored" if r["kind"] == "C" else None, "total_tokens": g["new_tokens"],
-               "truncated": g["truncated"], "answer": answer})
+               "tier": r["tier"], "session": session, "item_trained": item_trained, **x["s"], **x["f"],
+               "star": x["star"], "twin": x["twin"], "set_rule": x.get("set_rule"),
+               "flaw_named": "not scored" if r["kind"] == "C" else None, "total_tokens": x["g"]["new_tokens"],
+               "truncated": x["g"]["truncated"], "answer": x["answer"]})
         c = cells.setdefault(f"{r['lesson']}|{r['kind']}", {"asked": 0, "right": 0, "stuck": 0,
                                                             "by_item_trained": {"true": [0, 0], "false": [0, 0]}})
         c["asked"] += 1
-        c["right"] += s["right"]
-        c["stuck"] += f["stuck"]
+        c["right"] += x["s"]["right"]
+        c["stuck"] += x["f"]["stuck"]
         c["by_item_trained"][str(item_trained).lower()][0] += 1  # [asked, stuck] per split (R&D's addition 2)
-        c["by_item_trained"][str(item_trained).lower()][1] += f["stuck"]
+        c["by_item_trained"][str(item_trained).lower()][1] += x["f"]["stuck"]
     readout = {"session": session, "items": len(items), "cells": dict(sorted(cells.items())),
-               "candidates": len(kept), "c_flaw_naming": "not scored mechanically (disclosed)",
-               "lesson_rules_testable": sorted(LESSON_RULES)}
+               "candidates": len(kept), "twin_generations": len(twin_asks),
+               "c_flaw_naming": "not scored mechanically (disclosed)",
+               "untestable_lessons": rules.UNTESTABLE}
     return readout, kept
 
 
