@@ -36,10 +36,13 @@ def sha256_file(p: Path) -> str:
 SEALED_SHA256 = "e1e515b4201b3341c363d0cf1061356acf7775c3d4b5b5194afa9790223fc683"  # the sealed-freeze record
 
 
+def is_sealed(tasks: Path) -> bool:
+    return hashlib.sha256(tasks.read_bytes().replace(b"\r\n", b"\n")).hexdigest() == SEALED_SHA256
+
+
 def sealed_read_allowed(tasks: Path, adapter: Path) -> str | None:
     """None when the sitting may run; otherwise why a sealed read is refused for this adapter."""
-    content = tasks.read_bytes().replace(b"\r\n", b"\n")
-    if hashlib.sha256(content).hexdigest() != SEALED_SHA256:
+    if not is_sealed(tasks):
         return None  # not the sealed set
     return frozen_adapter_problem(adapter)
 
@@ -100,6 +103,9 @@ def main(argv=None):
         print(t["id"], rec["final"]["verdict"], "ok" if rec["grade"]["verdict_correct"] else "WRONG",
               sum(x["new_tokens"] for x in rec["turns"]), "tok", flush=True)
     mapper.map_run(out, tasks, tok)
+    if not is_sealed(Path(a.tasks)):  # descriptive; the sealed outputs stay unopened until round F
+        import format_report
+        format_report.write(raw)
     return 0
 
 
