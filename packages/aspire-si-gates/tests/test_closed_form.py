@@ -100,7 +100,7 @@ def test_options_and_answers_parse():
 
 def test_the_defaults_are_r_and_ds_ruling():
     assert G.CLOSED_FORM_DEFAULT == {"carry": "paraphrase", "share": 0.5, "distractor_max": 0.8,
-                                     "distractor_margin": 0.15, "span": 8, "exempt_keyed_key_points": False}
+                                     "distractor_margin": 0.2, "span": 8, "exempt_keyed_key_points": False}
     for bad in ({"carry": "loose"}, {"share": 0}, {"share": 1.5}, {"distractor_max": 0}, {"span": 1},
                 {"distractor_margin": -0.1}, {"distractor_margin": 1}):
         with pytest.raises(ValueError):
@@ -128,8 +128,8 @@ def test_a_near_miss_distractor_passes_under_the_keyed_share_and_the_margin_is_a
     near = copy.deepcopy(PARAPHRASED)  # keyed share 0.75; this distractor 0.67 (2 of 3 of key point 2)
     near["user"] = near["user"].replace("C. Ask the most senior approver what they meant.",
                                         "C. Skip the page; the approvals settle it.")
-    with pytest.raises(G.DataError, match="minus 0.15"):
-        check(near)  # the default margin (0.15): 0.67 is not under 0.75 - 0.15
+    with pytest.raises(G.DataError, match="minus 0.2"):
+        check(near)  # the default margin (0.20): 0.67 is not under 0.75 - 0.20
     check(near, {"distractor_margin": 0.0})  # strictly below the keyed share is enough at margin 0
     with pytest.raises(G.DataError, match="exactly one is keyed"):
         check(near, {"distractor_margin": 0.0, "distractor_max": 0.6})  # the near-copy cap, set low

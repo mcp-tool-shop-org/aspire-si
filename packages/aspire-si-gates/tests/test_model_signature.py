@@ -64,3 +64,17 @@ def test_the_model_decides_the_signature_and_the_regex_is_only_the_fallback():
     gates.check_puzzles([a, c], models={"T05-B-90": model(3, "is"), "T05-B-92": model(3, "is", "is_not")})
     with pytest.raises(G.DataError, match="share the structure"):
         gates.check_puzzles([a, c])  # without models, the regex fallback sees them as one shape
+
+
+def test_check_against_signs_puzzles_as_the_batch_gate_does():
+    a = puzzle("T05-B-90", "Three crates, one each: Ann is not first.")
+    c = puzzle("T05-B-92", "Three crates, one each: Ann is not first.")  # the same regex signature as a
+    apart = {"T05-B-90": model(3, "is"), "T05-B-92": model(3, "is", "is_not")}
+    assert G.check_against(c, [a], models=apart) == []  # the models differ: neither gate refuses
+    assert [x for x, _ in G.check_against(c, [a])] == ["PUZZLE_SHAPE_REUSED"]  # regex fallback: both refuse
+    b = puzzle("T05-B-91", "Four jars stand in a row; the salt is before the sugar.")  # other regex cues
+    same = {"T05-B-90": model(3, "is", "after"), "T05-B-91": model(3, "before", "is")}
+    out = G.check_against(b, [a], models=same)
+    assert [x for x, _ in out] == ["PUZZLE_SHAPE_REUSED"]
+    assert "3 entities, rules before + is" in out[0][1]  # described as the batch gate describes it
+    assert G.puzzle_sig(b, same) == G.puzzle_sig(a, same) != G.puzzle_sig(b)

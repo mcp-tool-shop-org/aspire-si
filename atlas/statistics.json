@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 39,
+      "qualifyingSourceCommits": 45,
       "rebaseline": null
     },
     {
@@ -159,8 +159,8 @@
         "path": ".github/dependabot.yml"
       },
       {
-        "commits": 7,
-        "lines": 189,
+        "commits": 8,
+        "lines": 203,
         "path": ".github/workflows/ci.yml"
       },
       {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 24,
-        "lines": 566,
+        "commits": 25,
+        "lines": 590,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 24,
-        "lines": 1815,
+        "commits": 25,
+        "lines": 1883,
         "path": "atlas/page.json"
       },
       {
-        "commits": 24,
-        "lines": 7006,
+        "commits": 25,
+        "lines": 7123,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 24,
-        "lines": 16611,
+        "commits": 25,
+        "lines": 16854,
         "path": "atlas/structure.json"
       },
       {
@@ -759,14 +759,24 @@
         "path": "docs/runs/stage1-train/_evaldir.py"
       },
       {
+        "commits": 1,
+        "lines": 86,
+        "path": "docs/runs/stage1-train/compare_raw.py"
+      },
+      {
         "commits": 12,
         "lines": 1862,
         "path": "docs/runs/stage1-train/data.py"
       },
       {
-        "commits": 3,
-        "lines": 103,
+        "commits": 4,
+        "lines": 109,
         "path": "docs/runs/stage1-train/eval_adapter.py"
+      },
+      {
+        "commits": 1,
+        "lines": 75,
+        "path": "docs/runs/stage1-train/interview_adapter.py"
       },
       {
         "commits": 1,
@@ -809,6 +819,11 @@
         "path": "docs/runs/stage1-train/test_answer_format.py"
       },
       {
+        "commits": 1,
+        "lines": 66,
+        "path": "docs/runs/stage1-train/test_compare_raw.py"
+      },
+      {
         "commits": 12,
         "lines": 601,
         "path": "docs/runs/stage1-train/test_data.py"
@@ -817,6 +832,11 @@
         "commits": 1,
         "lines": 39,
         "path": "docs/runs/stage1-train/test_eval_adapter.py"
+      },
+      {
+        "commits": 1,
+        "lines": 84,
+        "path": "docs/runs/stage1-train/test_interview_adapter.py"
       },
       {
         "commits": 1,
@@ -829,13 +849,18 @@
         "path": "docs/runs/stage1-train/test_no_role.py"
       },
       {
-        "commits": 3,
-        "lines": 117,
+        "commits": 4,
+        "lines": 119,
         "path": "docs/runs/stage1-train/test_order.py"
       },
       {
-        "commits": 3,
-        "lines": 231,
+        "commits": 1,
+        "lines": 85,
+        "path": "docs/runs/stage1-train/test_puzzle_parity.py"
+      },
+      {
+        "commits": 4,
+        "lines": 249,
         "path": "docs/runs/stage1-train/test_quiz.py"
       },
       {
@@ -844,8 +869,8 @@
         "path": "docs/runs/stage1-train/test_receipts.py"
       },
       {
-        "commits": 4,
-        "lines": 306,
+        "commits": 6,
+        "lines": 323,
         "path": "docs/runs/stage1-train/test_runner.py"
       },
       {
@@ -864,8 +889,8 @@
         "path": "docs/runs/stage1-train/test_stuck_adapter.py"
       },
       {
-        "commits": 2,
-        "lines": 61,
+        "commits": 3,
+        "lines": 63,
         "path": "docs/runs/stage1-train/test_validate_union.py"
       },
       {
@@ -1014,18 +1039,18 @@
         "path": "docs/runs/stage1-training-data/batch3-t05.models.jsonl"
       },
       {
-        "commits": 4,
-        "lines": 58,
+        "commits": 5,
+        "lines": 60,
         "path": "docs/runs/stage1-training-data/batch3-t13.jsonl"
       },
       {
-        "commits": 4,
-        "lines": 1339,
+        "commits": 5,
+        "lines": 1356,
         "path": "docs/runs/stage1-training-data/batch3-t13.md"
       },
       {
-        "commits": 1,
-        "lines": 8,
+        "commits": 2,
+        "lines": 10,
         "path": "docs/runs/stage1-training-data/batch3-t13.models.jsonl"
       },
       {
@@ -1074,18 +1099,18 @@
         "path": "docs/runs/stage1-training-data/batch4-t03.models.jsonl"
       },
       {
-        "commits": 4,
-        "lines": 72,
+        "commits": 5,
+        "lines": 74,
         "path": "docs/runs/stage1-training-data/batch4-t06.jsonl"
       },
       {
-        "commits": 4,
-        "lines": 1314,
+        "commits": 5,
+        "lines": 1352,
         "path": "docs/runs/stage1-training-data/batch4-t06.md"
       },
       {
-        "commits": 1,
-        "lines": 8,
+        "commits": 2,
+        "lines": 10,
         "path": "docs/runs/stage1-training-data/batch4-t06.models.jsonl"
       },
       {
@@ -1132,6 +1157,51 @@
         "commits": 1,
         "lines": 8,
         "path": "docs/runs/stage1-training-data/batch5-t09.models.jsonl"
+      },
+      {
+        "commits": 2,
+        "lines": 44,
+        "path": "docs/runs/stage1-training-data/batch6-t10.jsonl"
+      },
+      {
+        "commits": 2,
+        "lines": 1211,
+        "path": "docs/runs/stage1-training-data/batch6-t10.md"
+      },
+      {
+        "commits": 1,
+        "lines": 8,
+        "path": "docs/runs/stage1-training-data/batch6-t10.models.jsonl"
+      },
+      {
+        "commits": 2,
+        "lines": 52,
+        "path": "docs/runs/stage1-training-data/batch6-t11.jsonl"
+      },
+      {
+        "commits": 2,
+        "lines": 1199,
+        "path": "docs/runs/stage1-training-data/batch6-t11.md"
+      },
+      {
+        "commits": 1,
+        "lines": 8,
+        "path": "docs/runs/stage1-training-data/batch6-t11.models.jsonl"
+      },
+      {
+        "commits": 2,
+        "lines": 44,
+        "path": "docs/runs/stage1-training-data/batch6-t12.jsonl"
+      },
+      {
+        "commits": 2,
+        "lines": 1223,
+        "path": "docs/runs/stage1-training-data/batch6-t12.md"
+      },
+      {
+        "commits": 1,
+        "lines": 8,
+        "path": "docs/runs/stage1-training-data/batch6-t12.models.jsonl"
       },
       {
         "commits": 4,
@@ -1564,13 +1634,13 @@
         "path": "packages/aspire-si-gates/README.md"
       },
       {
-        "commits": 8,
-        "lines": 27,
+        "commits": 11,
+        "lines": 33,
         "path": "packages/aspire-si-gates/pyproject.toml"
       },
       {
-        "commits": 8,
-        "lines": 47,
+        "commits": 11,
+        "lines": 60,
         "path": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
       },
       {
@@ -1584,13 +1654,13 @@
         "path": "packages/aspire-si-gates/src/aspire_si_gates/constants.py"
       },
       {
-        "commits": 1,
-        "lines": 92,
+        "commits": 3,
+        "lines": 138,
         "path": "packages/aspire-si-gates/src/aspire_si_gates/context.py"
       },
       {
-        "commits": 7,
-        "lines": 1315,
+        "commits": 10,
+        "lines": 1432,
         "path": "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
       },
       {
@@ -1604,8 +1674,18 @@
         "path": "packages/aspire-si-gates/tests/conftest.py"
       },
       {
-        "commits": 2,
-        "lines": 242,
+        "commits": 1,
+        "lines": 2,
+        "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 2,
+        "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl"
+      },
+      {
+        "commits": 3,
+        "lines": 248,
         "path": "packages/aspire-si-gates/tests/test_closed_form.py"
       },
       {
@@ -1614,8 +1694,13 @@
         "path": "packages/aspire-si-gates/tests/test_material_and_puzzles.py"
       },
       {
-        "commits": 8,
-        "lines": 148,
+        "commits": 2,
+        "lines": 80,
+        "path": "packages/aspire-si-gates/tests/test_model_signature.py"
+      },
+      {
+        "commits": 11,
+        "lines": 202,
         "path": "packages/aspire-si-gates/tests/test_package.py"
       },
       {
@@ -2124,9 +2209,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-12T00:48:29.992Z",
+  "generatedAt": "2026-10-15T21:51:15.338Z",
   "generatedFrom": {
-    "commit": "f9f4901e20e2fde4727d56881f18778a80845dd5"
+    "commit": "4ba517c4a5d6553f7f0a82e52f1ffe6434886b12"
   },
   "pairs": [
     {
@@ -2335,43 +2420,43 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 17,
-      "shared": 17,
+      "either": 18,
+      "shared": 18,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 17,
-      "shared": 17,
+      "either": 18,
+      "shared": 18,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 17,
-      "shared": 17,
+      "either": 18,
+      "shared": 18,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 17,
-      "shared": 17,
+      "either": 18,
+      "shared": 18,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 17,
-      "shared": 17,
+      "either": 18,
+      "shared": 18,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 17,
-      "shared": 17,
+      "either": 18,
+      "shared": 18,
       "strength": 1
     },
     {
@@ -2446,6 +2531,20 @@
     },
     {
       "a": "docs/runs/stage1-training-data/batch3-t05.jsonl",
+      "b": "docs/runs/stage1-training-data/batch3-t13.jsonl",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t05.jsonl",
+      "b": "docs/runs/stage1-training-data/batch3-t13.md",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t05.jsonl",
       "b": "docs/runs/stage1-training-data/batch3-t17.jsonl",
       "either": 5,
       "shared": 5,
@@ -2460,6 +2559,20 @@
     },
     {
       "a": "docs/runs/stage1-training-data/batch3-t05.md",
+      "b": "docs/runs/stage1-training-data/batch3-t13.jsonl",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t05.md",
+      "b": "docs/runs/stage1-training-data/batch3-t13.md",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t05.md",
       "b": "docs/runs/stage1-training-data/batch3-t17.jsonl",
       "either": 5,
       "shared": 5,
@@ -2473,8 +2586,50 @@
       "strength": 1
     },
     {
+      "a": "docs/runs/stage1-training-data/batch3-t13.jsonl",
+      "b": "docs/runs/stage1-training-data/batch3-t13.md",
+      "either": 5,
+      "shared": 5,
+      "strength": 1
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t13.jsonl",
+      "b": "docs/runs/stage1-training-data/batch3-t17.jsonl",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t13.jsonl",
+      "b": "docs/runs/stage1-training-data/batch3-t17.md",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t13.md",
+      "b": "docs/runs/stage1-training-data/batch3-t17.jsonl",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch3-t13.md",
+      "b": "docs/runs/stage1-training-data/batch3-t17.md",
+      "either": 6,
+      "shared": 4,
+      "strength": 0.666667
+    },
+    {
       "a": "docs/runs/stage1-training-data/batch3-t17.jsonl",
       "b": "docs/runs/stage1-training-data/batch3-t17.md",
+      "either": 5,
+      "shared": 5,
+      "strength": 1
+    },
+    {
+      "a": "docs/runs/stage1-training-data/batch4-t06.jsonl",
+      "b": "docs/runs/stage1-training-data/batch4-t06.md",
       "either": 5,
       "shared": 5,
       "strength": 1
@@ -2496,44 +2651,44 @@
     {
       "a": "packages/aspire-si-gates/pyproject.toml",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
-      "either": 8,
-      "shared": 8,
+      "either": 11,
+      "shared": 11,
       "strength": 1
     },
     {
       "a": "packages/aspire-si-gates/pyproject.toml",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
-      "either": 8,
-      "shared": 7,
-      "strength": 0.875
+      "either": 11,
+      "shared": 10,
+      "strength": 0.909091
     },
     {
       "a": "packages/aspire-si-gates/pyproject.toml",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 8,
-      "shared": 8,
+      "either": 11,
+      "shared": 11,
       "strength": 1
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
-      "either": 8,
-      "shared": 7,
-      "strength": 0.875
+      "either": 11,
+      "shared": 10,
+      "strength": 0.909091
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 8,
-      "shared": 8,
+      "either": 11,
+      "shared": 11,
       "strength": 1
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 8,
-      "shared": 7,
-      "strength": 0.875
+      "either": 11,
+      "shared": 10,
+      "strength": 0.909091
     }
   ],
   "parameters": {
@@ -2546,16 +2701,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-11T20:45:41-04:00",
-    "inScopeFiles": 397,
+    "headDate": "2026-10-15T17:47:32-04:00",
+    "inScopeFiles": 411,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 181,
+    "qualifyingCommits": 191,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-15T00:45:41.000Z",
+    "since": "2026-04-18T21:47:32.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
@@ -2571,7 +2726,7 @@
     ],
     "sourceFileReach": 20,
     "sourceFileRise": 25,
-    "sourceFilesReachingStrongFloor": 3,
+    "sourceFilesReachingStrongFloor": 6,
     "strength": 0.5,
     "windowDays": 180
   },

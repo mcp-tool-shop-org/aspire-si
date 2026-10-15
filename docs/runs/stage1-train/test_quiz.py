@@ -36,13 +36,15 @@ def three_lines(q):
             f"ESCALATE: {q['escalate']}")
 
 
-def model(right_by_seed):
-    """A stand-in for harness.generate: the base item's keyed answer when right_by_seed[seed], else a wrong one."""
+def model(right_by_seed, items=()):
+    """A stand-in for harness.generate: the base item's keyed answer when right_by_seed[seed], else a wrong one.
+    The item is found by its marker among the items being sat first, so a test never depends on another test's
+    edits to the shared lists."""
     calls = []
 
     def generate(messages, seed):
         calls.append(messages[0]["content"])
-        item = next(r for r in VERDICT_E + CLOSED if r["_marker"] in messages[0]["content"])
+        item = next(r for r in list(items) + VERDICT_E + CLOSED if r["_marker"] in messages[0]["content"])
         if item["quiz"]["type"] == "verdict":
             q = item["quiz"]
             wrong = {**q, "verdict": "supported" if q["verdict"] != "supported" else "unsupported"}
@@ -73,7 +75,7 @@ ITEMS_FOR_SPANS = [r for r in ITEMS if r["kind"] != "E"]  # the trained turns th
 
 def sit(items, right_by_seed, ledger=None, session=1, store=None):
     rows = []
-    gen = model(right_by_seed)
+    gen = model(right_by_seed, items)
     out = quiz.sit(ITEMS_FOR_SPANS + items, ledger or Ledger(), session, store or {}, gen, count, RULE,
                    rows.append, only=[r["id"] for r in items])
     return out, rows, gen
@@ -161,7 +163,7 @@ def test_a_variant_that_was_trained_on_is_spent_not_asked():
 
 def test_a_free_text_store_variant_is_spent_and_the_next_closed_one_is_asked():
     """R&D's fix on #102: {0 closed, 1 free text, 2 closed} asks 0, then 2; the free-text one never blocks."""
-    c = CLOSED[0]
+    c = copy.deepcopy(CLOSED[0])  # a copy: the shared list stays as built
     c["_marker"] = "A. Count the approvals."  # in both closed-form variants, so the stand-in finds the item
     other = c["variant"]["user"].replace("Which is the habit", "Pick the habit")
     store = {c["id"]: {1: {"user": "Say in your own words what the habit is.", "key": ["read the page first"]},
@@ -198,12 +200,12 @@ def test_by_default_a_keyed_option_that_repeats_a_trained_key_point_is_spent():
 
 def test_the_keyed_key_point_exemption_is_a_setting_and_covers_only_the_keyed_option():
     c = keyed_repeats_trained(CLOSED[0])
+    stem = keyed_repeats_trained(CLOSED[0], stem_repeats=True)  # the stem repeats trained words: still spent
     rows = []
-    gen = model({0: True, 1: True, 2: True})
+    gen = model({0: True, 1: True, 2: True}, [c, stem])
     out = quiz.sit(ITEMS_FOR_SPANS + [c], Ledger(), 1, {}, gen, count, RULE, rows.append, only=[c["id"]],
                    spent_rule={"exempt_keyed_key_points": True})
     assert {x["variant"] for x in rows} == {0} and rows[0]["spent_rule"]["exempt_keyed_key_points"] is True
-    stem = keyed_repeats_trained(CLOSED[0], stem_repeats=True)  # the stem repeats trained words: still spent
     out = quiz.sit(ITEMS_FOR_SPANS + [stem], Ledger(), 1, {}, gen, count, RULE, [].append, only=[stem["id"]],
                    spent_rule={"exempt_keyed_key_points": True})
     assert out["spent_variants"] and out["spent_variants"][0]["n"] == 0
@@ -214,6 +216,6 @@ def test_the_span_is_a_setting():
     out, rows, _ = sit([c], {0: True, 1: True, 2: True})
     assert rows == []
     rows = []
-    out = quiz.sit(ITEMS_FOR_SPANS + [c], Ledger(), 1, {}, model({0: True, 1: True, 2: True}), count, RULE,
+    out = quiz.sit(ITEMS_FOR_SPANS + [c], Ledger(), 1, {}, model({0: True, 1: True, 2: True}, [c]), count, RULE,
                    rows.append, only=[c["id"]], spent_rule={"span": 11})
     assert rows and out["spent_rule"]["span"] == 11
