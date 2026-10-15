@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 45,
+      "qualifyingSourceCommits": 46,
       "rebaseline": null
     },
     {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 26,
-        "lines": 625,
+        "commits": 27,
+        "lines": 644,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 26,
-        "lines": 2003,
+        "commits": 27,
+        "lines": 2061,
         "path": "atlas/page.json"
       },
       {
-        "commits": 26,
-        "lines": 7436,
+        "commits": 27,
+        "lines": 7486,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 26,
-        "lines": 17273,
+        "commits": 27,
+        "lines": 17380,
         "path": "atlas/structure.json"
       },
       {
@@ -569,8 +569,8 @@
         "path": "docs/runs/2026-10-10-stage1-baseline-run-note.md"
       },
       {
-        "commits": 25,
-        "lines": 814,
+        "commits": 26,
+        "lines": 825,
         "path": "docs/runs/2026-10-10-stage1-evaluation-plan-draft.md"
       },
       {
@@ -619,8 +619,8 @@
         "path": "docs/runs/2026-10-10-stage1-training-data-kimi-handoff.md"
       },
       {
-        "commits": 6,
-        "lines": 250,
+        "commits": 7,
+        "lines": 275,
         "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
       },
       {
@@ -637,6 +637,11 @@
         "commits": 12,
         "lines": 941,
         "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
+      },
+      {
+        "commits": 1,
+        "lines": 335,
+        "path": "docs/runs/2026-10-15-stage1-round1-run-sheet.md"
       },
       {
         "commits": 1,
@@ -769,6 +774,11 @@
         "path": "docs/runs/stage1-train/data.py"
       },
       {
+        "commits": 1,
+        "lines": 181,
+        "path": "docs/runs/stage1-train/det_run.py"
+      },
+      {
         "commits": 4,
         "lines": 109,
         "path": "docs/runs/stage1-train/eval_adapter.py"
@@ -827,6 +837,11 @@
         "commits": 12,
         "lines": 601,
         "path": "docs/runs/stage1-train/test_data.py"
+      },
+      {
+        "commits": 1,
+        "lines": 108,
+        "path": "docs/runs/stage1-train/test_det_run.py"
       },
       {
         "commits": 1,
@@ -2209,9 +2224,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-15T22:00:17.145Z",
+  "generatedAt": "2026-10-15T22:27:13.456Z",
   "generatedFrom": {
-    "commit": "bbe8e1e24d9f0ff0454eeabc552413f7686d1ca4"
+    "commit": "cfd95d36ac8def9bf4046c6cf2d341ed2092819f"
   },
   "pairs": [
     {
@@ -2420,43 +2435,43 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 19,
-      "shared": 19,
+      "either": 20,
+      "shared": 20,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 19,
-      "shared": 19,
+      "either": 20,
+      "shared": 20,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 19,
-      "shared": 19,
+      "either": 20,
+      "shared": 20,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 19,
-      "shared": 19,
+      "either": 20,
+      "shared": 20,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 19,
-      "shared": 19,
+      "either": 20,
+      "shared": 20,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 19,
-      "shared": 19,
+      "either": 20,
+      "shared": 20,
       "strength": 1
     },
     {
@@ -2701,16 +2716,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-15T14:56:04-07:00",
-    "inScopeFiles": 413,
+    "headDate": "2026-10-15T15:12:48-07:00",
+    "inScopeFiles": 419,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 191,
+    "qualifyingCommits": 194,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-18T21:56:04.000Z",
+    "since": "2026-04-18T22:12:48.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",

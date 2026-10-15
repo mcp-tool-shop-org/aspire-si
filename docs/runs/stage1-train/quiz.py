@@ -18,8 +18,9 @@ The rules (training procedure; R&D and the Dataset Specialist, 2026-10-11):
 - A variant whose wording outside material shares an 8-word span with any trained turn (user, thinking or reply
   of any training item) is spent: it was trained on, so it can't be a fresh ask (R&D). The sitting moves to the
   next variant, and the readout lists every spent variant. Material is shown on purpose, so its spans don't count.
-- Each question is answered 3 times at the card's sampling settings (seeds 0-2, the harness's generate,
-  unchanged); it is right when at least 2 of 3 are. Every sample is a receipt row.
+- Each question is answered 3 times at the card's sampling settings, on the batched path (B4, batched.py, every
+  round): samples 0-2, each drawn from its own generator seeded by (question, sample). It is right when at least 2
+  of 3 are. Every sample is a receipt row, and the readout records the path and its batches.
 - Every sample is judged by the frozen stuck rule (stuck.py with the frozen rule file, mapped by stuck_adapter),
   passively.
 - The readout reports accuracy at n = 0 beside n >= 1, per lesson and overall (a gap is the sign of surface
@@ -165,10 +166,15 @@ def load_variants(paths) -> dict:
 
 
 def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count, rule: dict, write,
-        only: list | None = None, spent_rule: dict | None = None) -> dict:
+        only: list | None = None, spent_rule: dict | None = None, generate_many=None) -> dict:
     """One quiz sitting. `generate(messages, seed)` returns the harness's generate dict; `count(text)` counts
     tokens; `write(fields)` records one receipt row. `items` is the whole training set (the spent check reads
-    every trained turn); `only` limits the asking to those ids (tests). Returns the readout."""
+    every trained turn); `only` limits the asking to those ids (tests). Returns the readout.
+
+    With `generate_many` (the batched path, B4), every ask is chosen first, all samples are generated in one call
+    ([{"key", "item_id", "sample", "messages"}] -> {key: generate dict}), then scored and recorded in the same
+    order. The choice of asks never depends on a generation within the sitting, so the two paths ask the same
+    questions."""
     by_id = {r["id"]: r for r in items if r.get("kind") == "E" and (only is None or r["id"] in only)}
     excluded: dict = {}
     refused: list = []
@@ -182,6 +188,7 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
     trained = trained_spans(items, rule_s["span"])
     spent: list = []
     asked = []
+    chosen = []
     for base in ledger.due(session):
         r = by_id.get(base)
         if r is None:
@@ -209,13 +216,24 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         except QuizItemError as e:
             refused.append(str(e))
             continue
-        box_before = ledger.items[base]["box"]
-        attempt = len(ledger.items[base]["history"]) + 1
+        chosen.append({"base": base, "r": r, "n": n, "variant": variant, "kind": kind, "user": user,
+                       "box_before": ledger.items[base]["box"],
+                       "attempt": len(ledger.items[base]["history"]) + 1})
+    if generate_many is not None:
+        gens = generate_many([{"key": f"{c['base']}-v{c['n']}|{seed}", "item_id": f"{c['base']}-v{c['n']}",
+                               "sample": seed, "messages": [{"role": "user", "content": c["user"]}]}
+                              for c in chosen for seed in SEEDS])
+    else:
+        gens = {f"{c['base']}-v{c['n']}|{seed}": generate([{"role": "user", "content": c["user"]}], seed)
+                for c in chosen for seed in SEEDS}
+    for c in chosen:
+        base, r, n, variant, kind = c["base"], c["r"], c["n"], c["variant"], c["kind"]
+        box_before, attempt = c["box_before"], c["attempt"]
         target = count(r["turns"][-1].get("thinking", ""))
         material = r.get("material", "") if kind == "verdict" else ""
         samples = []
         for seed in SEEDS:
-            g = generate([{"role": "user", "content": user}], seed)
+            g = gens[f"{base}-v{n}|{seed}"]
             thinking, answer, _ = harness.split_thinking(g["text"])
             s = score_sample(r, kind, variant, answer)
             samples.append((seed, g, thinking, answer, s))
@@ -273,10 +291,12 @@ def main(argv=None):
     ap.add_argument("--spent-span", type=int, default=SPENT_RULE_DEFAULT["span"])
     ap.add_argument("--exempt-keyed-key-points", action="store_true",
                     help="a closed-form keyed option may repeat the item's own key points (off by default)")
+    ap.add_argument("--batch", type=int, default=8, help="the batched path's first-chunk batch size (B4: 8)")
     a = ap.parse_args(argv)
 
     import hashlib
 
+    import batched
     import receipts
     import student
     from aspire_si_gates import gates_identity
@@ -294,8 +314,11 @@ def main(argv=None):
     model = PeftModel.from_pretrained(student.load_student(), str(adapter))
     model.eval()
 
-    def generate(messages, seed):
-        return harness.generate(model, tok, messages, "sampled", seed)
+    def generate(messages, seed):  # not used by a sitting: every round's quiz runs on the batched path (B4)
+        raise RuntimeError("the quiz runs on the batched path")
+
+    batch_log: list = []
+    generate_many = batched.make_generate_many(model, tok, batch_log, batch=a.batch)
 
     def count(text):
         return len(tok(text, add_special_tokens=False)["input_ids"])
@@ -308,7 +331,12 @@ def main(argv=None):
 
     ledger = Ledger.load(a.ledger)
     out = sit(items, ledger, a.session, load_variants(a.variants), generate, count, rule, write,
-              spent_rule={"span": a.spent_span, "exempt_keyed_key_points": a.exempt_keyed_key_points})
+              spent_rule={"span": a.spent_span, "exempt_keyed_key_points": a.exempt_keyed_key_points},
+              generate_many=generate_many)
+    out["generation"] = {"path": batched.PATH, "batch": a.batch, "b_tok": batched.B_TOK,
+                         "chunk": [batched.CHUNK_MIN, batched.CHUNK_MAX], "kernel": "efficient",
+                         "batched_sha256": hashlib.sha256(Path(batched.__file__).read_bytes()).hexdigest(),
+                         "batches": batch_log}
     out["ledger_sha256"] = ledger.save(a.ledger)
     out["receipts_refused"] = w.refused
     (w.dir.parent / f"quiz-readout-session{a.session}.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
