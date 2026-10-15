@@ -11,7 +11,8 @@ variants over the 16 lessons of batches 1-6 (`select`). The C/D apply prompts jo
 - LB8, the batched loop at batch 8. Both use the per-item generators and the EFFICIENT kernel.
 - P1, harness.generate at seeds 0-2;
 - P1', harness.generate at seeds 3-5. P1 and P1' run under the flash pin and the deterministic settings, as
-  every batch-1 sitting does (det_run.py).
+  every batch-1 sitting does (det_run.py), with CUBLAS_WORKSPACE_CONFIG set before torch loads. The report records
+  the machine line (det_run.machine_line), for comparison with the frozen line.
 
 **(i) LB1 against LB8** (the same per-item seeds, paired: batching alone). Argon's tolerances:
 - aggregate stuck rate within ±0.03;
@@ -34,16 +35,21 @@ A fail stops B4 until R&D decides. It never moves a threshold. The report also r
 (the run sheet adds the CUDA context and the idle baseline; memory.used must be ≤ 26 GB) and the speed-up.
 """
 
-import argparse
-import json
-import statistics
-import sys
-import time
-from pathlib import Path
+import os
+
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")  # before torch loads, as det_run.py sets it (R&D)
+
+import argparse  # noqa: E402
+import json  # noqa: E402
+import statistics  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import batched  # noqa: E402  (puts the harness on the path)
+import det_run  # noqa: E402
 import data  # noqa: E402
 import quiz  # noqa: E402
 import stuck_adapter  # noqa: E402
@@ -214,6 +220,7 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
         draws[name], times[name] = rows, round(time.time() - t0, 1)
     report = {"items": [r["id"] for r in chosen], "rules_i": RULES_I, "rules_ii": RULES_II,
               "i": compare_i(draws["LB1"], draws["LB8"]), "ii": compare_ii(draws["LB1"], draws["P1"], draws["P1p"]),
+              "machine_line": det_run.machine_line(), "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
               "seconds": times, "torch_peak_reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 2),
               "batched_sha256": __import__("hashlib").sha256(Path(batched.__file__).read_bytes()).hexdigest()}
     report["pass"] = report["i"]["pass"] and report["ii"]["pass"]
