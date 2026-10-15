@@ -169,6 +169,10 @@ Environment: `ASPIRE_WATCHDOG_DIR` and `ASPIRE_BACKUP_ROOT` from the rig, `CUDA_
 is every file listed in `FROZEN.md`, in its order. NO-ROLE's data is the `no_role.py` output pinned by the
 composition check.
 
+**Launch:** every block starts with stdout and stderr redirected to files (for example `> block.log 2>&1`), never
+in an interactive console window. On Windows a click in a console window enters QuickEdit selection and freezes
+the process writing to it, which would read as a stall.
+
 ```
 # Block T: training, for each seed S in 0 1 2, and arm A in ROLE NO-ROLE (data as above)
 python docs/runs/stage1-train/run.py --round 1 --arm A --seed S \
