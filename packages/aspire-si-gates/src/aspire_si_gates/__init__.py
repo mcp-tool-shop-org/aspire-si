@@ -12,9 +12,9 @@ from .gates import (DataError, batch_report, check_batch, check_item, closed_for
                     freeze_report, leakage, load, parse_choice, role_words_in_prompt, validate,
                     validate_training_set, CLOSED_FORM_DEFAULT, closed_form_settings,
                     key_point_share, closed_form_figures, load_models,
-                    model_signature, row_sha256)
+                    model_signature, puzzle_sig, row_sha256)
 
-GATES_VERSION = "1.7.0"
+GATES_VERSION = "1.7.1"
 
 
 def gates_identity() -> dict:
