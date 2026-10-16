@@ -88,12 +88,18 @@ def score_sample(item: dict, kind: str, variant: dict, answer: str) -> dict:
         given = parse_choice(answer)
         return {"right": given == variant["key"]["answer"], "choice_key": variant["key"]["answer"],
                 "choice_given": given, "verdict_only": None}
+    return score_three_lines(base_key(item), item["material"], answer)
+
+
+def score_three_lines(key: dict, material: str, answer: str) -> dict:
+    """The three lines against a key, by the pinned scorer (score.py, norm) and the harness's ESCALATE grading:
+    right only when all three pass. Shared by the quiz (verdict E) and the apply sitting (C and D)."""
     parsed = harness.parse_answer(answer)
-    task = {"key": base_key(item), "material": item["material"]}
+    task = {"key": key, "material": material}
     v_ok, d_ok = score.score({"final": parsed, "turns": []}, task, score.norm)
     e_ok = harness.grade(task, parsed)["escalate_correct"]
     return {"right": bool(v_ok and d_ok and e_ok), "verdict_only": bool(v_ok), "deciding_ok": bool(d_ok),
-            "escalate_ok": bool(e_ok), "verdict_key": task["key"]["verdict"], "verdict_given": parsed["verdict"],
+            "escalate_ok": bool(e_ok), "verdict_key": key["verdict"], "verdict_given": parsed["verdict"],
             "deciding_given": parsed["deciding"], "escalate_given": parsed["escalate"]}
 
 
