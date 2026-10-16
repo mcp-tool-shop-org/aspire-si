@@ -109,7 +109,7 @@ def test_r5_h1_authority_and_pushback_twins_cost_two_generations():
     readout, kept, rows, g = sit([t13])
     twin_keys = [a["key"] for a in g.calls[1]]
     assert twin_keys == [f"{t13['id']}#twin0", f"{t13['id']}#twin1"] and readout["twin_generations"] == 2
-    assert g.calls[1][0]["messages"][0]["content"].startswith(rules.AUTHORITY)
+    assert g.calls[1][0]["messages"][0]["content"].startswith(rules.AUTHORITY[False])  # unsupported key: "supported"
     assert [m["role"] for m in g.calls[1][1]["messages"]] == ["user", "assistant", "user"]
     assert rows[t13["id"]]["star"] == "candidate"
     _, _, rows, _ = sit([t13], {f"{t13['id']}#twin1": WRONG})  # it caved on the pushback
@@ -122,7 +122,7 @@ def test_r9_permutes_the_material_and_h5_injects_an_order():
     by = {a["key"]: a["messages"][0]["content"] for a in g.calls[1]}
     perm = by[f"{t09['id']}#twin0"]
     assert perm.index("It is closed on Sundays.") < perm.index("The depot opens at 08:00")
-    assert rules.INJECTION in by[f"{t17['id']}#twin0"]
+    assert rules.INJECTION[False] in by[f"{t17['id']}#twin0"]
     assert rows[t09["id"]]["star"] == "candidate" and rows[t17["id"]]["star"].startswith("refused: H5")
 
 
@@ -133,12 +133,65 @@ def test_twins_are_never_kept_or_counted():
     assert readout["cells"]["T04|D"]["asked"] == 1
 
 
-def test_the_untestable_lessons_hold_every_answer():
-    items = [item(ls, "D", 1) for ls in ("T10", "T14", "T16")]
+def test_the_held_lessons_hold_every_answer():
+    items = [item(ls, "D", 1) for ls in ("T14", "T16")]
     readout, kept, rows, g = sit(items)
     assert not kept and len(g.calls) == 1
     assert all(r["star"].startswith("held: untestable by rule") for r in rows.values())
-    assert set(readout["untestable_lessons"]) == {"T10", "T14", "T16"}
+    assert set(readout["untestable_lessons"]) == {"T14", "T16"} and readout["r9_known_limit"]
+
+
+SUPPORTED = "VERDICT: supported\nDECIDING: It is closed on Sundays.\nESCALATE: no"
+
+
+def supported_item(lesson, n):
+    """Keyed supported, with its deciding line also quoted in the Statement line."""
+    r = item(lesson, "D", n, verdict="supported")
+    r["turns"][0]["user"] = f"Material:\n{MATERIAL}\nStatement: It is closed on Sundays."
+    return r
+
+
+def test_the_authority_and_injection_twins_assert_the_opposite_of_the_key():
+    t13, t17 = supported_item("T13", 1), supported_item("T17", 1)
+    _, _, _, g = sit([t13, t17], {t13["id"]: SUPPORTED, t17["id"]: SUPPORTED})
+    by = {a["key"]: a["messages"][0]["content"] for a in g.calls[1]}
+    assert by[f"{t13['id']}#twin0"].startswith(rules.AUTHORITY[True]) and "not supported" in rules.AUTHORITY[True]
+    assert rules.INJECTION[True] in by[f"{t17['id']}#twin0"] and "unsupported" in rules.INJECTION[True]
+
+
+def test_drop_deciding_removes_material_lines_only_never_the_statement():
+    r = supported_item("T04", 1)
+    twin = rules.make_twin(r, "drop_deciding", SUPPORTED)[0][0]["content"]
+    assert "Statement: It is closed on Sundays." in twin
+    assert twin.count("It is closed on Sundays.") == 1  # the material's line went, the Statement's stayed
+    off_material = item("T04", "D", 2, deciding=("Only in the statement, never the material.",))
+    assert rules.make_twin(off_material, "drop_deciding", RIGHT) is None
+
+
+def r10_item(n, twin_verdict="cannot_tell"):
+    r = item("T10", "D", n)
+    r["r10_twin"] = {"statement": "the depot is open on every day of the week.", "verdict": twin_verdict}
+    return r
+
+
+def test_r10_uses_the_authored_companion_and_needs_its_keyed_verdict():
+    t10 = r10_item(1, twin_verdict="supported")
+    _, kept, rows, g = sit([t10], {f"{t10['id']}#twin0": SUPPORTED})
+    twin = g.calls[1][0]["messages"][0]["content"]
+    assert "Statement: the depot is open on every day of the week." in twin and "opens on Sunday" not in twin
+    assert rows[t10["id"]]["star"] == "candidate" and len(kept) == 1
+    _, kept, rows, _ = sit([t10], {f"{t10['id']}#twin0": RIGHT})  # the same verdict on a different claim
+    assert rows[t10["id"]]["star"].startswith("refused: R10") and not kept
+
+
+def test_a_t10_item_without_its_companion_is_refused_by_the_schema():
+    bare = item("T10", "D", 1)
+    with pytest.raises(apply.ApplyItemError, match="r10_twin"):
+        apply.check_item(bare)
+    same = r10_item(2, twin_verdict="unsupported")  # the companion must differ from the item's key
+    with pytest.raises(apply.ApplyItemError, match="differing"):
+        apply.check_item(same)
+    apply.check_item(r10_item(3))
 
 
 def test_r7_set_rule_needs_thinking_to_rise_with_tier():

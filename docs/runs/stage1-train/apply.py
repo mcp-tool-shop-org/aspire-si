@@ -73,6 +73,11 @@ def check_item(r: dict) -> None:
             raise ApplyItemError(f"{where}: no {k} key")
     if r["kind"] == "C" and "planted_flaw" not in r:
         raise ApplyItemError(f"{where}: a C item needs planted_flaw")
+    if r["lesson"] == "T10":  # R10's keyed companion, authored and key-checked (R&D on #128)
+        twin = r.get("r10_twin") or {}
+        bad_verdict = twin.get("verdict") not in ("supported", "unsupported", "cannot_tell")
+        if not twin.get("statement") or bad_verdict or twin.get("verdict") == r["verdict"]:
+            raise ApplyItemError(f"{where}: a T10 item needs r10_twin {{statement, verdict}}, its verdict differing")
 
 
 def load_items(paths) -> list:
@@ -148,7 +153,7 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
             continue
         verdicts = [harness.parse_answer(harness.split_thinking(twin_gens[f"{rid}#twin{k}"]["text"])[1])["verdict"]
                     for k in range(x["twin"]["n"])]
-        ok, why = rules.twin_pass(x["r"]["lesson"], x["given"], verdicts)
+        ok, why = rules.twin_pass(x["r"]["lesson"], x["given"], verdicts, x["r"])
         x["twin"]["verdicts"], x["twin"]["pass"] = verdicts, ok
         x["star"] = "pending" if ok else f"refused: {why}"
     for lesson in rules.SET:
@@ -188,7 +193,7 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
     readout = {"session": session, "items": len(items), "cells": dict(sorted(cells.items())),
                "candidates": len(kept), "twin_generations": len(twin_asks),
                "c_flaw_naming": "not scored mechanically (disclosed)",
-               "untestable_lessons": rules.UNTESTABLE}
+               "untestable_lessons": rules.UNTESTABLE, "r9_known_limit": rules.R9_LIMIT}
     return readout, kept
 
 

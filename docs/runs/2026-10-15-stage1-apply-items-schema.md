@@ -40,6 +40,9 @@ The approved training procedure's apply step, with R&D's rulings and amendment A
 4. **Keys:**
    - **D:** `verdict`, `deciding`, `escalate`.
    - **C:** the same three, which are the right answer, plus `planted_flaw` (or `none`).
+   - **T10 items, both kinds:** also `r10_twin: {statement, verdict}`. This is a strengthened or weakened claim on
+     the same material, keyed with a verdict that differs from the item's. It's authored by role-set and
+     key-checked by R&D with the item, and it's the twin R10's pass rule needs (R&D on #128, 2026-10-15).
    - **Right** means the three lines pass the pinned scorer against the key: the verdict, DECIDING verbatim (the
      scorer's norm) and covering the key, and ESCALATE as the harness grades it.
    - For C, naming the flaw isn't scored mechanically, and that's stated in every readout.
