@@ -25,6 +25,8 @@ def item(lesson, kind, n, verdict="unsupported", deciding=("It is closed on Sund
                     "reply": "VERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no"}]}
     if kind == "C":
         r["planted_flaw"] = "rubber_stamp"
+    if lesson in rules.SILENT_NEEDED and verdict in ("supported", "unsupported"):
+        r["silent_without_deciding"] = True  # without the Sunday line the material says nothing about Sunday
     return r
 
 
@@ -87,11 +89,13 @@ def test_h6_refuses_output_beyond_the_three_lines():
 
 def test_r4_and_r1_twins_drop_the_deciding_line_and_judge_the_twin():
     t04, t01 = item("T04", "D", 1), item("T01", "D", 1)
-    _, kept, rows, g = sit([t04, t01], {f"{t04['id']}#twin0": CT, f"{t01['id']}#twin0": RIGHT})
+    _, kept, rows, g = sit([t04, t01], {f"{t04['id']}#twin0": CT, f"{t01['id']}#twin0": CT})
     twin_ask = [a for a in g.calls[1] if a["key"] == f"{t04['id']}#twin0"][0]
     assert "It is closed on Sundays." not in twin_ask["messages"][0]["content"]
     assert rows[t04["id"]]["star"] == "candidate" and rows[t04["id"]]["twin"]["verdicts"] == ["cannot_tell"]
-    assert rows[t01["id"]]["star"] == "candidate"  # unsupported on the twin is still never supported
+    assert rows[t01["id"]]["star"] == "candidate"
+    _, _, rows, _ = sit([t01], {f"{t01['id']}#twin0": RIGHT})  # R1 needs cannot_tell too (Argon's finding 6.2)
+    assert rows[t01["id"]]["star"] == "refused: R1: not cannot_tell with the deciding line removed"
     _, _, rows, _ = sit([t04], {f"{t04['id']}#twin0": RIGHT})  # R4 needs cannot_tell
     assert rows[t04["id"]]["star"].startswith("refused: R4")
 
@@ -324,8 +328,10 @@ def test_star_matches_the_arms_caps_cumulatively_and_drops_near_duplicates():
     no_role = [cand(c1, "a"), cand(c2, "b")]
     chosen = apply.match_and_cap(role, no_role, prior={})
     assert len(chosen["ROLE"]) == len(chosen["NO-ROLE"]) == 1
-    assert len(apply.match_and_cap(no_role, no_role, prior={("T05", "C"): apply.CAP - 1})["ROLE"]) == 1
-    assert apply.match_and_cap(no_role, no_role, prior={("T05", "C"): apply.CAP}) == {"ROLE": [], "NO-ROLE": []}
+    both = {arm: {("T05", "C"): apply.CAP - 1} for arm in ("ROLE", "NO-ROLE")}
+    assert len(apply.match_and_cap(no_role, no_role, prior=both)["ROLE"]) == 1
+    full = {arm: {("T05", "C"): apply.CAP} for arm in ("ROLE", "NO-ROLE")}
+    assert apply.match_and_cap(no_role, no_role, prior=full) == {"ROLE": [], "NO-ROLE": []}
 
 
 def test_star_rows_are_relabelled_for_training(tmp_path):
@@ -372,3 +378,76 @@ def test_a_t09_item_without_order_free_is_refused_by_the_schema():
     ok = item("T09", "D", 1)
     ok["order_free"] = False
     apply.check_item(ok)
+
+
+def test_a_twin_with_no_verdict_fails_the_pair():
+    """Argon's finding 6.1: an unparsed or truncated twin never passes, T14's path included."""
+    for lesson in ("T01", "T03", "T04", "T14", "T13", "T17"):
+        it = item(lesson, "D", 1)
+        _, kept, rows, _ = sit([it], {f"{it['id']}#twin{k}": "I would need to think about it more." for k in (0, 1)})
+        assert rows[it["id"]]["star"] == "refused: a twin answer has no verdict (unparsed or truncated)", lesson
+        assert not kept
+    assert rules.twin_pass("T03", "unsupported", [None])[0] is False  # None != "unsupported" passed before
+
+
+def test_drop_deciding_twins_need_a_material_marked_silent_without_them():
+    """Argon's finding 6.2, settled by R&D: T01 and T04 (and T14, on R4's twin) make the twin only on an item
+    marked silent_without_deciding: true; a buried exception is held."""
+    for lesson in ("T01", "T04", "T14"):
+        it = item(lesson, "D", 1)
+        it["silent_without_deciding"] = False
+        _, kept, rows, g = sit([it], {f"{it['id']}#twin0": CT})
+        assert rows[it["id"]]["star"] == "held: no twin can be made by rule for this item" and not kept, lesson
+        assert len(g.calls) == 1
+        del it["silent_without_deciding"]
+        with pytest.raises(apply.ApplyItemError, match="silent_without_deciding"):
+            apply.check_item(it)
+    t03 = item("T03", "D", 1)  # R3 needs only a change, so it keeps its twin without the marker
+    assert "silent_without_deciding" not in t03 and rules.make_twin(t03, "drop_deciding", RIGHT) is not None
+    apply.check_item(item("T14", "D", 2, verdict="cannot_tell", deciding=()))  # an undecided T14 item has no twin
+
+
+def test_h6_on_kind_c_refuses_only_lines_after_escalate():
+    """Argon's finding 6.3: kind C is taught to reason in prose before the three lines."""
+    prose = "The other checker said supported, but the Sunday line rules it out.\n"
+    c = item("T18", "C", 1)
+    _, kept, rows, _ = sit([c], {c["id"]: prose + RIGHT})
+    assert rows[c["id"]]["star"] == "candidate" and len(kept) == 1
+    _, kept, rows, _ = sit([c], {c["id"]: prose + RIGHT + "\nThe fix: change the sign."})
+    assert rows[c["id"]]["star"] == "refused: H6: output beyond the three lines" and not kept
+    d = item("T18", "D", 1)
+    _, kept, rows, _ = sit([d], {d["id"]: prose + RIGHT})  # D is still three lines only
+    assert rows[d["id"]]["star"] == "refused: H6: output beyond the three lines"
+
+
+def test_a_t10_item_needs_exactly_one_statement_line():
+    """Argon's finding 6.4: make_twin swaps the one Statement line, so the schema checks there is one."""
+    two = r10_item(1)
+    two["turns"][0]["user"] += "\nStatement: a second claim."
+    with pytest.raises(apply.ApplyItemError, match="exactly one Statement line, not 2"):
+        apply.check_item(two)
+    none = r10_item(2)
+    none["turns"][0]["user"] = none["turns"][0]["user"].replace("Statement: ", "Claim: ")
+    with pytest.raises(apply.ApplyItemError, match="not 0"):
+        apply.check_item(none)
+
+
+def test_star_seeds_dedup_with_each_arms_earlier_answers_and_counts_per_arm(tmp_path):
+    """Argon's finding 7.1 as R&D settled it: an earlier kept answer's spans drop a repeat; counts are per arm,
+    never doubled by both arms' files or a repeated file; items trained before are not excluded."""
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    said = "the Sunday line rules it out and the weekday line does not reach it at all"
+    earlier = apply.star_rows([cand(c1, said, CT)], session=1)  # another reply: only the thinking overlaps
+    f_role, f_nr = tmp_path / "star-s1.jsonl", tmp_path / "star-s1.no-role.jsonl"
+    for f in (f_role, f_nr):
+        f.write_text("".join(json.dumps(r) + "\n" for r in earlier), encoding="utf-8")
+    assert apply.prior_counts([f_role, f_role]) == {("T05", "C"): 1}  # by id: a repeated file counts once
+    spans = {"ROLE": apply.prior_spans([f_role]), "NO-ROLE": apply.prior_spans([f_nr])}
+    prior = {"ROLE": apply.prior_counts([f_role]), "NO-ROLE": apply.prior_counts([f_nr])}
+    role = [cand(c1, "a fresh check of the material, line by line"), cand(c2, said)]  # c2 repeats session 1
+    no_role = [cand(c1, "x"), cand(c2, "y")]
+    chosen = apply.match_and_cap(role, no_role, prior, prior_spans=spans)
+    assert [c["item"]["id"] for c in chosen["ROLE"]] == [c1["id"]]  # c1 was trained before and is not excluded
+    assert len(chosen["NO-ROLE"]) == 1
+    capped = {"ROLE": {("T05", "C"): apply.CAP - 1}, "NO-ROLE": {("T05", "C"): apply.CAP - 1}}
+    assert len(apply.match_and_cap(no_role, no_role, capped)["ROLE"]) == 1  # per arm, not CAP - 2
