@@ -1,20 +1,18 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-16 from commit 6f06c9b by Atlas 1.24.0.
+Mapped at 2026-10-16 from commit 323b2b0 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (252 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (258 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-16 (468a94b)
+## What changed since 2026-10-16 (6f06c9b)
 
-- docs/runs/stage1-no-role/round1.jsonl is now written by docs/runs/stage1-train/freeze.py.
-- README.md is now also read by docs/runs/stage1-train/test_freeze.py.
-- docs/runs/stage1-eval/ is now also read by docs/runs/stage1-train/test_freeze.py.
-- And 4 more new writers and readers of places.
-- 6 files added and 44 changed content, across 2 parts.
+- docs/runs/stage1-machine-line.json is now read by docs/runs/stage1-train/panel.py.
+- packages/aspire-si-gates/src/ is now also read by docs/runs/stage1-train/panel_build.py and docs/runs/stage1-train/panel_leak.py.
+- 7 files added and 3 changed content, across 1 part.
 
 ## What comes in
 
@@ -94,10 +92,11 @@ Read those in order to follow one pull request end to end.
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 25 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 22 more.
-- 21 writes and 46 reads use paths built at run time and are not named here.
+- 28 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 25 more.
+- 21 writes and 47 reads use paths built at run time and are not named here.
 - 1 write goes to places this repository does not track, so it is not listed as generated.
-- 72 writes and 92 reads go to a path their caller passes, not to this repository.
+- 73 writes and 102 reads go to a path their caller passes, not to this repository.
+- 1 read goes to the directory the command is run in or a path its caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - 15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.

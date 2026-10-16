@@ -40,51 +40,39 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 6,
-      "changed": 44,
+      "added": 7,
+      "changed": 3,
       "moved": 0,
-      "parts": 2,
+      "parts": 1,
       "removed": 0
     },
     "items": [
       {
         "kind": "landing",
-        "sentence": "docs/runs/stage1-no-role/round1.jsonl is now written by docs/runs/stage1-train/freeze.py.",
+        "sentence": "docs/runs/stage1-machine-line.json is now read by docs/runs/stage1-train/panel.py.",
         "subjects": [
-          "docs/runs/stage1-no-role/round1.jsonl",
-          "docs/runs/stage1-train/freeze.py"
+          "docs/runs/stage1-machine-line.json",
+          "docs/runs/stage1-train/panel.py"
         ]
       },
       {
         "kind": "landing",
-        "sentence": "README.md is now also read by docs/runs/stage1-train/test_freeze.py.",
+        "sentence": "packages/aspire-si-gates/src/ is now also read by docs/runs/stage1-train/panel_build.py and docs/runs/stage1-train/panel_leak.py.",
         "subjects": [
-          "README.md",
-          "docs/runs/stage1-train/test_freeze.py"
+          "packages/aspire-si-gates/src/",
+          "docs/runs/stage1-train/panel_build.py",
+          "docs/runs/stage1-train/panel_leak.py"
         ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "docs/runs/stage1-eval/ is now also read by docs/runs/stage1-train/test_freeze.py.",
-        "subjects": [
-          "docs/runs/stage1-eval/",
-          "docs/runs/stage1-train/test_freeze.py"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "And 4 more new writers and readers of places.",
-        "subjects": []
       },
       {
         "kind": "counts",
-        "sentence": "6 files added and 44 changed content, across 2 parts.",
+        "sentence": "7 files added and 3 changed content, across 1 part.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "468a94bf685e70100827138b1b8e3cb860ba39d5",
-      "generatedAt": "2026-10-16T01:43:53.880Z"
+      "commit": "6f06c9bb212e371f0bd95f3d4d1cb5fb2722716d",
+      "generatedAt": "2026-10-16T06:19:42.366Z"
     },
     "unchanged": false
   },
@@ -171,9 +159,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 8 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 4,
-  "commit": "6f06c9bb212e371f0bd95f3d4d1cb5fb2722716d",
+  "commit": "323b2b068c809f1257a16813507c2294c4003b34",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (252 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (258 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -196,7 +184,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 47
+          "files": 53
         },
         {
           "boundary": "examples",
@@ -354,13 +342,14 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-16T06:19:42.366Z",
+  "generatedAt": "2026-10-16T07:26:50.457Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "25 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 22 more.",
-    "21 writes and 46 reads use paths built at run time and are not named here.",
+    "28 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 25 more.",
+    "21 writes and 47 reads use paths built at run time and are not named here.",
     "1 write goes to places this repository does not track, so it is not listed as generated.",
-    "72 writes and 92 reads go to a path their caller passes, not to this repository.",
+    "73 writes and 102 reads go to a path their caller passes, not to this repository.",
+    "1 read goes to the directory the command is run in or a path its caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
@@ -412,7 +401,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 113,
+  "testFiles": 114,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
