@@ -1,8 +1,8 @@
-# DRAFT: the Stage 1 general-capability panel (B3)
+# The Stage 1 general-capability panel (B3)
 
-**Status: draft for R&D, 2026-10-16. Not approved.** This note settles the panel's size, sources, scoring, running, cost and stop rule, with the arithmetic shown. It adds no code, no item file and no scorer. R&D revises it. Argon and the maintainer approve it. Nothing here has run on the card.
+**Status: for Argon and the maintainer, 2026-10-16.** R&D accepted the design at `2b97739` and ruled on the open questions in the PR comment of that date. This revision applies those rulings. Argon and the maintainer approve it. The note adds no code, no item file and no scorer. Nothing here has run on the card.
 
-**Which text this follows.** Two dated amendments govern the panel. Amendment B (evaluation plan, 2026-10-15) is the stop rule. Amendment C (training procedure, 2026-10-15) is the running. Where the round-1 run sheet still says the plain 2-point guard (§4, §5), amendment B has replaced that line. This draft follows amendment B and does not edit the run sheet. Where the run sheet draws G1 as one grant and amendment C draws it as three per-seed grants, the sittings below follow amendment C, and the conflict is an open question.
+**Which text this follows.** Two dated amendments govern the panel. Amendment B (evaluation plan, 2026-10-15) is the stop rule. Amendment C (training procedure, 2026-10-15) is the running. Where the round-1 run sheet still says the plain 2-point guard (§4, §5), amendment B has replaced that line. This note follows amendment B and does not edit the run sheet. Grants follow amendment C, the later text: three per-seed grants, each with both arms, and 15-minute rests. The run sheet's single G1 line is stale. Fixing that line is the run sheet's job, not this note's.
 
 The tree this was read against is `verifier-distill-prereg-draft` at `6f06c9b`. Gates behaviour is aspire-si-gates 1.7.3 as that commit has it. Every figure marked **computed** was calculated in this draft. Figures marked **counted** were read off the named source file. Nothing else was measured.
 
@@ -17,7 +17,7 @@ The tree this was read against is `verifier-distill-prereg-draft` at `6f06c9b`. 
 
 Both are ordinary questions. Neither is a verifier item: no verdict, no DECIDING, no ESCALATE. `score_three_lines` is the quiz and apply scorer for those three lines. It is not the panel scorer.
 
-The short-exact-string parser is specified in §4 so the third answer type has a rule. This composition does not use it. The sources that would have supplied short strings were share-alike, unclear, or taken down (§2). That is an open question, not a silent drop.
+There is no short-string slice. A slice and its parser are added together, by a dated change before P0, if a permissively licensed source turns up. The sets looked at for that were share-alike, unclear, or taken down (§2).
 
 **One official item, one panel item.** No twin and no paraphrase is kept beside its pair. After the hash order below, an item is kept only when its source text shares no 8-word span, by `gates._shingles(..., 8)`, with an item already kept. The shared instruction lines are not part of that text: they are the same on every item, and would reject the whole set. Source text is the GSM8K `question`, or the WinoGrande `sentence` plus both options.
 
@@ -48,7 +48,7 @@ R&D checks every licence against its primary page when revising. The quotes here
 >
 > The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-The data file lives in that repository, so the grant covers it. The notice has to travel with any copy of the items. No other restriction is stated.
+The data file lives in that repository, so the grant covers it. No other restriction is stated. R&D verified this `LICENSE` at the primary source on 2026-10-16. The notice is kept beside the item file. It is not committed to this repository.
 
 ### WinoGrande — used
 
@@ -60,13 +60,17 @@ The data file lives in that repository, so the grant covers it. The notice has t
 
 > Winogrande (codebase) is licensed under the Apache License 2.0. The dataset is licensed under CC-BY.
 
-The README does not name a CC BY version and does not link a deed. The quote below is CC BY 4.0, from <https://creativecommons.org/licenses/by/4.0/legalcode>, and it is the usual reading of an unversioned "CC-BY". R&D confirms the version against AllenAI before any copy is kept.
+The README does not name a CC BY version and does not link a deed. R&D checked the primary source on 2026-10-16. GitHub's licence field on the repository is Apache-2.0, which covers the code. The Hugging Face card carries no licence field. The dataset licence is **CC-BY, version not stated by AllenAI**. This note does not present 4.0 as the licence.
 
-> Section 2(a)(1). Subject to the terms and conditions of this Public License, the Licensor hereby grants You a worldwide, royalty-free, non-sublicensable, non-exclusive, irrevocable license to exercise the Licensed Rights in the Licensed Material to: a. reproduce and Share the Licensed Material, in whole or in part; and b. produce, reproduce, and Share Adapted Material.
+Every CC BY version permits reproduction and requires attribution, so the obligation is the same whichever version AllenAI meant.
 
-> Section 3(a)(1). If You Share the Licensed Material (including in modified form), You must: retain the attribution the licensor supplied (creator, copyright notice, licence notice, warranty disclaimer, and a link to the material); indicate modifications; and indicate that the material is under this Public License, with the text of it or a link to it.
+**Attribution file.** It travels with the item file and is not committed to this public repository. It lists:
 
-Restriction, stated plainly: attribution is required whenever the items are shared. CC BY 4.0 is not share-alike. The codebase's Apache-2.0 is the code only; the dataset line is the CC-BY sentence.
+- the creators (Sakaguchi, Le Bras, Bhagavatula, Choi; AllenAI, 2019), with a link to <https://github.com/allenai/winogrande>;
+- the licence sentence as quoted above;
+- the modifications: "reformatted into prompts; options relabelled A and B".
+
+The codebase's Apache-2.0 is the code only. The dataset line is the CC-BY sentence. Keeping the items out of this repository keeps the study out of sharing them, apart from what the attribution file already covers. The GSM8K notice sits beside the item file in the same place.
 
 ### Looked at and not used
 
@@ -128,9 +132,14 @@ The panel side of the intersection is the source text from §1, and again the fu
 
 `_shingles` keeps runs of letters and apostrophes. Digits are not part of a span. `gates.line_spans` is a different tokenizer (it keeps digits, and it collapses a bracketed quote). This check does not call `line_spans`. The STaR near-duplicate drop uses `line_spans` on traces. The panel's overlap check is `_shingles`, as specified for this design.
 
-### 3.3 What the check cannot see
+### 3.3 Public items in the base model
 
-The base model's pretraining corpus is not one of these sets. GSM8K and WinoGrande are public. If Qwen3-8B (`b968826d9c46`) already saw them, the panel measures retention on public items, and a small loss can hide under a high baseline. This draft did not inspect that corpus. Whether that is acceptable is a question for R&D.
+The base model's pretraining corpus is not one of these sets. GSM8K and WinoGrande are public, and Qwen3-8B (`b968826d9c46`) may already have seen them. This note did not inspect that corpus. R&D accepts that for this guard:
+
+- The panel is a change detector against P0 on the same items. It is not a capability score, and it is not reported as one.
+- Losing items the base model already knows, memorised or not, is the loss the guard is for.
+- The cost is ceiling compression. A slice near the top has few discordant pairs. That moves the critical drop down (at 280 items and 5% discordance, 3.6 points; §8), and it leaves fewer items that can show a loss.
+- P0's run note reports accuracy per slice. A slice at or above 97% is flagged there for the maintainer before G1.
 
 ### 3.4 Rehearsal, counted, not the pin
 
@@ -153,33 +162,31 @@ The generation record is the batched path's, which carries the harness's fields.
 thinking, answer, _ = harness.split_thinking(g["text"])
 ```
 
-`split_thinking` returns the text after `</think>`, or an empty answer when the tag never closes. Only `answer` is parsed. The thinking is stored and never scored.
+`split_thinking` returns the text after `</think>`, or an empty answer when the tag never closes. Only `answer` is parsed. That string is the answer side. The thinking is stored and never scored.
 
-**Letter (WinoGrande).** The answer, stripped, is one line matching `^ANSWER:\s*([AB])\s*$`. The letter must be one of the item's options. `ANSWER: C` on an A/B item is unparsed. This is stricter than the quiz's `parse_choice`, which takes the last line matching `ANSWER:` with an optional parenthesis and an optional period, and ignores every other line (`ANSWER_RX` in the gates). The panel does not call `parse_choice`.
+**Letter (WinoGrande).** Score the last line on the answer side that matches `^ANSWER:\s*([AB])\s*$`. Other lines are ignored. The letter must be one of the item's options. No matching line is unparsed. `ANSWER: C` does not match. A correct letter with an extra sentence is still correct: the guard measures whether the model can still do the task, and format bleed from ROLE's three-line habit is not read as a loss of arithmetic.
 
-**Integer (GSM8K).** The answer, stripped, is one line matching `^ANSWER:\s*(-?\d[\d,]*)\s*$`. Commas are removed. The value must equal the gold integer. The gold is the `####` integer in the source answer, commas removed. **Tolerance is 0.** A decimal, a fraction, a unit, or a second line is unparsed. No rounding.
+**Integer (GSM8K).** Score the last line that matches `^ANSWER:\s*(-?\d[\d,]*)\s*$`. Other lines are ignored. Commas are removed. The value must equal the gold integer. The gold is the `####` integer in the source answer, commas removed. **Tolerance is 0.** A decimal, a fraction, or a unit does not match, so it is ignored. No rounding. No matching line is unparsed.
 
-**Short exact string (specified, unused).** The answer, stripped, is one line matching `^ANSWER:\s*(.+?)\s*$`, and that text equals the single gold string after whitespace is collapsed and both sides are case-folded. One gold string, no alias list. No item in the 280 uses this parser.
+The panel keeps its own pinned scorer (§9). It does not call the gates' `parse_choice`, and it does not use that pattern. `parse_choice` takes the last line matching `ANSWER:` with an optional parenthesis and an optional period (`ANSWER_RX`). The panel's patterns are the two anchored ones above.
 
-**Wrong, and the two extra counts.** A row is wrong when `g["truncated"]` is true, or the answer is empty, or the parser fails, or the parsed value differs from the gold. Truncation is the harness rule: the new-token count reached 16,384 and the sequence did not end on a stop token. The two extra counts are independent of each other, so a capped row with no parse is in both:
+**Strict one-line compliance, counted and not tested.** Per sitting, count the items whose answer side, stripped, is exactly one line and that line matches the item's pattern. The count is descriptive. It does not enter the McNemar table. A hold can then be read as format bleed or as wrong answers.
+
+**Wrong, and the two extra counts.** A row is wrong when `g["truncated"]` is true, or the answer is empty, or no line matches, or the parsed value differs from the gold. Truncation is the harness rule: the new-token count reached 16,384 and the sequence did not end on a stop token. The two extra counts are independent of each other, so a capped row with no parse is in both:
 
 - **truncated:** `g["truncated"]` is true;
-- **unparsed:** the answer is empty, or the parser for that item's type fails.
+- **unparsed:** the answer is empty, or no line matches that item's pattern.
 
 Accuracy's numerator is the rows that parsed, matched, and were not truncated. The denominator is every item, 280. A drop is that accuracy minus P0's, in percentage points.
 
 ## 5. The prompt
 
-One user message. Thinking stays on, so the model may think at length; the scored text is only what follows `</think>`. The prompt asks for a single answer line so the parser has one shape.
+One user message. Thinking stays on, so the model may think at length; the scored text is only what follows `</think>`. The prompt asks the model to end on one answer line. If more comes back, the scorer still takes the last matching line (§4).
 
 GSM8K:
 
 ```text
-Solve the problem. On the answer side, write one line and nothing else:
-
-ANSWER: <the final integer>
-
-No units and no comma.
+Solve the problem. Think it through, then end your reply with one line: ANSWER: <the final integer>. No units and no commas.
 
 <question, unchanged from the source>
 ```
@@ -187,13 +194,7 @@ No units and no comma.
 WinoGrande. The blank in the sentence is the source's underscore. Option 1 is A and option 2 is B.
 
 ```text
-The sentence has a blank, shown as an underscore. Choose the option that fills the blank. On the answer side, write one line and nothing else:
-
-ANSWER: A
-
-or
-
-ANSWER: B
+The sentence has a blank, shown as an underscore. Choose the option that fills the blank. Think it through, then end your reply with one line: ANSWER: A or ANSWER: B.
 
 Sentence: <sentence>
 A. <option1>
@@ -249,6 +250,8 @@ The verifier baseline's median was about 325 new tokens (baseline run note, 2026
 
 Prefill is inside the 20 token/s guess only as it fell out for generations of about 300 tokens. A short answer makes prefill a larger share. Not separated here.
 
+**What decides the booking.** Both readings are unmeasured. P0 waits for B4's parity pass, which measures the batch-8 rate on the card. If that rate puts a 280-item sitting above 20 minutes, the cost goes back to the maintainer before P0 is booked, with the 19-sitting total from §7. The item count stays 280. It is not cut below amendment C's 250 to make the time fit.
+
 ## 7. Sittings
 
 The panel is ROLE only. The run sheet gives NO-ROLE training, the quiz and apply, and not the panel (§4, §7: "Phase A's DEV, sealed and panel are ROLE's"). Amendment C's "both arms" is the contents of each per-seed grant, not a second panel.
@@ -262,13 +265,13 @@ The panel is ROLE only. The run sheet gives NO-ROLE training, the quiz and apply
 
 Three ROLE sittings per round. The interview block stays where the run sheet puts it, after the three ROLE adapters. It is not part of the panel.
 
-**How many rounds.** The evaluation plan caps the stage at 6 rounds unless the maintainer raises the cap before round 1. The training procedure also names 12 sessions, and it ends the stage at the first of mastery, the learning-curve stop, and that session cap. If a session is a round, the cap of 6 binds first and 12 does not. If a session is one seed's pass, 12 sessions is 4 rounds of 3 seeds. This draft cannot see which of those the procedure meant. The total below uses the evaluation plan's cap of 6, and the open question records the other reading.
+**How many rounds.** The cost below is quoted at the evaluation plan's cap of 6 rounds. What "session" means in the training procedure is not this note's to settle. Every reading of that word gives 6 rounds or fewer, and the panel's per-round cost does not change with it.
 
-**Total sittings at that cap:** P0 plus 6 rounds × 3 seeds = **19**. Fewer if the stage stops earlier. The item file and the seeds do not change between them.
+**19 is the ceiling.** P0 plus 6 rounds × 3 seeds = **19**. Fewer if the stage stops earlier. The item file and the seeds do not change between them.
 
-**Panel card time at the cap, if each sitting is 12–15 minutes:** `19 × 12 = 228` minutes (3 h 48 min) to `19 × 15 = 285` minutes (4 h 45 min) (**computed**). That is generation only. It does not include training, DEV, the sealed sittings, preflight, or the 15-minute rests between per-seed grants. At the 9.48 minute figure from a 325-token mean, 19 sittings are `19 × 9.48 = 180` minutes (**computed**). Per round the panel itself is 3 sittings, 36–45 minutes at the amendment C window.
+**Panel card time at that ceiling, if each sitting is 12–15 minutes:** `19 × 12 = 228` minutes (3 h 48 min) to `19 × 15 = 285` minutes (4 h 45 min) (**computed**). That is generation only. It does not include training, DEV, the sealed sittings, preflight, or the 15-minute rests between per-seed grants. At the 9.48 minute figure from a 325-token mean, 19 sittings are `19 × 9.48 = 180` minutes (**computed**). Per round the panel itself is 3 sittings, 36–45 minutes at the amendment C window. If parity's measured rate puts one sitting above 20 minutes, this 19-sitting total is what goes back to the maintainer before P0 is booked (§6.1).
 
-The run sheet still describes G1 as one grant of about 6.6 h plus the panel, seed by seed inside it. Amendment C, which this note was told to follow, splits G1 into three per-seed grants with 15-minute rests. The panel sitting is the same block P either way. Which grant boundary it sits on is the open question.
+Amendment C governs the grants: three per-seed grants, with 15-minute rests. Block P closes each per-seed grant, after T, Q, A and D. The run sheet's single G1 line is stale. That fix belongs to the run sheet.
 
 ## 8. The guard, per amendment B
 
@@ -282,7 +285,7 @@ Round progression stops for the maintainer when the panel is more than 2.0 point
 - Exact p at difference 15 (b = 30, c = 15): **0.036** (**computed**). Stops, if the drop is also over 2.0, which 5.0 is.
 - Chi-square with the continuity correction at difference 15: `(15 − 1)² / 45 = 196 / 45 = 4.356`, p = **0.037** (**computed**).
 
-Power below is the probability that a true drop of that size produces a significant table, with the discordant count fixed at `round(rate × N)` and the expected split equal to the drop. "Reliably" is reported two ways, because the disclosure's "about 4–5 points" matches one of them.
+Power below is the probability that a true drop of that size produces a significant table, with the discordant count fixed at `round(rate × N)` and the expected split equal to the drop. "Reliably" in the corrected disclosure is 80% power. The critical value is the smaller number, and both are in the table.
 
 **Computed power of the exact test.** A blank means the drop is larger than the discordance rate, so it cannot occur.
 
@@ -304,21 +307,36 @@ Power below is the probability that a true drop of that size produces a signific
 | 300 | 20% | 60 | 6.0 | 0.08 | 0.15 | 0.26 | 0.40 | 0.56 | 0.84 | 7.7 |
 | 300 | 25% | 75 | 6.3 | 0.08 | 0.15 | 0.24 | 0.37 | 0.50 | 0.77 | 8.3 |
 
-**Against the disclosure.** At about 300 items and about 15% discordance, the smallest drop that reaches p ≤ 0.05 is **5.0 points**. That matches "about 4–5 points" as the point where a table can first stop the round. A true drop of 4 points at that cell has power 0.38, and a true drop of 5 points has power 0.57. Power reaches 0.80 at **6.4 points**. So the disclosed 4–5 points is the critical value, and it is a little optimistic if "reliably" was meant as 80% power. At the pinned 280 and 15% discordance the same two numbers are 5.0 and 6.4. The 2.0-point line does not bind: at every cell in the table, a 2-point drop has power under 0.30. Drops that small are reported, as amendment B says, and they do not stop a round.
+**The disclosure, as corrected.** At 280 items and 15% discordance, the guard can first stop at a 5.0-point drop and stops reliably (80% power) at about 6.4; drops of 2–5 points are reported, not acted on. The same two numbers hold at 300 items and 15% discordance. A true 4-point drop at the 300-item cell has power 0.38, and a true 5-point drop has power 0.57, so many 5-point drops are reported rather than acted on. The 2.0-point line does not bind: at every cell in the table, a 2-point drop has power under 0.30.
+
+Amendment B's "about 4–5 points" was optimistic on this arithmetic. The rule itself does not change: more than 2.0 points, and exact p ≤ 0.05. R&D files the corrected sentence as a dated note under amendment B, in rnd and in the evaluation plan, when this design is approved. This note records the wording and does not edit those files.
 
 More discordance makes a point-drop harder to call significant, because the same point-drop is a smaller imbalance inside a larger discordant count. A very low discordance (5%) is the only band in which a drop near 4 points is both detectable and well powered, and only because a 5% discordance cannot hide a large swing.
 
-### 8.1 How the three seeds enter one table
+### 8.1 One table per seed
 
-Amendment B states the test and the sensitivity at about 300 items. It does not say how the three training-seed adapters become the one bit per item that a table of 250–300 needs.
+One table per seed, each against the same P0. A per-item majority of three adapters against P0's single sample is lopsided: where a model is right with probability above 0.5, a majority of three is right more often than one sample, and where that probability is below 0.5 it is right less often. The bias depends on where the items sit, and it is not the quantity amendment B names. Per seed, every table is one sampled pass against one sampled pass, which is amendment C's shape, and N is the disclosure's N. Pooling three seeds into 840 pairs is not that N.
 
-P0 is one sitting: one sample per item at `(item id, 0)` on the base model. Each round has three ROLE adapters, each with its own sitting at the same seeds. Three readings are compatible with N = 250–300. Pooling the three seeds into 840 or 900 pairs is not, and it is not what the disclosure describes.
+The round holds for the maintainer when any one seed's table meets amendment B: a drop of more than 2.0 points, and exact p ≤ 0.05. There is no multiplicity adjustment, because a hold is a stop for a person, not a verdict.
 
-1. **One table per seed, against the same P0.** Three tests, each of N items. The disclosure's N fits each test. The stop then needs a rule amendment B does not give: any seed, every seed, or the mean drop. Three tests also raise the chance that one seed stops the round by sampling noise. Not adjusted here.
-2. **One table, per-item majority of the three seeds, against P0's single bit.** N stays 250–300. The round bit is right when at least 2 of the 3 adapters are right. That is a different quantity from the mean of the three accuracies, so the "2.0 points" would be points of majority-accuracy. Phase A's sealed check uses a majority, but there the majority is of samples of one model, on both sides. Here the three bits are three adapters, and P0 has only one sample.
-3. **One table on the mean accuracy** is not a McNemar table. McNemar needs a bit per item.
+Each round's receipt carries all three tables (b, c, N, the drop, the exact p) and the mean of the three drops. The mean is descriptive. It is not the test. The power table above is for one of those tables.
 
-This draft does not choose. The power table is for one table of N items, whichever reading supplies the bit. The choice is the first open question.
+**False-hold rate, computed.** Under no true drop, a hold needs b > c and exact p ≤ 0.05. At N = 280 and the five discordant counts in the power table, the smallest significant drop is already above 2.0 points, so the 2.0-point line removes no further table. The one-table rate is the upper tail of Binomial(nd, 0.5) from the critical b.
+
+Worked cell, nd = 14. `2^14 = 16,384`. The critical count is b ≥ 12 (c ≤ 2, difference 10, drop `10 / 280 × 100 = 3.57`, the table's 3.6). `C(14,12) + C(14,13) + C(14,14) = 91 + 14 + 1 = 106`. One table: `106 / 16,384 = 0.00647`. At b = 11 the two-sided probability is `2 × 470 / 16,384 = 0.0574` (`C(14,3) = 364`, plus 106), which is above 0.05, so b = 11 is not in the rate.
+
+The other four tails were summed the same way.
+
+| Discordant pairs | 14 | 28 | 42 | 56 | 70 |
+|---|---|---|---|---|---|
+| Critical b (c) | 12 (2) | 20 (8) | 28 (14) | 36 (20) | 44 (26) |
+| One table | 0.00647 | 0.01785 | 0.02178 | 0.02202 | 0.02070 |
+| Three seeds, independent | 0.0193 | 0.0526 | 0.0639 | 0.0646 | 0.0608 |
+| Over 6 rounds | 0.110 | 0.277 | 0.327 | 0.330 | 0.314 |
+
+Three seeds is `1 − (1 − p)^3`. Six rounds is `1 − (1 − p3)^6`. From the nd = 14 rate: `1 − (1 − 0.00647)^3 = 0.0193`, and `1 − (1 − 0.0193)^6 = 0.110`. Rounded, these are the ruling's rates: one table 0.007, 0.018, 0.022, 0.022, 0.021; three seeds 0.019, 0.053, 0.064, 0.065, 0.061; over 6 rounds 0.11, 0.28, 0.33, 0.33, 0.31.
+
+The three-seed and six-round rows assume independent seeds. All three seeds share P0, so their tables are positively correlated, and the true union rate is lower than these figures. The six-round row stacks that assumption a second time.
 
 ## 9. Pins, before P0
 
@@ -326,12 +344,12 @@ Nothing in this pull request is the pin. The hashes do not exist until the files
 
 | What | Where it lives | What is written down, before G0 starts |
 |---|---|---|
-| Item file | outside the repository, with the source notices beside it. Not a product file. | sha256 of the file; the prompt-template sha256; the source commits in §2; the sample order and every rejection. Copied into the P0 run note. |
-| Panel scorer | a new file, not written by this draft | sha256 in the same run note, and in each later panel receipt. The sitting refuses a missing or a changed hash, the way the other sittings refuse a changed harness. |
+| Item file | outside the repository, with the GSM8K notice and the WinoGrande attribution file beside it (§2). Not a product file, and not committed here. | sha256 of the file; the prompt-template sha256; the source commits in §2; the sample order and every rejection. Copied into the P0 run note. |
+| Panel scorer | a new file, not written by this note. The panel's own scorer: the two anchored patterns in §4, last matching line. It does not call `parse_choice`. | sha256 in the same run note, and in each later panel receipt. The sitting refuses a missing or a changed hash, the way the other sittings refuse a changed harness. |
 | Harness and batched path | already pinned | the run sheet's §9 list, plus `batched.py`'s sha256 and the path name `batched-v1`, recorded in the panel receipt as the quiz readout records them. |
-| P0 outputs | the G0 grant's run directory | one record per item: id, seed, text, parsed value, right or wrong, truncated, unparsed, new tokens, seconds. The accuracy, the two extra counts, and the machine line. |
+| P0 outputs | the G0 grant's run directory | one record per item: id, seed, text, parsed value, right or wrong, truncated, unparsed, strict one-line, new tokens, seconds. Accuracy per slice, the two extra counts, the strict one-line count, and the machine line. A slice at or above 97% is flagged for the maintainer before G1. |
 
-Later rounds record the same, plus the McNemar table against P0 (b, c, N, the drop in points, the exact p) for whatever reading §8.1 is given. The baseline is P0 and no other sitting.
+Later rounds record the same, plus all three tables against P0 (b, c, N, the drop in points, the exact p) and the mean of the three drops. The mean is descriptive. The baseline is P0 and no other sitting.
 
 ## 10. What this draft did not verify
 
@@ -339,16 +357,9 @@ Later rounds record the same, plus the McNemar table against P0 (b, c, N, the dr
 - The student tokenizer was not run. Prompt length is a 2-tokens-per-word bound.
 - No generation was run. The 20 token/s figure is `B1_TOK_S_GUESS`. The 12–15 minute window is that guess read as a step rate that does not change at batch 8. The 75.8 minute figure is the reading where batch 8 does not speed the wall clock. Parity's measured rate is the one that decides.
 - Memory was not measured. The 4.13 GB KV term is arithmetic from the batched note's shape. The ≤ 26 GB gate is `parity.PLAN_BYTES`.
-- Qwen3's pretraining corpus was not checked for these items.
-- Licences were read from the pages named in §2 on 2026-10-16. WinoGrande's README says "CC-BY" and does not name a version. R&D verifies each one against the primary page.
-- The McNemar power fixes the discordant count. It does not model a random discordant count, and it does not model dependence left after the 8-word filter.
+- Qwen3's pretraining corpus was not checked for these items. §3.3 accepts that for this guard.
+- Licences: R&D verified both at the primary source on 2026-10-16. This revision records that check. WinoGrande's version is still not stated by AllenAI. The CC BY 4.0 legal-code quotes from the first draft are removed.
+- The McNemar power, and the false-hold tails, fix the discordant count. They do not model a random discordant count, and they do not model dependence left after the 8-word filter. The three-seed and six-round rates add an independence assumption that §8.1 says is high.
+- The dated disclosure note under amendment B is not filed here. R&D files it, in rnd and in the evaluation plan, when this design is approved. The wording is in §8.
 
-## Open questions for R&D
-
-1. **Pairing.** Per seed (three tables against one P0) or a per-item majority of the three seeds (one table)? Amendment B does not say. If per seed: any seed, or every seed?
-2. **The disclosure's "4–5 points".** At 300 items and 15% discordance the critical value is 5.0 points and 80% power is 6.4 points. Which one was "reliably"?
-3. **Grants.** Amendment C's three per-seed grants with 15-minute rests, or the run sheet's one G1? The panel block is the same either way.
-4. **The cap.** Six rounds, as the evaluation plan says, or also the procedure's 12 sessions, and is a session a round or a seed?
-5. **The letter parser.** The strict one-line form in §4, or the quiz's `parse_choice`?
-6. **A short-string slice.** The parser is specified and unused. The public short-string sets that were checked do not have a permissive licence.
-7. **Public items inside the base model.** If a high P0 is memorisation, the guard goes quiet. Is that acceptable for this panel?
+The questions from the first draft are settled in §2 through §8. This revision is for Argon and the maintainer.
