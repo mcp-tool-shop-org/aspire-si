@@ -3,6 +3,7 @@ stuck rule, item_trained per cell, the lesson pass rules as R&D ruled them (any-
 rule, the set rule, the untestable lessons), and STaR's matching, capping and rows."""
 
 import copy
+from pathlib import Path
 import json
 
 import pytest
@@ -134,12 +135,86 @@ def test_twins_are_never_kept_or_counted():
     assert readout["cells"]["T04|D"]["asked"] == 1
 
 
-def test_the_held_lessons_hold_every_answer():
-    items = [item(ls, "D", 1) for ls in ("T14", "T16")]
-    readout, kept, rows, g = sit(items)
-    assert not kept and len(g.calls) == 1
-    assert all(r["star"].startswith("held: untestable by rule") for r in rows.values())
-    assert set(readout["untestable_lessons"]) == {"T14", "T16"} and readout["r9_known_limit"]
+def test_t14_is_tested_by_r4s_twin_on_decided_items_and_kept_on_the_rest_otherwise():
+    t14 = item("T14", "D", 1)
+    readout, kept, rows, g = sit([t14], {f"{t14['id']}#twin0": CT})
+    assert rows[t14["id"]]["star"] == "candidate" and rows[t14["id"]]["twin"]["rule"] == "drop_deciding"
+    assert "R4's twin" in readout["h2_disclosure"] and readout["untestable_lessons"] == {}
+    _, kept, rows, _ = sit([t14], {f"{t14['id']}#twin0": RIGHT})  # filled the gap instead of cannot_tell
+    assert rows[t14["id"]]["star"].startswith("refused: H2 (by R4's twin)") and not kept
+    undecided = item("T14", "D", 2, verdict="cannot_tell", deciding=())
+    _, kept, rows, g = sit([undecided], {undecided["id"]: CT})
+    assert rows[undecided["id"]]["star"] == "candidate" and rows[undecided["id"]]["twin"] is None  # no twin
+    assert len(g.calls) == 1 and len(kept) == 1
+
+
+def h4_rows(n, abstain=0, false_reject=0):
+    rows = [{"id": f"r{i}", "key_verdict": "unsupported", "given": "unsupported"} for i in range(n)]
+    for i in range(abstain):
+        rows[i]["given"] = "cannot_tell"
+    for i in range(abstain, abstain + false_reject):
+        rows[i]["given"] = "supported"
+    return rows
+
+
+A0_ZERO = {"abstain": 0.0, "false_reject": 0.0, "n": 30, "source": "test"}
+
+
+def test_t16_with_n_decided_10_passes_1_abstention_and_fails_2_when_a0_is_0():
+    one = rules.h4_rule(h4_rows(10, abstain=1), A0_ZERO)  # 0.10 <= max(0.10, 1/10)
+    assert one["testable"] and one["pass_ids"] == {f"r{i}" for i in range(10)} and one["abstain"] == 1
+    two = rules.h4_rule(h4_rows(10, abstain=2), A0_ZERO)  # 0.20 > 0.10
+    assert two["pass_ids"] == set() and two["why"].startswith("H4")
+
+
+def test_t16_false_reject_line_is_a0_plus_0_15_or_2_over_n():
+    assert rules.h4_rule(h4_rows(10, false_reject=2), A0_ZERO)["pass_ids"]  # 0.20 <= max(0.15, 0.20)
+    assert not rules.h4_rule(h4_rows(10, false_reject=3), A0_ZERO)["pass_ids"]  # 0.30 > 0.20
+    a0 = {"abstain": 0.0, "false_reject": 0.20, "n": 30, "source": "test"}
+    assert rules.h4_rule(h4_rows(10, false_reject=3), a0)["pass_ids"]  # 0.30 <= 0.35
+    undecided = h4_rows(10) + [{"id": "u", "key_verdict": "cannot_tell", "given": "cannot_tell"}]
+    out = rules.h4_rule(undecided, A0_ZERO)
+    assert out["n_decided"] == 10 and "u" in out["pass_ids"]  # counted over decided items; the set keeps all
+
+
+def test_t16_uses_a0_from_devs_decided_items():
+    assert rules.A0_H4["abstain_count"] == 3 and rules.A0_H4["false_reject_count"] == 2 and rules.A0_H4["n"] == 78
+    items = [item("T16", "D", n) for n in range(1, 11)]  # 10 decided, all answered right
+    _, kept, rows, _ = sit(items)
+    assert len(kept) == 10 and all(r["set_rule"]["testable"] for r in rows.values())
+    _, kept, rows, _ = sit(items, {items[0]["id"]: CT, items[1]["id"]: CT})  # 2 abstentions: over max(.138, .1)
+    assert not kept and rows[items[2]["id"]]["star"].startswith("refused: H4")
+
+
+def test_h4_rates_counts_over_decided_items_only():
+    keys = {"a": "supported", "b": "unsupported", "c": "cannot_tell"}
+    recs = [{"task_id": "a", "final": {"verdict": "cannot_tell"}}, {"task_id": "b", "final": {"verdict": "supported"}},
+            {"task_id": "c", "final": {"verdict": "supported"}}, {"task_id": "a", "final": {"verdict": "supported"}}]
+    assert rules.h4_rates(recs, keys) == {"n": 3, "abstain_count": 1, "false_reject_count": 1,
+                                          "abstain": 1 / 3, "false_reject": 1 / 3}
+
+
+A0_DIR = Path("E:/AI/aspire-si/outputs/stage1-baseline")
+
+
+@pytest.mark.skipif(not (A0_DIR / "pilot-30-s0" / "raw.jsonl").exists(), reason="A_0's raw files are local-only")
+def test_a0_reproduces_abstain_3_of_78_and_false_reject_2_of_78_from_the_pinned_raw_files():
+    import hashlib
+    here = Path(__file__).resolve().parent.parent / "stage1-taskset"
+    keys = {}
+    for f in ("taskset-review-10.jsonl", "taskset-pilot-20.jsonl"):
+        for line in (here / f).read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                t = json.loads(line)
+                keys[t["id"]] = t["key"]["verdict"]
+    recs = []
+    for seed, sha in rules.A0_RAW_SHA256.items():
+        raw = A0_DIR / f"pilot-30-s{seed}" / "raw.jsonl"
+        assert hashlib.sha256(raw.read_bytes()).hexdigest() == sha  # the files A_0 was computed from
+        recs += [json.loads(x) for x in raw.read_text(encoding="utf-8").splitlines() if x.strip()]
+    got = rules.h4_rates(recs, keys)
+    assert (got["n"], got["abstain_count"], got["false_reject_count"]) == (78, 3, 2)
+    assert got["abstain"] == rules.A0_H4["abstain"] and got["false_reject"] == rules.A0_H4["false_reject"]
 
 
 SUPPORTED = "VERDICT: supported\nDECIDING: It is closed on Sundays.\nESCALATE: no"
