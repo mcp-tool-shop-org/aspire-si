@@ -140,3 +140,34 @@ def test_on_done_fires_once_per_finished_row_even_across_chunks(model):
                  on_done=lambda key, tokens, seconds: seen.append((key, tokens)))
     assert sorted(k for k, _ in seen) == sorted(x["key"] for x in w)
     assert {k: t for k, t in seen} == {k: r["new_tokens"] for k, r in out.items()}
+
+
+class CountingLM(torch.nn.Module):
+    """A stand-in model recording every call: half the probability mass on the stop token (1), the rest spread, so
+    rows stop at random, each at its own generator's draw."""
+
+    def __init__(self, vocab=64):
+        super().__init__()
+        self.w = torch.nn.Parameter(torch.zeros(1))
+        self.vocab, self.calls = vocab, []
+
+    def forward(self, input_ids, attention_mask=None, position_ids=None, past_key_values=None, use_cache=True,
+                logits_to_keep=None):
+        from types import SimpleNamespace
+        self.calls.append({"width": input_ids.shape[1], "logits_to_keep": logits_to_keep})
+        n = input_ids.shape[1] if logits_to_keep is None else logits_to_keep
+        logits = torch.full((input_ids.shape[0], n, self.vocab), 0.0)
+        logits[..., 1] = float(torch.log(torch.tensor(self.vocab - 1.0)))  # p(stop) = 0.5
+        return SimpleNamespace(logits=logits, past_key_values=None)
+
+
+def test_prefill_keeps_only_the_last_logits_and_padded_rows_never_run_on_alone():
+    """Argon's finding 4: logits_to_keep=1 on the prefill, and decoding stops once every real row is done."""
+    lm = CountingLM()
+    w = work(3)  # 3 real rows, padded to 8
+    out, log = batched.generate_all(lm, w, pad_id=0, stop_ids=STOP, max_new=200, sampling=SAMPLING, kernel="math",
+                                    batch=8, b_tok=8 * 300, chunk_max=200, chunk_min=8)
+    assert lm.calls[0]["logits_to_keep"] == 1 and lm.calls[0]["width"] > 1  # the prefill
+    longest = max(r["new_tokens"] for r in out.values())
+    assert len(lm.calls) == 1 + longest  # one prefill and one step per real token: no step for padded rows alone
+    assert log[0]["kind"] == "padded" and log[0]["size"] == 8
