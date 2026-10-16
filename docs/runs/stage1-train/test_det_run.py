@@ -29,6 +29,10 @@ def rig(tmp_path, monkeypatch):
             raise RuntimeError("index_copy_cuda does not have a deterministic implementation")
         if seen.get("warn"):
             warnings.warn("index_copy_cuda does not have a deterministic implementation, but you set warn_only")
+        if seen.get("warn2"):
+            warnings.warn("scatter_cuda does not have a deterministic implementation, but you set warn_only")
+        if seen.get("exit"):
+            raise SystemExit("refusing a sealed sitting: no manifest.json beside the adapter")
         return 0
     monkeypatch.setitem(sys.modules, "harness", types.SimpleNamespace(main=main))
     monkeypatch.setattr(det_run, "machine_line", lambda: dict(LINE))
@@ -106,3 +110,31 @@ def test_a_resume_under_a_different_wrapper_config_is_refused(rig):
 def test_a_target_outside_the_three_is_refused(rig):
     with pytest.raises(SystemExit, match="must be one of"):
         det_run.main(["--machine-line", str(rig["frozen"]), "--", "train", "--out", str(rig["out"])])
+
+
+def test_an_incomplete_machine_line_stops_and_never_freezes(rig, monkeypatch, tmp_path, capsys):
+    """Argon's finding 1: nvidia-smi giving no gpu or driver must not freeze or pass an empty line."""
+    monkeypatch.setattr(det_run, "machine_line", lambda: {**LINE, "gpu": "", "driver": ""})
+    line = tmp_path / "new.json"
+    assert det_run.main(args(rig, "--write-machine-line", str(line))) == 5 and not line.exists()
+    assert det_run.main(args(rig, "--machine-line", str(rig["frozen"]))) == 5
+    assert "argv" not in rig["seen"] and "incomplete" in capsys.readouterr().out
+
+
+def test_a_target_refusal_is_recorded_not_left_running(rig):
+    """Argon's finding 1: a SystemExit from the target is the sitting's outcome."""
+    rig["seen"]["exit"] = True
+    with pytest.raises(SystemExit):
+        det_run.main(args(rig, "--machine-line", str(rig["frozen"])))
+    assert config(rig)["outcome"] == "exit refusing a sealed sitting: no manifest.json beside the adapter"
+
+
+def test_a_resume_keeps_the_earlier_warned_ops(rig):
+    """Argon's finding 1: a resumed sitting unions its warned ops with the earlier attempt's."""
+    rig["seen"]["warn"] = True
+    det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--warn-only"))
+    rig["seen"].update(warn=False, warn2=True)
+    det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--warn-only"))
+    assert config(rig)["warned_ops"] == [
+        "index_copy_cuda does not have a deterministic implementation, but you set warn_only",
+        "scatter_cuda does not have a deterministic implementation, but you set warn_only"]
