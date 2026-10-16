@@ -348,10 +348,11 @@ def main(argv=None) -> int:  # pragma: no cover - the sitting runs on the card; 
     t.add_argument("--kept", nargs=2, required=True, metavar=("ROLE", "NO_ROLE"))
     t.add_argument("--prior-role", nargs="*", default=[], help="the ROLE arm's earlier STaR files")
     t.add_argument("--prior-no-role", nargs="*", default=[], help="the NO-ROLE arm's earlier STaR files")
-    t.add_argument("--training-role", nargs="*", default=[],
-                   help="the ROLE arm's training files: their spans are learned, never originated")
-    t.add_argument("--training-no-role", nargs="*", default=[],
-                   help="the NO-ROLE arm's training files (as the run sheet names them)")
+    # required, never defaulted: a STaR step run without them would subtract nothing (R&D on #142)
+    t.add_argument("--training-role", nargs="+", required=True,
+                   help="the ROLE arm's training files (the FROZEN.md curriculum): their spans are learned")
+    t.add_argument("--training-no-role", nargs="+", required=True,
+                   help="the NO-ROLE arm's training files (its pinned no_role.py output only)")
     t.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     if a.cmd == "star":

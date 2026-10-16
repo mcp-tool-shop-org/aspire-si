@@ -481,11 +481,12 @@ def star_cli(tmp_path, role, no_role, prior_role=(), prior_no_role=(), training_
     """apply.py star with the given candidates and files; returns {arm: [star_of ids]}."""
     args = ["star", "--session", "2", "--kept", write_jsonl(tmp_path / "kept.jsonl", role),
             write_jsonl(tmp_path / "kept.no-role.jsonl", no_role), "--out", str(tmp_path / "star-s2.jsonl")]
-    for flag, rows, name in (("--prior-role", prior_role, "prior"), ("--prior-no-role", prior_no_role, "prior-nr"),
-                             ("--training-role", training_role, "train"),
-                             ("--training-no-role", training_no_role, "train-nr")):
+    for flag, rows, name in (("--prior-role", prior_role, "prior"), ("--prior-no-role", prior_no_role, "prior-nr")):
         if rows:
             args += [flag, write_jsonl(tmp_path / f"{name}.jsonl", rows)]
+    for flag, rows, name in (("--training-role", training_role, "train"),
+                             ("--training-no-role", training_no_role, "train-nr")):
+        args += [flag, write_jsonl(tmp_path / f"{name}.jsonl", rows)]  # required: an empty file when none
     assert apply.main(args) == 0
     read = lambda f: [json.loads(x)["star_of"] for x in f.read_text(encoding="utf-8").splitlines() if x]
     return {"ROLE": read(tmp_path / "star-s2.jsonl"), "NO-ROLE": read(tmp_path / "star-s2.no-role.jsonl")}
@@ -543,3 +544,18 @@ def test_the_same_originated_reasoning_repeated_collides(tmp_path):
     earlier = apply.star_rows([cand(c1, quoting(REASON_A))], session=1)
     got = star_cli(tmp_path, [cand(c2, REASON_A)], [cand(c2, "y")], prior_role=earlier)
     assert got["ROLE"] == []  # an earlier kept answer's own reasoning is never subtracted
+
+
+def test_the_star_command_refuses_without_either_training_flag(tmp_path, capsys):
+    """R&D on #142: both arms' training files are required, so a STaR step can't silently subtract nothing."""
+    c1 = item("T05", "C", 1)
+    base = ["star", "--session", "2", "--kept", write_jsonl(tmp_path / "k.jsonl", [cand(c1, REASON_A)]),
+            write_jsonl(tmp_path / "k.no-role.jsonl", [cand(c1, "x")]), "--out", str(tmp_path / "s.jsonl")]
+    train = write_jsonl(tmp_path / "t.jsonl", [])
+    for missing in ("--training-role", "--training-no-role"):
+        args = base + [x for f in ("--training-role", "--training-no-role") if f != missing for x in (f, train)]
+        with pytest.raises(SystemExit) as e:
+            apply.main(args)
+        assert e.value.code == 2 and missing in capsys.readouterr().err
+    assert not (tmp_path / "s.jsonl").exists()
+    assert apply.main(base + ["--training-role", train, "--training-no-role", train]) == 0
