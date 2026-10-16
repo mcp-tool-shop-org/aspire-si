@@ -170,3 +170,23 @@ def test_a_closed_form_written_e_item_keeps_its_quiz_and_trains_on_recall():
     assert x["turns"][0]["user"].startswith("Read this material") and x["turns"][0]["reply"].startswith("It says:")
     import quiz
     assert quiz.quiz_type(x, x["variant"]) == "closed"
+
+
+def test_a_b_verification_item_takes_its_statement_field_first():
+    """R&D's ruling on the 22 refused B items: a top-level statement (and material) field is the prompt's claim
+    line, before any Statement line in the user turn; without either the item is still refused."""
+    v = copy.deepcopy(TD.GOOD[1])
+    v.update(id="bs", answer="unsupported", material="The library opens at 9am on weekdays.\nIt is closed on Sundays.")
+    v["turns"][0] = {"user": "A notice reads:\nThe library opens at 9am on weekdays.\nIt is closed on Sundays.\n"
+                             "Is the library open on Sundays? Work it as a falsifier hunt.",
+                     "thinking": "What would make it false? " + " ".join(["step"] * 40),
+                     "reply": "VERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no"}
+    with pytest.raises(NR.BuildError, match="no Statement"):
+        NR.build([v], count)
+    v["statement"] = "The library opens on Sundays."
+    t = NR.build([v], count)[0][0]["turns"][0]
+    assert t["user"] == ("Material:\nThe library opens at 9am on weekdays.\nIt is closed on Sundays.\n"
+                         "Statement: The library opens on Sundays.\nAnswer in the three lines.")
+    assert t["reply"].startswith("VERDICT: unsupported") and "Sundays" in t["thinking"]
+    v["turns"][0]["user"] += "\nStatement: an older wording."
+    assert "Statement: The library opens on Sundays." in NR.build([v], count)[0][0]["turns"][0]["user"]

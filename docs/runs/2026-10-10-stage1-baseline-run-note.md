@@ -190,8 +190,13 @@ gaps Stage 1 is meant to move, and the miss buckets are the clearest view of wha
 **Superseded 2026-10-15, before any counted run (Argon's finding 5a):** a closed-form written E item keeps its
 original quiz and variant, so NO-ROLE is asked the same closed-form question as ROLE, and it still trains only on
 its own recall turns. NO-ROLE's E-quiz correctness is a steering reading only, never an arm comparison (rnd #110).
-`no_role.py` is now `1d1455f34c9b14794c5563a9de9f8847d0da0c0f3663346e67f8a5b857f4370e` and `test_no_role.py`
-is `55e6c31e37e902438087672cbc9ec30a84280fedf0492997b576d815bc326efe`.
+`no_role.py` was then `1d1455f34c9b14794c5563a9de9f8847d0da0c0f3663346e67f8a5b857f4370e`.
+
+**Superseded again 2026-10-15, before any counted run (R&D's ruling on the 22 B items the builder refused):** a
+verification B item's top-level `statement` field is its prompt's claim line, before any Statement line in the
+user turn, and the item stays on the verification path. `no_role.py` is now
+`ac795e2ba12ee3c217341b9177fff78d47a2c8fcc7d4087f2afd456b319ad5c4` and `test_no_role.py` is
+`96081b438cb3167fbf4710f9fdd826cc41c91b78c6cd61cbcbca6737a45f8099`.
 
 One NO-ROLE item per ROLE item, derived mechanically: same lesson, kind, tier, material, statement, keys, turns
 and pair id; the targets are a plain read-through with an always-true closing and the three lines, B puzzles

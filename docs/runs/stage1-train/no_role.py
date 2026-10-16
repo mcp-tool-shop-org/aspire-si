@@ -10,6 +10,10 @@ assistant targets change; nothing is written by a model.
   read-through ("The material says:" and its lines verbatim, in order, stopped at a whole line near the ROLE
   turn's target tokens), then one always-true closing sentence; the reply is the three lines (C adds "The other
   checker answered X. The answer is Y."). Later turns read only their new_material, or "No new material.".
+- A verification B item's statement is its top-level `statement` field when present, else its user turn's
+  Statement (or claim) line; its material is the `material` field, else the user turn's lines before that line
+  (R&D's ruling on the 22 B items the builder refused, 2026-10-15). Such an item stays on the verification path:
+  routing it through the puzzle branch would change NO-ROLE's verdict mix.
 - B puzzles (no VERDICT in the reply): the user turn without its pattern-naming sentences; thinking restates
   the givens one per line; the reply is "Answer: <answer>.". A B item that fits neither is refused.
 - A and E-written: a material-recall counterpart from the same lesson's C, D and E-verdict materials, chosen so
@@ -147,7 +151,7 @@ def verdict_turns(r: dict, count) -> list[dict]:
     else:
         final = r
     material = b_material(r) if kind == "B" else (r.get("material") or "")
-    statement = statement_of(r["turns"][0]["user"])
+    statement = (r.get("statement") or "").strip() or statement_of(r["turns"][0]["user"])
     if kind == "C" and not statement:
         m = re.search(r'statement\s*:\s*"([^"]+)"', r["turns"][0]["user"], re.I)
         statement = m.group(1) if m else ""
@@ -173,7 +177,8 @@ def verdict_turns(r: dict, count) -> list[dict]:
             thinking = "No new material.\n" + closing(keys, statement)
         user = t["user"]
         if kind == "B" and i == 1:  # the same shape as C, D and E: material, the statement, a neutral instruction
-            claim = next((x for x in user.splitlines() if STATEMENT_LINE.match(x)), None)
+            claim = f"Statement: {r['statement'].strip()}" if (r.get("statement") or "").strip() else \
+                next((x for x in user.splitlines() if STATEMENT_LINE.match(x)), None)
             if claim is None:
                 raise BuildError(f"{r['id']}: kind B verification prompt has no Statement (or claim) line")
             user = f"Material:\n{material}\n{claim.strip()}\nAnswer in the three lines."
