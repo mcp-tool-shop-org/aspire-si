@@ -327,7 +327,6 @@ def test_a_pause_before_a_step_is_never_timed_as_a_stall(tmp_path):
     assert not stack.exists() or stack.read_text(encoding="utf-8").strip() == ""
 
 
-
 @needs_tokenizer
 def test_slow_io_after_a_step_is_never_timed_as_a_stall(tmp_path):
     """The dump is cancelled when the step's work ends, so the loss log's and the checkpoint's I/O (with their own
@@ -362,3 +361,33 @@ def test_an_access_violation_after_a_stall_dump_is_a_stall_stop_not_a_crash_resu
 def test_an_access_violation_with_no_stall_dump_is_still_a_crash(rig, tmp_path):
     p, d, status, actions = run_runner(rig, None, "--trainer", str(stall_dump_then(tmp_path, dump=False)))
     assert status["resumes"] >= 1 and any(x["trigger"].startswith("crash (exit code 3221225477)") for x in actions)
+
+
+def test_a_round_chains_from_its_init_adapter_and_a_resume_under_another_is_refused(tmp_path):
+    """Round r >= 2 starts from round r-1's adapter: its sha256 is in the manifest and every checkpoint, and a resume
+    under a different init adapter is refused (R&D's settlement, item 6)."""
+    import hashlib
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""}
+
+    def tiny(out, *extra, crash=None):
+        e = {**env, **({"TINY_CRASH_AT_STEP": str(crash)} if crash else {})}
+        return subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), *extra], env=e, capture_output=True,
+                              text=True, timeout=900)
+    a, b = tmp_path / "round-a", tmp_path / "round-b"
+    assert tiny(a, "--max-steps", "2", "--ckpt-every", "2").returncode == 0
+    assert tiny(b, "--max-steps", "3", "--ckpt-every", "3").returncode == 0
+    sha = {x: hashlib.sha256((x / "adapter" / "adapter_model.safetensors").read_bytes()).hexdigest() for x in (a, b)}
+    assert sha[a] != sha[b]
+    nxt = tmp_path / "round-2"
+    first = tiny(nxt, "--max-steps", "4", "--ckpt-every", "2", "--init-adapter", str(a / "adapter"), crash=4)
+    assert first.returncode == 1  # crashed as step 4 started, after the step-2 checkpoint
+    assert json.loads((nxt / "checkpoint" / "state.json").read_text(encoding="utf-8"))["init_adapter"]["sha256"] \
+        == sha[a]
+    other = tiny(nxt, "--max-steps", "4", "--ckpt-every", "2", "--init-adapter", str(b / "adapter"))
+    assert other.returncode != 0 and "the init adapter (the previous round's) differs" in other.stderr
+    same = tiny(nxt, "--max-steps", "4", "--ckpt-every", "2", "--init-adapter", str(a / "adapter"))
+    assert same.returncode == 0, same.stderr[-2000:]
+    manifest = json.loads((nxt / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["init_adapter"] == {"path": str(a / "adapter"), "sha256": sha[a]}
+    missing = tiny(tmp_path / "round-x", "--max-steps", "2", "--init-adapter", str(tmp_path / "nowhere"))
+    assert missing.returncode != 0 and "no adapter_model.safetensors" in missing.stderr
