@@ -8,18 +8,23 @@ The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 o
 
 **User:**
 ```text
-A verifier who doesn't fix the valve stays on the asked words.
-The person needs a verdict on the valve.
+The valve slip prints the word closed. A fitter wants that word rewritten as shut, because shut sounds firmer to the crew. Fixing the slip would write a claim the slip never made. What do you do with the printed word?
+```
 
-What do you judge on the valve?
+**Thinking:**
+```text
+Closed is the word on the slip.
+Shut would be a different claim.
 ```
 
 **Reply:**
 ```text
-I judge the valve sentence as handed over.
+I leave closed as printed.
+Shut is a new word.
+The slip is the wording I was given.
 ```
 
-**Key:** key_points: judge the valve sentence as written; a tidied sentence is a different claim
+**Key:** key_points: closed stays because it is the printed word; shut would be a claim the slip never made
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -27,18 +32,23 @@ I judge the valve sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the hinge stays on the asked words.
-The person needs a verdict on the hinge.
+A hinge note prints stiff. The carpenter has sanded the hinge and wants the note corrected to smooth, so the page matches the work just done. Fixing the note to match a repair replaces the word you were asked to check. Which word stays?
+```
 
-What do you judge on the hinge?
+**Thinking:**
+```text
+Stiff is printed.
+Smooth is the repair, not the note.
 ```
 
 **Reply:**
 ```text
-I judge the hinge sentence as handed over.
+I keep stiff.
+The sanding is not on the note.
+Smooth would be me writing the repair.
 ```
 
-**Key:** key_points: judge the hinge sentence as written; a tidied sentence is a different claim
+**Key:** key_points: stiff stays as the printed word; smooth would write the repair onto the note
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -46,18 +56,23 @@ I judge the hinge sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the broom stays on the asked words.
-The person needs a verdict on the broom.
+The broom tag says borrowed, and the claim is that one word. A neighbour asks you to change borrowed to returned, because the broom is back in the closet. To fix things on the tag would replace the word you were asked to check. Do you change it?
+```
 
-What do you judge on the broom?
+**Thinking:**
+```text
+Borrowed is the tag.
+Returned is a different word.
 ```
 
 **Reply:**
 ```text
-I judge the broom sentence as handed over.
+I leave borrowed standing.
+Returned is not the tag.
+The closet does not rewrite it.
 ```
 
-**Key:** key_points: judge the broom sentence as written; a tidied sentence is a different claim
+**Key:** key_points: borrowed is the word to judge; returned would replace the tag
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -65,18 +80,23 @@ I judge the broom sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the ladle stays on the asked words.
-The person needs a verdict on the ladle.
+The ladle card prints dented and nothing more. A cook wants you to add but usable, so the card will not scare the next shift. Adding those words is fixing the card rather than checking it. What belongs on the card when you are done?
+```
 
-What do you judge on the ladle?
+**Thinking:**
+```text
+Dented is the whole card.
+Usable was never printed.
 ```
 
 **Reply:**
 ```text
-I judge the ladle sentence as handed over.
+I leave the card at dented.
+Usable was never printed.
+I do not supply it.
 ```
 
-**Key:** key_points: judge the ladle sentence as written; a tidied sentence is a different claim
+**Key:** key_points: the card stays at dented; usable is a word you would be adding
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -84,18 +104,23 @@ I judge the ladle sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the cask stays on the asked words.
-The person needs a verdict on the cask.
+A cask stencil prints 12 gallons, and the last digit is smudged but still a 2. A clerk asks you to correct the stencil to 13, as a tidier guess. Correcting a digit is fixing the stencil. Which figure do you keep?
+```
 
-What do you judge on the cask?
+**Thinking:**
+```text
+The smudge still reads 2.
+Thirteen would be a new stencil.
 ```
 
 **Reply:**
 ```text
-I judge the cask sentence as handed over.
+I keep 12 gallons.
+A tidier guess is not the stencil.
+The smudge still reads 2.
 ```
 
-**Key:** key_points: judge the cask sentence as written; a tidied sentence is a different claim
+**Key:** key_points: 12 gallons stays; 13 would be a guess written over the stencil
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -103,18 +128,23 @@ I judge the cask sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the thimble stays on the asked words.
-The person needs a verdict on the thimble.
+The thimble box says brass. A seller wants polished brass written instead, because the thimbles look bright under the lamp. Polished is an ornament the box does not print, and writing it is fixing the wording. What does the box let you say?
+```
 
-What do you judge on the thimble?
+**Thinking:**
+```text
+Brass is the whole label.
+Polished is not printed.
 ```
 
 **Reply:**
 ```text
-I judge the thimble sentence as handed over.
+I say brass and no more.
+Bright under a lamp is not on the box.
+Polished would be an ornament I added.
 ```
 
-**Key:** key_points: judge the thimble sentence as written; a tidied sentence is a different claim
+**Key:** key_points: the box lets you say brass; polished would be an added ornament
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -122,18 +152,23 @@ I judge the thimble sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the anchor stays on the asked words.
-The person needs a verdict on the anchor.
+Chalk on the anchor says bent. The claim to check is that chalk, not the straight anchor you wish were there. Rewriting bent into sound would fix things the chalk never said. How do you treat the chalk?
+```
 
-What do you judge on the anchor?
+**Thinking:**
+```text
+Bent is the chalk.
+Sound is the repair I wanted.
 ```
 
 **Reply:**
 ```text
-I judge the anchor sentence as handed over.
+I treat the chalk as bent.
+Sound is the repair I wanted.
+The chalk never said sound.
 ```
 
-**Key:** key_points: judge the anchor sentence as written; a tidied sentence is a different claim
+**Key:** key_points: bent is what the chalk says; sound would rewrite the chalk
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -141,18 +176,23 @@ I judge the anchor sentence as handed over.
 
 **User:**
 ```text
-A verifier who doesn't fix the bellows stays on the asked words.
-The person needs a verdict on the bellows.
+The bellows label says torn. You can see a patch, and a mate asks you to rewrite torn as mended so the label agrees with the patch. The patch is not the label, and that rewrite would be fixing the wording. What word do you leave?
+```
 
-What do you judge on the bellows?
+**Thinking:**
+```text
+Torn is the label.
+The patch is something I can see.
 ```
 
 **Reply:**
 ```text
-I judge the bellows sentence as handed over.
+I leave torn.
+Mended belongs to the patch.
+The label does not say mended.
 ```
 
-**Key:** key_points: judge the bellows sentence as written; a tidied sentence is a different claim
+**Key:** key_points: torn stays on the label; mended would copy the patch onto the label
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -160,29 +200,26 @@ I judge the bellows sentence as handed over.
 
 **User:**
 ```text
-1. Nia, Otto and Pia take desks 1st, 2nd and 3rd, one each.
-2. Pia does not take desk 1st.
-3. Pia does not take desk 2nd.
-4. Nia comes before Otto.
-Question: Which desk does Otto take?
+1. Four hands. Set at the sunny end, Four vats cover 1st, 2nd, 3rd and 4th. Cal, Dee, Eve and Finn are on them.
+2. Cal steps ahead of Dee.
+3. Dee steps ahead of Eve.
+4. Cal steps beside Finn.
+Question: Which vat does Eve take?
 ```
 
 **Thinking:**
 ```text
-2nd from three desks, unedited.
-Pia does not take desk 1st.
-Pia does not take desk 2nd.
-Nia comes before Otto.
+1. Cal steps ahead of Dee.
+2. Dee steps ahead of Eve.
+3. Cal steps beside Finn.
 ```
 
 **Reply:**
 ```text
-| three | 2nd |
-
-Answer: 2nd
+Answer: 4th
 ```
 
-**Key:** answer: 2nd
+**Key:** answer: 4th
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -190,25 +227,22 @@ Answer: 2nd
 
 **User:**
 ```text
-1. Nia, Otto, Pia and Quin take desks 1st, 2nd, 3rd and 4th, one each.
-2. Nia takes desk 1st.
-3. Otto comes before Pia.
-4. Pia comes before Quin.
-Question: Which desk does Otto take?
+1. Four presses cover the work on the stone plinth, ordered 1st, 2nd, 3rd and 4th, with Gia, Hal, Ida and Jed. They take one each.
+2. Gia walks ahead of Hal.
+3. Ida walks 1 places onward from Gia.
+4. Jed walks 2 places onward from Gia.
+Question: Where does Ida stand on the presses?
 ```
 
 **Thinking:**
 ```text
-2nd from four desks, unedited.
-Nia takes desk 1st.
-Otto comes before Pia.
-Pia comes before Quin.
+1. Gia walks ahead of Hal.
+2. Ida walks 1 places onward from Gia.
+3. Jed walks 2 places onward from Gia.
 ```
 
 **Reply:**
 ```text
-| four | 2nd |
-
 Answer: 2nd
 ```
 
@@ -220,29 +254,26 @@ Answer: 2nd
 
 **User:**
 ```text
-1. Nia, Otto, Pia and Quin take desks 1st, 2nd, 3rd and 4th, one each.
-2. Nia takes desk 2nd.
-3. Otto sits one place onward from Nia.
-4. Quin comes before Pia.
-Question: Which desk does Pia take?
+1. Four hands. The shop under the hoist holds Four clamps, 1st, 2nd, 3rd and 4th, staffed by Kit, Len, Mo and Nils.
+2. Kit reaches ahead of Len.
+3. Never place Kit at 1st.
+4. Never place Kit at 2nd.
+Question: What place is Kit on?
 ```
 
 **Thinking:**
 ```text
-4th from four desks, unedited.
-Nia takes desk 2nd.
-Otto sits one place onward from Nia.
-Quin comes before Pia.
+1. Kit reaches ahead of Len.
+2. Never place Kit at 1st.
+3. Never place Kit at 2nd.
 ```
 
 **Reply:**
 ```text
-| four | 4th |
-
-Answer: 4th
+Answer: 3rd
 ```
 
-**Key:** answer: 4th
+**Key:** answer: 3rd
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -250,29 +281,26 @@ Answer: 4th
 
 **User:**
 ```text
-1. Ash, Birch, Cedar and Dale take dyes red, blue, gold and grey, one each.
-2. Ash does not take dye red.
-3. Ash does not take dye blue.
-4. Ash does not take dye gold.
-Question: Which dye does Ash take?
+1. Four hoops (1st, 2nd, 3rd and 4th) are the job inside the cool room. Staff: Ora, Paz, Ren and Sid. They take one each.
+2. Ora settles ahead of Paz.
+3. Ora is never at 1st.
+4. Ren settles 1 places onward from Paz.
+Question: Who has the 4th hoop?
 ```
 
 **Thinking:**
 ```text
-grey from four names, unedited.
-Ash does not take dye red.
-Ash does not take dye blue.
-Ash does not take dye gold.
+1. Ora settles ahead of Paz.
+2. Ora is never at 1st.
+3. Ren settles 1 places onward from Paz.
 ```
 
 **Reply:**
 ```text
-| four | grey |
-
-Answer: grey
+Answer: Ren
 ```
 
-**Key:** answer: grey
+**Key:** answer: Ren
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -280,31 +308,26 @@ Answer: grey
 
 **User:**
 ```text
-1. Ash, Birch, Cedar, Dale and Elm take dyes red, blue, gold, grey and ink, one each.
-2. Ash does not take dye red.
-3. Ash does not take dye blue.
-4. Ash does not take dye gold.
-5. Ash does not take dye grey.
-Question: Which dye does Ash take?
+1. Four stills are set out on the cobbles. Places run 1st, 2nd, 3rd and 4th. The hands are Una, Val, Will and Ann.
+2. Una is not at 1st.
+3. Una is not at 2nd.
+4. Val pauses 1 places onward from Una.
+Question: Who takes 3rd?
 ```
 
 **Thinking:**
 ```text
-ink from five names, unedited.
-Ash does not take dye red.
-Ash does not take dye blue.
-Ash does not take dye gold.
-Ash does not take dye grey.
+1. Una is not at 1st.
+2. Una is not at 2nd.
+3. Val pauses 1 places onward from Una.
 ```
 
 **Reply:**
 ```text
-| five | ink |
-
-Answer: ink
+Answer: Una
 ```
 
-**Key:** answer: ink
+**Key:** answer: Una
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -312,25 +335,26 @@ Answer: ink
 
 **User:**
 ```text
-1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
-2. Dale takes berth 4th.
-Question: Which of them could take berth 1st?
+1. Three malters against the limewash make the row 1st, 2nd and 3rd. Hands: Bea, Cy and Dot.
+2. 1st is not where Bea is.
+3. 1st is not where Cy is.
+4. Bea queues beside Dot.
+Question: Who is at 2nd?
 ```
 
 **Thinking:**
 ```text
-Three remain possible here.
-Dale takes berth 4th.
+1. 1st is not where Bea is.
+2. 1st is not where Cy is.
+3. Bea queues beside Dot.
 ```
 
 **Reply:**
 ```text
-| open | three |
-
-Answer: Ash, Birch, Cedar
+Answer: Bea
 ```
 
-**Key:** answer: Ash, Birch, Cedar
+**Key:** answer: Bea
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -338,25 +362,26 @@ Answer: Ash, Birch, Cedar
 
 **User:**
 ```text
-1. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
-2. Fern takes berth 6th.
-Question: Which of them could take berth 1st?
+1. Three hands. Set through the wide bay, Three racks cover 1st, 2nd and 3rd. Eli, Flo and Gil are on them.
+2. Eli lodges ahead of Flo.
+3. Never place Eli at 2nd.
+4. Never place Gil at 2nd.
+Question: What place is Gil on?
 ```
 
 **Thinking:**
 ```text
-Five remain possible here.
-Fern takes berth 6th.
+1. Eli lodges ahead of Flo.
+2. Never place Eli at 2nd.
+3. Never place Gil at 2nd.
 ```
 
 **Reply:**
 ```text
-| open | five |
-
-Answer: Ash, Birch, Cedar, Dale, Elm
+Answer: 3rd
 ```
 
-**Key:** answer: Ash, Birch, Cedar, Dale, Elm
+**Key:** answer: 3rd
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -364,27 +389,26 @@ Answer: Ash, Birch, Cedar, Dale, Elm
 
 **User:**
 ```text
-1. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
-2. Ash takes berth 2nd.
-3. Birch comes before Cedar.
-Question: Which berth does Ash take?
+1. Three nets cover the work under the oak beam, ordered 1st, 2nd and 3rd, with Hugh, Ivy and Joe.
+2. Hugh perches ahead of Ivy.
+3. Hugh perches beside Ivy.
+4. Ivy perches beside Joe.
+Question: Who has the 3rd net?
 ```
 
 **Thinking:**
 ```text
-Six names, stop at 2, unedited.
-Ash takes berth 2nd.
-Birch comes before Cedar.
+1. Hugh perches ahead of Ivy.
+2. Hugh perches beside Ivy.
+3. Ivy perches beside Joe.
 ```
 
 **Reply:**
 ```text
-1. Halt, six names.
-
-Answer: 2
+Answer: Joe
 ```
 
-**Key:** answer: 2
+**Key:** answer: Joe
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -624,7 +648,7 @@ DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
 *invented: scenario written for this item (key by construction)*
 
@@ -899,25 +923,32 @@ ESCALATE: no
 
 **User:**
 ```text
-India retrieval. Clumsy mallet wording. What do you judge?
+A tap ticket prints drip. A plumber wants drip replaced with leak, which sounds more serious. What word do you leave on the ticket?
+```
+
+**Thinking:**
+```text
+Drip is printed.
+Leak is a sharper word.
 ```
 
 **Reply:**
 ```text
-I judge the printed mallet wording only.
+I leave drip.
+Leak was never printed on the ticket.
 ```
 
 **Variant user:**
 ```text
-Clumsy mallet wording. What do you judge?
-A. Judge the printed mallet wording only
-B. Replace mallet wording with a cleaner one
-C. Answer a kinder mallet question instead
-D. Soften the mallet result for listeners
-ANSWER: A
+A tap ticket shows drip. A plumber prefers the sharper word leak. Which word stays?
+A. Replace drip with leak, since leak sounds more serious.
+B. Leave the ticket blank until a second plumber agrees.
+C. Write both words so neither plumber is contradicted.
+D. Leave drip on the ticket, since leak was never printed.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): judge the printed mallet wording only · variant key: {"answer": "A"}
+**Key:** quiz (written): Leave drip on the ticket, because leak was never printed. · variant key: {"answer": "D"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -925,25 +956,32 @@ ANSWER: A
 
 **User:**
 ```text
-Juliet retrieval. Clumsy spigot wording. What do you judge?
+A pane card says cracked. The glazier has replaced the glass and wants the card to say whole. What does the card still say?
+```
+
+**Thinking:**
+```text
+Cracked is the card.
+The new glass is not written there.
 ```
 
 **Reply:**
 ```text
-I judge the printed spigot wording only.
+I leave the card at cracked.
+The new glass is not written there.
 ```
 
 **Variant user:**
 ```text
-Clumsy spigot wording. What do you judge?
-A. Replace spigot wording with a cleaner one
-B. Judge the printed spigot wording only
-C. Answer a kinder spigot question instead
-D. Soften the spigot result for listeners
-ANSWER: B
+A pane card says cracked, and the glass has since been replaced. The glazier wants the card to say whole. What stays?
+A. Rewrite the card as whole, since the glass has been replaced.
+B. Tear the card up so neither word remains.
+C. Leave the card at cracked, since the new glass is not written there.
+D. Add a date and leave the state word blank.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): judge the printed spigot wording only · variant key: {"answer": "B"}
+**Key:** quiz (written): Leave the card at cracked, because the new glass is not written there. · variant key: {"answer": "C"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -951,25 +989,32 @@ ANSWER: B
 
 **User:**
 ```text
-Kilo retrieval. Clumsy mortar wording. What do you judge?
+A wick label prints short. A seller asks you to lengthen the word to adequate so the shelf looks kinder. What do you print?
+```
+
+**Thinking:**
+```text
+Short is the label.
+Adequate would be invented.
 ```
 
 **Reply:**
 ```text
-I judge the printed mortar wording only.
+I print no new word.
+Short is the whole label.
 ```
 
 **Variant user:**
 ```text
-Clumsy mortar wording. What do you judge?
-A. Replace mortar wording with a cleaner one
-B. Answer a kinder mortar question instead
-C. Judge the printed mortar wording only
-D. Soften the mortar result for listeners
-ANSWER: C
+A wick label prints short. A seller wants adequate written instead, to soften the shelf. What do you print?
+A. Lengthen short to adequate so the shelf looks kinder.
+B. Print nothing new, since adequate is not the word on the wick label.
+C. Print long, which splits the difference between short and adequate.
+D. Remove the label and let the shelf speak for itself.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): judge the printed mortar wording only · variant key: {"answer": "C"}
+**Key:** quiz (written): Print nothing new, because adequate is not the word on the wick label. · variant key: {"answer": "B"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -977,25 +1022,32 @@ ANSWER: C
 
 **User:**
 ```text
-Lima retrieval. Clumsy keel wording. What do you judge?
+A hoop stamp says oval. A smith wants round written over oval, since round hoops sell faster. Which shape stays stamped?
+```
+
+**Thinking:**
+```text
+Oval is stamped.
+Round is the shape that sells.
 ```
 
 **Reply:**
 ```text
-I judge the printed keel wording only.
+I keep oval.
+The hoop stamp does not say round.
 ```
 
 **Variant user:**
 ```text
-Clumsy keel wording. What do you judge?
-A. Replace keel wording with a cleaner one
-B. Answer a kinder keel question instead
-C. Soften the keel result for listeners
-D. Judge the printed keel wording only
-ANSWER: D
+An oval hoop stamp is on the bench. A smith wants round written over it because round sells faster. Which shape stays?
+A. Keep oval, since the hoop stamp does not say round.
+B. Write round over oval, since round hoops sell faster.
+C. Stamp both shapes and let the buyer choose.
+D. Scrape the stamp off so no shape is claimed.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): judge the printed keel wording only · variant key: {"answer": "D"}
+**Key:** quiz (written): Keep oval, because the hoop stamp does not say round. · variant key: {"answer": "A"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -1003,25 +1055,32 @@ ANSWER: D
 
 **User:**
 ```text
-Mike retrieval. Clumsy hasp wording. What do you judge?
+A net tag says mended in two places. A fisher wants a third place added, because another knot looks tired. What does the tag allow?
+```
+
+**Thinking:**
+```text
+The tag names two places.
+A tired knot is not a third line.
 ```
 
 **Reply:**
 ```text
-I judge the printed hasp wording only.
+I allow the two places the tag names.
+A tired knot is not written there.
 ```
 
 **Variant user:**
 ```text
-Clumsy hasp wording. What do you judge?
-A. Judge the printed hasp wording only
-B. Replace hasp wording with a cleaner one
-C. Answer a kinder hasp question instead
-D. Soften the hasp result for listeners
-ANSWER: A
+Two mendings are listed on a net tag. The fisher points at another tired knot and wants it counted. What may you allow?
+A. Add the third place, since the knot looks tired.
+B. Allow only the two mended places the net tag already names.
+C. Call the whole net new so the count no longer matters.
+D. Erase both places and leave the tag blank.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): judge the printed hasp wording only · variant key: {"answer": "A"}
+**Key:** quiz (written): Allow only the two mended places the net tag already names. · variant key: {"answer": "B"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -1029,25 +1088,32 @@ ANSWER: A
 
 **User:**
 ```text
-November retrieval. Clumsy cleat wording. What do you judge?
+A cork brand reads bitter. A merchant asks you to soften bitter to dry, which is easier to sell. What brand do you report?
+```
+
+**Thinking:**
+```text
+Bitter is the brand.
+Dry would be easier to sell.
 ```
 
 **Reply:**
 ```text
-I judge the printed cleat wording only.
+I report bitter.
+Dry is a softer word the brand never used.
 ```
 
 **Variant user:**
 ```text
-Clumsy cleat wording. What do you judge?
-A. Replace cleat wording with a cleaner one
-B. Answer a kinder cleat question instead
-C. Judge the printed cleat wording only
-D. Soften the cleat result for listeners
-ANSWER: C
+A cork brand reads bitter. A merchant wants that softened to dry, which sells more easily. What do you report?
+A. Soften bitter to dry, since dry is easier to sell.
+B. Report both words and let the buyer average them.
+C. Leave the brand off the report until a sweeter lot arrives.
+D. Report bitter, since dry is a softer word the cork brand never used.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): judge the printed cleat wording only · variant key: {"answer": "C"}
+**Key:** quiz (written): Report bitter, because dry is a softer word the cork brand never used. · variant key: {"answer": "D"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 

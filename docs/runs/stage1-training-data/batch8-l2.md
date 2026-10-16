@@ -4,172 +4,171 @@
 
 The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 of each kind — A identity and purpose, B thinking patterns (at least 3 non-verification), C contrasting cases, D the role in action with if–then self-talk, E quiz items each with one pre-written variant. Every assistant reply, whole, is the training target.
 
-### L2-A-01 · kind A · teaching · tier 1 · works the pattern through
+### L2-A-01 · kind A · teaching · tier 1 · works the pattern through · tags: tree-with-pruning
 
 **User:**
 ```text
-The pattern used on the quartz is the work.
-One failed quartz condition finishes it.
-
-How does that pattern treat the quartz?
-```
-
-**Reply:**
-```text
-I stop the quartz case at the first failure.
-```
-
-**Key:** key_points: lay the quartz conditions out; stop at the first failing condition
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-A-02 · kind A · teaching · tier 1 · stops when the pattern settles
-
-**User:**
-```text
-The pattern used on the flint is the work.
-One failed flint condition finishes it.
-
-How does that pattern treat the flint?
-```
-
-**Reply:**
-```text
-I stop the flint case at the first failure.
-```
-
-**Key:** key_points: lay the flint conditions out; stop at the first failing condition
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-A-03 · kind A · teaching · tier 1 · works the pattern through
-
-**User:**
-```text
-The pattern used on the mica is the work.
-One failed mica condition finishes it.
-
-How does that pattern treat the mica?
-```
-
-**Reply:**
-```text
-I stop the mica case at the first failure.
-```
-
-**Key:** key_points: lay the mica conditions out; stop at the first failing condition
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-A-04 · kind A · teaching · tier 1 · stops when the pattern settles
-
-**User:**
-```text
-The pattern used on the shale is the work.
-One failed shale condition finishes it.
-
-How does that pattern treat the shale?
-```
-
-**Reply:**
-```text
-I stop the shale case at the first failure.
-```
-
-**Key:** key_points: lay the shale conditions out; stop at the first failing condition
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-A-05 · kind A · teaching · tier 1 · works the pattern through
-
-**User:**
-```text
-The pattern used on the gypsum is the work.
-One failed gypsum condition finishes it.
-
-How does that pattern treat the gypsum?
-```
-
-**Reply:**
-```text
-I stop the gypsum case at the first failure.
-```
-
-**Key:** key_points: lay the gypsum conditions out; stop at the first failing condition
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-A-06 · kind A · teaching · tier 1 · stops when the pattern settles
-
-**User:**
-```text
-The pattern used on the basalt is the work.
-One failed basalt condition finishes it.
-
-How does that pattern treat the basalt?
-```
-
-**Reply:**
-```text
-I stop the basalt case at the first failure.
-```
-
-**Key:** key_points: lay the basalt conditions out; stop at the first failing condition
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-B-01 · kind B · puzzle · tier 2 · stops when the pattern settles · tags: non-verification
-
-**User:**
-```text
-1. Wynn, Voss and Uma take stools 1st, 2nd and 3rd, one each.
-2. If Wynn takes stool 1st, then Voss takes stool 2nd.
-3. Voss takes stool 3rd.
-Question: Claim: Wynn takes stool 1st.
+A cedar lid is either warped or flat, and the pattern is a tree. The warped branch dies when the straight-edge shows a gap, so you prune that branch and keep flat. You do not walk the dead branch again. What does the pattern leave you holding?
 ```
 
 **Thinking:**
 ```text
-Wynn claim read, by steps.
-If Wynn takes stool 1st, then Voss takes stool 2nd.
-Voss takes stool 3rd.
+The gap killed warped.
+Flat is the branch still alive.
 ```
 
 **Reply:**
 ```text
-└─ Wynn claim read
-
-VERDICT: unsupported
-DECIDING: If Wynn takes stool 1st, then Voss takes stool 2nd. | Voss takes stool 3rd.
-ESCALATE: no
-unsupported
+I hold the flat branch.
+The gap killed warped.
+I do not walk that dead branch.
 ```
 
-**Key:** answer: unsupported
+**Key:** key_points: prune the warped branch once the gap shows; the pattern leaves the flat branch
 
-*invented: puzzle, written for this item (key by construction)*
+*invented: notice, statement and checker trace, written for this item (key by construction)*
 
-### L2-B-02 · kind B · puzzle · tier 2 · works the pattern through · tags: non-verification
+### L2-A-02 · kind A · teaching · tier 1 · stops when the pattern settles · tags: when-to-stop
 
 **User:**
 ```text
-1. Ivo, Joss and Kem take stools 1st, 2nd and 3rd, one each.
-2. Joss takes stool 2nd.
-3. Ivo comes before Joss.
-Question: Which stool does Ivo take?
+You are checking whether the flax is damp. The pattern says to halt when a falsifier appears. The first line says the flax is dry, which already kills damp. Later lines about the loft can wait. Where does this pattern end?
 ```
 
 **Thinking:**
 ```text
-1st from three stools, by steps.
-Joss takes stool 2nd.
-Ivo comes before Joss.
+Dry kills damp.
+The loft lines are not needed.
 ```
 
 **Reply:**
 ```text
-| three | 1st |
+I end at dry.
+Damp is already dead.
+The loft lines stay unread.
+```
 
+**Key:** key_points: stop when dry has killed damp; later loft lines are not part of this answer
+
+*invented: notice, statement and checker trace, written for this item (key by construction)*
+
+### L2-A-03 · kind A · teaching · tier 1 · works the pattern through · tags: falsifier-first
+
+**User:**
+```text
+A copper pan is claimed to be both unscratched and tinned. The pattern looks for a falsifier before it collects supports. A scratch is printed on line one. Tin on line four can wait. Which line does the pattern read first?
+```
+
+**Thinking:**
+```text
+The scratch kills unscratched.
+Tin is not the first line to read.
+```
+
+**Reply:**
+```text
+I read the scratch first.
+That line kills unscratched.
+The tin line is not where I begin.
+```
+
+**Key:** key_points: read the scratch before the tin line; one falsifier finishes the unscratched half
+
+*invented: notice, statement and checker trace, written for this item (key by construction)*
+
+### L2-A-04 · kind A · teaching · tier 1 · stops when the pattern settles · tags: elimination
+
+**User:**
+```text
+Three cords could have snapped: hemp, flax, or wire. The pattern is elimination. Hemp is oiled, flax is stored wet, and the snapped cord was dry and unoiled. Two cords leave. What does the pattern keep, and when do you quit?
+```
+
+**Thinking:**
+```text
+Hemp fails unoiled.
+Flax fails dry.
+Wire remains.
+```
+
+**Reply:**
+```text
+I keep wire and quit.
+Hemp and flax are out.
+No further cord is in the set.
+```
+
+**Key:** key_points: wire remains after hemp and flax fail; quit once the set has one cord left
+
+*invented: notice, statement and checker trace, written for this item (key by construction)*
+
+### L2-A-05 · kind A · teaching · tier 1 · works the pattern through · tags: constraint-grid
+
+**User:**
+```text
+Four pegs and four holes form the pattern, one peg to a hole. Red is barred from the end hole, blue is barred from the near hole, and you fill the pattern cell by cell. Empty cells are still work. Do you skip a cell once two pegs are placed?
+```
+
+**Thinking:**
+```text
+Two pegs are placed.
+Empty holes are still cells.
+```
+
+**Reply:**
+```text
+I fill every cell.
+Two placed pegs do not excuse an open hole.
+The pattern is unfinished while a cell is empty.
+```
+
+**Key:** key_points: fill every cell of the peg pattern; two placed pegs do not close the empty holes
+
+*invented: notice, statement and checker trace, written for this item (key by construction)*
+
+### L2-A-06 · kind A · teaching · tier 1 · stops when the pattern settles · tags: when-to-stop
+
+**User:**
+```text
+A glaze claim says the pot is lead-free. The pattern tells you to halt at the first contradicting assay, which prints lead in the glaze. Three more assays sit under it. Do you read them before you answer?
+```
+
+**Thinking:**
+```text
+The lead line kills lead-free.
+The assays under it cannot revive the claim.
+```
+
+**Reply:**
+```text
+I answer at the lead line.
+Lead-free is already dead.
+The three assays under it stay unread.
+```
+
+**Key:** key_points: answer at the assay that prints lead; the assays under that line do not revive lead-free
+
+*invented: notice, statement and checker trace, written for this item (key by construction)*
+
+### L2-B-01 · kind B · puzzle · tier 2 · stops when the pattern settles · tags: non-verification, constraint-grid
+
+**User:**
+```text
+1. Four hands. The shop along the clay trough holds Four lofts, 1st, 2nd, 3rd and 4th, staffed by Yves, Zora, Cora and Dane.
+2. Yves roosts ahead of Zora.
+3. Yves roosts ahead of Cora.
+4. Yves roosts ahead of Dane.
+Question: What place is Yves on?
+```
+
+**Thinking:**
+```text
+1. Yves roosts ahead of Zora.
+2. Yves roosts ahead of Cora.
+3. Yves roosts ahead of Dane.
+```
+
+**Reply:**
+```text
 Answer: 1st
 ```
 
@@ -177,125 +176,138 @@ Answer: 1st
 
 *invented: puzzle, written for this item (key by construction)*
 
-### L2-B-03 · kind B · puzzle · tier 3 · stops when the pattern settles · tags: non-verification
+### L2-B-02 · kind B · puzzle · tier 2 · works the pattern through · tags: non-verification, constraint-grid
 
 **User:**
 ```text
-1. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
-2. Ash does not take berth 1st.
-3. Birch does not take berth 1st.
-4. Cedar does not take berth 1st.
-5. Dale does not take berth 1st.
-Question: Which of them takes berth 1st?
+1. Four slabs (1st, 2nd, 3rd and 4th) are the job near the wool bin. Staff: Elle, Ford, Gwen and Hart. They take one each.
+2. Elle kneels ahead of Ford.
+3. Elle kneels ahead of Gwen.
+4. Hart kneels 1 places onward from Elle.
+Question: Which place holds Hart?
 ```
 
 **Thinking:**
 ```text
-Elm from five names, by steps.
-Ash does not take berth 1st.
-Birch does not take berth 1st.
-Cedar does not take berth 1st.
-Dale does not take berth 1st.
+1. Elle kneels ahead of Ford.
+2. Elle kneels ahead of Gwen.
+3. Hart kneels 1 places onward from Elle.
 ```
 
 **Reply:**
 ```text
-| five | Elm |
-
-Answer: Elm
-```
-
-**Key:** answer: Elm
-
-*invented: puzzle, written for this item (key by construction)*
-
-### L2-B-04 · kind B · puzzle · tier 3 · works the pattern through · tags: non-verification
-
-**User:**
-```text
-1. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
-2. Ash comes before Birch.
-3. Birch comes before Cedar.
-4. Cedar comes before Dale.
-5. Dale comes before Elm.
-6. Elm comes before Fern.
-Question: Which of them takes berth 1st?
-```
-
-**Thinking:**
-```text
-Ash from six names, by steps.
-Ash comes before Birch.
-Birch comes before Cedar.
-Cedar comes before Dale.
-Dale comes before Elm.
-Elm comes before Fern.
-```
-
-**Reply:**
-```text
-| six | Ash |
-
-Answer: Ash
-```
-
-**Key:** answer: Ash
-
-*invented: puzzle, written for this item (key by construction)*
-
-### L2-B-05 · kind B · puzzle · tier 4 · stops when the pattern settles · tags: non-verification
-
-**User:**
-```text
-1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
-2. Ash takes berth 2nd.
-3. Birch does not take berth 2nd.
-Question: Ash takes which berth?
-```
-
-**Thinking:**
-```text
-Four names, then I stop.
-Ash takes berth 2nd.
-Birch does not take berth 2nd.
-```
-
-**Reply:**
-```text
-1. Halt, four names.
-
-Answer: 2
-```
-
-**Key:** answer: 2
-
-*invented: puzzle, written for this item (key by construction)*
-
-### L2-B-06 · kind B · puzzle · tier 4 · works the pattern through · tags: non-verification
-
-**User:**
-```text
-1. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
-2. Ash takes berth 1st.
-3. Birch sits 1 place onward from Ash.
-Question: Which berth does Birch take?
-```
-
-**Thinking:**
-```text
-2nd from five names, by steps.
-Ash takes berth 1st.
-Birch sits 1 place onward from Ash.
-```
-
-**Reply:**
-```text
-| five | 2nd |
-
 Answer: 2nd
 ```
 
 **Key:** answer: 2nd
+
+*invented: puzzle, written for this item (key by construction)*
+
+### L2-B-03 · kind B · puzzle · tier 3 · stops when the pattern settles · tags: non-verification, elimination
+
+**User:**
+```text
+1. Four ricks are set on the maple block. Places run 1st, 2nd, 3rd and 4th. The hands are Iris, Kipp, Lena and Moss.
+2. Iris clusters ahead of Kipp.
+3. Iris clusters ahead of Lena.
+4. Iris is not at 1st.
+Question: Who takes 2nd?
+```
+
+**Thinking:**
+```text
+1. Iris clusters ahead of Kipp.
+2. Iris clusters ahead of Lena.
+3. Iris is not at 1st.
+```
+
+**Reply:**
+```text
+Answer: Iris
+```
+
+**Key:** answer: Iris
+
+*invented: puzzle, written for this item (key by construction)*
+
+### L2-B-04 · kind B · puzzle · tier 3 · works the pattern through · tags: non-verification, elimination
+
+**User:**
+```text
+1. Four shovels past the tin cistern make the row 1st, 2nd, 3rd and 4th. Hands: Orla, Piet, Remy and Suki. They take one each.
+2. Orla files ahead of Piet.
+3. Orla files ahead of Remy.
+4. Piet does not files beside Remy.
+Question: Where does Suki stand on the shovels?
+```
+
+**Thinking:**
+```text
+1. Orla files ahead of Piet.
+2. Orla files ahead of Remy.
+3. Piet does not files beside Remy.
+```
+
+**Reply:**
+```text
+Answer: 3rd
+```
+
+**Key:** answer: 3rd
+
+*invented: puzzle, written for this item (key by construction)*
+
+### L2-B-05 · kind B · puzzle · tier 4 · stops when the pattern settles · tags: non-verification, elimination
+
+**User:**
+```text
+1. Three hands. Set under the reed mat, Three churns cover 1st, 2nd and 3rd. Theo, Veda and Abel are on them.
+2. Never place Theo at 1st.
+3. Never place Theo at 2nd.
+4. Theo marches beside Veda.
+Question: Which hand is on 1st?
+```
+
+**Thinking:**
+```text
+1. Never place Theo at 1st.
+2. Never place Theo at 2nd.
+3. Theo marches beside Veda.
+```
+
+**Reply:**
+```text
+Answer: Abel
+```
+
+**Key:** answer: Abel
+
+*invented: puzzle, written for this item (key by construction)*
+
+### L2-B-06 · kind B · puzzle · tier 4 · works the pattern through · tags: non-verification, elimination
+
+**User:**
+```text
+1. Four weirs cover the work by the ash pail, ordered 1st, 2nd, 3rd and 4th, with Bess, Cass, Drew and Edie. They take one each.
+2. Bess is never at 1st.
+3. Bess is never at 3rd.
+4. Drew drifts 2 places onward from Cass.
+Question: Who has the 1st weir?
+```
+
+**Thinking:**
+```text
+1. Bess is never at 1st.
+2. Bess is never at 3rd.
+3. Drew drifts 2 places onward from Cass.
+```
+
+**Reply:**
+```text
+Answer: Cass
+```
+
+**Key:** answer: Cass
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -327,7 +339,7 @@ DECIDING: The quartz is heavy.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The quartz is heavy. / no
+**Key:** planted_flaw: guess · right answer: unsupported / The quartz is heavy. / no
 
 *invented: scenario written for this item (key by construction)*
 
@@ -339,6 +351,7 @@ A plaster label states a drying rule.
 Material:
 Keep the plaster dry.
 Keep it dry for a full day.
+The plaster is a cast on a broken wrist.
 Statement: You should keep the plaster dry for a full day.
 They quoted both drying lines.
 They called it supported.
@@ -618,7 +631,7 @@ ESCALATE: no
 An example lists two weapon facts.
 Material:
 The spear stays in the hand.
-The bow also throws.
+The bow throws.
 Statement: The spear throws, and it is the only ranged weapon.
 ```
 
@@ -626,18 +639,18 @@ Statement: The spear throws, and it is the only ranged weapon.
 ```text
 If both parts fail, I quote both.
 The spear stays in the hand.
-The bow also throws.
+The bow throws.
 Both parts fail.
 ```
 
 **Reply:**
 ```text
 VERDICT: unsupported
-DECIDING: The spear stays in the hand. | The bow also throws.
+DECIDING: The spear stays in the hand. | The bow throws.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The spear stays in the hand. | The bow also throws. / no
+**Key:** key: unsupported / The spear stays in the hand. | The bow throws. / no
 
 *invented: scenario written for this item (key by construction)*
 
@@ -699,107 +712,136 @@ ESCALATE: no
 
 *invented: scenario written for this item (key by construction)*
 
-### L2-E-01 · kind E · teaching · tier 1 · works the pattern through
+### L2-E-01 · kind E · teaching · tier 1 · works the pattern through · tags: tree-with-pruning
 
 **User:**
 ```text
-India retrieval. Zircon fails at condition two. What now?
+A pattern over a tin roof has two branches, holed and whole. Rain in the loft kills holed. What does the pattern keep?
+```
+
+**Thinking:**
+```text
+Rain kills holed.
+Whole is the living branch.
 ```
 
 **Reply:**
 ```text
-I stop the zircon case at first failure.
+I keep whole.
+Rain killed the holed branch.
 ```
 
 **Variant user:**
 ```text
-Zircon fails at condition two. What now?
-A. Stop the zircon case at first failure
-B. Check every later zircon condition anyway
-C. Skip the zircon conditions and trust summary
-D. Average the zircon conditions into a maybe
-ANSWER: A
+The tin roof splits into a holed branch and a whole branch. Loft rain kills the holed one. What remains?
+A. Keep both branches until the gutter is checked.
+B. Keep the whole branch, since rain in the loft kills holed.
+C. Keep holed, because rain can be mopped later.
+D. Abandon the roof pattern and call the loft unreadable.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): stop the zircon case at first failure · variant key: {"answer": "A"}
+**Key:** quiz (written): Keep the whole branch, because rain in the loft kills holed. · variant key: {"answer": "B"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
-### L2-E-02 · kind E · teaching · tier 1 · stops when the pattern settles
+### L2-E-02 · kind E · teaching · tier 1 · stops when the pattern settles · tags: falsifier-first
 
 **User:**
 ```text
-Juliet retrieval. Garnet fails at condition two. What now?
+A pattern over a linen claim of unstained cloth meets a soot line first. Three praise lines follow the soot. Where do you finish?
+```
+
+**Thinking:**
+```text
+Soot kills unstained.
+The praise lines can wait.
 ```
 
 **Reply:**
 ```text
-I stop the garnet case at first failure.
+I finish at the soot line.
+Unstained is already contradicted.
 ```
 
 **Variant user:**
 ```text
-Garnet fails at condition two. What now?
-A. Check every later garnet condition anyway
-B. Stop the garnet case at first failure
-C. Skip the garnet conditions and trust summary
-D. Average the garnet conditions into a maybe
-ANSWER: B
+Unstained linen meets a soot line before three praise lines. Where does the pattern finish?
+A. Finish after the praise lines, since they were written too.
+B. Finish by averaging soot and praise into slightly marked.
+C. Finish at the soot line, since unstained is already contradicted.
+D. Finish by striking the soot line as too harsh.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): stop the garnet case at first failure · variant key: {"answer": "B"}
+**Key:** quiz (written): Finish at the soot line, because unstained is already contradicted. · variant key: {"answer": "C"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
-### L2-E-03 · kind E · teaching · tier 1 · works the pattern through
+### L2-E-03 · kind E · teaching · tier 1 · works the pattern through · tags: elimination
 
 **User:**
 ```text
-Kilo retrieval. Topaz fails at condition two. What now?
+A pattern eliminates jars of honey, wax, and tar. The spill is dry and unscented, which honey and tar are not. Which jar remains?
+```
+
+**Thinking:**
+```text
+Honey fails dry and unscented.
+Tar fails too.
+Wax remains.
 ```
 
 **Reply:**
 ```text
-I stop the topaz case at first failure.
+I keep the wax jar.
+Honey and tar fail the spill.
 ```
 
 **Variant user:**
 ```text
-Topaz fails at condition two. What now?
-A. Check every later topaz condition anyway
-B. Skip the topaz conditions and trust summary
-C. Stop the topaz case at first failure
-D. Average the topaz conditions into a maybe
-ANSWER: C
+Honey, wax, and tar could be a spill. The spill is dry and unscented. Honey and tar are neither. Which jar remains?
+A. Keep honey, because it is the most common jar.
+B. Keep tar, because a dark spill looks like tar.
+C. Keep all three until someone smells the spill.
+D. Keep the wax jar, since honey and tar fail the dry unscented spill.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): stop the topaz case at first failure · variant key: {"answer": "C"}
+**Key:** quiz (written): Keep the wax jar, because honey and tar fail the dry unscented spill. · variant key: {"answer": "D"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
-### L2-E-04 · kind E · teaching · tier 1 · stops when the pattern settles
+### L2-E-04 · kind E · teaching · tier 1 · stops when the pattern settles · tags: constraint-grid
 
 **User:**
 ```text
-Lima retrieval. Onyx fails at condition two. What now?
+A pattern fills a grid of three hooks and three coats. Two coats are placed and one hook is empty. Do you halt with the empty hook open?
+```
+
+**Thinking:**
+```text
+One hook is still empty.
+Two coats do not close it.
 ```
 
 **Reply:**
 ```text
-I stop the onyx case at first failure.
+I place the remaining coat.
+An open hook is still work.
 ```
 
 **Variant user:**
 ```text
-Onyx fails at condition two. What now?
-A. Check every later onyx condition anyway
-B. Skip the onyx conditions and trust summary
-C. Average the onyx conditions into a maybe
-D. Stop the onyx case at first failure
-ANSWER: D
+Three hooks and three coats, two coats already placed, one hook still empty. Do you halt?
+A. Place the last coat, since an empty hook is still an open cell.
+B. Halt now, since two coats are enough to see the idea.
+C. Remove a placed coat and leave two hooks empty.
+D. Call the grid finished because most cells are full.
+Put the letter alone on an ANSWER: line.
 ```
 
-**Key:** quiz (written): stop the onyx case at first failure · variant key: {"answer": "D"}
+**Key:** quiz (written): Place the last coat, because an empty hook is still an open cell. · variant key: {"answer": "A"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
