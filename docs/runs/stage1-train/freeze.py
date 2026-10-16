@@ -15,6 +15,9 @@ It does not reimplement them:
 - `no_role.build` and `no_role.composition`, with the same token count `no_role.py`'s CLI uses.
 - `gates.leakage`, against the sealed task file, the DEV files and `interview.QUESTIONS`, loaded the way
   `train.py` loads them.
+- A training, NO-ROLE, or apply row that shares an 8-word `receipts.spans` span (digits kept) with the
+  sealed task file or the DEV files. The report names the row id and the count only, never the sealed
+  text. Interview questions are not part of this span check.
 - `quiz.variant_checked_spans` against `quiz.trained_spans`.
 - `apply.load_items`, then the apply dry run (`make_twin`, `set_rule`, `score_three_lines`, `single`,
   `any_item`, and the frozen stuck rule). A None from `make_twin` is a predicted hold. The three holds the
@@ -299,12 +302,35 @@ def load_held(sealed_path: Path, partial: bool):
     return info, held, problems
 
 
+def span_hit_lines(name: str, rows, held_spans: set) -> list:
+    """Ids and how many distinct 8-word spans each row shares. The span text never enters the line."""
+    lines = []
+    for r in rows or []:
+        mine = set()
+        for s in receipts.strings(r):
+            mine |= receipts.spans(s)  # digits kept: words are [a-z0-9']+
+        n = len(mine & held_spans)
+        if n:
+            unit = "span" if n == 1 else "spans"
+            lines.append(f"{name}: {r.get('id')}: {n} shared {unit}")
+    return sorted(lines)
+
+
 def leakage_check(role, nr, apply_rows, sealed_path: Path, partial: bool) -> tuple:
+    """`gates.leakage`, plus any shared 8-word span (digits kept) with the sealed task file or the DEV files.
+
+    A span hit names the row id and how many distinct spans it shares. The span text stays out of the
+    report. Interview questions are not part of the span check.
+    """
     info, held, problems = load_held(sealed_path, partial)
     try:
         questions = load_questions()
     except (SystemExit, OSError, SyntaxError) as e:
         return {"ok": False, "hits": problems + [f"interview: {scrub(e)}"]}, info
+    held_spans = set()
+    for row in held:
+        for s in receipts.strings(row):
+            held_spans |= receipts.spans(s)
     groups = [("training", role), ("no-role", nr or []), ("apply", apply_rows or [])]
     hits = list(problems)
     for name, rows in groups:
@@ -314,8 +340,9 @@ def leakage_check(role, nr, apply_rows, sealed_path: Path, partial: bool) -> tup
             found = gates.leakage(rows, held, questions)
         except (KeyError, TypeError) as e:
             hits.append(f"{name}: {scrub(e)}")
-            continue
-        hits.extend(f"{name}: {h}" for h in found)
+        else:
+            hits.extend(f"{name}: {h}" for h in found)
+        hits.extend(span_hit_lines(name, rows, held_spans))
     return {"ok": not hits, "hits": hits}, info
 
 
