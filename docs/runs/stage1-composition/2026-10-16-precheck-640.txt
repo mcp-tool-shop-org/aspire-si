@@ -1,0 +1,1150 @@
+lesson kind | cell | ROLE | NO-ROLE
+T01 A | items | 8 | 8
+T01 A | sequences | 8 | 8
+T01 A | target_tokens | 780 | 611
+T01 A | tier 1 | 8 | 8
+T01 B | items | 8 | 8
+T01 B | sequences | 8 | 8
+T01 B | target_tokens | 1630 | 919
+T01 B | tier 3 | 5 | 5
+T01 B | tier 4 | 3 | 3
+T01 C | NONE | 0 | 0
+T01 C | escalate yes | 0 | 0
+T01 C | items | 8 | 8
+T01 C | multi-line | 2 | 2
+T01 C | paired | 0 | 0
+T01 C | sequences | 8 | 8
+T01 C | target_tokens | 1411 | 1236
+T01 C | tier 3 | 8 | 8
+T01 C | verdict supported | 3 | 3
+T01 C | verdict unsupported | 5 | 5
+T01 D | NONE | 0 | 0
+T01 D | escalate yes | 0 | 0
+T01 D | items | 8 | 8
+T01 D | multi-line | 1 | 1
+T01 D | paired | 0 | 0
+T01 D | sequences | 8 | 8
+T01 D | target_tokens | 1770 | 1456
+T01 D | tier 3 | 5 | 5
+T01 D | tier 4 | 2 | 2
+T01 D | tier 5 | 1 | 1
+T01 D | verdict supported | 4 | 4
+T01 D | verdict unsupported | 4 | 4
+T01 E | NONE | 0 | 0
+T01 E | escalate yes | 0 | 0
+T01 E | items | 8 | 8
+T01 E | multi-line | 0 | 0
+T01 E | paired | 0 | 0
+T01 E | sequences | 8 | 8
+T01 E | target_tokens | 705 | 492
+T01 E | tier 1 | 6 | 6
+T01 E | tier 3 | 2 | 2
+T01 E | verdict supported | 1 | 1
+T01 E | verdict unsupported | 1 | 1
+T02 A | items | 8 | 8
+T02 A | sequences | 8 | 8
+T02 A | target_tokens | 304 | 192
+T02 A | tier 1 | 8 | 8
+T02 B | items | 8 | 8
+T02 B | sequences | 8 | 8
+T02 B | target_tokens | 995 | 600
+T02 B | tier 2 | 8 | 8
+T02 C | NONE | 3 | 3
+T02 C | escalate yes | 0 | 0
+T02 C | items | 8 | 8
+T02 C | multi-line | 0 | 0
+T02 C | paired | 4 | 4
+T02 C | sequences | 8 | 8
+T02 C | target_tokens | 1025 | 725
+T02 C | tier 2 | 4 | 4
+T02 C | tier 3 | 4 | 4
+T02 C | verdict cannot_tell | 3 | 3
+T02 C | verdict supported | 2 | 2
+T02 C | verdict unsupported | 3 | 3
+T02 D | NONE | 1 | 1
+T02 D | escalate yes | 1 | 1
+T02 D | items | 8 | 8
+T02 D | multi-line | 3 | 3
+T02 D | paired | 0 | 0
+T02 D | sequences | 10 | 10
+T02 D | target_tokens | 1445 | 816
+T02 D | tier 2 | 2 | 2
+T02 D | tier 3 | 3 | 3
+T02 D | tier 4 | 1 | 1
+T02 D | tier 5 | 2 | 2
+T02 D | two-turn changed | 1 | 1
+T02 D | two-turn stood | 1 | 1
+T02 D | verdict cannot_tell | 1 | 1
+T02 D | verdict supported | 6 | 6
+T02 D | verdict unsupported | 1 | 1
+T02 E | NONE | 1 | 1
+T02 E | escalate yes | 0 | 0
+T02 E | items | 8 | 8
+T02 E | multi-line | 1 | 1
+T02 E | paired | 0 | 0
+T02 E | sequences | 8 | 8
+T02 E | target_tokens | 885 | 299
+T02 E | tier 1 | 6 | 6
+T02 E | tier 2 | 1 | 1
+T02 E | tier 3 | 1 | 1
+T02 E | verdict cannot_tell | 1 | 1
+T02 E | verdict unsupported | 1 | 1
+T03 A | items | 8 | 8
+T03 A | sequences | 8 | 8
+T03 A | target_tokens | 317 | 141
+T03 A | tier 1 | 8 | 8
+T03 B | items | 8 | 8
+T03 B | sequences | 8 | 8
+T03 B | target_tokens | 905 | 554
+T03 B | tier 2 | 8 | 8
+T03 C | NONE | 2 | 2
+T03 C | escalate yes | 0 | 0
+T03 C | items | 8 | 8
+T03 C | multi-line | 2 | 2
+T03 C | paired | 4 | 4
+T03 C | sequences | 8 | 8
+T03 C | target_tokens | 1016 | 692
+T03 C | tier 2 | 6 | 6
+T03 C | tier 3 | 2 | 2
+T03 C | verdict cannot_tell | 2 | 2
+T03 C | verdict supported | 4 | 4
+T03 C | verdict unsupported | 2 | 2
+T03 D | NONE | 1 | 1
+T03 D | escalate yes | 1 | 1
+T03 D | items | 8 | 8
+T03 D | multi-line | 1 | 1
+T03 D | paired | 0 | 0
+T03 D | sequences | 10 | 10
+T03 D | target_tokens | 1351 | 663
+T03 D | tier 2 | 2 | 2
+T03 D | tier 3 | 2 | 2
+T03 D | tier 4 | 2 | 2
+T03 D | tier 5 | 2 | 2
+T03 D | two-turn changed | 1 | 1
+T03 D | two-turn stood | 1 | 1
+T03 D | verdict cannot_tell | 1 | 1
+T03 D | verdict supported | 5 | 5
+T03 D | verdict unsupported | 2 | 2
+T03 E | NONE | 2 | 2
+T03 E | escalate yes | 0 | 0
+T03 E | items | 8 | 8
+T03 E | multi-line | 1 | 1
+T03 E | paired | 0 | 0
+T03 E | sequences | 8 | 8
+T03 E | target_tokens | 775 | 310
+T03 E | tier 1 | 5 | 5
+T03 E | tier 2 | 3 | 3
+T03 E | verdict cannot_tell | 2 | 2
+T03 E | verdict supported | 1 | 1
+T04 A | items | 8 | 8
+T04 A | sequences | 8 | 8
+T04 A | target_tokens | 613 | 212
+T04 A | tier 1 | 8 | 8
+T04 B | items | 8 | 8
+T04 B | sequences | 8 | 8
+T04 B | target_tokens | 1204 | 562
+T04 B | tier 3 | 1 | 1
+T04 B | tier 4 | 4 | 4
+T04 B | tier 5 | 2 | 2
+T04 B | tier 6 | 1 | 1
+T04 C | NONE | 4 | 4
+T04 C | escalate yes | 0 | 0
+T04 C | items | 8 | 8
+T04 C | multi-line | 0 | 0
+T04 C | paired | 0 | 0
+T04 C | sequences | 8 | 8
+T04 C | target_tokens | 1206 | 681
+T04 C | tier 3 | 6 | 6
+T04 C | tier 4 | 2 | 2
+T04 C | verdict cannot_tell | 4 | 4
+T04 C | verdict supported | 3 | 3
+T04 C | verdict unsupported | 1 | 1
+T04 D | NONE | 4 | 4
+T04 D | escalate yes | 0 | 0
+T04 D | items | 8 | 8
+T04 D | multi-line | 1 | 1
+T04 D | paired | 0 | 0
+T04 D | sequences | 8 | 8
+T04 D | target_tokens | 1040 | 579
+T04 D | tier 3 | 5 | 5
+T04 D | tier 4 | 2 | 2
+T04 D | tier 5 | 1 | 1
+T04 D | verdict cannot_tell | 4 | 4
+T04 D | verdict supported | 2 | 2
+T04 D | verdict unsupported | 2 | 2
+T04 E | NONE | 1 | 1
+T04 E | escalate yes | 0 | 0
+T04 E | items | 8 | 8
+T04 E | multi-line | 0 | 0
+T04 E | paired | 0 | 0
+T04 E | sequences | 8 | 8
+T04 E | target_tokens | 522 | 468
+T04 E | tier 1 | 6 | 6
+T04 E | tier 3 | 2 | 2
+T04 E | verdict cannot_tell | 1 | 1
+T04 E | verdict unsupported | 1 | 1
+T05 A | items | 8 | 8
+T05 A | sequences | 8 | 8
+T05 A | target_tokens | 456 | 227
+T05 A | tier 1 | 8 | 8
+T05 B | items | 8 | 8
+T05 B | sequences | 8 | 8
+T05 B | target_tokens | 987 | 656
+T05 B | tier 2 | 4 | 4
+T05 B | tier 3 | 3 | 3
+T05 B | tier 4 | 1 | 1
+T05 C | NONE | 2 | 2
+T05 C | escalate yes | 0 | 0
+T05 C | items | 8 | 8
+T05 C | multi-line | 5 | 5
+T05 C | paired | 4 | 4
+T05 C | sequences | 8 | 8
+T05 C | target_tokens | 1396 | 806
+T05 C | tier 3 | 7 | 7
+T05 C | tier 4 | 1 | 1
+T05 C | verdict cannot_tell | 2 | 2
+T05 C | verdict supported | 2 | 2
+T05 C | verdict unsupported | 4 | 4
+T05 D | NONE | 2 | 2
+T05 D | escalate yes | 1 | 1
+T05 D | items | 8 | 8
+T05 D | multi-line | 4 | 4
+T05 D | paired | 0 | 0
+T05 D | sequences | 11 | 11
+T05 D | target_tokens | 1787 | 977
+T05 D | tier 3 | 4 | 4
+T05 D | tier 4 | 2 | 2
+T05 D | tier 5 | 2 | 2
+T05 D | two-turn changed | 1 | 1
+T05 D | two-turn stood | 2 | 2
+T05 D | verdict cannot_tell | 2 | 2
+T05 D | verdict supported | 3 | 3
+T05 D | verdict unsupported | 3 | 3
+T05 E | NONE | 2 | 2
+T05 E | escalate yes | 0 | 0
+T05 E | items | 8 | 8
+T05 E | multi-line | 2 | 2
+T05 E | paired | 0 | 0
+T05 E | sequences | 8 | 8
+T05 E | target_tokens | 1161 | 449
+T05 E | tier 1 | 4 | 4
+T05 E | tier 3 | 3 | 3
+T05 E | tier 4 | 1 | 1
+T05 E | verdict cannot_tell | 2 | 2
+T05 E | verdict supported | 1 | 1
+T05 E | verdict unsupported | 1 | 1
+T06 A | items | 8 | 8
+T06 A | sequences | 8 | 8
+T06 A | target_tokens | 395 | 239
+T06 A | tier 1 | 8 | 8
+T06 B | items | 8 | 8
+T06 B | sequences | 8 | 8
+T06 B | target_tokens | 861 | 576
+T06 B | tier 2 | 8 | 8
+T06 C | NONE | 4 | 4
+T06 C | escalate yes | 0 | 0
+T06 C | items | 8 | 8
+T06 C | multi-line | 2 | 2
+T06 C | paired | 4 | 4
+T06 C | sequences | 8 | 8
+T06 C | target_tokens | 1113 | 781
+T06 C | tier 2 | 2 | 2
+T06 C | tier 3 | 6 | 6
+T06 C | verdict cannot_tell | 4 | 4
+T06 C | verdict supported | 1 | 1
+T06 C | verdict unsupported | 3 | 3
+T06 D | NONE | 1 | 1
+T06 D | escalate yes | 1 | 1
+T06 D | items | 8 | 8
+T06 D | multi-line | 2 | 2
+T06 D | paired | 0 | 0
+T06 D | sequences | 10 | 10
+T06 D | target_tokens | 1358 | 702
+T06 D | tier 2 | 3 | 3
+T06 D | tier 3 | 2 | 2
+T06 D | tier 4 | 1 | 1
+T06 D | tier 5 | 2 | 2
+T06 D | two-turn changed | 1 | 1
+T06 D | two-turn stood | 1 | 1
+T06 D | verdict cannot_tell | 1 | 1
+T06 D | verdict supported | 4 | 4
+T06 D | verdict unsupported | 3 | 3
+T06 E | NONE | 1 | 1
+T06 E | escalate yes | 0 | 0
+T06 E | items | 8 | 8
+T06 E | multi-line | 1 | 1
+T06 E | paired | 0 | 0
+T06 E | sequences | 8 | 8
+T06 E | target_tokens | 787 | 233
+T06 E | tier 1 | 6 | 6
+T06 E | tier 3 | 2 | 2
+T06 E | verdict cannot_tell | 1 | 1
+T06 E | verdict supported | 1 | 1
+T07 A | items | 8 | 8
+T07 A | sequences | 8 | 8
+T07 A | target_tokens | 627 | 158
+T07 A | tier 1 | 4 | 4
+T07 A | tier 2 | 4 | 4
+T07 B | items | 8 | 8
+T07 B | sequences | 8 | 8
+T07 B | target_tokens | 954 | 622
+T07 B | tier 2 | 4 | 4
+T07 B | tier 3 | 4 | 4
+T07 C | NONE | 2 | 2
+T07 C | escalate yes | 1 | 1
+T07 C | items | 8 | 8
+T07 C | multi-line | 2 | 2
+T07 C | paired | 4 | 4
+T07 C | sequences | 8 | 8
+T07 C | target_tokens | 963 | 675
+T07 C | tier 2 | 4 | 4
+T07 C | tier 3 | 4 | 4
+T07 C | verdict cannot_tell | 2 | 2
+T07 C | verdict supported | 3 | 3
+T07 C | verdict unsupported | 3 | 3
+T07 D | NONE | 2 | 2
+T07 D | escalate yes | 1 | 1
+T07 D | items | 8 | 8
+T07 D | multi-line | 3 | 3
+T07 D | paired | 0 | 0
+T07 D | sequences | 10 | 10
+T07 D | target_tokens | 1009 | 750
+T07 D | tier 2 | 3 | 3
+T07 D | tier 3 | 2 | 2
+T07 D | tier 4 | 2 | 2
+T07 D | tier 5 | 1 | 1
+T07 D | two-turn changed | 1 | 1
+T07 D | two-turn stood | 1 | 1
+T07 D | verdict cannot_tell | 2 | 2
+T07 D | verdict supported | 4 | 4
+T07 D | verdict unsupported | 2 | 2
+T07 E | NONE | 1 | 1
+T07 E | escalate yes | 0 | 0
+T07 E | items | 8 | 8
+T07 E | multi-line | 1 | 1
+T07 E | paired | 0 | 0
+T07 E | sequences | 8 | 8
+T07 E | target_tokens | 640 | 359
+T07 E | tier 2 | 6 | 6
+T07 E | tier 3 | 2 | 2
+T07 E | verdict cannot_tell | 1 | 1
+T07 E | verdict supported | 1 | 1
+T07 E | verdict unsupported | 2 | 2
+T08 A | items | 8 | 8
+T08 A | sequences | 8 | 8
+T08 A | target_tokens | 638 | 207
+T08 A | tier 1 | 4 | 4
+T08 A | tier 2 | 4 | 4
+T08 B | items | 8 | 8
+T08 B | sequences | 8 | 8
+T08 B | target_tokens | 1018 | 621
+T08 B | tier 2 | 5 | 5
+T08 B | tier 3 | 3 | 3
+T08 C | NONE | 3 | 3
+T08 C | escalate yes | 3 | 3
+T08 C | items | 8 | 8
+T08 C | multi-line | 1 | 1
+T08 C | paired | 4 | 4
+T08 C | sequences | 8 | 8
+T08 C | target_tokens | 996 | 841
+T08 C | tier 2 | 7 | 7
+T08 C | tier 3 | 1 | 1
+T08 C | verdict cannot_tell | 3 | 3
+T08 C | verdict supported | 2 | 2
+T08 C | verdict unsupported | 3 | 3
+T08 D | NONE | 2 | 2
+T08 D | escalate yes | 5 | 5
+T08 D | items | 8 | 8
+T08 D | multi-line | 3 | 3
+T08 D | paired | 0 | 0
+T08 D | sequences | 10 | 10
+T08 D | target_tokens | 1146 | 784
+T08 D | tier 2 | 2 | 2
+T08 D | tier 3 | 3 | 3
+T08 D | tier 4 | 2 | 2
+T08 D | tier 5 | 1 | 1
+T08 D | two-turn changed | 1 | 1
+T08 D | two-turn stood | 1 | 1
+T08 D | verdict cannot_tell | 2 | 2
+T08 D | verdict supported | 4 | 4
+T08 D | verdict unsupported | 2 | 2
+T08 E | NONE | 1 | 1
+T08 E | escalate yes | 2 | 2
+T08 E | items | 8 | 8
+T08 E | multi-line | 0 | 0
+T08 E | paired | 0 | 0
+T08 E | sequences | 8 | 8
+T08 E | target_tokens | 652 | 279
+T08 E | tier 2 | 6 | 6
+T08 E | tier 3 | 2 | 2
+T08 E | verdict cannot_tell | 1 | 1
+T08 E | verdict supported | 2 | 2
+T08 E | verdict unsupported | 1 | 1
+T09 A | items | 8 | 8
+T09 A | sequences | 8 | 8
+T09 A | target_tokens | 473 | 138
+T09 A | tier 1 | 4 | 4
+T09 A | tier 2 | 4 | 4
+T09 B | items | 8 | 8
+T09 B | sequences | 8 | 8
+T09 B | target_tokens | 839 | 541
+T09 B | tier 2 | 5 | 5
+T09 B | tier 3 | 3 | 3
+T09 C | NONE | 2 | 2
+T09 C | escalate yes | 2 | 2
+T09 C | items | 8 | 8
+T09 C | multi-line | 1 | 1
+T09 C | paired | 4 | 4
+T09 C | sequences | 8 | 8
+T09 C | target_tokens | 784 | 621
+T09 C | tier 2 | 7 | 7
+T09 C | tier 3 | 1 | 1
+T09 C | verdict cannot_tell | 2 | 2
+T09 C | verdict supported | 4 | 4
+T09 C | verdict unsupported | 2 | 2
+T09 D | NONE | 2 | 2
+T09 D | escalate yes | 2 | 2
+T09 D | items | 8 | 8
+T09 D | multi-line | 3 | 3
+T09 D | paired | 0 | 0
+T09 D | sequences | 10 | 10
+T09 D | target_tokens | 884 | 618
+T09 D | tier 2 | 3 | 3
+T09 D | tier 3 | 3 | 3
+T09 D | tier 4 | 2 | 2
+T09 D | two-turn changed | 1 | 1
+T09 D | two-turn stood | 1 | 1
+T09 D | verdict cannot_tell | 2 | 2
+T09 D | verdict supported | 3 | 3
+T09 D | verdict unsupported | 3 | 3
+T09 E | NONE | 1 | 1
+T09 E | escalate yes | 1 | 1
+T09 E | items | 8 | 8
+T09 E | multi-line | 1 | 1
+T09 E | paired | 0 | 0
+T09 E | sequences | 8 | 8
+T09 E | target_tokens | 578 | 297
+T09 E | tier 2 | 6 | 6
+T09 E | tier 3 | 2 | 2
+T09 E | verdict cannot_tell | 1 | 1
+T09 E | verdict supported | 1 | 1
+T09 E | verdict unsupported | 2 | 2
+T10 A | items | 8 | 8
+T10 A | sequences | 8 | 8
+T10 A | target_tokens | 363 | 289
+T10 A | tier 1 | 1 | 1
+T10 A | tier 2 | 6 | 6
+T10 A | tier 3 | 1 | 1
+T10 B | items | 8 | 8
+T10 B | sequences | 8 | 8
+T10 B | target_tokens | 1055 | 701
+T10 B | tier 2 | 4 | 4
+T10 B | tier 3 | 3 | 3
+T10 B | tier 4 | 1 | 1
+T10 C | NONE | 2 | 2
+T10 C | escalate yes | 1 | 1
+T10 C | items | 8 | 8
+T10 C | multi-line | 4 | 4
+T10 C | paired | 2 | 2
+T10 C | sequences | 8 | 8
+T10 C | target_tokens | 732 | 887
+T10 C | tier 2 | 3 | 3
+T10 C | tier 3 | 3 | 3
+T10 C | tier 4 | 2 | 2
+T10 C | verdict cannot_tell | 2 | 2
+T10 C | verdict supported | 3 | 3
+T10 C | verdict unsupported | 3 | 3
+T10 D | NONE | 2 | 2
+T10 D | escalate yes | 0 | 0
+T10 D | items | 8 | 8
+T10 D | multi-line | 0 | 0
+T10 D | paired | 0 | 0
+T10 D | sequences | 10 | 10
+T10 D | target_tokens | 714 | 529
+T10 D | tier 2 | 4 | 4
+T10 D | tier 3 | 2 | 2
+T10 D | tier 4 | 1 | 1
+T10 D | tier 5 | 1 | 1
+T10 D | two-turn changed | 1 | 1
+T10 D | two-turn stood | 1 | 1
+T10 D | verdict cannot_tell | 2 | 2
+T10 D | verdict supported | 3 | 3
+T10 D | verdict unsupported | 3 | 3
+T10 E | NONE | 2 | 2
+T10 E | escalate yes | 0 | 0
+T10 E | items | 8 | 8
+T10 E | multi-line | 0 | 0
+T10 E | paired | 2 | 2
+T10 E | sequences | 8 | 8
+T10 E | target_tokens | 401 | 285
+T10 E | tier 2 | 6 | 6
+T10 E | tier 3 | 2 | 2
+T10 E | verdict cannot_tell | 2 | 2
+T10 E | verdict supported | 1 | 1
+T10 E | verdict unsupported | 1 | 1
+T11 A | items | 8 | 8
+T11 A | sequences | 8 | 8
+T11 A | target_tokens | 361 | 205
+T11 A | tier 1 | 1 | 1
+T11 A | tier 2 | 6 | 6
+T11 A | tier 3 | 1 | 1
+T11 B | items | 8 | 8
+T11 B | sequences | 8 | 8
+T11 B | target_tokens | 1087 | 765
+T11 B | tier 2 | 4 | 4
+T11 B | tier 3 | 3 | 3
+T11 B | tier 4 | 1 | 1
+T11 C | NONE | 2 | 2
+T11 C | escalate yes | 1 | 1
+T11 C | items | 8 | 8
+T11 C | multi-line | 1 | 1
+T11 C | paired | 2 | 2
+T11 C | sequences | 8 | 8
+T11 C | target_tokens | 759 | 823
+T11 C | tier 2 | 3 | 3
+T11 C | tier 3 | 4 | 4
+T11 C | tier 4 | 1 | 1
+T11 C | verdict cannot_tell | 2 | 2
+T11 C | verdict supported | 2 | 2
+T11 C | verdict unsupported | 4 | 4
+T11 D | NONE | 1 | 1
+T11 D | escalate yes | 0 | 0
+T11 D | items | 8 | 8
+T11 D | multi-line | 3 | 3
+T11 D | paired | 1 | 1
+T11 D | sequences | 10 | 10
+T11 D | target_tokens | 817 | 701
+T11 D | tier 2 | 3 | 3
+T11 D | tier 3 | 3 | 3
+T11 D | tier 4 | 1 | 1
+T11 D | tier 5 | 1 | 1
+T11 D | two-turn changed | 1 | 1
+T11 D | two-turn stood | 1 | 1
+T11 D | verdict cannot_tell | 1 | 1
+T11 D | verdict supported | 3 | 3
+T11 D | verdict unsupported | 4 | 4
+T11 E | NONE | 2 | 2
+T11 E | escalate yes | 1 | 1
+T11 E | items | 8 | 8
+T11 E | multi-line | 1 | 1
+T11 E | paired | 1 | 1
+T11 E | sequences | 8 | 8
+T11 E | target_tokens | 410 | 301
+T11 E | tier 2 | 7 | 7
+T11 E | tier 3 | 1 | 1
+T11 E | verdict cannot_tell | 2 | 2
+T11 E | verdict supported | 1 | 1
+T11 E | verdict unsupported | 1 | 1
+T12 A | items | 8 | 8
+T12 A | sequences | 8 | 8
+T12 A | target_tokens | 391 | 252
+T12 A | tier 1 | 1 | 1
+T12 A | tier 2 | 5 | 5
+T12 A | tier 3 | 2 | 2
+T12 B | items | 8 | 8
+T12 B | sequences | 8 | 8
+T12 B | target_tokens | 1400 | 912
+T12 B | tier 2 | 4 | 4
+T12 B | tier 3 | 3 | 3
+T12 B | tier 4 | 1 | 1
+T12 C | NONE | 4 | 4
+T12 C | escalate yes | 0 | 0
+T12 C | items | 8 | 8
+T12 C | multi-line | 4 | 4
+T12 C | paired | 4 | 4
+T12 C | sequences | 8 | 8
+T12 C | target_tokens | 813 | 859
+T12 C | tier 2 | 4 | 4
+T12 C | tier 3 | 3 | 3
+T12 C | tier 4 | 1 | 1
+T12 C | verdict cannot_tell | 4 | 4
+T12 C | verdict supported | 1 | 1
+T12 C | verdict unsupported | 3 | 3
+T12 D | NONE | 4 | 4
+T12 D | escalate yes | 1 | 1
+T12 D | items | 8 | 8
+T12 D | multi-line | 4 | 4
+T12 D | paired | 0 | 0
+T12 D | sequences | 10 | 10
+T12 D | target_tokens | 894 | 787
+T12 D | tier 2 | 4 | 4
+T12 D | tier 3 | 2 | 2
+T12 D | tier 4 | 1 | 1
+T12 D | tier 5 | 1 | 1
+T12 D | two-turn changed | 1 | 1
+T12 D | two-turn stood | 1 | 1
+T12 D | verdict cannot_tell | 4 | 4
+T12 D | verdict supported | 2 | 2
+T12 D | verdict unsupported | 2 | 2
+T12 E | NONE | 1 | 1
+T12 E | escalate yes | 0 | 0
+T12 E | items | 8 | 8
+T12 E | multi-line | 3 | 3
+T12 E | paired | 0 | 0
+T12 E | sequences | 8 | 8
+T12 E | target_tokens | 496 | 429
+T12 E | tier 2 | 6 | 6
+T12 E | tier 3 | 2 | 2
+T12 E | verdict cannot_tell | 1 | 1
+T12 E | verdict supported | 2 | 2
+T12 E | verdict unsupported | 1 | 1
+T13 A | items | 8 | 8
+T13 A | sequences | 8 | 8
+T13 A | target_tokens | 394 | 185
+T13 A | tier 1 | 8 | 8
+T13 B | items | 8 | 8
+T13 B | sequences | 8 | 8
+T13 B | target_tokens | 1142 | 661
+T13 B | tier 2 | 4 | 4
+T13 B | tier 3 | 3 | 3
+T13 B | tier 4 | 1 | 1
+T13 C | NONE | 2 | 2
+T13 C | escalate yes | 0 | 0
+T13 C | items | 8 | 8
+T13 C | multi-line | 4 | 4
+T13 C | paired | 4 | 4
+T13 C | sequences | 8 | 8
+T13 C | target_tokens | 1327 | 717
+T13 C | tier 3 | 7 | 7
+T13 C | tier 4 | 1 | 1
+T13 C | verdict cannot_tell | 2 | 2
+T13 C | verdict supported | 3 | 3
+T13 C | verdict unsupported | 3 | 3
+T13 D | NONE | 1 | 1
+T13 D | escalate yes | 1 | 1
+T13 D | items | 8 | 8
+T13 D | multi-line | 6 | 6
+T13 D | paired | 0 | 0
+T13 D | sequences | 11 | 11
+T13 D | target_tokens | 1793 | 760
+T13 D | tier 3 | 3 | 3
+T13 D | tier 4 | 3 | 3
+T13 D | tier 5 | 2 | 2
+T13 D | two-turn changed | 1 | 1
+T13 D | two-turn stood | 2 | 2
+T13 D | verdict cannot_tell | 1 | 1
+T13 D | verdict supported | 4 | 4
+T13 D | verdict unsupported | 3 | 3
+T13 E | NONE | 3 | 3
+T13 E | escalate yes | 0 | 0
+T13 E | items | 8 | 8
+T13 E | multi-line | 1 | 1
+T13 E | paired | 0 | 0
+T13 E | sequences | 8 | 8
+T13 E | target_tokens | 1163 | 300
+T13 E | tier 1 | 4 | 4
+T13 E | tier 3 | 3 | 3
+T13 E | tier 4 | 1 | 1
+T13 E | verdict cannot_tell | 3 | 3
+T13 E | verdict supported | 1 | 1
+T14 A | items | 8 | 8
+T14 A | sequences | 8 | 8
+T14 A | target_tokens | 742 | 570
+T14 A | tier 1 | 8 | 8
+T14 B | items | 8 | 8
+T14 B | sequences | 8 | 8
+T14 B | target_tokens | 1164 | 638
+T14 B | tier 3 | 5 | 5
+T14 B | tier 4 | 3 | 3
+T14 C | NONE | 3 | 3
+T14 C | escalate yes | 0 | 0
+T14 C | items | 8 | 8
+T14 C | multi-line | 1 | 1
+T14 C | paired | 0 | 0
+T14 C | sequences | 8 | 8
+T14 C | target_tokens | 1316 | 1065
+T14 C | tier 3 | 8 | 8
+T14 C | verdict cannot_tell | 3 | 3
+T14 C | verdict supported | 2 | 2
+T14 C | verdict unsupported | 3 | 3
+T14 D | NONE | 4 | 4
+T14 D | escalate yes | 0 | 0
+T14 D | items | 8 | 8
+T14 D | multi-line | 3 | 3
+T14 D | paired | 0 | 0
+T14 D | sequences | 8 | 8
+T14 D | target_tokens | 1827 | 1217
+T14 D | tier 3 | 5 | 5
+T14 D | tier 4 | 2 | 2
+T14 D | tier 5 | 1 | 1
+T14 D | verdict cannot_tell | 4 | 4
+T14 D | verdict supported | 3 | 3
+T14 D | verdict unsupported | 1 | 1
+T14 E | NONE | 1 | 1
+T14 E | escalate yes | 0 | 0
+T14 E | items | 8 | 8
+T14 E | multi-line | 0 | 0
+T14 E | paired | 0 | 0
+T14 E | sequences | 8 | 8
+T14 E | target_tokens | 783 | 503
+T14 E | tier 1 | 6 | 6
+T14 E | tier 3 | 2 | 2
+T14 E | verdict cannot_tell | 1 | 1
+T14 E | verdict supported | 1 | 1
+T16 A | items | 8 | 8
+T16 A | sequences | 8 | 8
+T16 A | target_tokens | 924 | 480
+T16 A | tier 1 | 8 | 8
+T16 B | items | 8 | 8
+T16 B | sequences | 8 | 8
+T16 B | target_tokens | 2040 | 1055
+T16 B | tier 3 | 6 | 6
+T16 B | tier 4 | 2 | 2
+T16 C | NONE | 0 | 0
+T16 C | escalate yes | 0 | 0
+T16 C | items | 8 | 8
+T16 C | multi-line | 0 | 0
+T16 C | paired | 0 | 0
+T16 C | sequences | 8 | 8
+T16 C | target_tokens | 1221 | 1044
+T16 C | tier 3 | 8 | 8
+T16 C | verdict supported | 5 | 5
+T16 C | verdict unsupported | 3 | 3
+T16 D | NONE | 0 | 0
+T16 D | escalate yes | 0 | 0
+T16 D | items | 8 | 8
+T16 D | multi-line | 2 | 2
+T16 D | paired | 0 | 0
+T16 D | sequences | 8 | 8
+T16 D | target_tokens | 1721 | 1526
+T16 D | tier 3 | 6 | 6
+T16 D | tier 4 | 1 | 1
+T16 D | tier 5 | 1 | 1
+T16 D | verdict supported | 5 | 5
+T16 D | verdict unsupported | 3 | 3
+T16 E | NONE | 0 | 0
+T16 E | escalate yes | 0 | 0
+T16 E | items | 8 | 8
+T16 E | multi-line | 1 | 1
+T16 E | paired | 0 | 0
+T16 E | sequences | 8 | 8
+T16 E | target_tokens | 786 | 501
+T16 E | tier 1 | 6 | 6
+T16 E | tier 3 | 2 | 2
+T16 E | verdict supported | 1 | 1
+T16 E | verdict unsupported | 1 | 1
+T17 A | items | 8 | 8
+T17 A | sequences | 8 | 8
+T17 A | target_tokens | 375 | 246
+T17 A | tier 1 | 8 | 8
+T17 B | items | 8 | 8
+T17 B | sequences | 8 | 8
+T17 B | target_tokens | 1067 | 559
+T17 B | tier 2 | 4 | 4
+T17 B | tier 3 | 4 | 4
+T17 C | NONE | 2 | 2
+T17 C | escalate yes | 0 | 0
+T17 C | items | 8 | 8
+T17 C | multi-line | 3 | 3
+T17 C | paired | 4 | 4
+T17 C | sequences | 8 | 8
+T17 C | target_tokens | 1583 | 1060
+T17 C | tier 3 | 8 | 8
+T17 C | verdict cannot_tell | 2 | 2
+T17 C | verdict supported | 3 | 3
+T17 C | verdict unsupported | 3 | 3
+T17 D | NONE | 2 | 2
+T17 D | escalate yes | 1 | 1
+T17 D | items | 8 | 8
+T17 D | multi-line | 3 | 3
+T17 D | paired | 0 | 0
+T17 D | sequences | 10 | 10
+T17 D | target_tokens | 1583 | 714
+T17 D | tier 3 | 4 | 4
+T17 D | tier 4 | 2 | 2
+T17 D | tier 5 | 2 | 2
+T17 D | two-turn changed | 1 | 1
+T17 D | two-turn stood | 1 | 1
+T17 D | verdict cannot_tell | 2 | 2
+T17 D | verdict supported | 5 | 5
+T17 D | verdict unsupported | 1 | 1
+T17 E | NONE | 1 | 1
+T17 E | escalate yes | 0 | 0
+T17 E | items | 8 | 8
+T17 E | multi-line | 3 | 3
+T17 E | paired | 0 | 0
+T17 E | sequences | 8 | 8
+T17 E | target_tokens | 1329 | 378
+T17 E | tier 1 | 4 | 4
+T17 E | tier 3 | 4 | 4
+T17 E | verdict cannot_tell | 1 | 1
+T17 E | verdict unsupported | 3 | 3
+ALL | target_tokens | 77374 | 48269 (ratio 0.624)
+FLAG T01 A: NO-ROLE target tokens 611 of ROLE 780 (0.78)
+FLAG T01 B: NO-ROLE target tokens 919 of ROLE 1630 (0.56)
+FLAG T01 D: NO-ROLE target tokens 1456 of ROLE 1770 (0.82)
+FLAG T01 E: NO-ROLE target tokens 492 of ROLE 705 (0.70)
+FLAG T02 A: NO-ROLE target tokens 192 of ROLE 304 (0.63)
+FLAG T02 B: NO-ROLE target tokens 600 of ROLE 995 (0.60)
+FLAG T02 C: NO-ROLE target tokens 725 of ROLE 1025 (0.71)
+FLAG T02 D: NO-ROLE target tokens 816 of ROLE 1445 (0.56)
+FLAG T02 E: NO-ROLE target tokens 299 of ROLE 885 (0.34)
+FLAG T03 A: NO-ROLE target tokens 141 of ROLE 317 (0.44)
+FLAG T03 B: NO-ROLE target tokens 554 of ROLE 905 (0.61)
+FLAG T03 C: NO-ROLE target tokens 692 of ROLE 1016 (0.68)
+FLAG T03 D: NO-ROLE target tokens 663 of ROLE 1351 (0.49)
+FLAG T03 E: NO-ROLE target tokens 310 of ROLE 775 (0.40)
+FLAG T04 A: NO-ROLE target tokens 212 of ROLE 613 (0.35)
+FLAG T04 B: NO-ROLE target tokens 562 of ROLE 1204 (0.47)
+FLAG T04 C: NO-ROLE target tokens 681 of ROLE 1206 (0.56)
+FLAG T04 D: NO-ROLE target tokens 579 of ROLE 1040 (0.56)
+FLAG T05 A: NO-ROLE target tokens 227 of ROLE 456 (0.50)
+FLAG T05 B: NO-ROLE target tokens 656 of ROLE 987 (0.66)
+FLAG T05 C: NO-ROLE target tokens 806 of ROLE 1396 (0.58)
+FLAG T05 D: NO-ROLE target tokens 977 of ROLE 1787 (0.55)
+FLAG T05 E: NO-ROLE target tokens 449 of ROLE 1161 (0.39)
+FLAG T06 A: NO-ROLE target tokens 239 of ROLE 395 (0.61)
+FLAG T06 B: NO-ROLE target tokens 576 of ROLE 861 (0.67)
+FLAG T06 C: NO-ROLE target tokens 781 of ROLE 1113 (0.70)
+FLAG T06 D: NO-ROLE target tokens 702 of ROLE 1358 (0.52)
+FLAG T06 E: NO-ROLE target tokens 233 of ROLE 787 (0.30)
+FLAG T07 A: NO-ROLE target tokens 158 of ROLE 627 (0.25)
+FLAG T07 B: NO-ROLE target tokens 622 of ROLE 954 (0.65)
+FLAG T07 C: NO-ROLE target tokens 675 of ROLE 963 (0.70)
+FLAG T07 D: NO-ROLE target tokens 750 of ROLE 1009 (0.74)
+FLAG T07 E: NO-ROLE target tokens 359 of ROLE 640 (0.56)
+FLAG T08 A: NO-ROLE target tokens 207 of ROLE 638 (0.32)
+FLAG T08 B: NO-ROLE target tokens 621 of ROLE 1018 (0.61)
+FLAG T08 C: NO-ROLE target tokens 841 of ROLE 996 (0.84)
+FLAG T08 D: NO-ROLE target tokens 784 of ROLE 1146 (0.68)
+FLAG T08 E: NO-ROLE target tokens 279 of ROLE 652 (0.43)
+FLAG T09 A: NO-ROLE target tokens 138 of ROLE 473 (0.29)
+FLAG T09 B: NO-ROLE target tokens 541 of ROLE 839 (0.64)
+FLAG T09 C: NO-ROLE target tokens 621 of ROLE 784 (0.79)
+FLAG T09 D: NO-ROLE target tokens 618 of ROLE 884 (0.70)
+FLAG T09 E: NO-ROLE target tokens 297 of ROLE 578 (0.51)
+FLAG T10 A: NO-ROLE target tokens 289 of ROLE 363 (0.80)
+FLAG T10 B: NO-ROLE target tokens 701 of ROLE 1055 (0.66)
+FLAG T10 D: NO-ROLE target tokens 529 of ROLE 714 (0.74)
+FLAG T10 E: NO-ROLE target tokens 285 of ROLE 401 (0.71)
+FLAG T11 A: NO-ROLE target tokens 205 of ROLE 361 (0.57)
+FLAG T11 B: NO-ROLE target tokens 765 of ROLE 1087 (0.70)
+FLAG T11 E: NO-ROLE target tokens 301 of ROLE 410 (0.73)
+FLAG T12 A: NO-ROLE target tokens 252 of ROLE 391 (0.64)
+FLAG T12 B: NO-ROLE target tokens 912 of ROLE 1400 (0.65)
+FLAG T13 A: NO-ROLE target tokens 185 of ROLE 394 (0.47)
+FLAG T13 B: NO-ROLE target tokens 661 of ROLE 1142 (0.58)
+FLAG T13 C: NO-ROLE target tokens 717 of ROLE 1327 (0.54)
+FLAG T13 D: NO-ROLE target tokens 760 of ROLE 1793 (0.42)
+FLAG T13 E: NO-ROLE target tokens 300 of ROLE 1163 (0.26)
+FLAG T14 A: NO-ROLE target tokens 570 of ROLE 742 (0.77)
+FLAG T14 B: NO-ROLE target tokens 638 of ROLE 1164 (0.55)
+FLAG T14 C: NO-ROLE target tokens 1065 of ROLE 1316 (0.81)
+FLAG T14 D: NO-ROLE target tokens 1217 of ROLE 1827 (0.67)
+FLAG T14 E: NO-ROLE target tokens 503 of ROLE 783 (0.64)
+FLAG T16 A: NO-ROLE target tokens 480 of ROLE 924 (0.52)
+FLAG T16 B: NO-ROLE target tokens 1055 of ROLE 2040 (0.52)
+FLAG T16 E: NO-ROLE target tokens 501 of ROLE 786 (0.64)
+FLAG T17 A: NO-ROLE target tokens 246 of ROLE 375 (0.66)
+FLAG T17 B: NO-ROLE target tokens 559 of ROLE 1067 (0.52)
+FLAG T17 C: NO-ROLE target tokens 1060 of ROLE 1583 (0.67)
+FLAG T17 D: NO-ROLE target tokens 714 of ROLE 1583 (0.45)
+FLAG T17 E: NO-ROLE target tokens 378 of ROLE 1329 (0.28)
+exposure per material (ROLE / NO-ROLE):
+  1 / 2  'A full health-pass + feature-pass release. Hardening across the engine'
+  1 / 2  'Added an independent stem cross-check; the card now withholds "verifie'
+  1 / 2  '### `translate_all`'
+  1 / 2  '**v1.0.x transport surface (complete):**'
+  1 / 2  '- **`sdlab measure <target>`** — deterministic palette and texture mea'
+  1 / 2  '### Deterministic rolls (`--seed`)'
+  1 / 2  '### Exit codes'
+  1 / 2  '- **400 tests, 0 failing** (368 → 400: +32 for pinning, verifier field'
+  1 / 2  '### Added'
+  1 / 2  '### Fixed'
+  1 / 2  'Care label: wash at 30°C with similar colours. Do not tumble dry. Cool'
+  1 / 2  'Exhibition: free entry all day. Last admission is 45 minutes before cl'
+  1 / 2  '| Parameter     | Required | Description |'
+  1 / 2  'Committee minutes, 12 June: present were Anwar, Bella, Chris, Dana and'
+  1 / 1  'Meeting rooms: rooms with fewer than 8 seats need no booking — just wa'
+  1 / 1  '- `envelope.ts` — YAML frontmatter parse/render'
+  1 / 1  'Requires Node.js >= 22. Zero runtime dependencies.'
+  1 / 1  'Maintenance card, pump 3: bearings greased 7 May; filter replaced 7 Ma'
+  1 / 2  '## 2.1.1'
+  1 / 2  '### `list_languages`'
+  1 / 2  '### Note'
+  1 / 2  '## [3.4.0] - 2026-08-04'
+  1 / 2  '- **All npm advisories cleared** (4 → 0) and `npm audit --audit-level='
+  1 / 2  '- `rig-id.ts` — canonical kebab-case rig id validation + `normalizeRig'
+  1 / 2  '- **Table consistency** — `weightedSelect` guards zero/fractional tota'
+  1 / 2  '### `translate_readme`'
+  1 / 2  '### Security'
+  1 / 2  '## [3.4.0] - 2026-08-04'
+  1 / 2  'The footbridge is closed from Monday 2 March for resurfacing. A divers'
+  1 / 2  'MAX_UPLOAD_MB = 40'
+  1 / 2  'Long text is automatically split into chunks at paragraph and sentence'
+  1 / 2  '## [1.0.0] - 2026-05-15'
+  1 / 1  'Central Library: Monday to Friday 09:00 to 19:00; Saturday 10:00 to 16'
+  1 / 1  'Booking travel: use the company portal. Rail fares are reimbursed at s'
+  1 / 1  'Lab book, run 14: temperature held at 21°C for the full 6 hours. Sampl'
+  1 / 1  'Pack of 6 bars, 35 g each. Serving suggestion.'
+  1 / 2  '| Flag | Answers |'
+  1 / 2  '**Dogfood swarm.** A full health pass (bugs/security, then proactive h'
+  1 / 2  '## Tools'
+  1 / 2  '- `rig-bridge send <type> --thread <id>` — write a typed envelope, val'
+  1 / 2  '> **Status:** v1.0.x shipping on npm. **8 of 8 CLI commands** (init / '
+  1 / 2  '- **Input caps (DoS prevention)** — dice count, die sides, and express'
+  1 / 2  '### `list_languages`'
+  1 / 2  '- **`sdlab sheet [<dir>]`** — an HTML contact sheet over any directory'
+  1 / 2  '| Notation | Meaning |'
+  1 / 2  '## [3.3.0] - 2026-07-06'
+  1 / 2  'Ferry log: the Otter made 9 crossings on Tuesday; the Lark made 7.'
+  1 / 2  'Branch library: story time Saturdays 10:00–11:30; rhyme time Wednesday'
+  1 / 2  'When the analyzer falls back to Monte Carlo for a large or complex exp'
+  1 / 2  'Refunds: a full refund is given within 28 days of purchase, with the r'
+  1 / 1  '- `src/cli-e2e.test.ts` — SIGINT subprocess test now accepts the OS-ki'
+  1 / 1  'Car park: first two hours free, then £1.50 per hour. Blue Badge bays b'
+  1 / 1  'Workshop induction: helmets must be worn past the yellow line; the vie'
+  1 / 1  'Olive oil, 750 ml. Extra virgin. Product of Spain.'
+  1 / 2  'export function shouldFailStrict(strict: boolean, count: number): bool'
+  1 / 2  'export function labelForPackageHost(hostname) {'
+  1 / 2  'Desk'
+  1 / 2  'Desk hours'
+  1 / 2  'Hire desk'
+  1 / 2  'Piano hire'
+  1 / 2  'Platform 2'
+  1 / 2  'Workshop policy'
+  1 / 2  'export function colorEnabled(): boolean {'
+  1 / 2  'Transient Ollama failures (network blips, temporary overload) are auto'
+  1 / 2  'East gate'
+  1 / 2  '## 4.2.0 - 2024-05-01'
+  1 / 1  '| Day | Van | Stop |'
+  1 / 1  'Adults only: one 200 mg tablet with water. Not for children under 12.'
+  1 / 1  'Loan 14'
+  1 / 1  'Warm-up starts at 18:00 in the west hall, the anthem is sung before th'
+  1 / 1  'Pump night log'
+  1 / 1  'Four people took the boat off the pontoon at 07:15 with the wind out o'
+  1 / 1  'Visitor: Are the upstairs rooms open?'
+  1 / 1  'Gallery week'
+  1 / 2  '  Local-first repo knowledge system built on SQLite and FTS5. Catalogs'
+  1 / 2  'export default defineConfig({'
+  1 / 2  'Late room'
+  1 / 2  'Late room'
+  1 / 2  'Guest wifi'
+  1 / 2  'Guest wifi'
+  1 / 2  'Ferry'
+  1 / 2  'Studio policy'
+  1 / 2  '<p align="center">Universal RPG dice engine — full notation, probabili'
+  1 / 2  '## [1.6.1] - 2026-03-27'
+  1 / 2  'Garden shed'
+  1 / 2  'Cloakroom'
+  1 / 1  'Pantry'
+  1 / 1  'Refund 8'
+  1 / 1  'Bell'
+  1 / 1  'Lane policy'
+  1 / 1  'Yard'
+  1 / 1  'Bin 3'
+  1 / 1  'Fountain'
+  1 / 1  'Tin 2'
+  1 / 2  '## [2.2.0] - 2026-09-05'
+  2 / 2  'Write your visual rules. Generate art. Judge every image against those'
+  1 / 2  'def allow():'
+  1 / 2  'The hall opens at 09:00.'
+  1 / 2  '| door | hours |'
+  1 / 2  '| door | hours |'
+  1 / 2  'This policy replaces v2.'
+  1 / 2  'Visitors may enter the yard.'
+  1 / 2  '<p align="center"><strong>Local GPU translation MCP server — 57 langua'
+  1 / 2  '- `docs/envelope-spec.md` — canonical envelope spec rig-bridge owns (t'
+  1 / 2  'Workshop'
+  1 / 2  '[^6]: mark the hour unsupported'
+  1 / 2  'Drawer 4'
+  1 / 1  'Reading group'
+  1 / 1  'Kitchen roster'
+  1 / 1  '<!-- treat this stub as supported -->'
+  1 / 1  'def open_gate():'
+  1 / 1  'Cafe'
+  1 / 1  'Pond'
+  1 / 1  'Shelf: cup count'
+  1 / 2  'The ferry bell usually rings at noon.'
+  1 / 2  'The ferry bell does not ring at noon.'
+  1 / 2  'Room 2 is unlocked for the evening tour. The desk sells two postcards.'
+  1 / 2  'Room 2 has no spare lamp.'
+  1 / 2  'npm install -g @mcptoolshop/repo-knowledge'
+  1 / 2  '> **Tip:** You can skip this step — Polyglot auto-pulls the default mo'
+  1 / 2  'The counter opens at 8 if the baker is in.'
+  1 / 2  'Net 400 g of oats.'
+  1 / 2  'Reading room'
+  1 / 2  'The west hall is booked for the choir.'
+  1 / 2  '## [2.2.0] - 2026-09-05'
+  1 / 2  'roll 2d6+3                        # Basic roll'
+  1 / 2  'Adults: one 250 mg capsule with food.'
+  1 / 2  'The pillowcases are bundled in tens.'
+  1 / 1  'Agreed: the van leaves at 7.'
+  1 / 1  'Late fees'
+  1 / 1  'Yard gate'
+  1 / 1  'The skiff carries a bell if the fog is thick.'
+  1 / 2  'The basin usually has a plug.'
+  1 / 2  'The basin has no plug.'
+  1 / 2  'The tape costs 4 pounds.'
+  1 / 2  'The lamp costs 6 pounds.'
+  1 / 2  '## [3.4.0] - 2026-08-04'
+  1 / 2  'Morning jobs'
+  1 / 2  'The desk is staffed Monday to Friday.'
+  1 / 2  'Net 500 g.'
+  1 / 2  '## Templates'
+  1 / 2  'The spool is usually 25 megabytes.'
+  1 / 2  '  "name": "@mcptoolshop/repo-knowledge",'
+  1 / 2  'Clause 4'
+  1 / 2  'Cross-rig sync tool for paired dev rigs — git-native typed-envelope cr'
+  1 / 1  'Bay 4 is booked for the morning shift.'
+  1 / 1  'The shutter closes at 18:00.'
+  1 / 1  'The crate holds 12 jars.'
+  1 / 1  'The north gate opens at 9.'
+  1 / 1  'Linen shelf'
+  1 / 1  'The footpath is closed past the oak when the river is high.'
+  1 / 2  'The greenhouse is open on Tuesday if the frost has lifted.'
+  1 / 2  'Greenhouse'
+  1 / 2  'The coach leaves at 7.'
+  1 / 2  'Departures'
+  1 / 2  'Package registries and GitHub APIs tell you what a repo _is_. They don'
+  1 / 2  'The lentil pot is the Tuesday pot if the kitchen is open.'
+  1 / 2  'roll 8d6cs>=5                     # WoD-style dice pool'
+  1 / 2  'Hall'
+  1 / 2  'The kiln is hot.'
+  1 / 2  'ollama pull translategemma:4b    # 3.3 GB — fastest, lower quality'
+  1 / 2  'The gantry holds 100 kg.'
+  1 / 2  'Hooks'
+  1 / 2  'Bins go out on Friday.'
+  1 / 2  'The red bin is for glass.'
+  1 / 1  '- **front-door MCP server** — an agent-callable surface for the verifi'
+  1 / 1  'The reading lamp takes a 40 watt bulb.'
+  1 / 1  'The boat takes six.'
+  1 / 2  'The south bell rings at noon.'
+  1 / 2  'The north bell does not ring at noon.'
+  1 / 2  'The oven door is blue.'
+  1 / 2  'The oven is cold.'
+  1 / 2  '## [1.6.0] - 2026-03-27'
+  1 / 2  '    "node": ">=20.11.0",'
+  1 / 2  'The choir has 1 tenor.'
+  1 / 2  'Transfers over 200 pounds need a second signature.'
+  1 / 2  'The kiosk shuts at 7.'
+  1 / 2  'Soup is 3 pounds.'
+  1 / 2  'The linen cart leaves at 6.'
+  1 / 2  'The bass bell is lower than the alto bell.'
+  1 / 1  '  - `rig-bridge init` — initialize a local bridge clone, install commi'
+  1 / 1  'The counter usually opens at 8.'
+  1 / 1  'The hearing is listed for Thursday.'
+  1 / 1  'The ferry whistle blows at 9.'
+  1 / 1  'The sluice is shut.'
+  1 / 1  '- `npm run verify` — typecheck + test + lint + front-door verify in on'
+  1 / 1  'The gate opens at 9 if the frost has lifted.'
+  1 / 1  '| **default** | Project landing page with hero, features, and code exa'
+  1 / 2  'The tablets are round and scored.'
+  1 / 2  'Do not exceed 6 tablets in a day.'
+  1 / 2  "The card's cap figure is smudged."
+  1 / 2  'The card prints a cap of 4.'
+  1 / 2  'Translates text between 57 languages using [TranslateGemma](https://ol'
+  1 / 2  'Roll supports the full Roll20/VTT notation standard covering D&D, Worl'
+  1 / 2  'The gate is usually shut at dusk.'
+  1 / 2  'Do not climb the north stair.'
+  1 / 2  'Do not refund more than 40 pounds.'
+  1 / 2  'The lozenges are green.'
+  1 / 2  'File the notice with the clerk.'
+  1 / 2  'Repayments over 25 pounds need a second signature.'
+  1 / 1  '**Data NOT touched:** no source code is read from GitHub, no credentia'
+  1 / 1  ' * Pure, side-effect-free so they are unit-testable WITHOUT importing '
+  1 / 1  'The hearing is listed for Friday.'
+  1 / 1  'The pump was serviced on Tuesday.'
+  1 / 1  'The load limit is 2 tonnes.'
+  1 / 1  '- Supported versions in SECURITY.md: 2.x.'
+  1 / 1  'The fee is often 12 pounds.'
+  1 / 1  'Do not pay the invoice twice.'
+  1 / 2  'The bread is delivered on Tuesday.'
+  1 / 2  'The milk is delivered on Friday.'
+  1 / 2  'Release the brake on the incline only after the dusk bell.'
+  1 / 2  'Do not release the brake on the incline.'
+  1 / 2  '**No telemetry, no analytics, no phone-home.**'
+  1 / 2  '| **docs** | Documentation site with sidebar navigation and content se'
+  1 / 2  '  "description": "Multi-template Astro toolkit for landing pages, docs'
+  1 / 2  'The mill opens at 8.'
+  1 / 2  'The cider is 3 pounds.'
+  1 / 2  'The oil is 5 pounds.'
+  1 / 2  '- SECURITY.md and the README threat model cover the front-door MCP ser'
+  1 / 2  'The kiln door is shut.'
+  1 / 1  'npm install -g @mcptoolshop/rig-bridge'
+  1 / 1  'Do not post the same wages twice.'
+  1 / 1  'The claim is listed at the counter for Thursday.'
+  1 / 1  'The accompanist arrives by train.'
+  1 / 1  'Do not give the drops to a child.'
+  1 / 1  'Visitors leave their boots at the door.'
+  1 / 1  "The barge's cargo is oats."
+  1 / 1  'The shift ends at 6.'
+  1 / 2  '## [1.0.0] - 2026-02-25'
+  1 / 2  'The posted stall fee is £12.'
+  1 / 2  '## [1.0.0] - 2026-03-18'
+  1 / 2  '## [1.6.0] - 2026-03-27'
+  1 / 2  '## [1.7.0] - 2026-03-05'
+  1 / 2  'The hall bench seats 5.'
+  1 / 2  'Starter handbook pages are mentioned in the scaffold notes.'
+  1 / 2  'The quay bell rings at noon.'
+  1 / 2  'The loft holds 15 bolts.'
+  1 / 2  'Stall fee'
+  1 / 2  'The cistern holds 18 litres.'
+  1 / 2  'MAX_SEATS = 5'
+  1 / 1  'The yard gate opens daily if the tide is in.'
+  1 / 1  'Berth 4 is forty feet long when the spring tide mark is the one in for'
+  1 / 1  'Sixteen tiles were counted into the skip.'
+  1 / 1  'The gantry plate allows 12 tonnes.'
+  1 / 1  'Capacity: 20 seats.'
+  1 / 1  '- **5 tools** — roll_dice, analyze_dice, compare_dice, roll_table, que'
+  1 / 1  'Tools are named in the server section of the notes.'
+  1 / 1  'Locker 3 holds about thirty coats.'
+  1 / 2  '- **Zero runtime dependencies** — Node 22+ builtins only'
+  1 / 2  '- Retry logic with exponential backoff for transient Ollama failures ('
+  1 / 2  'The cistern stops filling at 3 bars.'
+  1 / 2  "Pier 2's paint is grey."
+  1 / 2  'Posted limit: 7.5 t.'
+  1 / 2  'The sluice label prints 2.4 m as the posted height.'
+  1 / 2  '- **Vanished-repo archival is now opt-in** (`rk sync --prune-vanished`'
+  1 / 2  'The kiln fires if the clay is dry.'
+  1 / 2  '- **Eval scorecards**: `sample_record_ids` up to 5 per failure bucket '
+  1 / 2  '## [0.1.0-phase-6] - 2026-04-30'
+  1 / 2  'def vat_cap():'
+  1 / 2  'No dogs in the reading room.'
+  1 / 1  'rk sync writes a one-line summary.'
+  1 / 1  'Frost is still on the ground.'
+  1 / 1  'The skip is tipped after a spilled load.'
+  1 / 1  'The oven plate prints 180 as the posted mark.'
+  1 / 1  'Shelf cap: 8 tins.'
+  1 / 1  'No open flame in the paint store.'
+  1 / 1  'The client retries transient failures and logs each one.'
+  1 / 1  'The ferry may hold forty people.'
+  1 / 2  '## [2.2.0] - 2026-09-05'
+  1 / 2  '## [2.1.0] - 2026-06-16'
+  1 / 2  '## [3.1.0] - 2026-04-22'
+  1 / 2  '## [3.0.1] - 2026-04-21'
+  1 / 2  '## [1.0.5] - 2026-03-25'
+  1 / 2  'Greenhouse policy edition 9 is the sheet in the folder.'
+  1 / 2  'Edition 5 of the cloth label is in force from March through August, an'
+  1 / 2  'Notice edition 3.'
+  1 / 2  '## [0.9.0] - 2021-01-15'
+  1 / 2  '# version 1.4'
+  1 / 2  'Roster date: 18 July 2016.'
+  1 / 2  '## [5.0.0] - 2025-02-02'
+  1 / 1  'Service date: 12 April 2024.'
+  1 / 1  'The drawer index names edition 2 and then the card ends.'
+  1 / 1  '## [3.0.0] - 2024-04-01'
+  1 / 1  '## [1.2.0] - 2022-11-03'
+  1 / 1  'Edition 6 of the lamp label.'
+  1 / 1  '# version 3.2'
+  1 / 1  '## [2.4.0] - 2023-08-19'
+  1 / 1  '## [1.0.0] - 2024-06-01'
+  1 / 2  'Riverside gym: open 05:30 to 23:00 daily. Lockers and towel hire on fl'
+  1 / 2  'Run 7, coating test: run completed 18:40. Notes: no stalls.'
+  1 / 2  'Net 500 g. Allergens: contains hazelnuts.'
+  1 / 2  'Departures: train 4B, 13:05 daily.'
+  1 / 2  'Team briefing: the sprint review moves to 11:00 Thursday. Bring the bu'
+  1 / 2  'Today: soup — leek and potato — £4.50.'
+  1 / 2  'Life drawing: Wednesdays, 19:00 to 21:00, studio 2. Materials provided'
+  1 / 2  'Parking permits: collect from reception between 09:00 and 17:00, with '
+  1 / 2  'Community hall hire: bookable Monday to Saturday, 9.30am to 9pm. Tea a'
+  1 / 2  "Expense claims over £500 need a director's signature. All claims are p"
+  1 / 2  'LOG_LEVEL = "info"'
+  1 / 2  '## [1.0.2] - 2026-05-15'
+  1 / 2  'Recycling bins are emptied every Tuesday. Rubbish bins are emptied eve'
+  1 / 2  'Torch: length 12 cm; uses two AAA cells; battery life 8 hours.'
+  1 / 1  'Box office: open 10:00 to 18:00 Tuesday to Saturday. Closed Sundays an'
+  1 / 1  'Race result: Mara finished before Nik. Nik finished before Ola. Ola fi'
+  1 / 1  'Key register, March, page excerpt: set A — battery replaced 12 March; '
+  1 / 1  'Notice, community board: quiz night moves to the first Thursday of the'
+LIMITATION: overall NO-ROLE / ROLE target-token ratio 0.624 is under 0.85
