@@ -28,7 +28,9 @@ An item whose twin can't be made by rule is held. So is T16 while A_0's source i
 
 **star** matches and caps across the arms (amendment A) and writes the session's STaR rows (R&D's addition 1).
 For each (lesson, kind):
-- near-duplicates are dropped first: a candidate sharing an 8-word span with an earlier one of its arm;
+- near-duplicates are dropped first: a candidate sharing an 8-word span the model originated with an earlier
+  one of its arm, or, when no span remains after the learned subtraction, an exact match of (item id,
+  normalized thinking);
 - both arms are cut to the smaller count, and to what's left of the cumulative cap of 8 after earlier sessions;
 - the candidates kept are the first by item id.
 
@@ -257,24 +259,38 @@ def learned_spans(paths) -> set:
     return out
 
 
+def exact_key(item_id: str, thinking: str) -> tuple:
+    """(item id, normalized thinking) for the exact-match fallback: whitespace collapsed, lower case. A tuple,
+    so it never equals an 8-word span in the same set. The item id keeps the same taught sentence on two items
+    as two examples; only a repeat of the same item collides (R&D on #144)."""
+    return ("exact", item_id, " ".join(thinking.split()).lower())
+
+
 def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP, prior_spans: dict | None = None,
                   learned: dict | None = None) -> dict:
     """{arm: chosen candidates} after the near-duplicate drop, matching across the arms and the cumulative cap.
     `prior` is {arm: {(lesson, kind): kept so far}}; `prior_spans` is {arm: the originated spans of that arm's
     earlier STaR rows}, so a candidate repeating an earlier kept answer is dropped (Argon's finding 7.1). Only
     spans the model originated count (originated_spans, with `learned` = {arm: learned_spans}). Items trained
-    before are not excluded (R&D). Candidates are {"item", "thinking", "answer"}."""
+    before are not excluded (R&D). Candidates are {"item", "thinking", "answer"}.
+
+    A thinking with no 8-word span left after the learned subtraction is compared by exact_key(item id,
+    normalized thinking) with the arm's kept thinkings and its prior STaR thinkings, and an exact match on the
+    same item is dropped. The same wording on a different item is a different example (R&D on #144)."""
     prior_spans = prior_spans or {}
     learned = learned or {}
 
     def dedup(cands, arm):
         out, seen = [], set(prior_spans.get(arm, set()))
+        learned_set = set(learned.get(arm, set()))
         for c in sorted(cands, key=lambda c: c["item"]["id"]):
             # the thinking only: the reply is fixed by the key (R&D on #137)
-            sp = originated_spans(c["thinking"], c["item"], learned.get(arm, set()))
-            if sp & seen:
+            after = originated_spans(c["thinking"], c["item"], learned_set)
+            key = exact_key(c["item"]["id"], c["thinking"])
+            if after & seen or (not after and key in seen):
                 continue
-            seen |= sp
+            seen |= after
+            seen.add(key)
             out.append(c)
         return out
     by_cell = {}
@@ -323,10 +339,14 @@ def prior_counts(star_paths) -> dict:
 
 def prior_spans(star_paths, learned: set = frozenset()) -> set:
     """The originated spans of one arm's earlier STaR answers' thinking, reduced as dedup reduces a candidate's:
-    a STaR row keeps its item's material and user turn, so its own quotes are left out the same way."""
+    a STaR row keeps its item's material and user turn, so its own quotes are left out the same way. Each row's
+    exact key is (star_of, normalized thinking), so a later answer of that item matches and another item does
+    not (R&D on #144)."""
     out: set = set()
     for r in _star_rows(star_paths):
-        out |= originated_spans(r["turns"][0]["thinking"], r, learned)
+        t = r["turns"][0]["thinking"]
+        out |= originated_spans(t, r, learned)
+        out.add(exact_key(r["star_of"], t))
     return out
 
 
