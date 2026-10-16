@@ -53,8 +53,10 @@ def _row(key: str, ident: str, gold, source_text: str, source: str = "gsm8k") ->
             "prompt": source_text}
 
 
-def _rights(flags, sha: str = "item", scorer: str = "scorer") -> dict:
-    return {"item_sha256": sha, "scorer_sha256": scorer,
+def _rights(flags, sha: str = "item", scorer: str = "scorer", model: str = "base",
+            adapter_sha: str | None = None) -> dict:
+    return {"item_sha256": sha, "scorer_sha256": scorer, "model": model,
+            "adapter_sha256": adapter_sha,
             "items": [{"id": f"i{i}", "right": flag} for i, flag in enumerate(flags)]}
 
 
@@ -222,20 +224,50 @@ def test_exact_two_point_drop_does_not_hold():
     assert (5 - 0) / 250 * 100 == 2.0
 
 
+def _seed(flags, adapter_sha: str) -> dict:
+    return _rights(flags, model="adapter", adapter_sha=adapter_sha)
+
+
 def test_any_seed_hold_names_one_seed_or_shared():
     base = _rights([True] * 250)
-    one = _rights([False] * 6 + [True] * 244)
-    quiet = _rights([True] * 250)
-    single = panel_guard.round_result(base, [one, quiet, quiet])
+    one = _seed([False] * 6 + [True] * 244, "seed-a")
+    one_b = _seed([False] * 6 + [True] * 244, "seed-b")
+    quiet = _seed([True] * 250, "seed-c")
+    quiet_d = _seed([True] * 250, "seed-d")
+    single = panel_guard.round_result(base, [one, quiet, quiet_d])
     assert single["where"] == "one seed" and single["holding_seeds"] == [0]
     assert single["tables"][0]["holds"] and not single["tables"][1]["holds"]
-    shared = panel_guard.round_result(base, [one, one, quiet])
+    shared = panel_guard.round_result(base, [one, one_b, quiet])
     assert shared["where"] == "shared" and shared["same_flipped_items"] is True
     assert shared["mean_drop"] == sum(table["drop"] for table in shared["tables"]) / 3
-    other = _rights([True] * 6 + [False] * 6 + [True] * 238)
-    split = panel_guard.round_result(base, [one, other, quiet])
+    other = _seed([True] * 6 + [False] * 6 + [True] * 238, "seed-e")
+    split = panel_guard.round_result(base, [one, other, quiet_d])
     assert split["where"] == "shared" and split["same_flipped_items"] is False
     assert split["flipped_in_more_than_one_seed"] == []
+
+
+def test_sitting_view_keeps_the_model_and_the_adapter_sha():
+    view = panel.sitting_view({"item_sha256": "i", "scorer_sha256": "s", "model": "adapter",
+                                "adapter_sha256": "abc", "items": [{"id": "i0", "right": True}]})
+    assert view["model"] == "adapter" and view["adapter_sha256"] == "abc"
+    assert view["items"] == [{"id": "i0", "right": True}]
+
+
+def test_round_refuses_a_p0_that_is_not_base():
+    p0 = _rights([True, False], model="adapter", adapter_sha="seed-a")
+    with pytest.raises(SystemExit, match="model base"):
+        panel_guard.round_result(p0, [_seed([True, False], "seed-b")])
+
+
+def test_round_refuses_a_seed_that_is_not_an_adapter():
+    with pytest.raises(SystemExit, match="not an adapter"):
+        panel_guard.round_result(_rights([True, False]), [_rights([True, False])])
+
+
+def test_round_refuses_two_seeds_with_the_same_adapter_sha():
+    with pytest.raises(SystemExit, match="share an adapter"):
+        panel_guard.round_result(_rights([True, False]),
+                                  [_seed([True, False], "same"), _seed([False, True], "same")])
 
 
 def test_pairing_refuses_mismatched_item_file_scorer_or_ids():
@@ -268,6 +300,46 @@ def test_slice_at_or_above_97_is_exact():
     longer = panel.readout_for(records, item_sha="i", scorer_sha="s", model="base", adapter_sha=None,
                                 machine_line={}, minutes=20.01, batched_sha="b")
     assert longer["over_20_minutes"] is True and len(longer["items"]) == len(records)
+
+
+def test_partition_counts_sum_to_n_and_a_capped_unparsed_row_is_truncated():
+    blank = {"empty": False, "strict_one_line": False, "slice": "gsm8k"}
+    records = [
+        {**blank, "right": False, "truncated": True, "unparsed": True},
+        {**blank, "right": False, "truncated": True, "unparsed": False},
+        {**blank, "right": False, "truncated": False, "unparsed": True},
+        {**blank, "right": False, "truncated": False, "unparsed": False},
+        {**blank, "right": True, "truncated": False, "unparsed": False},
+        {**blank, "slice": "winogrande", "right": True, "truncated": False, "unparsed": False},
+    ]
+    readout = panel.readout_for(records, item_sha="i", scorer_sha="s", model="base", adapter_sha=None,
+                                 machine_line={}, minutes=1.0, batched_sha="b")
+    part = readout["partition"]
+    assert part == {"truncated": 2, "unparsed": 1, "wrong": 1, "right": 2}
+    assert sum(part.values()) == len(records) == readout["accuracy"]["n"]
+    assert readout["truncated"] == 2 and readout["unparsed"] == 2
+
+
+def test_sit_main_loads_nothing_after_a_failed_machine_line(monkeypatch, tmp_path):
+    seen = []
+    real_prepare = panel.prepare
+
+    def wrapped(load, **kwargs):
+        seen.append("prepare")
+        return real_prepare(load, **kwargs)
+
+    monkeypatch.setattr(panel, "prepare", wrapped)
+    monkeypatch.setattr(panel_build, "outside_repo", lambda _path: None)
+    def fail_machine(path=None):
+        raise SystemExit(5)
+
+    monkeypatch.setattr(panel, "check_machine", fail_machine)
+    monkeypatch.setattr(panel, "load_sitting", lambda *args, **kwargs: seen.append("load"))
+    monkeypatch.setattr(panel, "apply_memory_cap", lambda: seen.append("cap"))
+    with pytest.raises(SystemExit) as caught:
+        panel.sit_main(["--items", "items.jsonl", "--out", str(tmp_path / "out.json")])
+    assert caught.value.code == 5
+    assert seen == ["prepare"]
 
 
 def test_changed_or_missing_scorer_sha_is_refused(monkeypatch, tmp_path):

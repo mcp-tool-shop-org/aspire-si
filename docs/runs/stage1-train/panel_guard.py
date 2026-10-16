@@ -3,6 +3,7 @@
 The point test is integer arithmetic, `100 * (b - c) > 2 * n`. A drop of exactly 2.0 points
 does not hold. The p-value is the two-sided small-p binomial test, computed with `math.lgamma`.
 The mean of the three drops is descriptive and is not the test.
+P0 is the base model. Each seed is an adapter, and no two seeds share an adapter sha256.
 """
 
 import math
@@ -71,8 +72,23 @@ def pair(baseline: dict, sitting: dict) -> dict:
             "flipped_ids": flipped}
 
 
+def _require_roles(baseline: dict, sittings: list[dict]) -> None:
+    """P0 is base. Each seed is an adapter. Two seeds may not share an adapter sha256."""
+    if baseline.get("model") != "base":
+        raise SystemExit("refusing to pair: P0 is not model base")
+    seen: list = []
+    for sitting in sittings:
+        if sitting.get("model") != "adapter":
+            raise SystemExit("refusing to pair: a seed sitting is not an adapter")
+        sha = sitting.get("adapter_sha256")
+        if sha in seen:
+            raise SystemExit("refusing to pair: two seed sittings share an adapter sha256")
+        seen.append(sha)
+
+
 def round_result(baseline: dict, sittings: list[dict]) -> dict:
     """All three tables, the descriptive mean drop, and whether a hold is one seed or shared."""
+    _require_roles(baseline, sittings)
     tables = [pair(baseline, sitting) for sitting in sittings]
     holding = [i for i, table in enumerate(tables) if table["holds"]]
     if not holding:

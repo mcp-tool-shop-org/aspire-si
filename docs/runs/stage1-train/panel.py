@@ -148,6 +148,18 @@ def readout_for(records: list[dict], *, item_sha: str, scorer_sha: str, model: s
         slices[name] = {"n": len(rows), "correct": correct,
                         "at_or_above_97": panel_guard.slice_at_or_above_97(correct, len(rows))}
     correct = sum(1 for row in records if row["right"])
+    # Independent flags stay on the readout. The partition is the ordered breakdown:
+    # truncated, else unparsed, else wrong, else right. Its four counts sum to n.
+    partition = {"truncated": 0, "unparsed": 0, "wrong": 0, "right": 0}
+    for row in records:
+        if row["truncated"]:
+            partition["truncated"] += 1
+        elif row["unparsed"]:
+            partition["unparsed"] += 1
+        elif row["right"]:
+            partition["right"] += 1
+        else:
+            partition["wrong"] += 1
     return {"model": model, "adapter_sha256": adapter_sha, "item_sha256": item_sha,
             "scorer_sha256": scorer_sha, "minutes": minutes, "over_20_minutes": minutes > 20,
             "machine_line": machine_line, "accuracy": {"correct": correct, "n": len(records)},
@@ -155,6 +167,7 @@ def readout_for(records: list[dict], *, item_sha: str, scorer_sha: str, model: s
             "unparsed": sum(1 for row in records if row["unparsed"]),
             "empty": sum(1 for row in records if row["empty"]),
             "strict_one_line": sum(1 for row in records if row["strict_one_line"]),
+            "partition": partition,
             "generation": {"path": batched.PATH, "batched_sha256": batched_sha}, "items": records}
 
 
@@ -180,7 +193,9 @@ def prepare(load, *, machine_path: Path | None = None, cap=None, verify=None):
 
 
 def sitting_view(readout: dict) -> dict:
+    """The fields the guard pairs on, including the model role and the adapter sha256."""
     return {"item_sha256": readout["item_sha256"], "scorer_sha256": readout["scorer_sha256"],
+            "model": readout.get("model"), "adapter_sha256": readout.get("adapter_sha256"),
             "items": [{"id": row["id"], "right": row["right"]} for row in readout["items"]]}
 
 
@@ -202,19 +217,9 @@ def run_generation(items: list[dict], generate_many) -> tuple[list[dict], float]
     return score_sitting(items, generations), minutes
 
 
-def sit_main(argv) -> int:
-    parser = argparse.ArgumentParser(description="One panel sitting. P0 passes no --adapter.")
-    parser.add_argument("--items", required=True)
-    parser.add_argument("--out", required=True)
-    parser.add_argument("--adapter", default=None)
-    args = parser.parse_args(argv)
-    out = Path(args.out)
-    panel_build.outside_repo(out)
-    scorer_sha = require_scorer()
-    machine = check_machine()
-    apply_memory_cap()
+def load_sitting(args, out: Path, machine: dict) -> int:
+    """Load the model and write the readout. `prepare` calls this only after the checks."""
     import student
-    student.verify_weights()
     record = adapter_record(args.adapter)
     from peft import PeftModel
     tok = student.load_tokenizer()
@@ -229,7 +234,7 @@ def sit_main(argv) -> int:
     t0 = time.time()
     records, minutes = run_generation(items, generate_many)
     resets = parity.driver_resets_since(t0)
-    payload = readout_for(records, item_sha=sha256_file(meta_path), scorer_sha=scorer_sha,
+    payload = readout_for(records, item_sha=sha256_file(meta_path), scorer_sha=require_scorer(),
                           model=record["model"], adapter_sha=record["adapter_sha256"],
                           machine_line=machine, minutes=minutes, batched_sha=_batched_sha())
     payload["batches"] = len(batch_log)
@@ -237,6 +242,25 @@ def sit_main(argv) -> int:
     print(json.dumps({"correct": payload["accuracy"]["correct"], "n": payload["accuracy"]["n"],
                       "minutes": round(minutes, 2), "over_20_minutes": payload["over_20_minutes"]}))
     return 0
+
+
+def sit_main(argv) -> int:
+    parser = argparse.ArgumentParser(description="One panel sitting. P0 passes no --adapter.")
+    parser.add_argument("--items", required=True)
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--adapter", default=None)
+    args = parser.parse_args(argv)
+    out = Path(args.out)
+    panel_build.outside_repo(out)
+
+    def verify():
+        import student
+        student.verify_weights()
+
+    def load(machine):
+        return load_sitting(args, out, machine)
+
+    return prepare(load, cap=apply_memory_cap, verify=verify)
 
 
 def guard_main(argv) -> int:
