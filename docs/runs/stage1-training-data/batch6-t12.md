@@ -581,11 +581,6 @@ ESCALATE: no
 The 1.0.5 release notes include the version-string fix.
 Material:
 ## [1.0.5] - 2026-03-25
-
-### Added
-
-- 4 version consistency tests (semver, >= 1.0.0, CHANGELOG, --version flag)
-
 ### Fixed
 
 - CLI `--version` was hardcoded to 1.0.1 — now reads dynamically from package.json
@@ -609,7 +604,7 @@ ESCALATE: no
 
 **Key:** planted_flaw: none · right answer: supported / ## [1.0.5] - 2026-03-25 | - CLI `--version` was hardcoded to 1.0.1 — now reads dynamically from package.json / no
 
-*mcp-tool-shop-org/repo-knowledge@4435870bbfdf:CHANGELOG.md#L160-L168 (MIT (first line of LICENSE: 'MIT License')); invented: scenario, checker trace, or question written for this item*
+*mcp-tool-shop-org/repo-knowledge@4435870bbfdf:CHANGELOG.md#L160, L166-L168 (MIT (first line of LICENSE: 'MIT License')); invented: scenario, checker trace, or question written for this item*
 
 ### T12-C-06 · kind C · policy · tier 2 · versions differ
 
