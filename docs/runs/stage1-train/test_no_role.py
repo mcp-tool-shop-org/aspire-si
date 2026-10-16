@@ -155,3 +155,18 @@ def test_recall_skips_an_oversized_unit_for_one_that_fits():
 def test_recall_takes_the_only_content_unit_even_when_oversized():
     units = ["### Added", "- " + " ".join(["long"] * 40)]
     assert NR.fit_recall(units, "It says:", 10, count) == "It says:\n" + units[1]
+
+
+def test_a_closed_form_written_e_item_keeps_its_quiz_and_trains_on_recall():
+    """Argon's finding 5a: NO-ROLE is asked the ROLE item's closed-form question, and trains only on its own
+    recall turns."""
+    role = rows()
+    e = by_id(role, "e1")
+    e["variant"] = {"user": "Which habit?\nA. Count the approvals.\nB. Say can't tell.\nGive the letter as ANSWER: "
+                            "<letter>.", "key": {"answer": "B"}}
+    nr, _ = NR.build(role, count)
+    x = by_id(nr, "e1-nr")
+    assert x["quiz"] == e["quiz"] and x["variant"] == e["variant"]
+    assert x["turns"][0]["user"].startswith("Read this material") and x["turns"][0]["reply"].startswith("It says:")
+    import quiz
+    assert quiz.quiz_type(x, x["variant"]) == "closed"
