@@ -5,4 +5,4 @@
 {"id": "T06-B-05", "structure": "constraint_grid", "model": {"entities": ["the brass key", "the iron key", "the tin key"], "attributes": {"shed": {"values": ["the oak shed", "the pine shed", "the ash shed"], "ordered": true}}, "facts": [{"line": 2, "rule": ["is", "the iron key", "shed", "the ash shed"]}, {"line": 3, "rule": ["adjacent", "the brass key", "the iron key", "shed"]}], "flavour": [1], "asks": {"attribute": "shed", "of": "the brass key"}}, "row_sha256": "b167de47e7c15cb67bc1ebda62dbbb29db40a98012c0ab373b658abe8343be6d"}
 {"id": "T06-B-06", "structure": "verdict", "row_sha256": "11c9fef2c9167bd9dcae294d4844d577ac03ec96ba695f2ad767dbbdc68a7b51"}
 {"id": "T06-B-07", "structure": "verdict", "row_sha256": "a8eb4bd07c22e53315dcdc9cc017bdbf7b138ecb85c4c27bb607950b47a24c6f"}
-{"id": "T06-B-08", "structure": "verdict", "row_sha256": "2b0be46102763e6036ccc4f179a1a9b0a499d4204ae2b3d1280328442cbdc028"}
+{"id": "T06-B-08", "structure": "verdict", "row_sha256": "2592f323836a3503c9b10769e15b8377e3fb37999ff4cdcc003ba7127705c58f"}
