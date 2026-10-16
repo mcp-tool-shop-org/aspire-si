@@ -363,6 +363,7 @@ def test_an_access_violation_with_no_stall_dump_is_still_a_crash(rig, tmp_path):
     assert status["resumes"] >= 1 and any(x["trigger"].startswith("crash (exit code 3221225477)") for x in actions)
 
 
+@needs_tokenizer
 def test_a_round_chains_from_its_init_adapter_and_a_resume_under_another_is_refused(tmp_path):
     """Round r >= 2 starts from round r-1's adapter: its sha256 is in the manifest and every checkpoint, and a resume
     under a different init adapter is refused (R&D's settlement, item 6)."""
