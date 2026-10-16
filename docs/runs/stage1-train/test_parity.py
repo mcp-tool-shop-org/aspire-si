@@ -188,3 +188,14 @@ def test_the_worst_case_batch_fills_the_budget_exactly():
     assert batched.BATCH * (n + batched.CHUNK_MAX) == batched.B_TOK - batched.B_TOK % batched.BATCH
     plan = batched.plan([{"key": f"k{i}", "ids": [0] * n, "new": []} for i in range(batched.BATCH)])
     assert plan == [([f"k{i}" for i in range(batched.BATCH)], batched.CHUNK_MAX, "first")]  # one full batch
+
+
+def test_the_cap_counts_the_context_and_the_baseline_in_the_plans_26_gb():
+    """R&D on #130: the plan caps memory.used (torch, the CUDA context and the idle baseline) at 26 GB, so the
+    allocator gets 26e9 minus what was in use once CUDA started."""
+    total = 32607 * 2**20  # the 5090's memory, in bytes
+    used = 2.6e9  # the context plus the idle baseline at start
+    f = parity.cap_fraction(total, used)
+    assert abs(f * total + used - 26e9) < 1  # torch's share plus the start figure is the plan, exactly
+    assert parity.within_plan(23.4e9, used) and not parity.within_plan(23.5e9, used)
+    assert parity.cap_fraction(total, 30e9) == 0.0 and parity.cap_fraction(10e9, 0.0) == 1.0  # clamped

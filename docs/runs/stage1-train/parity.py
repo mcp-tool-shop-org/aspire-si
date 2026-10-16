@@ -245,7 +245,29 @@ def fits(minutes: float, deadline: float | None) -> bool:
     return deadline is None or time.time() + minutes * 60 <= deadline
 
 
-MEM_CAP_GIB = 26  # the plan's ceiling: the allocator is capped here, so a WDDM spill is an OOM stop, not a crawl
+PLAN_BYTES = 26e9  # the plan's ceiling on memory.used: torch, the CUDA context and the idle baseline together
+
+
+def gpu_used_bytes() -> float | None:
+    """memory.used on GPU 0 from nvidia-smi (no shell), in bytes; None if it doesn't answer."""
+    import subprocess
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=10).stdout.strip().splitlines()
+        return float(out[0]) * 2**20
+    except (OSError, subprocess.SubprocessError, IndexError, ValueError):
+        return None
+
+
+def cap_fraction(total_bytes: float, used_at_start: float, plan: float = PLAN_BYTES) -> float:
+    """The allocator's share of the card, so torch's reservations plus what was in use once CUDA started (the
+    context and the idle baseline) stay within the plan's memory.used (R&D on #130). A spill past it is then an
+    OOM stop, not a WDDM crawl (Argon)."""
+    return max(0.0, min(1.0, (plan - used_at_start) / total_bytes))
+
+
+def within_plan(reserved_bytes: float, used_at_start: float, plan: float = PLAN_BYTES) -> bool:
+    return reserved_bytes + used_at_start <= plan
 
 
 def driver_resets_since(t0: float) -> int:
@@ -349,12 +371,17 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
     rule = stuck_adapter.load_frozen()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
+    used_at_start = 0.0
+    if torch.cuda.is_available():  # the cap, set after CUDA starts and before the model loads
+        torch.zeros(1, device="cuda")  # creates the context, so memory.used now holds it and the idle baseline
+        used_at_start = gpu_used_bytes() or 0.0
+        total = torch.cuda.get_device_properties(0).total_memory
+        torch.cuda.set_per_process_memory_fraction(cap_fraction(total, used_at_start))
+        print(f"memory cap: torch {cap_fraction(total, used_at_start) * total / 1e9:.2f} GB + "
+              f"{used_at_start / 1e9:.2f} GB in use at start = {PLAN_BYTES / 1e9:.0f} GB", flush=True)
     tok = student.load_tokenizer()
     model = student.load_student()
     model.eval()
-    if torch.cuda.is_available():  # a spill past the plan's ceiling becomes an OOM stop (Argon)
-        total = torch.cuda.get_device_properties(0).total_memory
-        torch.cuda.set_per_process_memory_fraction(min(1.0, MEM_CAP_GIB * 2**30 / total))
     if a.worst_case:
         prompt_len = worst_case_lengths(batched.B_TOK, batched.BATCH, batched.CHUNK_MAX)
         filler = tok("the depot opens at eight on weekdays and is closed on sundays. ")["input_ids"]
@@ -368,8 +395,9 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
         wc = {"prompt_tokens": prompt_len, "rows": batched.BATCH, "chunk": batched.CHUNK_MAX,
               "new_tokens": [r["new_tokens"] for r in res.values()], "batches": log,
               "torch_peak_reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 2),
-              "cap_gib": MEM_CAP_GIB, "seconds": round(time.time() - t0, 1), "machine_line": det_run.machine_line()}
-        wc["within_cap"] = wc["torch_peak_reserved_gib"] <= MEM_CAP_GIB
+              "used_at_start_gb": round(used_at_start / 1e9, 2), "plan_gb": PLAN_BYTES / 1e9,
+              "seconds": round(time.time() - t0, 1), "machine_line": det_run.machine_line()}
+        wc["within_cap"] = within_plan(torch.cuda.max_memory_reserved(), used_at_start)
         write_atomic(out / "worst-case.json", json.dumps(wc, indent=1))
         print(json.dumps({k: wc[k] for k in ("torch_peak_reserved_gib", "within_cap", "seconds")}), flush=True)
         return 0 if wc["within_cap"] else 1
