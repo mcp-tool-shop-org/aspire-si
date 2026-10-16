@@ -30,7 +30,7 @@ untreated and doesn't count.
 
 - **The adapter is recorded:** eval_adapter writes its sha256 beside the harness's, and it matches the trained
   run's `manifest.json`.
-- **The data is the frozen set:** the manifest names `<FROZEN_DATA_SHA>`, and every file's sha256 matches
+- **The data is the frozen set:** the manifest names `e7b69464`, and every file's sha256 matches
   `FROZEN.md`.
 - **Not a smoke adapter:** the manifest has no `partial_set`, because eval_adapter refuses a sealed read for one.
 - **It trained:** the loss curve shows training happened: `total_steps` steps logged, each logged exactly once.
@@ -130,7 +130,7 @@ These come from the evaluation plan, unchanged.
 
 | # | Blocker | Owner | State |
 |---|---|---|---|
-| B1 | Batches 7 (T15, T18) and 8 (L1–L3) merged, then `FROZEN.md`. The grant names `<FROZEN_DATA_SHA>` | the Dataset Specialist (parked) and the writers | not started |
+| B1 | Batches 7 (T15, T18) and 8 (L1–L3) merged, then `FROZEN.md`. The grant names `e7b69464` | the Dataset Specialist (parked) and the writers | done 2026-10-16: `FROZEN.md` sha256 `e7b69464…` (freeze.py write by the Publisher at ba7f24d) |
 | B2 | The pre-interview can't load an adapter: `interview.py` has no `--adapter`. It needs a thin wrapper like eval_adapter's (base from `load_student()`, adapter attached unmerged, interview.py's file untouched and its sha recorded), plus tests | ASPIRE | to build, CPU only |
 | B3 | The general-capability panel: a design note (size, item type, mechanical scoring, batching, per-session cost) for Argon and the maintainer, then its base-model baseline in its own grant (G0) | R&D | design to write |
 | B4 | Batched generation for quiz and apply, in batches of 8 as the procedure planned. A short design note pins: quiz and apply only (eval_adapter and the harness untouched); padding side and attention masks; how sample seeds 0–2 map under batching; the card settings kept; and a parity check against batch 1 on a fixed small set (verdict agreement and majority outcome, a distribution check, not bytes). Fixed from round 1: every round uses the same quiz path | ASPIRE builds, R&D reviews | ruled yes (Q2) |
@@ -291,8 +291,12 @@ A change to the design after any counted run is a dated amendment, and it never 
 
 The harness `4fa52448`, score.py `fd59cb50`, score_v2 `64f52f6f`, score_found `55b4d0ea`, no_role.py
 `ac795e2b` (was `63162cf4`; Argon's finding 5a, then the B items' statement field, both before any counted run), stuck.py `8097b039`, stuck rule `716dc251`, the machine line `2daa5aa9` (G0, 2026-10-16), the sealed set `e1e515b4`, the student
-`b968826d9c46`, gates 1.7.3 (after B5; Argon findings 7.2 and 8.2; NF3), the data `<FROZEN_DATA_SHA>`, and the NO-ROLE file from the composition check. Each run's manifest and receipt
+`b968826d9c46`, gates 1.7.3 (after B5; Argon findings 7.2 and 8.2; NF3), the data `e7b69464` (`FROZEN.md`, written 2026-10-16), and the NO-ROLE file from the composition check (`freeze.py write` copied `3cc3dc47` to `docs/runs/stage1-no-role/round1.jsonl`; confirmed 2026-10-16: 0 of 909 cells differ, sha 3cc3dc47 reproduced, ratio 0.656). Each run's manifest and receipt
 records them. A mismatch at start is refused.
+
+**Freeze note (2026-10-16):** the apply set's T10 verdict mix is 5 supported / 5 unsupported / 0 cannot_tell,
+not the plan's 4/3/3. R&D's rule-8 fix (complete-universe material for T10-C-AP-05, T10-D-AP-01 and T10-D-AP-02)
+turned its three cannot_tell slots into decided items. R&D accepted it (#162). Every other lesson keeps 4/3/3.
 
 ## 10. The cleanup record
 

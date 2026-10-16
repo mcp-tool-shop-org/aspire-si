@@ -9,3 +9,7 @@ packages/aspire-si-gates/** -text
 docs/runs/stage1-stuck-rule.json -text
 docs/runs/stage1-machine-line.json -text
 docs/runs/stage1-taskset/** -text
+
+# The frozen set and the pinned NO-ROLE file are read by sha256; keep them byte for byte.
+docs/runs/stage1-training-data/FROZEN.md -text
+docs/runs/stage1-no-role/** -text
