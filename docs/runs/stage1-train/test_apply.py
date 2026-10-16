@@ -437,7 +437,7 @@ def test_star_seeds_dedup_with_each_arms_earlier_answers_and_counts_per_arm(tmp_
     never doubled by both arms' files or a repeated file; items trained before are not excluded."""
     c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
     said = "the Sunday line rules it out and the weekday line does not reach it at all"
-    earlier = apply.star_rows([cand(c1, said, CT)], session=1)  # another reply: only the thinking overlaps
+    earlier = apply.star_rows([cand(c1, said)], session=1)
     f_role, f_nr = tmp_path / "star-s1.jsonl", tmp_path / "star-s1.no-role.jsonl"
     for f in (f_role, f_nr):
         f.write_text("".join(json.dumps(r) + "\n" for r in earlier), encoding="utf-8")
@@ -451,3 +451,15 @@ def test_star_seeds_dedup_with_each_arms_earlier_answers_and_counts_per_arm(tmp_
     assert len(chosen["NO-ROLE"]) == 1
     capped = {"ROLE": {("T05", "C"): apply.CAP - 1}, "NO-ROLE": {("T05", "C"): apply.CAP - 1}}
     assert len(apply.match_and_cap(no_role, no_role, capped)["ROLE"]) == 1  # per arm, not CAP - 2
+
+
+def test_the_near_duplicate_check_reads_the_thinking_only():
+    """R&D on #137: the reply is fixed by the key, so two right answers with different thinking are both kept, and
+    the same thinking collides whatever the reply."""
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    a = "the Sunday line rules it out and the weekday line does not reach it at all"
+    b = "I read the opening hours first, then checked whether any line names a Sunday"
+    kept = apply.match_and_cap([cand(c1, a), cand(c2, b)], [cand(c1, "x"), cand(c2, "y")], prior={})
+    assert len(kept["ROLE"]) == 2  # the same three-line reply, different thinking: both kept
+    same = apply.match_and_cap([cand(c1, a), cand(c2, a, CT)], [cand(c1, "x"), cand(c2, "y")], prior={})
+    assert [c["item"]["id"] for c in same["ROLE"]] == [c1["id"]]  # the same thinking collides, another reply or not

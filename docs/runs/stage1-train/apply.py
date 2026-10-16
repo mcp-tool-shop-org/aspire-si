@@ -221,7 +221,7 @@ def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP, prior_
     def dedup(cands, arm):
         out, seen = [], set(prior_spans.get(arm, set()))
         for c in sorted(cands, key=lambda c: c["item"]["id"]):
-            sp = _spans(c["thinking"] + "\n" + c["answer"])
+            sp = _spans(c["thinking"])  # the thinking only: the reply is fixed by the key (R&D on #137)
             if sp & seen:
                 continue
             seen |= sp
@@ -271,11 +271,11 @@ def prior_counts(star_paths) -> dict:
 
 
 def prior_spans(star_paths) -> set:
-    """The 8-word spans of one arm's earlier STaR answers, the same text dedup reads (thinking, then the reply)."""
+    """The 8-word spans of one arm's earlier STaR answers' thinking, the same text dedup reads (R&D on #137)."""
     out: set = set()
     for r in _star_rows(star_paths):
         t = r["turns"][0]
-        out |= _spans(t["thinking"] + "\n" + t["reply"])
+        out |= _spans(t["thinking"])
     return out
 
 
