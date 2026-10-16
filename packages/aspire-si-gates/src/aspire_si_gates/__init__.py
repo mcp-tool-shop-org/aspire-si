@@ -15,7 +15,7 @@ from .gates import (DataError, batch_report, check_batch, check_item, check_star
                     key_point_share, closed_form_figures, load_models,
                     model_signature, puzzle_sig, row_sha256)
 
-GATES_VERSION = "1.7.2"
+GATES_VERSION = "1.7.3"
 
 
 def gates_identity() -> dict:

@@ -287,7 +287,7 @@ A change to the design after any counted run is a dated amendment, and it never 
 
 The harness `4fa52448`, score.py `fd59cb50`, score_v2 `64f52f6f`, score_found `55b4d0ea`, no_role.py
 `ac795e2b` (was `63162cf4`; Argon's finding 5a, then the B items' statement field, both before any counted run), stuck.py `8097b039`, stuck rule `716dc251`, the sealed set `e1e515b4`, the student
-`b968826d9c46`, gates 1.7.2 (after B5; Argon findings 7.2 and 8.2), the data `<FROZEN_DATA_SHA>`, and the NO-ROLE file from the composition check. Each run's manifest and receipt
+`b968826d9c46`, gates 1.7.3 (after B5; Argon findings 7.2 and 8.2; NF3), the data `<FROZEN_DATA_SHA>`, and the NO-ROLE file from the composition check. Each run's manifest and receipt
 records them. A mismatch at start is refused.
 
 ## 10. The cleanup record

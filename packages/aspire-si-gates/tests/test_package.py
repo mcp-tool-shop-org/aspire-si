@@ -151,7 +151,7 @@ def test_a_lesson_rank_is_a_figure_not_a_refusal():
 
 
 def test_scorer_rules_are_exposed():
-    assert G.GATES_VERSION == "1.7.2"
+    assert G.GATES_VERSION == "1.7.3"
     assert G.critic_mismatch(["a b c"], ["x y z"], "a b c\nx y z") is True
     assert G.deciding_covers(["a b c d"], ["a b c"], "a b c d") is True
 
@@ -182,3 +182,30 @@ def test_a_prose_phrase_across_three_items_is_still_refused():
     ]
     with pytest.raises(G.DataError, match="kind B phrase repeats"):
         gates.check_stamps(rows)
+
+
+def test_leakage_catches_a_held_out_claim_that_lives_only_in_the_statement_field():
+    """Argon's re-review, new finding 3: a kind-B row keeps its claim on `statement`. The user turn has no
+    Statement line, so _statement(user) is empty and only the statement field can match the held-out claim."""
+    claim = "The north gate opens at seven each morning."
+    row = {"id": "b22", "kind": "B", "lesson": "T05", "material": "The yard log names the morning shift.",
+           "statement": claim,
+           "turns": [{"user": "Read the yard log and say whether the claim holds.",
+                      "thinking": "The log names a shift and nothing more.", "reply": "yes"}]}
+    held = [{"id": "sx-22", "claim": claim, "material": "A different notice about the south gate."}]
+    assert gates.leakage([row], held, []) == ["b22 vs sx-22: claim"]
+
+
+def test_a_star_row_with_a_think_tag_is_refused():
+    """Argon's re-review, new finding 3: check_star_row refuses <think> or </think> in thinking or reply,
+    as check_item does."""
+    def row(thinking, reply):
+        return {"id": "T05-D-ST-1-01", "lesson": "T05", "kind": "D", "star_of": "T05-D-AP-01",
+                "verdict": "unsupported", "deciding": ["It is closed on Sundays."], "escalate": "no",
+                "turns": [{"user": "Material:\nThe depot.\nStatement: it opens Sunday.",
+                           "thinking": thinking, "reply": reply}]}
+    gates.check_star_row(row("The Sunday line rules it out.", "VERDICT: unsupported"), 1, lambda r: True)
+    with pytest.raises(gates.DataError, match="think"):
+        gates.check_star_row(row("The Sunday line rules it out. </think>", "VERDICT: unsupported"), 1, lambda r: True)
+    with pytest.raises(gates.DataError, match="think"):
+        gates.check_star_row(row("The Sunday line rules it out.", "see <think> in the reply"), 1, lambda r: True)
