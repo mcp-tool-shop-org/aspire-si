@@ -1924,7 +1924,7 @@
           "path": "docs/runs/2026-10-10-stage1-training-data-kimi-handoff.md"
         },
         {
-          "hash": "ae0bf5045c73c9e9971d42c826e23e107312009dde9cd711cf37b46d8a3f04f8",
+          "hash": "f0f06ee0340bc9b2d4912122bb65c959f75455ccbd68e9386291828a9323a33f",
           "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
         },
         {
@@ -2333,10 +2333,10 @@
             {
               "in": "make_twin",
               "kind": "raise",
-              "line": 202
+              "line": 209
             }
           ],
-          "hash": "72d5440a24493f26a81ea3d4ea0a48628d6305b2f75e64c9eabc8844d4f5ed2e",
+          "hash": "52639690bf83fbf4a30975b204a29cc0aea211d9997710c9d3530686f6d792dc",
           "path": "docs/runs/stage1-train/apply_rules.py"
         },
         {
@@ -2509,6 +2509,7 @@
           "exports": [
             "apply_check",
             "apply_complete",
+            "apply_load_problem",
             "apply_report",
             "cli_count",
             "cmd_check",
@@ -2610,45 +2611,45 @@
             {
               "in": "apply_check",
               "kind": "except",
-              "line": 392
+              "line": 402
             },
             {
               "in": "apply_check",
               "kind": "except",
-              "line": 412
+              "line": 422
             },
             {
               "in": "apply_check",
               "kind": "except",
-              "line": 441
+              "line": 451
             },
             {
               "in": "validate_check",
               "kind": "except",
-              "line": 501
+              "line": 511
             },
             {
               "in": "cmd_check",
               "kind": "except",
-              "line": 557
+              "line": 567
             },
             {
               "in": "cmd_check",
               "kind": "except",
-              "line": 570
+              "line": 580
             },
             {
               "in": "cmd_check",
               "kind": "except",
-              "line": 596
+              "line": 606
             },
             {
               "in": "cmd_write",
               "kind": "except",
-              "line": 713
+              "line": 727
             }
           ],
-          "hash": "1741cc76599680da8404a88f745ff896610ee40a4c93c580945887e9d2d06c32",
+          "hash": "b3a98fdeb10884e8de5cc781151adf9733dfe6e428f2fb95d8a42ec70a428ffd",
           "importOrder": [
             "docs/runs/stage1-train/apply.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -2800,6 +2801,7 @@
             "guard_main",
             "guard_sittings",
             "load_items",
+            "load_sitting",
             "main",
             "memory_cap",
             "prepare",
@@ -2857,15 +2859,15 @@
             {
               "in": "write_readout",
               "kind": "raise",
-              "line": 164
+              "line": 177
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 261
+              "line": 285
             }
           ],
-          "hash": "04cd8506fa595e582e6166aaf77d8e53fe360c7cecd6235e0ce28b1c6cc68d09",
+          "hash": "c3409eb5478de1f0c5b1d64730e18ed2bc9466f8e69b49867c8f2085eec76fa7",
           "importsFiles": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/det_run.py",
@@ -2961,20 +2963,35 @@
             {
               "in": "pair",
               "kind": "raise",
-              "line": 52
+              "line": 53
             },
             {
               "in": "pair",
               "kind": "raise",
-              "line": 54
+              "line": 55
             },
             {
               "in": "pair",
               "kind": "raise",
-              "line": 58
+              "line": 59
+            },
+            {
+              "in": "_require_roles",
+              "kind": "raise",
+              "line": 78
+            },
+            {
+              "in": "_require_roles",
+              "kind": "raise",
+              "line": 82
+            },
+            {
+              "in": "_require_roles",
+              "kind": "raise",
+              "line": 85
             }
           ],
-          "hash": "28f8160ab9aab408db7cb2d2e007f1ec128e38b35d22eeef366ebb6fab71f8b3",
+          "hash": "ca61981108d0e96c39696ab5bb9059b450d369a4b53053256ff3f46428618a1d",
           "path": "docs/runs/stage1-train/panel_guard.py"
         },
         {
@@ -3491,6 +3508,7 @@
             "test_a_t10_item_without_its_companion_is_refused_by_the_schema",
             "test_a_twin_with_no_verdict_fails_the_pair",
             "test_any_item_rules_r2_and_h3_apply_to_every_lesson_including_l1_to_l3",
+            "test_cannot_tell_drop_deciding_items_stay_on_the_other_clauses",
             "test_different_items_with_the_same_short_trace_are_both_kept",
             "test_drop_deciding_removes_material_lines_only_never_the_statement",
             "test_drop_deciding_twins_need_a_material_marked_silent_without_them",
@@ -3501,7 +3519,7 @@
             "test_item_trained_is_recorded_and_split_per_cell",
             "test_no_role_given_only_its_builder_output_subtracts_those_rows",
             "test_r10_uses_the_authored_companion_and_needs_its_keyed_verdict",
-            "test_r3_needs_the_verdict_to_change_and_a_cannot_tell_item_has_no_twin",
+            "test_r3_needs_the_verdict_to_change_and_a_cannot_tell_item_is_kept_without_a_twin",
             "test_r4_and_r1_twins_drop_the_deciding_line_and_judge_the_twin",
             "test_r5_h1_authority_and_pushback_twins_cost_two_generations",
             "test_r7_set_rule_needs_thinking_to_rise_with_tier",
@@ -3528,7 +3546,7 @@
             "test_two_no_role_cannot_tell_answers_with_the_fixed_closing_do_not_collide",
             "write_jsonl"
           ],
-          "hash": "b23bb04103adc7f21970e40afc43d5c920ef58b21326f64de1762116667c4d1e",
+          "hash": "9db6d8e6c4024ff25a5d14d63d59636caa38a60a852e1e4336d15bc02f0a2ebc",
           "importOrder": [
             "docs/runs/stage1-train/apply.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -3697,9 +3715,11 @@
             "assert_public",
             "check",
             "planted_sealed",
+            "test_a_bad_apply_json_line_fails_the_apply_check",
             "test_a_build_error_is_a_failed_check",
             "test_a_leaked_claim_fails_leakage",
             "test_a_malformed_apply_item_fails_the_apply_check",
+            "test_a_missing_apply_path_fails_the_apply_check",
             "test_a_missing_sealed_file_blocks_a_real_freeze",
             "test_a_models_sidecar_and_a_glob_order_are_refused",
             "test_a_no_role_composition_mismatch_over_one_item_fails_no_role",
@@ -3712,10 +3732,11 @@
             "test_composition_tolerance_is_one_item_or_sequence",
             "test_expected_twin_holds_are_reported_and_do_not_fail",
             "test_write_refuses_a_failed_report_and_is_byte_stable",
+            "test_write_refuses_an_outside_repo_path",
             "tokenizer_available",
             "write_rows"
           ],
-          "hash": "3caf585f76415db37486b4704ccc2a0790cb7649ab35b95f1da0fe0ae469eea6",
+          "hash": "6c1dca4dfb0bf106ccb635e7439a612f5cda650edcefde5d67cfa205ee1cde93",
           "importOrder": [
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/freeze.py",
@@ -3863,10 +3884,16 @@
             "test_missing_or_unparsed_frozen_is_not_a_clean_pass",
             "test_out_inside_the_repository_is_refused",
             "test_pairing_refuses_mismatched_item_file_scorer_or_ids",
+            "test_partition_counts_sum_to_n_and_a_capped_unparsed_row_is_truncated",
             "test_readout_inside_the_repository_is_refused",
+            "test_round_refuses_a_p0_that_is_not_base",
+            "test_round_refuses_a_seed_that_is_not_an_adapter",
+            "test_round_refuses_two_seeds_with_the_same_adapter_sha",
             "test_scored_records_stay_in_file_order",
             "test_sealed_directory_is_refused_and_a_planted_file_is_checked",
             "test_shingles_cover_material_variant_and_twin_and_not_spans",
+            "test_sit_main_loads_nothing_after_a_failed_machine_line",
+            "test_sitting_view_keeps_the_model_and_the_adapter_sha",
             "test_slice_at_or_above_97_is_exact",
             "test_source_pins_are_the_files_at_the_named_commits",
             "test_source_sha_mismatch_is_refused",
@@ -3878,7 +3905,7 @@
             "test_unknown_cap_exits_before_load",
             "test_wrong_letter_and_a_non_letter_are_not_right"
           ],
-          "hash": "403282d35a68db444dde2ebe47a0398a33934d3f835390a69f52d6927492ab5a",
+          "hash": "8823b618e9fc70bcf72c5246712ccd01c58a56e735afed2f517ffd028ba23299",
           "importsFiles": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/det_run.py",
@@ -5018,7 +5045,7 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 39,
+          "reads": 40,
           "where": [
             "caller"
           ],
@@ -5033,7 +5060,7 @@
           "writes": 0
         }
       ],
-      "outsideReads": 40,
+      "outsideReads": 41,
       "outsideWrites": 16,
       "role": "docs",
       "testRunners": [
@@ -5057,7 +5084,7 @@
           "why": "dynamic"
         }
       ],
-      "unresolvedSites": 26
+      "unresolvedSites": 27
     },
     {
       "dynamicReads": 14,
@@ -8492,7 +8519,7 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "323b2b068c809f1257a16813507c2294c4003b34",
+    "commit": "9e54fbc5e46e8a2c7e9d2c732124cdef8334bbd8",
     "tracked": 436
   },
   "landings": [
