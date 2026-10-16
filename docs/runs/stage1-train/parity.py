@@ -85,6 +85,7 @@ def record(r: dict, g: dict, count, rule: dict) -> dict:
                           g["new_tokens"], count, rule)
     return {"right": bool(s["right"]), "stuck": bool(f["stuck"]), **{c: bool(f[c]) for c in CLAUSES},
             "thinking_tokens": f["thinking_tokens"], "truncated": bool(g["truncated"]), "tier": r["tier"],
+            "new_tokens": g["new_tokens"],
             "first_logprob": g.get("first_logprob")}
 
 
@@ -174,16 +175,81 @@ def compare_ii(lb1: dict, p1: dict, p1p: dict) -> dict:
     return {"figures": figs, "checks": checks, "pass": all(checks.values())}
 
 
+DRAW_ORDER = ("LB8", "LB1", "P1", "P1p")  # LB8 first: the fast draw measures the counted set's lengths
+B1_TOK_S_GUESS = 20.0  # batch-1 tokens per second from the preflight (about 300 tokens in 16 s), until measured
+
+
+def key_str(k: tuple) -> str:
+    return f"{k[0]}|{k[1]}"
+
+
+def save_draw(path: Path, rows: dict) -> None:
+    """One finished draw, written as it completes, so a stop keeps every finished draw."""
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text("".join(json.dumps({"key": key_str(k), **v}) + "\n" for k, v in sorted(rows.items())),
+                   encoding="utf-8", newline="\n")
+    tmp.replace(path)
+
+
+def load_draw(path: Path, expected: set) -> dict | None:
+    """A finished draw from an earlier run of the same check, or None when it's missing or incomplete."""
+    if not path.exists():
+        return None
+    rows = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            r = json.loads(line)
+            item, sample = r.pop("key").rsplit("|", 1)
+            rows[(item, int(sample))] = r
+    return rows if set(rows) == expected else None
+
+
+class Progress:
+    """A line per generation, with a running ETA from the mean seconds per generation so far."""
+
+    def __init__(self, name: str, total: int, out=print):
+        self.name, self.total, self.done, self.seconds, self.tokens, self.out = name, total, 0, 0.0, 0, out
+        self.t0 = time.time()
+
+    def step(self, key: str, tokens: int, seconds: float) -> str:
+        self.done += 1
+        self.tokens += tokens
+        self.seconds = time.time() - self.t0
+        left = (self.total - self.done) * self.seconds / self.done
+        line = (f"{self.name} {self.done}/{self.total} {key} tokens={tokens} s={seconds:.0f} "
+                f"elapsed={self.seconds / 60:.1f}m eta={left / 60:.1f}m")
+        self.out(line, flush=True)
+        return line
+
+
+def sizing(lb8: dict, cap: int, tok_s: float, per_draw: int) -> dict:
+    """From LB8's lengths on the counted set: the cap-hitting share, and each batch-1 draw's projected minutes at
+    tok_s (the same lengths, one generation at a time)."""
+    tokens = [r["new_tokens"] for r in lb8.values()]
+    scale = per_draw / len(tokens)
+    return {"generations": len(tokens), "tokens_total": sum(tokens), "tokens_median": statistics.median(tokens),
+            "at_cap": sum(t >= cap for t in tokens),
+            "at_cap_share": round(sum(t >= cap for t in tokens) / len(tokens), 3),
+            "tok_s_batch1": tok_s, "minutes_per_batch1_draw": round(sum(tokens) * scale / tok_s / 60, 1)}
+
+
+def fits(minutes: float, deadline: float | None) -> bool:
+    return deadline is None or time.time() + minutes * 60 <= deadline
+
+
 def main(argv=None) -> int:  # pragma: no cover - runs on the card
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", nargs="+", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit-items", type=int, help="a short preflight run; never the counted check")
+    ap.add_argument("--deadline", help="the grant's end, ISO 8601 UTC: a draw that can't finish by then isn't started")
     a = ap.parse_args(argv)
     import torch
+    from datetime import datetime
     from torch.nn.attention import SDPBackend, sdpa_kernel
 
     import student
+    deadline = datetime.fromisoformat(a.deadline.replace("Z", "+00:00")).timestamp() if a.deadline else None
     items = [r for p in a.data for r in data.load(p)]
     chosen = select(items)[: a.limit_items]
     rule = stuck_adapter.load_frozen()
@@ -200,38 +266,63 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
              "messages": [{"role": "user", "content": quiz.prompt_for(r, r["variant"], "verdict")}]}
             for r in chosen for s in quiz.SEEDS]
     by_item = {f"{r['id']}-v0": r for r in chosen}
-    draws, times = {}, {}
+    expected = {(k.split("|")[0], int(k.split("|")[1])) for k in (x["key"] for x in asks)}
+    draws, times, warned, size = {}, {}, {}, None
+    tok_s = B1_TOK_S_GUESS
     torch.cuda.reset_peak_memory_stats()
-    for name, b in (("LB1", 1), ("LB8", 8)):
-        log: list = []
-        t0 = time.time()
-        gens = batched.make_generate_many(model, tok, log, batch=b)(asks)
-        times[name] = round(time.time() - t0, 1)
-        draws[name] = {(k.split("|")[0], int(k.split("|")[1])): record(by_item[k.split("|")[0]], g, count, rule)
-                       for k, g in gens.items()}
-        (out / f"{name}-batches.json").write_text(json.dumps(log, indent=1), encoding="utf-8")
-    torch.use_deterministic_algorithms(True, warn_only=True)  # as det_run.py sets for batch-1 sittings
-    torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark = True, False
     import warnings
-    warned: dict = {}
-    for name, seeds in (("P1", (0, 1, 2)), ("P1p", (3, 4, 5))):
+    for name in DRAW_ORDER:
+        path = out / f"draw-{name}.jsonl"
+        done = load_draw(path, expected)
+        if done is not None:
+            draws[name] = done
+            print(f"{name}: kept from an earlier run ({path.name})", flush=True)
+            continue
+        if size is not None and not fits(size["minutes_per_batch1_draw"], deadline):
+            print(f"{name}: not started, projected {size['minutes_per_batch1_draw']} min won't fit the deadline",
+                  flush=True)
+            break
+        prog = Progress(name, len(asks))
         t0 = time.time()
-        rows = {}
-        with warnings.catch_warnings(record=True) as caught, sdpa_kernel([SDPBackend.FLASH_ATTENTION]):
-            warnings.simplefilter("always")
-            for ask in asks:
-                if ask["sample"] != 0:
-                    continue
-                for k, seed in enumerate(seeds):
-                    g = harness.generate(model, tok, ask["messages"], "sampled", seed)
-                    rows[(ask["item_id"], k)] = record(by_item[ask["item_id"]], g, count, rule)
-        warned[name] = warned_ops(caught)
-        for w in caught:  # recorded, and still shown
-            warnings.showwarning(w.message, w.category, w.filename, w.lineno)
+        if name in ("LB8", "LB1"):
+            log: list = []
+            gens = batched.make_generate_many(model, tok, log, batch=8 if name == "LB8" else 1,
+                                              on_done=prog.step)(asks)
+            rows = {(k.split("|")[0], int(k.split("|")[1])): record(by_item[k.split("|")[0]], g, count, rule)
+                    for k, g in gens.items()}
+            (out / f"{name}-batches.json").write_text(json.dumps(log, indent=1), encoding="utf-8")
+        else:
+            torch.use_deterministic_algorithms(True, warn_only=True)  # as det_run.py sets for batch-1 sittings
+            torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark = True, False
+            seeds = (0, 1, 2) if name == "P1" else (3, 4, 5)
+            rows = {}
+            with warnings.catch_warnings(record=True) as caught, sdpa_kernel([SDPBackend.FLASH_ATTENTION]):
+                warnings.simplefilter("always")
+                for ask in asks:
+                    if ask["sample"] != 0:
+                        continue
+                    for k, seed in enumerate(seeds):
+                        g = harness.generate(model, tok, ask["messages"], "sampled", seed)
+                        rows[(ask["item_id"], k)] = record(by_item[ask["item_id"]], g, count, rule)
+                        prog.step(f"{ask['item_id']}|{k}", g["new_tokens"], g["seconds"])
+            warned[name] = warned_ops(caught)
+            for w in caught:  # recorded, and still shown
+                warnings.showwarning(w.message, w.category, w.filename, w.lineno)
+            torch.use_deterministic_algorithms(False)
         draws[name], times[name] = rows, round(time.time() - t0, 1)
+        save_draw(path, rows)
+        if name == "LB1" and prog.tokens:
+            tok_s = prog.tokens / max(1.0, prog.seconds)  # measured, for the harness draws' projection
+        if name in ("LB8", "LB1"):
+            size = sizing(draws["LB8"], harness.MAX_NEW_TOKENS, tok_s, len(asks))
+            (out / "sizing.json").write_text(json.dumps(size, indent=1), encoding="utf-8")
+            print("sizing: " + json.dumps(size), flush=True)
+    if set(draws) != set(DRAW_ORDER):
+        print(json.dumps({"incomplete": sorted(set(DRAW_ORDER) - set(draws)), "kept": sorted(draws)}), flush=True)
+        return 2
     report = {"items": [r["id"] for r in chosen], "rules_i": RULES_I, "rules_ii": RULES_II,
               "i": compare_i(draws["LB1"], draws["LB8"]), "ii": compare_ii(draws["LB1"], draws["P1"], draws["P1p"]),
-              "machine_line": det_run.machine_line(), "warned_ops": warned,
+              "machine_line": det_run.machine_line(), "warned_ops": warned, "sizing": size,
               "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"],
               "seconds": times, "torch_peak_reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 2),
               "batched_sha256": __import__("hashlib").sha256(Path(batched.__file__).read_bytes()).hexdigest()}

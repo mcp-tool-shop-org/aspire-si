@@ -143,7 +143,7 @@ def _decode(model, rows: list, chunk: int, pad_id: int, stop_ids: set, max_new: 
 
 def generate_all(model, work: list, pad_id: int, stop_ids: set, max_new: int, sampling: dict,
                  b_tok: int = B_TOK, batch: int = BATCH, chunk_max: int = CHUNK_MAX, chunk_min: int = CHUNK_MIN,
-                 kernel: str = "efficient") -> tuple[dict, list]:
+                 kernel: str = "efficient", on_done=None) -> tuple[dict, list]:
     """Generate for every work item ({"key", "item_id", "sample", "ids"}): returns ({key: record}, batch log).
     A record carries the harness's generate fields over token ids ("new" ids, prompt_tokens, new_tokens, truncated,
     seconds marked shared) plus seed, chunks and first_logprob; the caller decodes the text."""
@@ -177,6 +177,8 @@ def generate_all(model, work: list, pad_id: int, stop_ids: set, max_new: int, sa
                 for r in group:
                     r["chunks"] += 1
                     r["seconds"] += dt
+                    if on_done is not None and r["done"]:  # a watchable run: one call per finished row
+                        on_done(r["key"], len(r["new"]), round(r["seconds"], 2))
                 log.append({"rows": keys, "size": len(group) + len(pad), "chunk": chunk, "kind": kind,
                             "kernel": kernel, "seconds": round(dt, 2)})
             pending, first = [r for r in rows.values() if not r["done"]], False
@@ -197,7 +199,8 @@ def stop_ids(model, tok) -> set:
     return ids | {tok.eos_token_id, tok.convert_tokens_to_ids("<|im_end|>")} - {None}
 
 
-def make_generate_many(model, tok, log: list, batch: int = BATCH, b_tok: int = B_TOK, kernel: str = "efficient"):
+def make_generate_many(model, tok, log: list, batch: int = BATCH, b_tok: int = B_TOK, kernel: str = "efficient",
+                       on_done=None):
     """For quiz.sit's generate_many: chat messages -> the harness's prompt ids (its template and thinking setting)
     -> generate_all -> the harness's generate fields, with the text decoded as the harness decodes it. Each call's
     batch log is appended to `log`."""
@@ -212,7 +215,7 @@ def make_generate_many(model, tok, log: list, batch: int = BATCH, b_tok: int = B
             work.append({"key": a["key"], "item_id": a["item_id"], "sample": a["sample"],
                          "ids": tok(prompt)["input_ids"]})
         out, batches = generate_all(model, work, pad, stops, MAX_NEW, SAMPLING, b_tok=b_tok, batch=batch,
-                                    kernel=kernel)
+                                    kernel=kernel, on_done=on_done)
         log.extend(batches)
         return {k: {**r, "text": tok.decode(r["new"], skip_special_tokens=True)} for k, r in out.items()}
     return generate_many

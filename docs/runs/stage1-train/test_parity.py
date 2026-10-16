@@ -74,3 +74,34 @@ def test_warned_ops_are_the_deterministic_warnings_only():
         warnings.warn("an unrelated deprecation")
     assert parity.warned_ops(caught) == [
         "index_copy_cuda does not have a deterministic implementation, but you set warn_only"]
+
+
+def test_a_finished_draw_is_saved_and_kept_and_an_incomplete_one_is_redone(tmp_path):
+    rows = {("T05-E-01-v0", 0): rec(), ("T05-E-01-v0", 1): rec(right=False)}
+    path = tmp_path / "draw-LB8.jsonl"
+    parity.save_draw(path, rows)
+    assert parity.load_draw(path, set(rows)) == rows
+    assert parity.load_draw(path, set(rows) | {("T05-E-02-v0", 0)}) is None  # incomplete: run it again
+    assert parity.load_draw(tmp_path / "draw-LB1.jsonl", set(rows)) is None
+
+
+def test_progress_prints_a_line_per_generation_with_an_eta():
+    lines = []
+    p = parity.Progress("LB1", 4, out=lambda s, flush=True: lines.append(s))
+    p.step("T05-E-01-v0|0", 300, 15.0)
+    p.step("T05-E-01-v0|1", 16384, 800.0)
+    assert len(lines) == 2 and lines[1].startswith("LB1 2/4 T05-E-01-v0|1 tokens=16384") and "eta=" in lines[1]
+    assert p.tokens == 16684
+
+
+def test_sizing_measures_the_cap_share_and_projects_batch_1_minutes():
+    lb8 = {(f"i{i}", s): {**rec(), "new_tokens": 16384 if i == 0 else 300} for i in range(4) for s in range(3)}
+    size = parity.sizing(lb8, 16384, tok_s=20.0, per_draw=12)
+    assert size["at_cap"] == 3 and size["at_cap_share"] == 0.25
+    assert size["minutes_per_batch1_draw"] == round((3 * 16384 + 9 * 300) / 20 / 60, 1)
+
+
+def test_a_draw_that_cannot_finish_by_the_deadline_is_not_started():
+    import time
+    assert parity.fits(10, None) and parity.fits(10, time.time() + 3600)
+    assert not parity.fits(120, time.time() + 3600)
