@@ -34,6 +34,8 @@ ORDER = (
 )
 CLAIM = "the quartz lantern on the north pier was lit only on the third thursday of frost"
 PHRASE = "quartz lantern frost thursday never appears inside this maintenance card at all"
+# Eight words, digit kept. In thinking only, so the user-turn claim check stays quiet.
+SPAN = "bramblewick lantern code 17 stays lit on north"
 
 
 def tokenizer_available():
@@ -146,6 +148,28 @@ def test_a_leaked_claim_fails_leakage(tmp_path, monkeypatch):
     assert code == 1
     assert report["failed"] == ["leakage"]
     assert any(rows[0]["id"] in hit and "claim" in hit for hit in report["checks"]["leakage"]["hits"])
+    assert_public(report)
+
+
+def test_a_shared_8word_span_with_a_planted_sealed_file_fails(tmp_path, monkeypatch):
+    """An 8-word span in thinking, digits kept, against a planted sealed file.
+
+    The phrase is not the user turn, so the older claim check stays quiet. The report names the id and the
+    count, and it does not repeat the span.
+    """
+    rows = data.load(DATA / "pilot-t04.jsonl")
+    victim = rows[0]
+    victim["turns"][0]["thinking"] = (victim["turns"][0].get("thinking") or "") + " " + SPAN
+    path = tmp_path / "pilot-t04.jsonl"
+    write_rows(path, rows)
+    code, report = check(tmp_path, [path], monkeypatch,
+                         sealed=planted_sealed(tmp_path, SPAN + " and then a longer planted claim"))
+    assert code == 1
+    assert report["failed"] == ["leakage"]
+    blob = json.dumps(report)
+    assert SPAN not in blob and "bramblewick" not in blob
+    hits = report["checks"]["leakage"]["hits"]
+    assert any(h == f"training: {victim['id']}: 1 shared span" for h in hits)
     assert_public(report)
 
 
