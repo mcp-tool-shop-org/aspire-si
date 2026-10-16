@@ -113,13 +113,16 @@ def _decode(model, rows: list, chunk: int, pad_id: int, stop_ids: set, max_new: 
     ids, mask = ids.to(device), mask.to(device)
     pos = (mask.cumsum(-1) - 1).clamp(min=0)
     with torch.no_grad():
-        out = model(input_ids=ids, attention_mask=mask, position_ids=pos, use_cache=True)
+        # Only the last position's logits: the full [batch, width, vocab] prefill logits would be 6-7 GiB near the
+        # budget, past the 26 GB plan (Argon's finding 4). The output is dropped once the logits are taken.
+        out = model(input_ids=ids, attention_mask=mask, position_ids=pos, use_cache=True, logits_to_keep=1)
         past, logits = out.past_key_values, out.logits[:, -1, :].float()
+        del out
         last_pos = pos[:, -1]
         for _ in range(chunk):
             active = [i for i, r in enumerate(rows) if not r["done"]]
-            if not active:
-                break
+            if not any(rows[i].get("key") is not None for i in active):
+                break  # every real row is done: padded throwaway rows never run on alone (Argon's finding 4)
             scores = process_logits(logits, sampling["temperature"], sampling["top_k"], sampling["top_p"])
             probs = scores.softmax(-1)
             nxt = torch.full((len(rows),), pad_id, dtype=torch.long, device=device)
