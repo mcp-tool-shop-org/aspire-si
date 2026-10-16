@@ -13,7 +13,10 @@ assistant targets change; nothing is written by a model.
 - B puzzles (no VERDICT in the reply): the user turn without its pattern-naming sentences; thinking restates
   the givens one per line; the reply is "Answer: <answer>.". A B item that fits neither is refused.
 - A and E-written: a material-recall counterpart from the same lesson's C, D and E-verdict materials, chosen so
-  exposure stays even; the reply is the read-through.
+  exposure stays even; the reply is the read-through. A closed-form E-written item (its variant's key is a dict
+  with "answer") keeps its original quiz and variant, so NO-ROLE is asked the same closed-form question as ROLE;
+  it trains only on its own recall turns (Argon's finding 5a). NO-ROLE's E-quiz correctness is a steering
+  reading only, never an arm comparison (rnd #110).
 - Shorter, never padded: when the material runs out, the item is shorter, and the token ratio is reported.
 """
 
@@ -228,6 +231,11 @@ def recall_turns(r: dict, material: str, count, written_quiz: bool) -> list[dict
     return [{"user": user, "thinking": "", "reply": reply}]
 
 
+def closed_form(r: dict) -> bool:
+    """A written E item quizzed by letter: quiz.quiz_type's "closed" test."""
+    return isinstance((r.get("variant") or {}).get("key"), dict) and "answer" in r["variant"]["key"]
+
+
 def is_verification(r: dict) -> bool:
     return r["kind"] in ("C", "D") or (r["kind"] == "E" and r["quiz"].get("type") == "verdict") or \
         (r["kind"] == "B" and bool(re.search(r"(?m)^\s*VERDICT\s*:", r["turns"][-1]["reply"])))
@@ -264,7 +272,9 @@ def build(rows: list[dict], count) -> tuple[list[dict], dict]:
             exposure_nr[m] += 1
             nr["turns"] = recall_turns(r, m, count, written_quiz=r["kind"] == "E")
             nr["recall_material_of"] = r["id"]
-            if r["kind"] == "E":
+            if r["kind"] == "E" and closed_form(r):
+                nr["variant"] = r["variant"]  # the quiz is kept too: asked as ROLE is, trained on nr["turns"] only
+            elif r["kind"] == "E":
                 nr["quiz"] = {"type": "recall"}
                 nr["variant"] = {"user": f"Put another way: what does this material state?\n{m}",
                                  "key": ["the material's lines"]}
