@@ -559,3 +559,26 @@ def test_the_star_command_refuses_without_either_training_flag(tmp_path, capsys)
         assert e.value.code == 2 and missing in capsys.readouterr().err
     assert not (tmp_path / "s.jsonl").exists()
     assert apply.main(base + ["--training-role", train, "--training-no-role", train]) == 0
+
+
+def test_two_identical_short_traces_on_different_items_keep_one(tmp_path):
+    """Argon's re-review, new finding 2: a thinking with no 8-word span before the learned subtraction (here, six
+    words) is dropped when its normalized text matches a kept trace. A different short trace is kept."""
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    short = "The Sunday line rules it out."
+    got = star_cli(tmp_path, [cand(c1, short), cand(c2, "  the sunday LINE rules it out.  ")],
+                   [cand(c1, "x"), cand(c2, "y")])
+    assert got["ROLE"] == [c1["id"]]  # whitespace and case don't make a new trace
+    got = star_cli(tmp_path, [cand(c1, short), cand(c2, "The weekday line can't reach it.")],
+                   [cand(c1, "x"), cand(c2, "y")])
+    assert got["ROLE"] == [c1["id"], c2["id"]]
+
+
+def test_a_prior_short_trace_drops_the_same_normalized_thinking(tmp_path):
+    """Argon's re-review, new finding 2: prior_spans returns the normalized thinking, so an earlier STaR row
+    drops the same short trace on a later item."""
+    c1, c3 = item("T05", "C", 1), item("T05", "C", 3)
+    short = "The Sunday line rules it out."
+    earlier = apply.star_rows([cand(c1, short)], session=1)
+    got = star_cli(tmp_path, [cand(c3, "  THE sunday   line rules it OUT.")], [cand(c3, "z")], prior_role=earlier)
+    assert got["ROLE"] == []
