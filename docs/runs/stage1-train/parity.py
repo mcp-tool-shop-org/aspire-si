@@ -183,12 +183,20 @@ def key_str(k: tuple) -> str:
     return f"{k[0]}|{k[1]}"
 
 
+def write_atomic(path: Path, text: str) -> None:
+    """A temporary file, flushed and fsynced, then renamed over the target: a kill mid-write leaves the old file
+    or none, never a truncated one (Argon)."""
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    tmp.replace(path)
+
+
 def save_draw(path: Path, rows: dict) -> None:
     """One finished draw, written as it completes, so a stop keeps every finished draw."""
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text("".join(json.dumps({"key": key_str(k), **v}) + "\n" for k, v in sorted(rows.items())),
-                   encoding="utf-8", newline="\n")
-    tmp.replace(path)
+    write_atomic(path, "".join(json.dumps({"key": key_str(k), **v}) + "\n" for k, v in sorted(rows.items())))
 
 
 def load_draw(path: Path, expected: set) -> dict | None:
@@ -237,12 +245,98 @@ def fits(minutes: float, deadline: float | None) -> bool:
     return deadline is None or time.time() + minutes * 60 <= deadline
 
 
+MEM_CAP_GIB = 26  # the plan's ceiling: the allocator is capped here, so a WDDM spill is an OOM stop, not a crawl
+
+
+def driver_resets_since(t0: float) -> int:
+    """nvlddmkm events (TDR resets among them) in the Windows System log since t0; 0 off Windows or on error."""
+    import subprocess
+    from datetime import datetime, timezone
+    if os.name != "nt":
+        return 0
+    since = datetime.fromtimestamp(t0, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    q = f"*[System[Provider[@Name='nvlddmkm'] and TimeCreated[@SystemTime>='{since}']]]"
+    try:
+        r = subprocess.run(["wevtutil", "qe", "System", f"/q:{q}", "/f:text", "/c:50"], capture_output=True,
+                           text=True, timeout=20)
+        return r.stdout.count("Event[")
+    except (OSError, subprocess.SubprocessError):
+        return 0
+
+
+def make_check(line0: dict, t0: float, read_line, resets_since=driver_resets_since):
+    """Before each draw: a driver reset since t0, or a machine line differing from line0, stops the run."""
+    def check():
+        n = resets_since(t0)
+        if n:
+            return f"{n} nvlddmkm event(s) (a driver reset) since the run started"
+        now = read_line()
+        if now != line0:
+            return f"the machine line changed mid-run: {line0} -> {now}"
+        return None
+    return check
+
+
+def worst_case_lengths(b_tok: int, batch: int, chunk: int) -> int:
+    """The prompt length that fills a first-chunk batch exactly: batch x (prompt + chunk) = b_tok."""
+    return b_tok // batch - chunk
+
+
+def run_draws(out: Path, expected: set, n_asks: int, cap: int, draw_fn, deadline: float | None = None,
+              say=print, check_fn=None) -> tuple[dict, dict, dict | None]:
+    """The four draws in DRAW_ORDER: ({name: rows}, {name: meta}, sizing).
+    - A draw kept from an earlier run comes back with its meta file (seconds, tokens, warned_ops), so a rerun
+      after a stop still knows each draw's figures.
+    - Sizing is computed whenever LB8 is available, kept or fresh, at the batch-1 tokens/s that LB1 measured
+      once LB1 exists, and B1_TOK_S_GUESS until then.
+    - A batch-1 draw whose projection won't fit `deadline` isn't started.
+    - check_fn(), when given, runs before every draw that would run; a reason it returns (a driver reset, a
+      changed machine line) stops the run there, keeping the finished draws (Argon).
+    draw_fn(name) runs a draw and returns (rows, meta)."""
+    draws, meta, size = {}, {}, None
+
+    def resize():
+        nonlocal size
+        if "LB8" not in draws:
+            return
+        lb1 = meta.get("LB1") or {}
+        tok_s = lb1["tokens"] / max(1.0, lb1["seconds"]) if lb1.get("tokens") else B1_TOK_S_GUESS
+        size = sizing(draws["LB8"], cap, tok_s, n_asks)
+        (out / "sizing.json").write_text(json.dumps(size, indent=1), encoding="utf-8")
+        say("sizing: " + json.dumps(size), flush=True)
+
+    for name in DRAW_ORDER:
+        path, mpath = out / f"draw-{name}.jsonl", out / f"draw-{name}.meta.json"
+        done = load_draw(path, expected)
+        if done is not None and mpath.exists():
+            draws[name], meta[name] = done, json.loads(mpath.read_text(encoding="utf-8"))
+            say(f"{name}: kept from an earlier run ({path.name})", flush=True)
+        else:
+            why = check_fn() if check_fn is not None else None
+            if why:
+                say(f"{name}: not started, {why}", flush=True)
+                break
+            if size is not None and not fits(size["minutes_per_batch1_draw"], deadline):
+                say(f"{name}: not started, projected {size['minutes_per_batch1_draw']} min won't fit the deadline",
+                    flush=True)
+                break
+            rows, m = draw_fn(name)
+            write_atomic(mpath, json.dumps(m))  # the meta first: the draw file marks the draw complete
+            save_draw(path, rows)
+            draws[name], meta[name] = rows, m
+        if name in ("LB8", "LB1"):
+            resize()
+    return draws, meta, size
+
+
 def main(argv=None) -> int:  # pragma: no cover - runs on the card
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", nargs="+", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--limit-items", type=int, help="a short preflight run; never the counted check")
     ap.add_argument("--deadline", help="the grant's end, ISO 8601 UTC: a draw that can't finish by then isn't started")
+    ap.add_argument("--worst-case", action="store_true",
+                    help="one synthetic first-chunk batch at the full budget, EOS suppressed: the peak, then exit")
     a = ap.parse_args(argv)
     import torch
     from datetime import datetime
@@ -258,6 +352,27 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
     tok = student.load_tokenizer()
     model = student.load_student()
     model.eval()
+    if torch.cuda.is_available():  # a spill past the plan's ceiling becomes an OOM stop (Argon)
+        total = torch.cuda.get_device_properties(0).total_memory
+        torch.cuda.set_per_process_memory_fraction(min(1.0, MEM_CAP_GIB * 2**30 / total))
+    if a.worst_case:
+        prompt_len = worst_case_lengths(batched.B_TOK, batched.BATCH, batched.CHUNK_MAX)
+        filler = tok("the depot opens at eight on weekdays and is closed on sundays. ")["input_ids"]
+        ids = (filler * (prompt_len // len(filler) + 1))[:prompt_len]
+        work = [{"key": f"wc{i}", "item_id": f"worst-case-{i}", "sample": 0, "ids": list(ids)}
+                for i in range(batched.BATCH)]
+        torch.cuda.reset_peak_memory_stats()
+        t0 = time.time()
+        res, log = batched.generate_all(model, work, tok.pad_token_id or 0, set(), batched.CHUNK_MAX,
+                                        batched.SAMPLING)  # no stop tokens: every row runs the full chunk
+        wc = {"prompt_tokens": prompt_len, "rows": batched.BATCH, "chunk": batched.CHUNK_MAX,
+              "new_tokens": [r["new_tokens"] for r in res.values()], "batches": log,
+              "torch_peak_reserved_gib": round(torch.cuda.max_memory_reserved() / 2**30, 2),
+              "cap_gib": MEM_CAP_GIB, "seconds": round(time.time() - t0, 1), "machine_line": det_run.machine_line()}
+        wc["within_cap"] = wc["torch_peak_reserved_gib"] <= MEM_CAP_GIB
+        write_atomic(out / "worst-case.json", json.dumps(wc, indent=1))
+        print(json.dumps({k: wc[k] for k in ("torch_peak_reserved_gib", "within_cap", "seconds")}), flush=True)
+        return 0 if wc["within_cap"] else 1
 
     def count(text):
         return len(tok(text, add_special_tokens=False)["input_ids"])
@@ -267,23 +382,13 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
             for r in chosen for s in quiz.SEEDS]
     by_item = {f"{r['id']}-v0": r for r in chosen}
     expected = {(k.split("|")[0], int(k.split("|")[1])) for k in (x["key"] for x in asks)}
-    draws, times, warned, size = {}, {}, {}, None
-    tok_s = B1_TOK_S_GUESS
     torch.cuda.reset_peak_memory_stats()
     import warnings
-    for name in DRAW_ORDER:
-        path = out / f"draw-{name}.jsonl"
-        done = load_draw(path, expected)
-        if done is not None:
-            draws[name] = done
-            print(f"{name}: kept from an earlier run ({path.name})", flush=True)
-            continue
-        if size is not None and not fits(size["minutes_per_batch1_draw"], deadline):
-            print(f"{name}: not started, projected {size['minutes_per_batch1_draw']} min won't fit the deadline",
-                  flush=True)
-            break
+
+    def draw_fn(name):
         prog = Progress(name, len(asks))
         t0 = time.time()
+        warned = None
         if name in ("LB8", "LB1"):
             log: list = []
             gens = batched.make_generate_many(model, tok, log, batch=8 if name == "LB8" else 1,
@@ -305,21 +410,20 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
                         g = harness.generate(model, tok, ask["messages"], "sampled", seed)
                         rows[(ask["item_id"], k)] = record(by_item[ask["item_id"]], g, count, rule)
                         prog.step(f"{ask['item_id']}|{k}", g["new_tokens"], g["seconds"])
-            warned[name] = warned_ops(caught)
+            warned = warned_ops(caught)
             for w in caught:  # recorded, and still shown
                 warnings.showwarning(w.message, w.category, w.filename, w.lineno)
             torch.use_deterministic_algorithms(False)
-        draws[name], times[name] = rows, round(time.time() - t0, 1)
-        save_draw(path, rows)
-        if name == "LB1" and prog.tokens:
-            tok_s = prog.tokens / max(1.0, prog.seconds)  # measured, for the harness draws' projection
-        if name in ("LB8", "LB1"):
-            size = sizing(draws["LB8"], harness.MAX_NEW_TOKENS, tok_s, len(asks))
-            (out / "sizing.json").write_text(json.dumps(size, indent=1), encoding="utf-8")
-            print("sizing: " + json.dumps(size), flush=True)
+        return rows, {"seconds": round(time.time() - t0, 1), "tokens": prog.tokens, "warned_ops": warned}
+
+    check = make_check(det_run.machine_line(), time.time(), det_run.machine_line)
+    draws, meta, size = run_draws(out, expected, len(asks), harness.MAX_NEW_TOKENS, draw_fn, deadline,
+                                  check_fn=check)
     if set(draws) != set(DRAW_ORDER):
         print(json.dumps({"incomplete": sorted(set(DRAW_ORDER) - set(draws)), "kept": sorted(draws)}), flush=True)
         return 2
+    times = {n: m["seconds"] for n, m in meta.items()}
+    warned = {n: m["warned_ops"] for n, m in meta.items() if m.get("warned_ops") is not None}
     report = {"items": [r["id"] for r in chosen], "rules_i": RULES_I, "rules_ii": RULES_II,
               "i": compare_i(draws["LB1"], draws["LB8"]), "ii": compare_ii(draws["LB1"], draws["P1"], draws["P1p"]),
               "machine_line": det_run.machine_line(), "warned_ops": warned, "sizing": size,
