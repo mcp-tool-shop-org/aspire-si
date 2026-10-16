@@ -1,18 +1,20 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-16 from commit 468a94b by Atlas 1.24.0.
+Mapped at 2026-10-16 from commit 6f06c9b by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (250 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (252 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-16 (6b1ad40)
+## What changed since 2026-10-16 (468a94b)
 
-- docs/runs/stage1-taskset/ is now read by docs/runs/stage1-train/sdpa_check.py.
-- docs/runs/stage1-train/test_runner.py is now read by docs/runs/stage1-train/test_runner_marks.py.
-- 3 files added and 7 changed content, across 1 part.
+- docs/runs/stage1-no-role/round1.jsonl is now written by docs/runs/stage1-train/freeze.py.
+- README.md is now also read by docs/runs/stage1-train/test_freeze.py.
+- docs/runs/stage1-eval/ is now also read by docs/runs/stage1-train/test_freeze.py.
+- And 4 more new writers and readers of places.
+- 6 files added and 44 changed content, across 2 parts.
 
 ## What comes in
 
@@ -25,11 +27,12 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 1. The workflow runs docs/runs/stage1-train/ in docs, examples/geometry_demo.py in examples, tests/ in tests and packages/aspire-si-gates/tests/; it checks aspire/ in aspire and integrations/ in integrations.
    1. Inside examples/geometry_demo.py, `main` does, in order: `GeometryRecorder` (aspire) and `record_step` (GeometryRecorder).
-2. It uploads coverage to Codecov.
+2. It writes to docs/runs/stage1-no-role/round1.jsonl, which is not tracked.
+3. It uploads coverage to Codecov.
 
 ## Who reads the results
 
-CI writes nothing this map can see.
+CI writes only to docs/runs/stage1-no-role/round1.jsonl, which is not tracked.
 
 ## The other doors
 
@@ -47,17 +50,17 @@ CI writes nothing this map can see.
 
 ## What tends to change together
 
-- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 11 of 11 commits.
-- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 10 of 11 commits.
-- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 10 of 11 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 13 of 13 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 12 of 13 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 12 of 13 commits.
 - **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 9 commits, inside the examples part.
 - **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
-1 file changed together with its own test, as expected.
+4 files changed together with their own tests, as expected.
 
 Confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
-Window: 180 days; a pair counts from 3 shared commits, since 7 source files reach 10 revisions; the floor rises to 10 when 25 do.
+Window: 180 days; a pair counts from 3 shared commits, since 8 source files reach 10 revisions; the floor rises to 10 when 25 do.
 
 ## What no test touches
 
@@ -80,7 +83,7 @@ No two parts export a helper that looks alike.
 
 ## Hand-authored
 
-People write .github/, the repository root and site/; 20 writes with paths built at run time may land here.
+People write .github/, the repository root and site/; 21 writes with paths built at run time may land here.
 
 ## Where to start
 
@@ -91,9 +94,10 @@ Read those in order to follow one pull request end to end.
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 23 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 20 more.
-- 20 writes and 43 reads use paths built at run time and are not named here.
-- 67 writes and 86 reads go to a path their caller passes, not to this repository.
+- 25 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 22 more.
+- 21 writes and 46 reads use paths built at run time and are not named here.
+- 1 write goes to places this repository does not track, so it is not listed as generated.
+- 72 writes and 92 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - 15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
