@@ -100,13 +100,35 @@ def test_r4_and_r1_twins_drop_the_deciding_line_and_judge_the_twin():
     assert rows[t04["id"]]["star"].startswith("refused: R4")
 
 
-def test_r3_needs_the_verdict_to_change_and_a_cannot_tell_item_has_no_twin():
+def test_r3_needs_the_verdict_to_change_and_a_cannot_tell_item_is_kept_without_a_twin():
+    """A decided T03 item still gets its twin. A cannot_tell item is kept on the other clauses."""
     t03 = item("T03", "D", 1)
+    _, _, rows, g = sit([t03], {f"{t03['id']}#twin0": CT})
+    assert rows[t03["id"]]["star"] == "candidate" and rows[t03["id"]]["twin"]["rule"] == "drop_deciding"
+    assert any(a["key"] == f"{t03['id']}#twin0" for a in g.calls[1])
     _, _, rows, _ = sit([t03], {f"{t03['id']}#twin0": RIGHT})
     assert rows[t03["id"]]["star"].startswith("refused: R3")
     ct = item("T03", "D", 2, verdict="cannot_tell", deciding=())
-    _, kept, rows, _ = sit([ct], {ct["id"]: CT})
-    assert rows[ct["id"]]["star"] == "held: no twin can be made by rule for this item" and not kept
+    assert rules.twin_applies(ct, "T03") is False
+    readout, kept, rows, g = sit([ct], {ct["id"]: CT})
+    assert rows[ct["id"]]["star"] == "candidate" and rows[ct["id"]]["twin"] is None and kept
+    assert len(g.calls) == 1
+    assert "R1's, R3's and R4's twins are tested on decided items only" in readout["h2_disclosure"]
+
+
+def test_cannot_tell_drop_deciding_items_stay_on_the_other_clauses():
+    """Amendment E: a cannot_tell T01, T03 or T04 item has no deciding line to drop."""
+    for lesson in ("T01", "T03", "T04"):
+        ct = item(lesson, "D", 1, verdict="cannot_tell", deciding=())
+        assert rules.twin_applies(ct, lesson) is False
+        _, kept, rows, g = sit([ct], {ct["id"]: CT})
+        assert rows[ct["id"]]["star"] == "candidate" and rows[ct["id"]]["twin"] is None and kept, lesson
+        assert len(g.calls) == 1, lesson
+        decided = item(lesson, "D", 2)
+        assert rules.twin_applies(decided, lesson) is True
+        _, _, rows, g = sit([decided], {f"{decided['id']}#twin0": CT})
+        assert rows[decided["id"]]["twin"]["rule"] == "drop_deciding", lesson
+        assert any(a["key"] == f"{decided['id']}#twin0" for a in g.calls[1]), lesson
 
 
 def test_r5_h1_authority_and_pushback_twins_cost_two_generations():

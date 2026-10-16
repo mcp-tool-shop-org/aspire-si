@@ -209,6 +209,52 @@ as rnd's record (`experiments/stage1-role-eval/README.md`, "Amendments, 2026-10-
   - about 12–15 minutes a sitting;
   - G1 run as three per-seed grants, each with both arms, with 15-minute rests.
 
+## Amendments D and E: the keep rule's lesson and twin clauses (2026-10-15 and 2026-10-16)
+
+The maintainer's decisions. Recorded in the same words as rnd's record (`experiments/stage1-role-eval/README.md`,
+amendments D and E; E is rnd #114).
+
+**D. The keep rule's lesson clause for T14 and T16** (the maintainer's decision, on R&D's recommendation after
+Argon's review; [the brief and Argon's answer](https://github.com/mcp-tool-shop-org/rnd/blob/main/experiments/stage1-role-eval/argon-t14-t16-keep-rule-brief.md)).
+- **The gap:** the lesson plan gives T14 (H2) no pass rule, and leaves T16's (H4) "fixed lines" unset. The other
+  lessons' clauses are tested as R&D ruled on aspire-si#128.
+- **T14:** an answer is kept on:
+  - the three lines and not stuck;
+  - the any-item rules: DECIDING verbatim, no loop, no truncation;
+  - on decided items, the deciding-line-removal twin answering cannot_tell. A decided item whose twin can't be made
+    is held. An item keyed cannot_tell needs no twin: clause 1 already requires DECIDING NONE for it.
+
+  Every readout discloses that H2 is tested by R4's twin.
+- **T16:** a set rule per arm per session over T16's decided items. The set passes when both hold:
+  - abstain (cannot_tell) ≤ max(A_0 + 0.10, 1/n_decided);
+  - false-reject (the opposite decided verdict) ≤ max(A_0 + 0.15, 2/n_decided).
+
+  A_0's rates are measured with the same definitions on all of DEV's decided items, pooled over its 3 seeds. They
+  come from the base model's DEV run (`pilot-30-s0..s2`), with n disclosed. With zero tolerance, chance alone would
+  fail about 26% of sets at a true rate of 0.10.
+- **Wording fix (R&D, 2026-10-15, keeping the decision's substance):**
+  - The decision first named "DEV's tier-1 items", but DEV has no tier 1 (its tiers are 3–6).
+  - Measured on the rig, A_0 on all of DEV's decided items (n = 78): abstain 3 of 78 (0.038), false-reject 2 of
+    78 (0.026).
+  - For every n_decided from 1 to 10, the lines allow the same counts under this source, DEV's lowest tier
+    (n = 6, 0 of 6 each) or A_0 = 0: at most 1 abstention and at most 2 false-rejects.
+  - The outcome is unchanged.
+
+**E. The keep rule's twin clause for T01, T03 and T04** (2026-10-16; the maintainer's decision, on R&D's ruling
+after Argon's review of the freeze tool, aspire-si#151).
+- **The rule:** as amendment D gave T14, an apply item keyed cannot_tell in a drop_deciding lesson (T01, T03, T04,
+  T14) needs no twin. It's kept on the other clauses. R1, R3 and R4's twins are tested on decided items only, and
+  every readout discloses that.
+- **Why:**
+  - A cannot_tell item has no deciding line to drop, so its twin can never be made.
+  - Under the old rule those items were held, which shut cannot_tell out of STaR in those lessons. That was
+    worst for T04, whose habit is abstaining.
+  - The narrower fix (the cannot_tell-twin lessons T01, T04 and T14) was rejected, because it would still hold
+    T03's cannot_tell items. R3's twin test is "the verdict changes with the deciding line removed", which has
+    nothing to remove on such an item.
+- **In code:** `twin_applies` returns false for a drop_deciding lesson's item not keyed supported or unsupported.
+  The freeze dry run then counts any None from that branch as an unexpected hold.
+
 ## Standards compliance
 
 | Standard | Score | Evidence |

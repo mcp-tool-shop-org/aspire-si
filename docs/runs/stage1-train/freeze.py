@@ -322,15 +322,16 @@ def leakage_check(role, nr, apply_rows, sealed_path: Path, partial: bool) -> tup
 def hold_reason(r: dict) -> tuple:
     """The make_twin branch that returned None, and whether that hold is one the runtime expects.
 
-    The three expected holds are reported and do not fail. Each reason names the branch it mirrors,
-    in make_twin's order. Any other None fails the apply check.
+    Expected holds are reported and do not fail. Each reason names the branch it mirrors, in make_twin's
+    order. A drop_deciding item that is not keyed supported or unsupported is unexpected: twin_applies is
+    false there, so the runtime never reaches it. Any other unexpected None fails the apply check.
     """
     lesson = r.get("lesson")
     rule = apply_rules.TWIN[lesson]
     if rule == "drop_deciding":
         segs = [s for s in (r.get("deciding") or []) if s and str(s).upper() != "NONE"]
         if r.get("verdict") not in ("supported", "unsupported"):
-            return "drop_deciding: not keyed supported or unsupported", True
+            return "drop_deciding: not keyed supported or unsupported", False
         if not segs:
             return "drop_deciding: no deciding segment", False
         # `is not True` is make_twin's branch. Only the false value is the expected hold.
@@ -380,6 +381,15 @@ def apply_complete(items) -> bool:
     return all(per[lesson]["C"] == 5 and per[lesson]["D"] == 5 for lesson in per)
 
 
+def apply_load_problem(exc: Exception) -> str:
+    """A load failure belongs to the apply check. The text stays free of machine paths."""
+    if isinstance(exc, json.JSONDecodeError):
+        return "apply file: not JSON"
+    if isinstance(exc, OSError):
+        return "apply file: not available"
+    return scrub(exc)
+
+
 def apply_check(paths, train_rows, count, partial: bool) -> dict:
     """`load_items`, then the dry run. Omitted apply files are allowed only with `--partial-set`."""
     if not paths:
@@ -389,9 +399,9 @@ def apply_check(paths, train_rows, count, partial: bool) -> dict:
                             problems=["apply items were not given"])
     try:
         items = apply.load_items(paths)
-    except apply.ApplyItemError as e:
+    except (apply.ApplyItemError, OSError, json.JSONDecodeError) as e:
         return apply_report(False, given=True, skipped=False, complete=False, count=None,
-                            problems=[scrub(e)])
+                            problems=[apply_load_problem(e)])
     problems = []
     holds = []
     # A real freeze must not pass the stuck rule and the set rules by skipping them.
@@ -593,7 +603,7 @@ def cmd_check(args) -> int:
     if apply_paths:
         try:
             apply_rows = apply.load_items(apply_paths)
-        except apply.ApplyItemError:
+        except (apply.ApplyItemError, OSError, json.JSONDecodeError):
             apply_rows = None
             leak["apply_rows_checked"] = False
         else:
@@ -647,6 +657,10 @@ def refuse_reason(report: dict) -> str | None:
         return "the sealed file's sha256 is not the pinned file"
     if not (report.get("no_role") or {}).get("sha256") or not (report.get("no_role") or {}).get("file"):
         return "the report has no NO-ROLE file"
+    for group in ("training_files", "apply_files"):
+        for rec in report.get(group) or []:
+            if str((rec or {}).get("path") or "").startswith("<outside-repo>/"):
+                return "a training or apply file is outside the repo"
     return None
 
 

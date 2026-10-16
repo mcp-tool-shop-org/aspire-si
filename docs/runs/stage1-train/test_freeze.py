@@ -354,6 +354,39 @@ def test_write_refuses_a_failed_report_and_is_byte_stable(tmp_path, capsys):
     assert code == 1 and not frozen6.exists() and not pin6.exists()
 
 
+def test_a_missing_apply_path_fails_the_apply_check(tmp_path, monkeypatch):
+    missing = tmp_path / "no-such-apply.jsonl"
+    code, report = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch, apply=[missing])
+    assert code == 1
+    assert report["failed"] == ["apply"]
+    assert "apply file: not available" in report["checks"]["apply"]["problems"]
+    assert report["checks"]["leakage"]["apply_rows_checked"] is False
+    assert_public(report)
+
+
+def test_a_bad_apply_json_line_fails_the_apply_check(tmp_path, monkeypatch):
+    bad = tmp_path / "apply.jsonl"
+    bad.write_text("{not json\n", encoding="utf-8", newline="\n")
+    code, report = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch, apply=[bad])
+    assert code == 1
+    assert report["failed"] == ["apply"]
+    assert "apply file: not JSON" in report["checks"]["apply"]["problems"]
+    assert report["checks"]["leakage"]["apply_rows_checked"] is False
+    assert_public(report)
+
+
+def test_write_refuses_an_outside_repo_path(tmp_path, capsys):
+    nr = b'{"id": "T04-A-01-nr"}\n'
+    training = _passing_report(hashlib.sha256(nr).hexdigest())
+    training["training_files"][0]["path"] = "<outside-repo>/pilot-t04.jsonl"
+    code, _sha, frozen, pin = _write(tmp_path / "train", training, nr, capsys)
+    assert code == 1 and not frozen.exists() and not pin.exists()
+    apply_files = _passing_report(hashlib.sha256(nr).hexdigest())
+    apply_files["apply_files"][0]["path"] = "<outside-repo>/round1.jsonl"
+    code, _sha, frozen2, pin2 = _write(tmp_path / "apply", apply_files, nr, capsys)
+    assert code == 1 and not frozen2.exists() and not pin2.exists()
+
+
 DEPOT = (
     "The bramblewick depot unlocks at dawn on odd weekdays only.\n"
     "It stays shuttered on frost-sundays entirely here."
@@ -398,12 +431,15 @@ def test_expected_twin_holds_are_reported_and_do_not_fail(tmp_path, monkeypatch)
     assert code == 0, apply_c["problems"]
     assert apply_c["ok"] is True
     by_id = {h["id"]: h for h in apply_c["predicted_holds"]}
-    assert set(by_id) == {"T03-D-AP-01", "T01-D-AP-01", "T09-C-AP-01"}
-    assert by_id["T03-D-AP-01"]["reason"] == "drop_deciding: not keyed supported or unsupported"
+    # cannot_tell drop_deciding is not a hold: twin_applies is false, so make_twin is not called.
+    assert "T03-D-AP-01" not in by_id
+    reason, expected = freeze.hold_reason(rows[0])
+    assert reason == "drop_deciding: not keyed supported or unsupported" and expected is False
+    assert set(by_id) == {"T01-D-AP-01", "T09-C-AP-01"}
     assert by_id["T01-D-AP-01"]["reason"] == "drop_deciding: silent_without_deciding is false"
     assert by_id["T09-C-AP-01"]["reason"] == "permute: order_free is false"
     assert all(h["expected"] is True for h in by_id.values())
-    assert apply_c["predicted_holds_by_lesson"] == {"T01": 1, "T03": 1, "T09": 1}
+    assert apply_c["predicted_holds_by_lesson"] == {"T01": 1, "T09": 1}
 
 
 def test_an_unexplained_twin_none_fails_apply(tmp_path, monkeypatch):
