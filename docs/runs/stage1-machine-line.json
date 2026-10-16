@@ -1,0 +1,7 @@
+{
+ "gpu": "NVIDIA GeForce RTX 5090",
+ "driver": "617.42",
+ "cuda": "13.4",
+ "torch": "2.16.0.dev20261008+cu134",
+ "transformers": "5.19.0"
+}
