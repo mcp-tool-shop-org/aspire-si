@@ -68,6 +68,11 @@ def check(tmp, files, monkeypatch, *, partial=True, sealed=None, apply=None, cou
     """Run `freeze check` in process. Word counts stand in for the tokenizer, so CI needs no snapshot."""
     if count == "words":
         monkeypatch.setattr(freeze, "cli_count", lambda: (lambda text: len(str(text).split())))
+    elif count == "missing":
+        def missing():
+            raise SystemExit("tokenizer: not available")
+
+        monkeypatch.setattr(freeze, "cli_count", missing)
     out = tmp / "out"
     argv = ["check", "--data", *[str(p) for p in files], "--out", str(out),
             "--sealed", str(sealed if sealed is not None else tmp / "no-sealed.jsonl")]
@@ -87,6 +92,8 @@ def test_a_partial_pilot_passes_and_cannot_write_frozen(tmp_path, monkeypatch):
     validate = report["checks"]["validate_training_set"]
     assert validate["ok"] and validate["freeze_shortfalls"]  # floors fall short; the check still passes
     assert report["checks"]["apply"]["skipped"] is True
+    assert report["checks"]["apply"]["predicted_holds"] == []
+    assert report["checks"]["apply"]["predicted_holds_by_lesson"] == {}
     assert report["no_role"]["pin"] == freeze.NO_ROLE_PIN
     assert report["training_files"][0]["path"] == "docs/runs/stage1-training-data/pilot-t04.jsonl"
     assert_public(report)
@@ -124,7 +131,10 @@ def test_batches_1_to_6_pass_apart_from_the_freeze_floors(tmp_path):
     env["HF_HUB_OFFLINE"] = "1"
     subprocess.run([sys.executable, str(HERE / "no_role.py"), "--data", *[str(p) for p in files],
                     "--out", str(cli)], check=True, env=env)
-    assert freeze.sha256_file(out / freeze.NO_ROLE_NAME) == freeze.sha256_file(cli)
+    assert receipts.sha256_file(out / freeze.NO_ROLE_NAME) == receipts.sha256_file(cli)
+    assert report["checks"]["apply"]["skipped"] is True
+    assert report["checks"]["apply"]["predicted_holds"] == []
+    assert report["checks"]["apply"]["predicted_holds_by_lesson"] == {}
 
 
 def test_a_leaked_claim_fails_leakage(tmp_path, monkeypatch):
@@ -205,6 +215,7 @@ def test_a_malformed_apply_item_fails_the_apply_check(tmp_path, monkeypatch):
     assert report["checks"]["leakage"]["ok"] is True
     assert report["checks"]["leakage"]["apply_rows_checked"] is False
     assert report["checks"]["apply"]["problems"]
+    assert report["checks"]["apply"]["predicted_holds"] == []
 
 
 def test_a_models_sidecar_and_a_glob_order_are_refused(tmp_path, monkeypatch):
@@ -310,6 +321,11 @@ def test_write_refuses_a_failed_report_and_is_byte_stable(tmp_path, capsys):
     body = text.decode("utf-8")
     assert body.index("pilot-t04.jsonl") < body.index("batch2-t01.jsonl")
     assert freeze.NO_ROLE_PIN in body and "round1.jsonl" in body
+    assert "sha256 of the content with CRLF read as LF (`receipts.sha256_file`)" in body
+    assert f"aspire-si-gates {freeze.GATES_VERSION}" in body
+    assert f"freeze.py sha256: {receipts.sha256_file(Path(freeze.__file__))}" in body
+    assert "sealed pin: e1e515b4" in body
+    assert receipts.sha256_file(frozen) == sha1
     assert pin.read_bytes() == nr
     assert not (freeze.REPO / freeze.NO_ROLE_PIN).exists()
     code2, sha2, frozen2, _pin2 = _write(tmp_path / "b", report, nr, capsys)
@@ -336,3 +352,93 @@ def test_write_refuses_a_failed_report_and_is_byte_stable(tmp_path, capsys):
     wrong["no_role"]["sha256"] = "00" * 32
     code, _sha, frozen6, pin6 = _write(tmp_path / "f", wrong, nr, capsys)
     assert code == 1 and not frozen6.exists() and not pin6.exists()
+
+
+DEPOT = (
+    "The bramblewick depot unlocks at dawn on odd weekdays only.\n"
+    "It stays shuttered on frost-sundays entirely here."
+)
+SHUTTERED = "It stays shuttered on frost-sundays entirely here."
+RIGHT_REPLY = f"VERDICT: unsupported\nDECIDING: {SHUTTERED}\nESCALATE: no"
+CANNOT_TELL = "VERDICT: cannot_tell\nDECIDING: NONE\nESCALATE: no"
+THINKING = "Bramblewick hours settle from the shuttered frost line alone."
+
+
+def apply_row(lesson, kind, n, *, verdict="unsupported", deciding=(SHUTTERED,), user=None, reply=None,
+              **extra):
+    """One synthetic apply item. The wording is not in the curriculum, so spans and leakage stay clear."""
+    statement = f"the bramblewick depot case {lesson}{kind}{n} stays open on a frost sunday"
+    if user is None:
+        user = f"Material:\n{DEPOT}\nStatement: {statement}."
+    if reply is None:
+        reply = CANNOT_TELL if verdict == "cannot_tell" else RIGHT_REPLY
+    row = {"id": f"{lesson}-{kind}-AP-{n:02d}", "split": "apply", "lesson": lesson, "trait": "t",
+           "kind": kind, "side": "n/a", "content_kind": "notice", "tier": 2, "material": DEPOT,
+           "sources": [], "invented": True, "key_basis": "construction", "tags": [],
+           "verdict": verdict, "deciding": list(deciding), "escalate": "no",
+           "turns": [{"user": user, "thinking": THINKING, "reply": reply}]}
+    if kind == "C":
+        row["planted_flaw"] = "rubber_stamp"
+    row.update(extra)
+    return row
+
+
+def test_expected_twin_holds_are_reported_and_do_not_fail(tmp_path, monkeypatch):
+    """One item of each hold the runtime is expected to make. The apply check passes."""
+    rows = [
+        apply_row("T03", "D", 1, verdict="cannot_tell", deciding=()),
+        apply_row("T01", "D", 1, silent_without_deciding=False),
+        apply_row("T09", "C", 1, order_free=False),
+    ]
+    path = tmp_path / "apply.jsonl"
+    write_rows(path, rows)
+    code, report = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch,
+                         sealed=planted_sealed(tmp_path), apply=[path])
+    apply_c = report["checks"]["apply"]
+    assert code == 0, apply_c["problems"]
+    assert apply_c["ok"] is True
+    by_id = {h["id"]: h for h in apply_c["predicted_holds"]}
+    assert set(by_id) == {"T03-D-AP-01", "T01-D-AP-01", "T09-C-AP-01"}
+    assert by_id["T03-D-AP-01"]["reason"] == "drop_deciding: not keyed supported or unsupported"
+    assert by_id["T01-D-AP-01"]["reason"] == "drop_deciding: silent_without_deciding is false"
+    assert by_id["T09-C-AP-01"]["reason"] == "permute: order_free is false"
+    assert all(h["expected"] is True for h in by_id.values())
+    assert apply_c["predicted_holds_by_lesson"] == {"T01": 1, "T03": 1, "T09": 1}
+
+
+def test_an_unexplained_twin_none_fails_apply(tmp_path, monkeypatch):
+    """The deciding line is in the material and the reply, and missing from the user turn."""
+    user = (
+        "Material:\nThe bramblewick depot unlocks at dawn on odd weekdays only.\n"
+        "A notice about hours sits below the bramblewick clock.\n"
+        "Statement: the bramblewick depot case T01D9 stays open on a frost sunday."
+    )
+    row = apply_row("T01", "D", 1, silent_without_deciding=True, user=user)
+    path = tmp_path / "apply.jsonl"
+    write_rows(path, [row])
+    code, report = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch,
+                         sealed=planted_sealed(tmp_path), apply=[path])
+    apply_c = report["checks"]["apply"]
+    assert code == 1
+    assert report["failed"] == ["apply"]
+    assert apply_c["predicted_holds"] == [{
+        "id": "T01-D-AP-01", "lesson": "T01", "expected": False,
+        "reason": "drop_deciding: a deciding segment is not on a material line",
+    }]
+    assert apply_c["predicted_holds_by_lesson"] == {}
+    assert any("T01-D-AP-01" in p for p in apply_c["problems"])
+
+
+def test_a_real_freeze_without_a_token_count_records_the_skipped_rules(tmp_path, monkeypatch):
+    """No count means the stuck rule and the set rules did not run. A partial run does not say so."""
+    path = tmp_path / "apply.jsonl"
+    write_rows(path, [apply_row("T06", "D", 1)])
+    phrase = "stuck and set rules not run: no token count"
+    code, report = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch, partial=False,
+                         count="missing", apply=[path])
+    assert code == 1
+    assert phrase in report["checks"]["apply"]["problems"]
+    assert report["checks"]["apply"]["ok"] is False
+    _code, partial = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch, partial=True,
+                           count="missing", apply=[path])
+    assert phrase not in partial["checks"]["apply"]["problems"]

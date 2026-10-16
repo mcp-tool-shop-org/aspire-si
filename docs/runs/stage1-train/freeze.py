@@ -17,7 +17,8 @@ It does not reimplement them:
   `train.py` loads them.
 - `quiz.variant_checked_spans` against `quiz.trained_spans`.
 - `apply.load_items`, then the apply dry run (`make_twin`, `set_rule`, `score_three_lines`, `single`,
-  `any_item`, and the frozen stuck rule).
+  `any_item`, and the frozen stuck rule). A None from `make_twin` is a predicted hold. The three holds the
+  runtime is expected to make are reported and do not fail. Any other None fails the apply check.
 
 `--partial-set` is the batches-1-to-6 run: `require_freeze=False`, and `--apply` may be omitted. It is
 recorded on the report. `write` refuses that report, any failed check, any freeze shortfall, a missing or
@@ -25,8 +26,8 @@ incomplete apply set, and any sealed sha other than the pinned `e1e515b4...`. A 
 report cannot write FROZEN.md.
 
 The pinned NO-ROLE jsonl for round 1 (what `train.py` and `apply.py star --training-no-role` read) is
-proposed as `docs/runs/stage1-no-role/round1.jsonl`, outside `stage1-training-data/` so a glob of that
-directory cannot pick it up as curriculum. `write` copies it there. R&D decides the path on the PR.
+`docs/runs/stage1-no-role/round1.jsonl`. R&D approved that path. It sits outside `stage1-training-data/`
+so a glob of that directory cannot pick it up as curriculum. `write` copies it there.
 
 Paths in the report and in FROZEN.md are repo-relative POSIX. Both files use LF, so their sha256 does not
 depend on the system. The sealed file is the task file `receipts.SEALED_FILE` only. A sealed output
@@ -34,7 +35,6 @@ directory is never read. CPU only.
 """
 
 import argparse
-import hashlib
 import json
 import re
 import sys
@@ -51,9 +51,9 @@ import data  # noqa: E402
 import no_role  # noqa: E402
 import quiz  # noqa: E402
 import receipts  # noqa: E402
-from aspire_si_gates import gates  # noqa: E402
+from aspire_si_gates import GATES_VERSION, gates  # noqa: E402
 
-# R&D decides this path. It is the file the round reads, not a scratch copy.
+# Approved by R&D. It is the file the round reads, not a scratch copy.
 NO_ROLE_PIN = "docs/runs/stage1-no-role/round1.jsonl"
 NO_ROLE_NAME = "no-role.jsonl"
 REPORT_NAME = "freeze-report.json"
@@ -89,11 +89,6 @@ def public_path(path: Path) -> str:
         return path.resolve().relative_to(REPO.resolve()).as_posix()
     except ValueError:
         return "<outside-repo>/" + path.name
-
-
-def sha256_file(path: Path) -> str:
-    """sha256 with CRLF read as LF, the same rule as the held-out pins, so the digest is stable."""
-    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def cli_count():
@@ -237,7 +232,7 @@ def no_role_check(role, count, out_dir: Path) -> tuple:
     gate = composition_gate(role, nr, count)
     path = out_dir / NO_ROLE_NAME
     write_jsonl(path, nr)
-    gate["sha256"] = sha256_file(path)
+    gate["sha256"] = receipts.sha256_file(path)
     gate["items"] = len(nr)
     return gate, nr
 
@@ -324,19 +319,53 @@ def leakage_check(role, nr, apply_rows, sealed_path: Path, partial: bool) -> tup
     return {"ok": not hits, "hits": hits}, info
 
 
-def twin_eligible(r: dict) -> bool:
-    """A decided item whose lesson rule says a twin is made, including the markers that allow one."""
+def hold_reason(r: dict) -> tuple:
+    """The make_twin branch that returned None, and whether that hold is one the runtime expects.
+
+    The three expected holds are reported and do not fail. Each reason names the branch it mirrors,
+    in make_twin's order. Any other None fails the apply check.
+    """
     lesson = r.get("lesson")
-    if lesson not in apply_rules.TWIN or not apply_rules.twin_applies(r, lesson):
-        return False
-    if r.get("verdict") not in ("supported", "unsupported"):
-        return False
     rule = apply_rules.TWIN[lesson]
-    if rule == "drop_deciding" and lesson in apply_rules.SILENT_NEEDED:
-        return r.get("silent_without_deciding") is True
+    if rule == "drop_deciding":
+        segs = [s for s in (r.get("deciding") or []) if s and str(s).upper() != "NONE"]
+        if r.get("verdict") not in ("supported", "unsupported"):
+            return "drop_deciding: not keyed supported or unsupported", True
+        if not segs:
+            return "drop_deciding: no deciding segment", False
+        # `is not True` is make_twin's branch. Only the false value is the expected hold.
+        if lesson in apply_rules.SILENT_NEEDED and r.get("silent_without_deciding") is not True:
+            if r.get("silent_without_deciding") is False:
+                return "drop_deciding: silent_without_deciding is false", True
+            return "drop_deciding: silent_without_deciding is not true", False
+        return "drop_deciding: a deciding segment is not on a material line", False
     if rule == "permute":
-        return r.get("order_free") is True
-    return True
+        if r.get("order_free") is False:
+            return "permute: order_free is false", True
+        if r.get("order_free") is not True:
+            return "permute: order_free is not true", False
+        lines = apply_rules._user_lines(r)
+        idx = apply_rules._material_line_idx(r, lines)
+        if len(idx) < 2:
+            return "permute: fewer than two material lines", False
+        new = list(lines)
+        for i, j in zip(idx, reversed(idx)):
+            new[i] = lines[j]
+        if new == lines:
+            return "permute: the reversed lines equal the original", False
+        return "permute: make_twin returned None", False
+    if rule == "inject":
+        return "inject: no material line", False
+    if rule == "r10":
+        return "r10: malformed r10_twin", False
+    return "make_twin returned None", False
+
+
+def apply_report(ok, *, given, skipped, complete, count, problems, holds=()) -> dict:
+    expected = [h for h in holds if h["expected"]]
+    return {"ok": ok, "given": given, "skipped": skipped, "complete": complete, "count": count,
+            "problems": list(problems), "predicted_holds": list(holds),
+            "predicted_holds_by_lesson": dict(Counter(h["lesson"] for h in expected))}
 
 
 def apply_complete(items) -> bool:
@@ -355,16 +384,19 @@ def apply_check(paths, train_rows, count, partial: bool) -> dict:
     """`load_items`, then the dry run. Omitted apply files are allowed only with `--partial-set`."""
     if not paths:
         if partial:
-            return {"ok": True, "given": False, "skipped": True, "complete": False,
-                    "count": 0, "problems": []}
-        return {"ok": False, "given": False, "skipped": False, "complete": False,
-                "count": 0, "problems": ["apply items were not given"]}
+            return apply_report(True, given=False, skipped=True, complete=False, count=0, problems=[])
+        return apply_report(False, given=False, skipped=False, complete=False, count=0,
+                            problems=["apply items were not given"])
     try:
         items = apply.load_items(paths)
     except apply.ApplyItemError as e:
-        return {"ok": False, "given": True, "skipped": False, "complete": False, "count": None,
-                "problems": [scrub(e)]}
+        return apply_report(False, given=True, skipped=False, complete=False, count=None,
+                            problems=[scrub(e)])
     problems = []
+    holds = []
+    # A real freeze must not pass the stuck rule and the set rules by skipping them.
+    if count is None and not partial:
+        problems.append("stuck and set rules not run: no token count")
     train_ids = {r.get("id") for r in train_rows}
     trained = quiz.trained_spans(train_rows, quiz.SPENT_RULE_DEFAULT["span"])
     span_n = quiz.SPENT_RULE_DEFAULT["span"]
@@ -399,8 +431,13 @@ def apply_check(paths, train_rows, count, partial: bool) -> dict:
                                            target + count(reply), count, rule)
                 if fields["stuck"]:
                     problems.append(f"{r['id']}: the reference answer is stuck")
-            if twin_eligible(r) and apply_rules.make_twin(r, apply_rules.TWIN[r["lesson"]], reply) is None:
-                problems.append(f"{r['id']}: twin-eligible but make_twin returned nothing")
+            lesson = r.get("lesson")
+            if lesson in apply_rules.TWIN and apply_rules.twin_applies(r, lesson):
+                if apply_rules.make_twin(r, apply_rules.TWIN[lesson], reply) is None:
+                    reason, expected = hold_reason(r)
+                    holds.append({"id": r["id"], "lesson": lesson, "reason": reason, "expected": expected})
+                    if not expected:
+                        problems.append(f"{r['id']}: {reason}")
         except (KeyError, TypeError, ValueError) as e:
             problems.append(f"{r.get('id', '?')}: {scrub(e)}")
     if rule is not None and count is not None:
@@ -423,8 +460,8 @@ def apply_check(paths, train_rows, count, partial: bool) -> dict:
     complete = apply_complete(items)
     if not partial and not complete:
         problems.append(f"apply count {len(items)} is not 21 lessons x (5 C + 5 D) = {APPLY_TOTAL}")
-    return {"ok": not problems, "given": True, "skipped": False, "complete": complete,
-            "count": len(items), "problems": problems}
+    return apply_report(not problems, given=True, skipped=False, complete=complete,
+                        count=len(items), problems=problems, holds=holds)
 
 
 def counts_of(loaded) -> list:
@@ -478,7 +515,7 @@ def validate_check(files, partial: bool) -> dict:
 
 
 def file_record(path: Path, rows, lesson=None) -> dict:
-    rec = {"path": public_path(path), "sha256": sha256_file(path), "items": len(rows)}
+    rec = {"path": public_path(path), "sha256": receipts.sha256_file(path), "items": len(rows)}
     if lesson is not None:
         rec["lesson"] = lesson
     return rec
@@ -501,6 +538,8 @@ def finish(report, out_dir: Path) -> int:
         print(f"no-role sha256: {nr.get('sha256')}")
         sealed = report.get("sealed") or {}
         print(f"sealed: {sealed.get('status')} {sealed.get('sha256') or ''}".rstrip())
+        holds = (report["checks"].get("apply") or {}).get("predicted_holds") or []
+        print(f"predicted holds: {len(holds)}")
     else:
         print("freeze: fail: " + ", ".join(report["failed"]), file=sys.stderr)
     return 0 if report["ok"] else 1
@@ -544,7 +583,8 @@ def cmd_check(args) -> int:
     report["checks"]["spent_variants"] = {"ok": not spent, "spent": spent}
 
     apply_paths = [Path(p) for p in (args.apply or [])]
-    report["apply_files"] = [{"path": public_path(p), "sha256": sha256_file(p) if p.is_file() else None}
+    report["apply_files"] = [{"path": public_path(p),
+                              "sha256": receipts.sha256_file(p) if p.is_file() else None}
                              for p in apply_paths]
     leak, sealed = leakage_check(role, nr, None, Path(args.sealed), partial)
     # Apply rows join leakage once they load. A schema failure belongs to the apply check: leakage records
@@ -615,8 +655,17 @@ def _cell(value) -> str:
 
 
 def render_frozen(report: dict) -> str:
-    """The fixed FROZEN.md. Training files stay in the report's order, which is the training order."""
+    """The fixed FROZEN.md. Training files stay in the report's order, which is the training order.
+
+    The header records the hash rule and the two versions a reader needs to reproduce every digest.
+    It is computed at write time, so two writes of the same report stay byte-identical.
+    """
     lines = ["# Stage 1 frozen data", "",
+             "Each file's sha256 is the sha256 of the content with CRLF read as LF (`receipts.sha256_file`).",
+             f"aspire-si-gates {GATES_VERSION}",
+             f"freeze.py sha256: {receipts.sha256_file(Path(__file__))}",
+             f"sealed pin: {receipts.SEALED_SHA256[:8]}",
+             "",
              "Training order is the order of the rows below. Do not sort this list by path.", "",
              "## Training files", "",
              "| # | file | items | sha256 |",
@@ -673,7 +722,7 @@ def cmd_write(args) -> int:
         print("refusing FROZEN.md: the NO-ROLE file is not beside the report", file=sys.stderr)
         return 1
     blob = src.read_bytes().replace(b"\r\n", b"\n")
-    if hashlib.sha256(blob).hexdigest() != report["no_role"]["sha256"]:
+    if receipts.sha256_file(src) != report["no_role"]["sha256"]:
         print("refusing FROZEN.md: the NO-ROLE file's sha256 does not match the report", file=sys.stderr)
         return 1
     dest = Path(args.no_role_out) if args.no_role_out else REPO / NO_ROLE_PIN
@@ -683,7 +732,7 @@ def cmd_write(args) -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text.encode("utf-8"))
-    print(hashlib.sha256(text.encode("utf-8")).hexdigest())
+    print(receipts.sha256_file(out))
     return 0
 
 
