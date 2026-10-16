@@ -535,3 +535,15 @@ def test_refusal_text_does_not_depend_on_the_hash_seed():
     outs = {subprocess.run([_sys.executable, "-c", code], cwd=here, capture_output=True, text=True,
                            env={**os.environ, "PYTHONHASHSEED": seed}).stdout for seed in ("1", "2", "3")}
     assert len(outs) == 1 and "appears in 4 items" in outs.pop()
+
+
+def test_leakage_reads_the_statement_alone_and_a_null_variant():
+    """Argon's finding 8.2: the whole prompt (material and all) diluted the 5-gram Jaccard against a held-out
+    claim; the Statement line alone is compared too. A variant of None reads as none instead of raising."""
+    long_material = "\n".join(f"Line {i}: the eastern depot stocks crate model {i} for the coastal route." for i in range(8))
+    rows = [item(id="d9", kind="D", material=long_material, verdict="cannot_tell", deciding=[], escalate="no",
+                 variant=None,
+                 turns=[{"user": f"Material:\n{long_material}\nStatement: The north gate opens at seven each morning.",
+                         "thinking": "x", "reply": "VERDICT: cannot_tell\nDECIDING: NONE\nESCALATE: no"}])]
+    held = [{"id": "sx-9", "claim": "The north gate opens at seven each morning."}]
+    assert data.leakage(rows, held, []) == ["d9 vs sx-9: claim"]

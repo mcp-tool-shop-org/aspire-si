@@ -111,6 +111,15 @@ def sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
+def star_three_lines_ok(r: dict) -> bool:
+    """A STaR row's three lines against its key, by the same pinned scorer that kept it (quiz.score_three_lines,
+    apply.key_of's key). Argon's finding 7.2: the gates hand STaR rows here instead of the curriculum checks."""
+    import quiz
+    key = {"verdict": r["verdict"], "deciding": r.get("deciding") or [],
+           "also_sufficient": r.get("also_sufficient", []), "escalate": r.get("escalate", "no")}
+    return quiz.score_three_lines(key, r.get("material") or "", r["turns"][0]["reply"])["right"]
+
+
 def code_hash() -> str:
     h = hashlib.sha256()
     for f in ("train.py", "data.py", "_evaldir.py"):
@@ -356,7 +365,8 @@ def main(argv=None):
         ("distractor_max", a.closed_form_distractor_max), ("distractor_margin", a.closed_form_distractor_margin),
         ("span", a.closed_form_span), ("exempt_keyed_key_points", a.closed_form_exempt_keyed_key_points))
         if v is not None})
-    freeze = data.validate_training_set(files, require_freeze=not a.partial_set, closed_form=closed_form)
+    freeze = data.validate_training_set(files, require_freeze=not a.partial_set, closed_form=closed_form,
+                                        star_check=star_three_lines_ok)
     held = [h for p in a.held_out for h in data.load(p)]
     from interview import QUESTIONS  # the pre-interview's 12 questions are off-limits to training
     leaks = data.leakage(rows, held, QUESTIONS)

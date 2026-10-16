@@ -850,6 +850,10 @@ def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=No
     """Every check on one row that needs no other row. `n` is its line number in the file (for messages);
     `seen`, when given, is the set of ids before it (the duplicate-id check)."""
     where = f"line {n} ({r.get('id', '?')})"
+    if r.get("split") == "apply" or "-AP-" in str(r.get("id", "")):  # Argon's finding 7.2
+        raise DataError(f"{where}: an apply item (split apply or an -AP- id) is never trained")
+    if r.get("split") == "star":
+        raise DataError(f"{where}: a STaR row is checked by validate_training_set's star check, not check_item")
     for k, typ in REQUIRED.items():
         if not isinstance(r.get(k), typ):
             raise DataError(f"{where}: field {k} missing or not {typ.__name__}")
@@ -1202,8 +1206,34 @@ def batch_of(path: str) -> str:
     return Path(path).name.split("-", 1)[0]
 
 
+STAR_ID = re.compile(r"^([A-Z]\d+)-([CD])-ST-\d+-\d\d$")
+
+
+def check_star_row(r: dict, n: int, star_check) -> None:
+    """A STaR row (`split: star`): the model's own kept answer to an apply item, not a written curriculum item, so
+    the curriculum gates don't apply (Argon's finding 7.2). Its shape is checked here, and its three lines by
+    `star_check(row) -> bool`, the trainer's pinned scorer (quiz.score_three_lines), which this package can't
+    import."""
+    where = f"line {n} ({r.get('id', '?')})"
+    m = STAR_ID.match(str(r.get("id", "")))
+    if not m or m.group(1) != r.get("lesson") or m.group(2) != r.get("kind"):
+        raise DataError(f"{where}: a STaR row needs a <lesson>-<kind>-ST-<session>-<NN> id matching its lesson "
+                        "and kind")
+    if "-AP-" not in str(r.get("star_of", "")):
+        raise DataError(f"{where}: star_of must name the apply item it came from")
+    turns = r.get("turns") or []
+    if len(turns) != 1 or not all(isinstance(turns[0].get(k), str) for k in ("user", "thinking", "reply")):
+        raise DataError(f"{where}: a STaR row has one turn with user, thinking and reply")
+    if any(k not in r for k in ("verdict", "deciding", "escalate")):
+        raise DataError(f"{where}: a STaR row keeps its item's verdict, deciding and escalate keys")
+    if star_check is None:
+        raise DataError(f"{where}: STaR rows need the trainer's three-line check (star_check)")
+    if not star_check(r):
+        raise DataError(f"{where}: the STaR answer's three lines don't pass the pinned scorer against its key")
+
+
 def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, require_freeze: bool = True,
-                          closed_form=None) -> dict:
+                          closed_form=None, star_check=None) -> dict:
     """The trainer's check of everything it trains on (the Dataset Specialist's ruling, 2026-10-11), given
     {path: rows} in file order:
     - check_item on every row;
@@ -1213,11 +1243,21 @@ def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, requ
     - freeze_report over the union: the floors, shares and ESCALATE items of the whole dataset.
     Returns freeze_report's figures; raises DataError on the first failure. require_freeze=False (a smoke or a
     test on part of the data) still runs every other check but reports freeze_report's shortfalls instead of
-    refusing: {"partial_set": True, "freeze_refused": <the message>}."""
+    refusing: {"partial_set": True, "freeze_refused": <the message>}.
+
+    STaR rows (`split: star`) are separated first (Argon's finding 7.2): every gate above runs on the frozen
+    curriculum rows only, and each STaR row gets check_star_row with `star_check`. The report adds "star_rows"."""
+    star = [(n, r) for n, r in enumerate((r for rs in files.values() for r in rs), 1) if r.get("split") == "star"]
+    files = {p: [r for r in rs if r.get("split") != "star"] for p, rs in files.items()}
     rows = [r for rs in files.values() for r in rs]
     seen: set = set()
     for n, r in enumerate(rows, 1):
         check_item(r, n, pre_amendment, seen, closed_form)
+    for n, r in star:
+        if r.get("id") in seen:
+            raise DataError(f"line {n} ({r.get('id')}): duplicate id")
+        seen.add(r.get("id"))
+        check_star_row(r, n, star_check)
     models: dict = {}
     for path in files:
         models.update(load_models(path))
@@ -1234,11 +1274,11 @@ def validate_training_set(files: dict, pre_amendment=PRE_AMENDMENT_LESSONS, requ
         except DataError as e:
             raise DataError(f"batch {name}: {e}") from e
     try:
-        return freeze_report(rows, exempt=pre_amendment)
+        return {**freeze_report(rows, exempt=pre_amendment), "star_rows": len(star)}
     except DataError as e:
         if require_freeze:
             raise
-        return {"partial_set": True, "freeze_refused": str(e)}
+        return {"partial_set": True, "freeze_refused": str(e), "star_rows": len(star)}
 
 
 def check_frames(rows: list[dict], max_items: int = 2, words: int = 6) -> None:
@@ -1304,7 +1344,10 @@ def leakage(rows: list[dict], held_out: list[dict], interview: list[str]) -> lis
             for h in held_out]
     qs = [(i + 1, _grams(q)) for i, q in enumerate(interview)]
     for r in rows:
-        texts = [t["user"] for t in r["turns"]] + [r.get("variant", {}).get("user", "")]
+        # the statement alone as well as the whole turn, so the material doesn't dilute the 5-gram Jaccard; a
+        # null variant reads as none (Argon's finding 8.2)
+        texts = [t["user"] for t in r["turns"]] + [_statement(t["user"]) for t in r["turns"]] + \
+            [(r.get("variant") or {}).get("user", "")]
         mat = _lines((r.get("material") or "") + "\n" + "\n".join(t["user"] for t in r["turns"]))
         for hid, hc, hg, hl in held:
             for t in texts:

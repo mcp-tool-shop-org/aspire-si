@@ -151,7 +151,7 @@ def test_a_lesson_rank_is_a_figure_not_a_refusal():
 
 
 def test_scorer_rules_are_exposed():
-    assert G.GATES_VERSION == "1.7.1"
+    assert G.GATES_VERSION == "1.7.2"
     assert G.critic_mismatch(["a b c"], ["x y z"], "a b c\nx y z") is True
     assert G.deciding_covers(["a b c d"], ["a b c"], "a b c d") is True
 
