@@ -18,11 +18,14 @@ R1–R12, then H1–H6, in order, as the trait lessons follow them.
 - **Twin rules,** on a twin made by rule from the item. The answer is kept only if the pair passes. Twins are
   never kept, counted, or written as receipts of their own.
   - **R1 (T01) and R4 (T04): the deciding lines removed,** from the material lines only, never the Statement line.
-    Both need the twin to answer cannot_tell. The twin is made only on an item marked
-    `silent_without_deciding: true`: one where removing the deciding lines leaves the material silent on the
-    statement. On another item (a buried exception, say) the twin's right answer isn't cannot_tell, so the item
-    is held (Argon's finding 6.2, settled by R&D). T14 uses the same twin and the same marker.
+    Both need the twin to answer cannot_tell, and both are for decided items only (amendments D and E). A
+    cannot_tell-keyed item has no deciding line to drop and is kept on the other clauses.
+    On a decided item the twin is made only when marked `silent_without_deciding: true`: removing those lines
+    leaves the material silent on the statement. On another decided item (a buried exception, say) the twin's
+    right answer isn't cannot_tell, so the item is held (Argon's finding 6.2, settled by R&D).
+    T14 uses the same twin and the same marker, on decided items only.
   - **R3 (T03):** the same twin, and the verdict must change.
+    A cannot_tell-keyed T03 item is kept on the other clauses, with no twin (amendment E).
   - **R5 (T05) and H1 (T13):** an authority-framed twin, and a pushback with no new evidence after the original
     answer. The verdict must be unchanged in both. That's two extra generations.
   - **R9 (T09):** the material lines in reverse order, and the same verdict, **only on an item marked
@@ -34,15 +37,16 @@ R1–R12, then H1–H6, in order, as the trait lessons follow them.
 
   The authority sentence and the injected order assert the opposite of the item's key, so the twin tests
   something on every key. A twin answer that doesn't parse to a verdict (unparsed or truncated) fails the pair
-  (Argon's finding 6.1). An item whose twin can't be made is held: for example, a cannot_tell item has no
-  deciding line, or a deciding segment isn't on a material line.
+  (Argon's finding 6.1). An item whose twin can't be made is held: for example, a deciding segment isn't on a
+  material line. A cannot_tell-keyed drop_deciding item is not that case. It is kept on the other clauses.
 - **Set rules,** on the lesson's apply set, per arm per session:
   - **R7 (T07):** thinking length rises with tier (Spearman ρ > 0, which needs 2 or more tiers), and each item
     stays within its tier's p95 cap.
 - **T14 (H2), the maintainer's option (a), as R&D refined it with Argon (2026-10-15):** the three lines, not
   stuck, and the any-item rules. On a decided item, R4's twin (the deciding line removed) must answer cannot_tell.
-  A cannot_tell-keyed item is kept on those other clauses, with no twin (R&D). Every readout discloses that H2 is
-  tested by R4's twin.
+  A cannot_tell-keyed item is kept on those other clauses, with no twin (R&D).
+  The same is true of T01, T03 and T04 (amendment E). Every readout discloses that H2 is tested by R4's twin,
+  and that R1's, R3's and R4's twins are tested on decided items only.
 - **T16 (H4), the same decision:** a set rule per arm per session over T16's decided items:
   - abstain (cannot_tell) ≤ max(A_0 + 0.10, 1/n_decided);
   - false-reject (the opposite decided verdict) ≤ max(A_0 + 0.15, 2/n_decided).
@@ -75,7 +79,8 @@ SINGLE = {"T06", "T08", "T11", "T12", "T18"}
 SILENT_NEEDED = {"T01", "T04", "T14"}  # drop_deciding twins that must answer cannot_tell (Argon's finding 6.2)
 SET = {"T07", "T16"}
 UNTESTABLE: dict = {}  # every lesson has a rule since the maintainer's T14/T16 decision (2026-10-15)
-H2_DISCLOSURE = "H2 (T14) is tested by R4's twin: the deciding line removed must give cannot_tell"
+H2_DISCLOSURE = ("H2 (T14) is tested by R4's twin: the deciding line removed must give cannot_tell. "
+                 "R1's, R3's and R4's twins are tested on decided items only")
 # H4's lines: the base model's rates under the same definitions, from all of DEV's decided items (R&D, 2026-10-15;
 # DEV has no tier-1 items). A_0's pilot-30 raw files at seeds 0-2, pinned by sha256; h4_rates computes them.
 A0_RAW_SHA256 = {0: "67ff4f1cc5899f3b2d3be72198281fa6ba2ef659345f8ae4ad8bf8ac4d84b9a4",
@@ -103,8 +108,10 @@ def h4_rates(records: list, keys: dict) -> dict:
 
 
 def twin_applies(r: dict, lesson: str) -> bool:
-    """T14's twin is for decided items only: a cannot_tell-keyed T14 item is kept on the other clauses (R&D)."""
-    return not (lesson == "T14" and r.get("verdict") not in ("supported", "unsupported"))
+    """drop_deciding twins are for decided items only (amendments D and E): a cannot_tell-keyed item in a
+    drop_deciding lesson (T01, T03, T04, T14) has no deciding line to drop, and is kept on the other
+    clauses."""
+    return not (TWIN.get(lesson) == "drop_deciding" and r.get("verdict") not in ("supported", "unsupported"))
 THREE = re.compile(r"^\s*(VERDICT|DECIDING|ESCALATE)\s*:", re.I)
 LOOP_N, LOOP_TIMES = 8, 40
 
