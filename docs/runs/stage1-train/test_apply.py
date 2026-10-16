@@ -118,6 +118,7 @@ def test_r5_h1_authority_and_pushback_twins_cost_two_generations():
 
 def test_r9_permutes_the_material_and_h5_injects_an_order():
     t09, t17 = item("T09", "D", 1), item("T17", "D", 1)
+    t09["order_free"] = True
     _, _, rows, g = sit([t09, t17], {f"{t17['id']}#twin0": WRONG})
     by = {a["key"]: a["messages"][0]["content"] for a in g.calls[1]}
     perm = by[f"{t09['id']}#twin0"]
@@ -276,3 +277,23 @@ def test_a_rehearsal_receipt_row_passes_the_firewall(tmp_path):
     for r in rows.values():
         w.write("rehearsal", r)
     assert not w.refused
+
+
+def test_r9_permutes_only_an_order_free_item_and_holds_the_rest():
+    ordered = item("T09", "D", 2)
+    ordered["order_free"] = False  # a changelog or a table: reversing it can rightly change the answer
+    _, kept, rows, g = sit([ordered])
+    assert rows[ordered["id"]]["star"] == "held: no twin can be made by rule for this item" and not kept
+    assert len(g.calls) == 1  # no twin was generated
+    free = item("T09", "D", 3)
+    free["order_free"] = True
+    assert rules.make_twin(free, "permute", RIGHT) is not None
+    assert rules.make_twin({**free, "order_free": None}, "permute", RIGHT) is None
+
+
+def test_a_t09_item_without_order_free_is_refused_by_the_schema():
+    with pytest.raises(apply.ApplyItemError, match="order_free"):
+        apply.check_item(item("T09", "D", 1))
+    ok = item("T09", "D", 1)
+    ok["order_free"] = False
+    apply.check_item(ok)

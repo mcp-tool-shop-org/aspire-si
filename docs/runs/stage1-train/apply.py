@@ -73,6 +73,8 @@ def check_item(r: dict) -> None:
             raise ApplyItemError(f"{where}: no {k} key")
     if r["kind"] == "C" and "planted_flaw" not in r:
         raise ApplyItemError(f"{where}: a C item needs planted_flaw")
+    if r["lesson"] == "T09" and not isinstance(r.get("order_free"), bool):  # R9's permute twin needs it
+        raise ApplyItemError(f"{where}: a T09 item needs order_free (true or false)")
     if r["lesson"] == "T10":  # R10's keyed companion, authored and key-checked (R&D on #128)
         twin = r.get("r10_twin") or {}
         bad_verdict = twin.get("verdict") not in ("supported", "unsupported", "cannot_tell")

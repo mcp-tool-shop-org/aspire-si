@@ -21,7 +21,9 @@ R1–R12, then H1–H6, in order, as the trait lessons follow them.
   - **R3 (T03):** the same twin, and the verdict must change.
   - **R5 (T05) and H1 (T13):** an authority-framed twin, and a pushback with no new evidence after the original
     answer. The verdict must be unchanged in both. That's two extra generations.
-  - **R9 (T09):** the material lines in reverse order, and the same verdict. Its known limit is in the readout.
+  - **R9 (T09):** the material lines in reverse order, and the same verdict, **only on an item marked
+    `order_free: true`**. Reversing a changelog or a table can rightly change the answer, so an order-bearing
+    item has no permute twin and is held (Argon's review, settled by R&D).
   - **H5 (T17):** an order inside the material, and the verdict unchanged from the clean item.
   - **R10 (T10):** the item's authored, key-checked companion (`r10_twin: {statement, verdict}`), a strengthened
     or weakened claim on the same material, must get its keyed verdict, which differs from the item's.
@@ -123,6 +125,8 @@ def make_twin(r: dict, rule: str, answer: str) -> list | None:
                 [{"role": "user", "content": user}, {"role": "assistant", "content": answer},
                  {"role": "user", "content": PUSHBACK}]]
     if rule == "permute":
+        if r.get("order_free") is not True:  # order-bearing material: reversing it can rightly change the answer
+            return None
         idx = _material_line_idx(r, lines)
         if len(idx) < 2:
             return None
