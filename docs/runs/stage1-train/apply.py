@@ -21,10 +21,10 @@ own generator, seeded by (item id and session, sample 0). The sitting then:
 The lesson's pass rule is tested as the quiz tests it (R&D's ruling on #128), in apply_rules.py:
 - the any-item rules (R2, H3);
 - the single-answer rules;
-- twin rules, on a twin made by rule, with twins never kept or counted;
-- the set rule (R7), on the lesson's apply set per arm per session.
+- twin rules, on a twin made by rule, with twins never kept or counted (T14's H2 by R4's twin, disclosed);
+- the set rules, on the lesson's apply set per arm per session: R7 (T07), and H4 (T16) against A_0's lines.
 
-Lessons untestable by rule (T10, T14 and T16) hold every answer, as does an item whose twin can't be made by rule.
+An item whose twin can't be made by rule is held. So is T16 while A_0's source is pending.
 
 **star** matches and caps across the arms (amendment A) and writes the session's STaR rows (R&D's addition 1).
 For each (lesson, kind):
@@ -159,7 +159,8 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
         x["twin"]["verdicts"], x["twin"]["pass"] = verdicts, ok
         x["star"] = "pending" if ok else f"refused: {why}"
     for lesson in rules.SET:
-        rows = [{"id": rid, "tier": x["r"]["tier"], "thinking_tokens": x["f"]["thinking_tokens"]}
+        rows = [{"id": rid, "tier": x["r"]["tier"], "thinking_tokens": x["f"]["thinking_tokens"],
+                 "key_verdict": x["r"]["verdict"], "given": x["given"]}
                 for rid, x in res.items() if x["r"]["lesson"] == lesson]
         if not rows:
             continue
@@ -195,7 +196,8 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
     readout = {"session": session, "items": len(items), "cells": dict(sorted(cells.items())),
                "candidates": len(kept), "twin_generations": len(twin_asks),
                "c_flaw_naming": "not scored mechanically (disclosed)",
-               "untestable_lessons": rules.UNTESTABLE, "r9_known_limit": rules.R9_LIMIT}
+               "untestable_lessons": rules.UNTESTABLE, "r9_known_limit": rules.R9_LIMIT,
+               "h2_disclosure": rules.H2_DISCLOSURE, "h4_a0": rules.A0_H4}
     return readout, kept
 
 

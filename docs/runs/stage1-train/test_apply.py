@@ -134,12 +134,53 @@ def test_twins_are_never_kept_or_counted():
     assert readout["cells"]["T04|D"]["asked"] == 1
 
 
-def test_the_held_lessons_hold_every_answer():
-    items = [item(ls, "D", 1) for ls in ("T14", "T16")]
-    readout, kept, rows, g = sit(items)
-    assert not kept and len(g.calls) == 1
-    assert all(r["star"].startswith("held: untestable by rule") for r in rows.values())
-    assert set(readout["untestable_lessons"]) == {"T14", "T16"} and readout["r9_known_limit"]
+def test_t14_is_tested_by_r4s_twin_and_an_undecided_item_is_held():
+    t14 = item("T14", "D", 1)
+    readout, kept, rows, g = sit([t14], {f"{t14['id']}#twin0": CT})
+    assert rows[t14["id"]]["star"] == "candidate" and rows[t14["id"]]["twin"]["rule"] == "drop_deciding"
+    assert "R4's twin" in readout["h2_disclosure"] and readout["untestable_lessons"] == {}
+    _, kept, rows, _ = sit([t14], {f"{t14['id']}#twin0": RIGHT})  # filled the gap instead of cannot_tell
+    assert rows[t14["id"]]["star"].startswith("refused: H2 (by R4's twin)") and not kept
+    undecided = item("T14", "D", 2, verdict="cannot_tell", deciding=())
+    _, kept, rows, _ = sit([undecided], {undecided["id"]: CT})
+    assert rows[undecided["id"]]["star"] == "held: no twin can be made by rule for this item" and not kept
+
+
+def h4_rows(n, abstain=0, false_reject=0):
+    rows = [{"id": f"r{i}", "key_verdict": "unsupported", "given": "unsupported"} for i in range(n)]
+    for i in range(abstain):
+        rows[i]["given"] = "cannot_tell"
+    for i in range(abstain, abstain + false_reject):
+        rows[i]["given"] = "supported"
+    return rows
+
+
+A0_ZERO = {"abstain": 0.0, "false_reject": 0.0, "n": 30, "source": "test"}
+
+
+def test_t16_with_n_decided_10_passes_1_abstention_and_fails_2_when_a0_is_0():
+    one = rules.h4_rule(h4_rows(10, abstain=1), A0_ZERO)  # 0.10 <= max(0.10, 1/10)
+    assert one["testable"] and one["pass_ids"] == {f"r{i}" for i in range(10)} and one["abstain"] == 1
+    two = rules.h4_rule(h4_rows(10, abstain=2), A0_ZERO)  # 0.20 > 0.10
+    assert two["pass_ids"] == set() and two["why"].startswith("H4")
+
+
+def test_t16_false_reject_line_is_a0_plus_0_15_or_2_over_n():
+    assert rules.h4_rule(h4_rows(10, false_reject=2), A0_ZERO)["pass_ids"]  # 0.20 <= max(0.15, 0.20)
+    assert not rules.h4_rule(h4_rows(10, false_reject=3), A0_ZERO)["pass_ids"]  # 0.30 > 0.20
+    a0 = {"abstain": 0.0, "false_reject": 0.20, "n": 30, "source": "test"}
+    assert rules.h4_rule(h4_rows(10, false_reject=3), a0)["pass_ids"]  # 0.30 <= 0.35
+    undecided = h4_rows(10) + [{"id": "u", "key_verdict": "cannot_tell", "given": "cannot_tell"}]
+    out = rules.h4_rule(undecided, A0_ZERO)
+    assert out["n_decided"] == 10 and "u" in out["pass_ids"]  # counted over decided items; the set keeps all
+
+
+def test_t16_holds_until_a0_is_settled():
+    out = rules.h4_rule(h4_rows(10), rules.A0_H4)
+    assert not out["testable"] and "A_0 pending" in out["why"]
+    items = [item("T16", "D", 1), item("T16", "D", 2)]
+    _, kept, rows, _ = sit(items)
+    assert not kept and all(r["star"].startswith("held: H4: A_0 pending") for r in rows.values())
 
 
 SUPPORTED = "VERDICT: supported\nDECIDING: It is closed on Sundays.\nESCALATE: no"
