@@ -55,3 +55,44 @@ def test_part_of_the_data_is_refused_unless_marked_as_a_partial_set():
         data.validate_training_set(part)
     report = data.validate_training_set(part, require_freeze=False)
     assert report["partial_set"] is True and "freeze" in report["freeze_refused"]
+
+
+STAR_MAT = "The depot opens at 08:00 on weekdays.\nIt is closed on Sundays."
+STAR_RIGHT = "VERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no"
+
+
+def star_row(rid="T05-D-ST-1-01", reply=STAR_RIGHT, **kw):
+    return {"id": rid, "split": "star", "star_of": "T05-D-AP-01", "lesson": "T05", "trait": "t", "kind": "D",
+            "tier": 2, "material": STAR_MAT, "verdict": "unsupported", "deciding": ["It is closed on Sundays."],
+            "escalate": "no", "turns": [{"user": f"Material:\n{STAR_MAT}\nStatement: the depot opens on Sunday.",
+                                         "thinking": "My own check: the Sunday line rules it out.",
+                                         "reply": reply}], **kw}
+
+
+def test_star_rows_skip_the_curriculum_gates_and_are_checked_by_the_trainers_scorer():
+    """Argon's finding 7.2: a STaR row is the model's own answer, so the exact-reply, span, frame and freeze gates
+    don't apply; its shape and its three lines (train.star_three_lines_ok, the pinned scorer) do."""
+    import train
+    files = {**FILES, "star-s1.jsonl": [star_row()]}
+    with pytest.raises(data.DataError, match="star_check"):
+        data.validate_training_set(files)  # no scorer given: refused, never waved through
+    report = data.validate_training_set(files, star_check=train.star_three_lines_ok)
+    assert report["star_rows"] == 1 and report["shortfalls"] == []
+    wrong = {**FILES, "star-s1.jsonl": [star_row(reply=STAR_RIGHT.replace("unsupported", "supported"))]}
+    with pytest.raises(data.DataError, match="don't pass the pinned scorer"):
+        data.validate_training_set(wrong, star_check=train.star_three_lines_ok)
+    for bad, msg in ((star_row(rid="T05-D-AP-01"), "ST-"), (star_row(star_of="T05-D-01"), "star_of"),
+                     (star_row(rid="T06-D-ST-1-01"), "matching its lesson")):
+        with pytest.raises(data.DataError, match=msg):
+            data.validate_training_set({**FILES, "star-s1.jsonl": [bad]}, star_check=lambda r: True)
+
+
+def test_an_apply_row_in_the_training_data_is_refused():
+    """Argon's finding 7.2: split apply, or an -AP- id, never reaches training."""
+    rs = next(iter(FILES.values()))
+    for change in ({"split": "apply"}, {"id": rs[0]["id"].split("-")[0] + "-D-AP-01"}):
+        files = {**FILES, "x.jsonl": [{**rs[0], **change}]}
+        with pytest.raises(data.DataError, match="apply item"):
+            data.validate_training_set(files, require_freeze=False)
+    with pytest.raises(data.DataError, match="star check"):
+        data.check_item(star_row())

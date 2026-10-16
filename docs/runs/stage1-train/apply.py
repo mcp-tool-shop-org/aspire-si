@@ -236,7 +236,8 @@ def star_rows(chosen: list, session: int) -> list:
         cell = (r["lesson"], r["kind"])
         nn[cell] = nn.get(cell, 0) + 1
         row = {k: r[k] for k in ("lesson", "trait", "kind", "side", "content_kind", "tier", "material", "sources",
-                                  "invented", "key_basis", "tags", "verdict", "deciding", "escalate") if k in r}
+                                  "invented", "key_basis", "tags", "verdict", "deciding", "also_sufficient", "escalate")
+               if k in r}
         row.update({"id": f"{r['lesson']}-{r['kind']}-ST-{session}-{nn[cell]:02d}", "split": "star",
                     "star_of": r["id"], "turns": [{"user": r["turns"][0]["user"], "thinking": c["thinking"],
                                                    "reply": c["answer"]}]})
