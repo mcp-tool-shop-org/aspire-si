@@ -35,14 +35,15 @@ R1–R12, then H1–H6, in order, as the trait lessons follow them.
   - **R7 (T07):** thinking length rises with tier (Spearman ρ > 0, which needs 2 or more tiers), and each item
     stays within its tier's p95 cap.
 - **T14 (H2), the maintainer's option (a), as R&D refined it with Argon (2026-10-15):** the three lines, not
-  stuck, and the any-item rules. On a decided item, R4's twin (the deciding line removed) must answer cannot_tell;
-  an undecided item, which has no twin, is held. Every readout discloses that H2 is tested by R4's twin.
+  stuck, and the any-item rules. On a decided item, R4's twin (the deciding line removed) must answer cannot_tell.
+  A cannot_tell-keyed item is kept on those other clauses, with no twin (R&D). Every readout discloses that H2 is
+  tested by R4's twin.
 - **T16 (H4), the same decision:** a set rule per arm per session over T16's decided items:
   - abstain (cannot_tell) ≤ max(A_0 + 0.10, 1/n_decided);
   - false-reject (the opposite decided verdict) ≤ max(A_0 + 0.15, 2/n_decided).
 
-  A_0 is the base model's rate under the same definitions (`A0_H4`), and its small n is disclosed. Until its
-  source is settled, T16 holds with the reason "A_0 pending". DEV, named as the source, has no tier-1 items.
+  A_0 is the base model's rate under the same definitions, from all of DEV's decided items (R&D: DEV has no
+  tier-1 items): abstain 3/78, false-reject 2/78, from the pinned raw files (`A0_H4`). Its small n is disclosed.
 
 The twin templates below are fixed text, not written per item, and R&D confirmed them on #128.
 """
@@ -69,9 +70,35 @@ SINGLE = {"T06", "T08", "T11", "T12", "T18"}
 SET = {"T07", "T16"}
 UNTESTABLE: dict = {}  # every lesson has a rule since the maintainer's T14/T16 decision (2026-10-15)
 H2_DISCLOSURE = "H2 (T14) is tested by R4's twin: the deciding line removed must give cannot_tell"
-# H4's lines: the base model's rates under the same definitions, with their n disclosed. None until the source is
-# settled (the decision named DEV's tier-1 items; DEV has none).
-A0_H4 = {"abstain": None, "false_reject": None, "n": 0, "source": "pending: DEV has no tier-1 items"}
+# H4's lines: the base model's rates under the same definitions, from all of DEV's decided items (R&D, 2026-10-15;
+# DEV has no tier-1 items). A_0's pilot-30 raw files at seeds 0-2, pinned by sha256; h4_rates computes them.
+A0_RAW_SHA256 = {0: "67ff4f1cc5899f3b2d3be72198281fa6ba2ef659345f8ae4ad8bf8ac4d84b9a4",
+                 1: "fcd3d9f980aab0825959fc346ba7eeb79009f1965558c69e10ee4b8f74b7e073",
+                 2: "f25580685dc7448d0dea02d297ef89c52ed6dfda73a2007ea31612d26f32c5f5"}
+A0_H4 = {"abstain": 3 / 78, "false_reject": 2 / 78, "n": 78, "abstain_count": 3, "false_reject_count": 2,
+         "source": "A_0, DEV (pilot-30) decided items, seeds 0-2 pooled; small n disclosed",
+         "raw_sha256": A0_RAW_SHA256}
+
+
+def h4_rates(records: list, keys: dict) -> dict:
+    """Abstain and false-reject over decided items: records are harness raw.jsonl rows ({"task_id", "final":
+    {"verdict"}}); keys maps a task id to its keyed verdict. Undecided (cannot_tell-keyed) tasks are left out."""
+    n = abstain = false_reject = 0
+    for r in records:
+        k = keys.get(r["task_id"])
+        if k not in ("supported", "unsupported"):
+            continue
+        v = (r.get("final") or {}).get("verdict")
+        n += 1
+        abstain += v == "cannot_tell"
+        false_reject += v in ("supported", "unsupported") and v != k
+    return {"n": n, "abstain_count": abstain, "false_reject_count": false_reject,
+            "abstain": abstain / n if n else None, "false_reject": false_reject / n if n else None}
+
+
+def twin_applies(r: dict, lesson: str) -> bool:
+    """T14's twin is for decided items only: a cannot_tell-keyed T14 item is kept on the other clauses (R&D)."""
+    return not (lesson == "T14" and r.get("verdict") not in ("supported", "unsupported"))
 THREE = re.compile(r"^\s*(VERDICT|DECIDING|ESCALATE)\s*:", re.I)
 LOOP_N, LOOP_TIMES = 8, 40
 

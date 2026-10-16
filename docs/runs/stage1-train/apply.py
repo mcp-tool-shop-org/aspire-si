@@ -141,7 +141,7 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
     twin_asks = []
     for rid, x in res.items():
         lesson = x["r"]["lesson"]
-        if x["star"] != "pending" or lesson not in rules.TWIN:
+        if x["star"] != "pending" or lesson not in rules.TWIN or not rules.twin_applies(x["r"], lesson):
             continue
         convs = rules.make_twin(x["r"], rules.TWIN[lesson], x["answer"])
         if convs is None:
