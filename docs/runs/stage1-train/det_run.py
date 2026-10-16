@@ -32,6 +32,7 @@ Exit codes:
 - the target's own on success;
 - 4: a strict deterministic op raised; rerun with --warn-only into a fresh directory;
 - 5: the machine line differs;
+- 5 also: the machine line is incomplete (no gpu or driver from nvidia-smi), so it can never freeze or pass;
 - 6: a resume under a different wrapper config;
 - 7: --write-machine-line names a file that already exists (the frozen line is never overwritten).
 """
@@ -117,6 +118,9 @@ def main(argv=None) -> int:
     out = out_dir(target_args)
 
     now = machine_line()
+    if not now.get("gpu") or not now.get("driver"):  # nvidia-smi didn't answer: an empty line never freezes or passes
+        print("the machine line is incomplete (nvidia-smi gave no gpu or driver), stopping", flush=True)
+        return EXIT["machine_line"]
     if a.machine_line:
         frozen = json.loads(Path(a.machine_line).read_text(encoding="utf-8"))
         diff = line_differences(now, frozen)
@@ -140,12 +144,14 @@ def main(argv=None) -> int:
            "cudnn_benchmark": False, "sdpa_backend": a.sdpa, "machine_line": now}
     out.mkdir(parents=True, exist_ok=True)
     p = out / "wrapper-config.json"
+    prior_warned: list = []
     if p.exists():
         old = json.loads(p.read_text(encoding="utf-8"))
         if {k: old.get(k) for k in cfg} != cfg:
             print("refusing to resume under a different wrapper config", flush=True)
             return EXIT["resume"]
-    record = {**cfg, "rng_at_start": rng_digest(), "warned_ops": [], "outcome": "running"}
+        prior_warned = old.get("warned_ops") or []  # a resume keeps what the earlier attempt recorded
+    record = {**cfg, "rng_at_start": rng_digest(), "warned_ops": prior_warned, "outcome": "running"}
 
     def save():
         p.write_text(json.dumps(record, indent=1), encoding="utf-8")
@@ -169,9 +175,12 @@ def main(argv=None) -> int:
             return EXIT["strict_raised"]
         record["outcome"] = f"error: {e}"
         raise
+    except SystemExit as e:  # a target's refusal (SystemExit) is recorded, never left as "running"
+        record["outcome"] = f"exit {e.code}"
+        raise
     finally:
-        record["warned_ops"] = sorted({str(w.message) for w in caught or []
-                                       if "deterministic" in str(w.message).lower()})
+        record["warned_ops"] = sorted(set(prior_warned) | {str(w.message) for w in caught or []
+                                                           if "deterministic" in str(w.message).lower()})
         save()
         for w in caught or []:  # recording them must not hide them: every warning is shown as usual
             warnings.showwarning(w.message, w.category, w.filename, w.lineno)

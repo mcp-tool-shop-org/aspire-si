@@ -40,24 +40,40 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 2,
-      "changed": 8,
+      "added": 3,
+      "changed": 7,
       "moved": 0,
       "parts": 1,
       "removed": 0
     },
     "items": [
       {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-taskset/ is now read by docs/runs/stage1-train/sdpa_check.py.",
+        "subjects": [
+          "docs/runs/stage1-taskset/",
+          "docs/runs/stage1-train/sdpa_check.py"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-train/test_runner.py is now read by docs/runs/stage1-train/test_runner_marks.py.",
+        "subjects": [
+          "docs/runs/stage1-train/test_runner.py",
+          "docs/runs/stage1-train/test_runner_marks.py"
+        ]
+      },
+      {
         "kind": "counts",
-        "sentence": "Nothing structural changed since 2026-10-15; 2 files added and 8 changed content.",
+        "sentence": "3 files added and 7 changed content, across 1 part.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "961a6dc0c9bc289a0acd89f8682237e0416f78f8",
-      "generatedAt": "2026-10-15T23:46:58.058Z"
+      "commit": "6b1ad4002ce844e39c9bc743e3c0faefa842de03",
+      "generatedAt": "2026-10-16T00:01:05.975Z"
     },
-    "unchanged": true
+    "unchanged": false
   },
   "changesTogether": [
     {
@@ -139,12 +155,12 @@
   "changesTogetherNote": [
     "1 file changed together with its own test, as expected.",
     "Confidence is low: fewer than 25 source files reach 10 revisions in the window.",
-    "Window: 180 days; a pair counts from 3 shared commits, since 6 source files reach 10 revisions; the floor rises to 10 when 25 do."
+    "Window: 180 days; a pair counts from 3 shared commits, since 7 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "6b1ad4002ce844e39c9bc743e3c0faefa842de03",
+  "commit": "468a94bf685e70100827138b1b8e3cb860ba39d5",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (247 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (250 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -167,7 +183,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 42
+          "files": 45
         },
         {
           "boundary": "examples",
@@ -324,12 +340,12 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-16T00:01:05.975Z",
+  "generatedAt": "2026-10-16T01:43:53.880Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
-    "21 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 18 more.",
-    "20 writes and 42 reads use paths built at run time and are not named here.",
-    "67 writes and 85 reads go to a path their caller passes, not to this repository.",
+    "23 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 20 more.",
+    "20 writes and 43 reads use paths built at run time and are not named here.",
+    "67 writes and 86 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
@@ -381,7 +397,7 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 110,
+  "testFiles": 112,
   "testedBy": {
     "aspire": 49,
     "examples": 10,

@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 51,
+      "qualifyingSourceCommits": 53,
       "rebaseline": null
     },
     {
@@ -475,12 +475,12 @@
       },
       {
         "commits": 29,
-        "lines": 7662,
+        "lines": 7677,
         "path": "atlas/statistics.json"
       },
       {
         "commits": 29,
-        "lines": 17748,
+        "lines": 17887,
         "path": "atlas/structure.json"
       },
       {
@@ -639,6 +639,11 @@
         "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
       },
       {
+        "commits": 3,
+        "lines": 120,
+        "path": "docs/runs/2026-10-15-stage1-apply-items-schema.md"
+      },
+      {
         "commits": 1,
         "lines": 169,
         "path": "docs/runs/2026-10-15-stage1-batched-quiz-design.md"
@@ -770,12 +775,12 @@
       },
       {
         "commits": 2,
-        "lines": 376,
+        "lines": 327,
         "path": "docs/runs/stage1-train/apply.py"
       },
       {
-        "commits": 1,
-        "lines": 177,
+        "commits": 2,
+        "lines": 207,
         "path": "docs/runs/stage1-train/apply_rules.py"
       },
       {
@@ -799,13 +804,13 @@
         "path": "docs/runs/stage1-train/det_run.py"
       },
       {
-        "commits": 6,
-        "lines": 129,
+        "commits": 5,
+        "lines": 119,
         "path": "docs/runs/stage1-train/eval_adapter.py"
       },
       {
-        "commits": 2,
-        "lines": 172,
+        "commits": 1,
+        "lines": 86,
         "path": "docs/runs/stage1-train/format_report.py"
       },
       {
@@ -824,8 +829,8 @@
         "path": "docs/runs/stage1-train/no_role.py"
       },
       {
-        "commits": 2,
-        "lines": 247,
+        "commits": 1,
+        "lines": 245,
         "path": "docs/runs/stage1-train/parity.py"
       },
       {
@@ -839,8 +844,8 @@
         "path": "docs/runs/stage1-train/receipts.py"
       },
       {
-        "commits": 4,
-        "lines": 605,
+        "commits": 5,
+        "lines": 624,
         "path": "docs/runs/stage1-train/run.py"
       },
       {
@@ -860,7 +865,7 @@
       },
       {
         "commits": 2,
-        "lines": 369,
+        "lines": 299,
         "path": "docs/runs/stage1-train/test_apply.py"
       },
       {
@@ -889,8 +894,8 @@
         "path": "docs/runs/stage1-train/test_eval_adapter.py"
       },
       {
-        "commits": 2,
-        "lines": 112,
+        "commits": 1,
+        "lines": 56,
         "path": "docs/runs/stage1-train/test_format_report.py"
       },
       {
@@ -915,7 +920,7 @@
       },
       {
         "commits": 1,
-        "lines": 65,
+        "lines": 76,
         "path": "docs/runs/stage1-train/test_parity.py"
       },
       {
@@ -934,9 +939,14 @@
         "path": "docs/runs/stage1-train/test_receipts.py"
       },
       {
-        "commits": 6,
-        "lines": 323,
+        "commits": 9,
+        "lines": 410,
         "path": "docs/runs/stage1-train/test_runner.py"
+      },
+      {
+        "commits": 1,
+        "lines": 37,
+        "path": "docs/runs/stage1-train/test_runner_marks.py"
       },
       {
         "commits": 1,
@@ -959,13 +969,13 @@
         "path": "docs/runs/stage1-train/test_validate_union.py"
       },
       {
-        "commits": 2,
-        "lines": 118,
+        "commits": 3,
+        "lines": 133,
         "path": "docs/runs/stage1-train/tiny_train.py"
       },
       {
-        "commits": 8,
-        "lines": 654,
+        "commits": 10,
+        "lines": 686,
         "path": "docs/runs/stage1-train/train.py"
       },
       {
@@ -2274,9 +2284,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-16T00:01:05.975Z",
+  "generatedAt": "2026-10-16T01:43:53.880Z",
   "generatedFrom": {
-    "commit": "6b1ad4002ce844e39c9bc743e3c0faefa842de03"
+    "commit": "468a94bf685e70100827138b1b8e3cb860ba39d5"
   },
   "pairs": [
     {
@@ -2539,6 +2549,13 @@
       "strength": 0.5
     },
     {
+      "a": "docs/runs/stage1-train/run.py",
+      "b": "docs/runs/stage1-train/train.py",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
       "a": "docs/runs/stage1-train/test_data.py",
       "b": "docs/runs/stage1-training-data-schema.md",
       "either": 14,
@@ -2766,16 +2783,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-15T19:59:41-04:00",
-    "inScopeFiles": 425,
+    "headDate": "2026-10-15T18:24:49-07:00",
+    "inScopeFiles": 428,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 199,
+    "qualifyingCommits": 202,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-18T23:59:41.000Z",
+    "since": "2026-04-19T01:24:49.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
@@ -2791,7 +2808,7 @@
     ],
     "sourceFileReach": 20,
     "sourceFileRise": 25,
-    "sourceFilesReachingStrongFloor": 6,
+    "sourceFilesReachingStrongFloor": 7,
     "strength": 0.5,
     "windowDays": 180
   },

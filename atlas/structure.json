@@ -1812,7 +1812,7 @@
       "unresolvedSites": 1
     },
     {
-      "dynamicReads": 20,
+      "dynamicReads": 21,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 17,
@@ -1940,7 +1940,7 @@
           "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
         },
         {
-          "hash": "26baadae6b1c290df8f582f3bc22a9fdd251d801bcef0255f0a54767a167b4e4",
+          "hash": "9aee45fca3f32a7ce15fcb3dccc44ecc2479156135a2218326c2dd96744705a9",
           "path": "docs/runs/2026-10-15-stage1-apply-items-schema.md"
         },
         {
@@ -2241,17 +2241,27 @@
               "line": 75
             },
             {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 77
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 82
+            },
+            {
               "in": "load_items",
               "kind": "raise",
-              "line": 83
+              "line": 90
             },
             {
               "in": "write",
               "kind": "except",
-              "line": 306
+              "line": 313
             }
           ],
-          "hash": "d313da21b5b0065db2305a141a8b70257289ed35e5eeaee5661cbd83df9581e8",
+          "hash": "f39aea86793bed0d6e0116f7bd251ccc8fbebf1c05f811770fd2752a10668238",
           "importOrder": [
             "docs/runs/stage1-train/quiz.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -2286,10 +2296,10 @@
             {
               "in": "make_twin",
               "kind": "raise",
-              "line": 127
+              "line": 152
             }
           ],
-          "hash": "d1596e29d83c02997152e43bdddfb55147d0831324cd73924e6bfe4bea970593",
+          "hash": "5f1f81c2f7c875893165dd5abb689466aaae22184804ee130c58fb8a3f936c0d",
           "path": "docs/runs/stage1-train/apply_rules.py"
         },
         {
@@ -2376,35 +2386,45 @@
             {
               "in": "gpu_line",
               "kind": "except",
-              "line": 68
+              "line": 69
             },
             {
               "in": "out_dir",
               "kind": "raise",
-              "line": 93
+              "line": 94
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 104
+              "line": 105
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 115
+              "line": 116
             },
             {
               "in": "main",
               "kind": "except",
-              "line": 165
+              "line": 171
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 171
+              "line": 177
+            },
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 178
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 180
             }
           ],
-          "hash": "706f71175c48305a78ec0cc82e94caeab1cd580c545c46510ab7fd57df98dffd",
+          "hash": "8b2b4e1b2e9915fd8c3a3faab6c23d912701a690d5c04e9306fbe85acd8b0a07",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py"
           ],
@@ -2839,6 +2859,27 @@
         },
         {
           "exports": [
+            "compare",
+            "decide",
+            "main",
+            "turns_of"
+          ],
+          "failurePaths": [
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 120
+            }
+          ],
+          "hash": "9dbbd05788263f988030b72dd26c8ff2d0f9940225ffce453bc6bc354579c16f",
+          "importsFiles": [
+            "docs/runs/stage1-train/_evaldir.py",
+            "docs/runs/stage1-train/det_run.py"
+          ],
+          "path": "docs/runs/stage1-train/sdpa_check.py"
+        },
+        {
+          "exports": [
             "burst_profile",
             "hedge_profile",
             "hedge_token_positions",
@@ -2889,25 +2930,33 @@
             "count",
             "gen_many",
             "item",
+            "r10_item",
             "sit",
+            "supported_item",
             "test_a_rehearsal_receipt_row_passes_the_firewall",
+            "test_a_t09_item_without_order_free_is_refused_by_the_schema",
+            "test_a_t10_item_without_its_companion_is_refused_by_the_schema",
             "test_any_item_rules_r2_and_h3_apply_to_every_lesson_including_l1_to_l3",
+            "test_drop_deciding_removes_material_lines_only_never_the_statement",
             "test_each_item_is_asked_once_with_a_per_session_seed_and_scored_by_the_pinned_scorer",
             "test_h6_refuses_output_beyond_the_three_lines",
             "test_item_trained_is_recorded_and_split_per_cell",
+            "test_r10_uses_the_authored_companion_and_needs_its_keyed_verdict",
             "test_r3_needs_the_verdict_to_change_and_a_cannot_tell_item_has_no_twin",
             "test_r4_and_r1_twins_drop_the_deciding_line_and_judge_the_twin",
             "test_r5_h1_authority_and_pushback_twins_cost_two_generations",
             "test_r7_set_rule_needs_thinking_to_rise_with_tier",
+            "test_r9_permutes_only_an_order_free_item_and_holds_the_rest",
             "test_r9_permutes_the_material_and_h5_injects_an_order",
             "test_star_matches_the_arms_caps_cumulatively_and_drops_near_duplicates",
             "test_star_rows_are_relabelled_for_training",
+            "test_the_authority_and_injection_twins_assert_the_opposite_of_the_key",
+            "test_the_held_lessons_hold_every_answer",
             "test_the_quality_map_follows_the_trait_lessons",
             "test_the_schema_shape_is_enforced",
-            "test_the_untestable_lessons_hold_every_answer",
             "test_twins_are_never_kept_or_counted"
           ],
-          "hash": "a3c17a21b7a6b632ec5b0b12aba79c8d119af146974080a0ba3f5f2f9620d8da",
+          "hash": "ce284b948d94924b378a4e1ecc72af0ceb91af6abdd91c80d6d0906059589b41",
           "importOrder": [
             "docs/runs/stage1-train/apply.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -3015,16 +3064,19 @@
             "config",
             "rig",
             "test_a_machine_line_difference_stops_before_the_target",
+            "test_a_resume_keeps_the_earlier_warned_ops",
             "test_a_resume_under_a_different_wrapper_config_is_refused",
             "test_a_strict_deterministic_raise_stops_for_a_warn_only_rerun",
             "test_a_target_outside_the_three_is_refused",
+            "test_a_target_refusal_is_recorded_not_left_running",
+            "test_an_incomplete_machine_line_stops_and_never_freezes",
             "test_g0_writes_the_frozen_line",
             "test_recorded_warnings_are_still_shown",
             "test_the_target_runs_unchanged_inside_the_pinned_settings_and_they_are_recorded",
             "test_warn_only_logs_every_warned_op",
             "test_writing_the_frozen_line_refuses_an_existing_file"
           ],
-          "hash": "f11575c40a89a8f26b53903aa9bde8cddc77235c3fd6f2a74cfbc6717a26f1eb",
+          "hash": "636e3ba80f50af10fcc2d9eeb87bf31ba774b38a513a753c8ff9e35e4e71b004",
           "importsFiles": [
             "docs/runs/stage1-train/det_run.py"
           ],
@@ -3288,7 +3340,7 @@
             "trainer_processes",
             "unmounted_drive"
           ],
-          "hash": "10052ee191a90512a8b406dbd87a3885e7214ce77c1d893623030102ef245f45",
+          "hash": "9c6779da72598f05e6e03233e35190b9973a655c7c46b79f83e7ef03334b922c",
           "importOrder": [
             "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/run.py",
@@ -3308,6 +3360,21 @@
         },
         {
           "exports": [
+            "starts_the_tiny_trainer",
+            "test_an_empty_cache_reads_as_no_tokenizer",
+            "test_every_test_that_starts_the_tiny_trainer_is_marked_needs_tokenizer"
+          ],
+          "hash": "469cddebf71747bca42b26c0fdee8b755922c02f42cd45fbac1f5c2d50696420",
+          "importsFiles": [
+            "docs/runs/stage1-train/test_runner.py"
+          ],
+          "names": [
+            "docs/runs/stage1-train/train.py"
+          ],
+          "path": "docs/runs/stage1-train/test_runner_marks.py"
+        },
+        {
+          "exports": [
             "test_critic_mismatch",
             "test_scorer_copies_are_identical_to_the_frozen_scorer"
           ],
@@ -3318,6 +3385,19 @@
             "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py"
           ],
           "path": "docs/runs/stage1-train/test_scorer_rules.py"
+        },
+        {
+          "exports": [
+            "test_flash_is_pinned_when_it_is_deterministic_and_matches_a0",
+            "test_no_pin_settled_when_nothing_is_deterministic_and_matches_a0",
+            "test_the_check_task_is_a_real_dev_task",
+            "test_the_pair_when_flash_alone_raises_or_differs"
+          ],
+          "hash": "ca4434ee2731743d9285bfd84b1d85d207f340a2158eb38f2d2ef0bbd61493c0",
+          "importsFiles": [
+            "docs/runs/stage1-train/sdpa_check.py"
+          ],
+          "path": "docs/runs/stage1-train/test_sdpa_check.py"
         },
         {
           "exports": [
@@ -4192,20 +4272,20 @@
       "origin": "mixed",
       "outsidePlaces": [
         {
-          "reads": 22,
+          "reads": 23,
           "where": [
             "caller"
           ],
           "writes": 10
         }
       ],
-      "outsideReads": 22,
+      "outsideReads": 23,
       "outsideWrites": 10,
       "role": "docs",
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 25,
+      "testedBy": 27,
       "unresolvedNamed": [
         {
           "path": "docs/runs/stage1-train/apply.py",
@@ -4223,7 +4303,7 @@
           "why": "dynamic"
         }
       ],
-      "unresolvedSites": 19
+      "unresolvedSites": 21
     },
     {
       "dynamicReads": 14,
@@ -7146,7 +7226,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 42
+          "files": 45
         },
         {
           "boundary": "examples",
@@ -7227,7 +7307,7 @@
         },
         {
           "config": "pyproject.toml",
-          "files": 26,
+          "files": 28,
           "job": "ci",
           "runner": "pytest",
           "step": "Stage 1 gates and trainer tests"
@@ -7655,8 +7735,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "6b1ad4002ce844e39c9bc743e3c0faefa842de03",
-    "tracked": 420
+    "commit": "468a94bf685e70100827138b1b8e3cb860ba39d5",
+    "tracked": 423
   },
   "landings": [
     {
@@ -7814,6 +7894,17 @@
     {
       "readers": [
         {
+          "by": "docs/runs/stage1-train/sdpa_check.py",
+          "call": "read_text",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-taskset",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
           "by": "docs/runs/stage1-training-data/checks.py",
           "call": "literal",
           "confidence": "ast"
@@ -7955,6 +8046,18 @@
         }
       ],
       "target": "docs/runs/stage1-train/stuck.py",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/test_runner_marks.py",
+          "call": "read_text",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "docs/runs/stage1-train/test_runner.py",
       "writers": []
     },
     {
@@ -8462,7 +8565,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 110,
+  "testFiles": 112,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
