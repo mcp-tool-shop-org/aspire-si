@@ -107,10 +107,10 @@ These come from the evaluation plan, unchanged.
     <the pinned NO-ROLE file> --out <STaR file>`. The drop counts only spans the model originated, so each arm
     subtracts its own training rows: ROLE the curriculum, NO-ROLE its pinned no_role.py output only. Earlier
     STaR rows are never subtracted; they're what the drop compares against (R&D on Argon's 7.1 condition,
-    2026-10-16). A trace with no 8-word span before that subtraction (very short, or nothing left once the item's
-    own quotes are cut) is compared by its thinking, whitespace collapsed and in lower case, with the arm's kept
-    thinkings and its earlier STaR rows; an exact match is dropped. A trace emptied only by the learned
-    subtraction is taught wording and is not compared that way (Argon's re-review, new finding 2).
+    2026-10-16). A trace with no 8-word span left after that subtraction is compared by its item id and its
+    thinking, whitespace collapsed and in lower case, with the arm's kept thinkings and its earlier STaR rows.
+    Earlier rows are keyed by the row's star_of. An exact match on the same item is dropped. The same wording
+    on a different item is a different training example (R&D on #144).
 
   Two questions for R&D before STaR first keeps anything (Q5):
   - **NO-ROLE:** does it keep its own apply answers, to stay compute-matched, or none?
