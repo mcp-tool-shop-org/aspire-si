@@ -1,6 +1,6 @@
 # The Stage 1 general-capability panel (B3)
 
-**Status: for Argon and the maintainer, 2026-10-16.** R&D accepted the design at `2b97739` and ruled on the open questions in the PR comment of that date. This revision applies those rulings. Argon and the maintainer approve it. The note adds no code, no item file and no scorer. Nothing here has run on the card.
+**Status: maintainer approved, 2026-10-16.** Argon approved the any-seed hold the same day. R&D accepted the design at `2b97739`. This revision adds the three points from the Publisher's comment: the machine-line check and the 26 GB cap before the model loads, the item order into the batched path, and Argon's note on the false-hold bounds. The note adds no code, no item file and no scorer. Nothing here has run on the card.
 
 **Which text this follows.** Two dated amendments govern the panel. Amendment B (evaluation plan, 2026-10-15) is the stop rule. Amendment C (training procedure, 2026-10-15) is the running. Where the round-1 run sheet still says the plain 2-point guard (§4, §5), amendment B has replaced that line. This note follows amendment B and does not edit the run sheet. Grants follow amendment C, the later text: three per-seed grants, each with both arms, and 15-minute rests. The run sheet's single G1 line is stale. Fixing that line is the run sheet's job, not this note's.
 
@@ -218,7 +218,21 @@ One sampled pass per item. No greedy decoding. The card settings are the harness
 
 The seed is `batched.seed_for(item_id, 0)`: a 63-bit value from sha256 of `f"{item_id}|0"`. Sample index 0 is the one pass amendment C names as `(item id, 0)`. The same id and the same index are used at P0 and at every later sitting, so a row pairs with itself.
 
+**Order into the batched path.** Items go into `batched.make_generate_many` in the pinned item file's order. That list is the same at P0 and at every later sitting. Each ask's `item_id` is the bare id from §1, and its `sample` is 0. The id is never suffixed with a round or a seed. `seed_for` hashes `f"{item_id}|{sample}"`, so a suffix would draw a different generator and the row would no longer pair with P0. The ask's key is that same bare id. `plan` sorts a first chunk by prompt length and then by key, and a stable key keeps that sort the same every sitting.
+
 Generation is `batched.generate_all` through `make_generate_many`, once parity (§5 of the batched-generation note) has passed. The panel does not add a path. DEV, the sealed set and the interview stay on the batch-1 harness.
+
+**Before the model loads, at P0 and at every later sitting.** The panel runner checks the frozen machine line and sets the memory cap, and only then loads the student.
+
+The frozen line is `docs/runs/stage1-machine-line.json`, sha256 `2daa5aa9`, the pin in run sheet §9. The check is `det_run`'s. `machine_line()` is compared with that file on `gpu`, `driver`, `cuda`, `torch` and `transformers`. Any difference exits before the model loads, as `det_run` returns exit 5. An incomplete line, with no gpu or driver, exits the same way. The panel has no warn-only path.
+
+The cap is the call `parity.py` makes, after CUDA has started and before the model loads:
+
+```text
+torch.cuda.set_per_process_memory_fraction(parity.cap_fraction(total, used_at_start))
+```
+
+`total` is the device's total memory. `used_at_start` is `memory.used` once the context exists. `cap_fraction` is `(parity.PLAN_BYTES − used_at_start) / total`, clamped to the range 0 to 1. `PLAN_BYTES` is `26e9`.
 
 **The plan the sitting inherits.** `B_TOK` is 28,000 tokens of KV cache per batch. First chunks are held at 8. The last chunk of a set that is not a multiple of 8 is padded with throwaway copies of the last real row; their output is discarded, and they stop when every real row in the batch has stopped. Chunk length is `min(2048, 28000 // 8 − longest prompt)`, and at least 512. **Computed:** `28000 // 8 = 3500`, so a batch of 8 stays in budget with a chunk of at least 512 when the longest prompt is at most `3500 − 512 = 2988` tokens. Above that, `plan` splits the group and records `long-prompt`.
 
@@ -226,7 +240,7 @@ Word counts on the source files (**counted**): GSM8K questions have median 43 wo
 
 Continuations happen only after a row has passed its first chunk. With the chunk at 2,048, a row of a few hundred new tokens is one prefill and one chunk. A row that runs to the 16,384 cap is re-prefilled on each continuation, and the continuation batches shrink because `rows × (length so far + 2048)` must stay ≤ 28,000.
 
-**The 26 GB plan.** `parity.PLAN_BYTES` is `26e9` bytes of `memory.used`, covering torch, the CUDA context and the idle baseline. The KV term in the batched note is 36 layers × 8 KV heads × 128 × K and V × 2 bytes. **Computed:** `36 × 8 × 128 × 4 = 147,456` bytes per token, times 28,000 = `4,128,768,000` bytes (4.13 GB decimal). That is the same budget the quiz and apply sittings use. The panel does not raise it. P0 loads the base model with no adapter, so its reserved memory is the lower of the two. The gate stays ≤ 26 GB, and parity's measured peak is what shows it. This draft did not measure a peak.
+**The 26 GB plan.** `parity.PLAN_BYTES` is `26e9` bytes of `memory.used`, covering torch, the CUDA context and the idle baseline. The runner sets that bound with the `cap_fraction` call above. The KV term in the batched note is 36 layers × 8 KV heads × 128 × K and V × 2 bytes. **Computed:** `36 × 8 × 128 × 4 = 147,456` bytes per token, times 28,000 = `4,128,768,000` bytes (4.13 GB decimal). That is the same budget the quiz and apply sittings use. The panel does not raise it. P0 loads the base model with no adapter, so its reserved memory is the lower of the two. The gate stays ≤ 26 GB, and parity's measured peak is what shows it. This draft did not measure a peak.
 
 ### 6.1 Two rates, and the 12–15 minutes
 
@@ -338,6 +352,8 @@ Three seeds is `1 − (1 − p)^3`. Six rounds is `1 − (1 − p3)^6`. From the
 
 The three-seed and six-round rows assume independent seeds. All three seeds share P0, so their tables are positively correlated, and the true union rate is lower than these figures. The six-round row stacks that assumption a second time.
 
+**Argon's note, 2026-10-16.** Argon approved the any-seed hold. The 6% per round and the 33% over 6 rounds are independence upper bounds. They are the nd = 42 cell above, 0.0639 and 0.327, at about 15% discordance. The seeds share P0 and the items, so the true rates are lower. Argon's figures for those true rates are about 4–5% per round and 15–22% over 6 rounds. This note did not recompute them. When a hold fires, the readout shows whether the drop is in one seed or shared across seeds: which of the three tables meet the hold, and whether the items that flipped are the same ones in those seeds.
+
 ## 9. Pins, before P0
 
 Nothing in this pull request is the pin. The hashes do not exist until the files do.
@@ -349,7 +365,7 @@ Nothing in this pull request is the pin. The hashes do not exist until the files
 | Harness and batched path | already pinned | the run sheet's §9 list, plus `batched.py`'s sha256 and the path name `batched-v1`, recorded in the panel receipt as the quiz readout records them. |
 | P0 outputs | the G0 grant's run directory | one record per item: id, seed, text, parsed value, right or wrong, truncated, unparsed, strict one-line, new tokens, seconds. Accuracy per slice, the two extra counts, the strict one-line count, and the machine line. A slice at or above 97% is flagged for the maintainer before G1. |
 
-Later rounds record the same, plus all three tables against P0 (b, c, N, the drop in points, the exact p) and the mean of the three drops. The mean is descriptive. The baseline is P0 and no other sitting.
+Later rounds record the same, plus all three tables against P0 (b, c, N, the drop in points, the exact p) and the mean of the three drops. The mean is descriptive. When a hold fires, the readout says whether it is one seed or shared across seeds (§8.1). The baseline is P0 and no other sitting.
 
 ## 10. What this draft did not verify
 
@@ -359,7 +375,7 @@ Later rounds record the same, plus all three tables against P0 (b, c, N, the dro
 - Memory was not measured. The 4.13 GB KV term is arithmetic from the batched note's shape. The ≤ 26 GB gate is `parity.PLAN_BYTES`.
 - Qwen3's pretraining corpus was not checked for these items. §3.3 accepts that for this guard.
 - Licences: R&D verified both at the primary source on 2026-10-16. This revision records that check. WinoGrande's version is still not stated by AllenAI. The CC BY 4.0 legal-code quotes from the first draft are removed.
-- The McNemar power, and the false-hold tails, fix the discordant count. They do not model a random discordant count, and they do not model dependence left after the 8-word filter. The three-seed and six-round rates add an independence assumption that §8.1 says is high.
-- The dated disclosure note under amendment B is not filed here. R&D files it, in rnd and in the evaluation plan, when this design is approved. The wording is in §8.
+- The McNemar power, and the false-hold tails, fix the discordant count. They do not model a random discordant count, and they do not model dependence left after the 8-word filter. The three-seed and six-round rates add an independence assumption. Argon's lower ranges in §8.1 were not recomputed here.
+- The dated disclosure note under amendment B is not filed here. The maintainer has approved the design. R&D still files that note, in rnd and in the evaluation plan. The wording is in §8.
 
-The questions from the first draft are settled in §2 through §8. This revision is for Argon and the maintainer.
+The questions from the first draft are settled in §2 through §8. The three additions from the Publisher's comment are in §6 and §8.1.
