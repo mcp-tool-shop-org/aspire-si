@@ -187,6 +187,12 @@ gaps Stage 1 is meant to move, and the miss buckets are the clearest view of wha
 | `stage1-train/no_role.py` | `63162cf42270b34e160d60e22559cca2072085bb71a83d8c6d9dbf8a08d16ee8` |
 | `stage1-train/test_no_role.py` | `d43afcf285d17df8772e0bc38708bbb086993878ae5fc3445fe70a4db8338ffb` |
 
+**Superseded 2026-10-15, before any counted run (Argon's finding 5a):** a closed-form written E item keeps its
+original quiz and variant, so NO-ROLE is asked the same closed-form question as ROLE, and it still trains only on
+its own recall turns. NO-ROLE's E-quiz correctness is a steering reading only, never an arm comparison (rnd #110).
+`no_role.py` is now `1d1455f34c9b14794c5563a9de9f8847d0da0c0f3663346e67f8a5b857f4370e` and `test_no_role.py`
+is `55e6c31e37e902438087672cbc9ec30a84280fedf0492997b576d815bc326efe`.
+
 One NO-ROLE item per ROLE item, derived mechanically: same lesson, kind, tier, material, statement, keys, turns
 and pair id; the targets are a plain read-through with an always-true closing and the three lines, B puzzles
 restate their givens, and A and written E become material recall. The trainer prints both arms' composition

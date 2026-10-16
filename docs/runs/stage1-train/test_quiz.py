@@ -237,3 +237,27 @@ def test_the_batched_path_asks_the_same_questions_and_records_the_same_rows():
              only=[r["id"] for r in items], generate_many=generate_many)
     assert one_rows == many_rows and len(many_rows) == 3 * len(items)
     assert [a["sample"] for a in seen] == [0, 1, 2] * len(items) and seen[0]["item_id"].endswith("-v0")
+
+
+def test_a_no_role_item_gets_its_role_items_store_variants():
+    """Argon's finding 5b: a "-nr" id finds the variants stored under the ROLE item's id."""
+    r = copy.deepcopy(VERDICT_E[0])
+    store = {r["id"]: {1: {"user": r["variant"]["user"] + " (asked again)", "key": {"verdict": r["quiz"]["verdict"]}}}}
+    r["id"] += "-nr"
+    lg = Ledger()
+    sit([r], {0: False, 1: False, 2: True}, ledger=lg, session=1, store=store)
+    out, rows, _ = sit([r], {0: True, 1: True, 2: True}, ledger=lg, session=2, store=store)
+    assert {x["variant"] for x in rows} == {1} and rows[0]["base_item_id"] == r["id"]
+
+
+def test_the_stuck_count_reads_the_frozen_rules_fields(monkeypatch):
+    """Argon's finding 9.3: the readout's stuck count comes from stuck_fields, judged once per sample."""
+    calls = []
+
+    def fake(thinking, material, tier, target, total, count, rule):
+        calls.append(thinking)
+        return {"stuck": len(calls) != 2}  # the second sample is not stuck
+    monkeypatch.setattr(quiz, "stuck_fields", fake)
+    out, rows, _ = sit(VERDICT_E[:1], {0: True, 1: True, 2: True})
+    assert len(calls) == 3 and [x["stuck"] for x in rows] == [True, False, True]
+    assert out["overall"]["stuck_samples"] == 2 and out["per_lesson"]["T05"]["stuck_samples"] == 2

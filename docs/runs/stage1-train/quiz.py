@@ -199,7 +199,8 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
         r = by_id.get(base)
         if r is None:
             continue
-        family = {0: r["variant"], **store.get(base, {})}
+        # NO-ROLE ids end "-nr"; the variant store is keyed by the ROLE item's id (Argon's finding 5b)
+        family = {0: r["variant"], **store.get(base.removesuffix("-nr"), {})}
         n = ledger.next_variant(base, sorted(family))
         while n is not None:
             why = None
@@ -242,20 +243,21 @@ def sit(items: list, ledger: Ledger, session: int, store: dict, generate, count,
             g = gens[f"{base}-v{n}|{seed}"]
             thinking, answer, _ = harness.split_thinking(g["text"])
             s = score_sample(r, kind, variant, answer)
-            samples.append((seed, g, thinking, answer, s))
-        right = sum(s["right"] for *_, s in samples) >= MAJORITY
+            st = stuck_fields(thinking, material, r["tier"], target, g["new_tokens"], count, rule)
+            samples.append((seed, g, thinking, answer, s, st))
+        right = sum(s["right"] for *_, s, _st in samples) >= MAJORITY
         state = ledger.record(base, session, n, right)
-        for seed, g, thinking, answer, s in samples:
+        for seed, g, thinking, answer, s, st in samples:
             write({"question_id": f"{base}-v{n}", "base_item_id": base, "variant": n, "lesson": r["lesson"],
                    "kind": "E", "quiz_type": kind, "tier": r["tier"], "attempt": attempt, "ledger_box": box_before,
                    "ledger_state": state, "sample": seed, "majority_right": right,
                    "correct_pinned": s["right"], **{k: v for k, v in s.items() if k != "right"},
                    "wall_s": g["seconds"], "answer_tokens": count(answer), "total_tokens": g["new_tokens"],
                    "truncated": g["truncated"],
-                   **stuck_fields(thinking, material, r["tier"], target, g["new_tokens"], count, rule),
+                   **st,
                    "answer": answer, "spent_rule": rule_s})
         asked.append({"base": base, "lesson": r["lesson"], "n": n, "right": right,
-                      "stuck": sum(1 for *_, s in samples if s.get("stuck"))})
+                      "stuck": sum(1 for *_, st in samples if st["stuck"])})  # Argon's finding 9.3
     out = readout(asked, excluded, refused, ledger)
     out["spent_variants"] = spent
     out["spent_rule"] = rule_s
@@ -274,10 +276,12 @@ def readout(asked, excluded, refused, ledger) -> dict:
         per[ls] = {"all": acc(rows), "n0": n0, "n_ge_1": n1,
                    "gap_n0_minus_n1": round(n0["accuracy"] - n1["accuracy"], 3)
                    if n0["accuracy"] is not None and n1["accuracy"] is not None else None,
-                   "written_excluded_not_yet_testable": excluded.get(ls, 0)}
+                   "written_excluded_not_yet_testable": excluded.get(ls, 0),
+                   "stuck_samples": sum(r["stuck"] for r in rows)}
     n0, n1 = acc([r for r in asked if r["n"] == 0]), acc([r for r in asked if r["n"] >= 1])
     return {"overall": {"all": acc(asked), "n0": n0, "n_ge_1": n1,
-                        "written_excluded_not_yet_testable": sum(excluded.values())},
+                        "written_excluded_not_yet_testable": sum(excluded.values()),
+                        "stuck_samples": sum(r["stuck"] for r in asked)},
             "per_lesson": per, "qualities": ledger.qualities(), "refused_items": refused,
             "star": "off: no apply items"}
 
