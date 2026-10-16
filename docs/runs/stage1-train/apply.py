@@ -80,6 +80,12 @@ def check_item(r: dict) -> None:
         bad_verdict = twin.get("verdict") not in ("supported", "unsupported", "cannot_tell")
         if not twin.get("statement") or bad_verdict or twin.get("verdict") == r["verdict"]:
             raise ApplyItemError(f"{where}: a T10 item needs r10_twin {{statement, verdict}}, its verdict differing")
+        statements = [ln for ln in r["turns"][0]["user"].split("\n") if rules.STATEMENT.match(ln)]
+        if len(statements) != 1:  # make_twin swaps that one line (Argon's finding 6.4)
+            raise ApplyItemError(f"{where}: a T10 item needs exactly one Statement line, not {len(statements)}")
+    decided = r.get("verdict") in ("supported", "unsupported")
+    if r["lesson"] in rules.SILENT_NEEDED and decided and not isinstance(r.get("silent_without_deciding"), bool):
+        raise ApplyItemError(f"{where}: a decided {r['lesson']} item needs silent_without_deciding (true or false)")
 
 
 def load_items(paths) -> list:
@@ -123,7 +129,7 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
         target = count(r["turns"][0].get("thinking", ""))
         f = quiz.stuck_fields(thinking, r.get("material") or "", r["tier"], target, g["new_tokens"], count, rule)
         ok_any, why_any = rules.any_item(verbatim, thinking, g["truncated"])
-        ok_single, why_single = rules.single(r["lesson"], answer)
+        ok_single, why_single = rules.single(r["lesson"], answer, r["kind"])
         if not s["right"]:
             star = "refused: the three lines don't pass"
         elif f["stuck"]:
@@ -205,13 +211,17 @@ def _spans(text: str) -> set:
     return gates._shingles(text, 8)
 
 
-def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP) -> dict:
+def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP, prior_spans: dict | None = None) -> dict:
     """{arm: chosen candidates} after the near-duplicate drop, matching across the arms and the cumulative cap.
-    `prior` is {(lesson, kind): kept so far}; candidates are {"item", "thinking", "answer"}."""
-    def dedup(cands):
-        out, seen = [], set()
+    `prior` is {arm: {(lesson, kind): kept so far}}; `prior_spans` is {arm: the 8-word spans of that arm's earlier
+    STaR rows}, so a candidate repeating an earlier kept answer is dropped (Argon's finding 7.1). Items trained
+    before are not excluded (R&D). Candidates are {"item", "thinking", "answer"}."""
+    prior_spans = prior_spans or {}
+
+    def dedup(cands, arm):
+        out, seen = [], set(prior_spans.get(arm, set()))
         for c in sorted(cands, key=lambda c: c["item"]["id"]):
-            sp = _spans(c["thinking"] + "\n" + c["answer"])
+            sp = _spans(c["thinking"])  # the thinking only: the reply is fixed by the key (R&D on #137)
             if sp & seen:
                 continue
             seen |= sp
@@ -219,11 +229,12 @@ def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP) -> dic
         return out
     by_cell = {}
     for arm, cands in (("ROLE", role), ("NO-ROLE", no_role)):
-        for c in dedup(cands):
+        for c in dedup(cands, arm):
             by_cell.setdefault((c["item"]["lesson"], c["item"]["kind"]), {"ROLE": [], "NO-ROLE": []})[arm].append(c)
     chosen = {"ROLE": [], "NO-ROLE": []}
     for cell, arms in sorted(by_cell.items()):
-        n = max(0, min(len(arms["ROLE"]), len(arms["NO-ROLE"]), cap - prior.get(cell, 0)))
+        n = max(0, min(len(arms["ROLE"]), len(arms["NO-ROLE"]),
+                       *(cap - prior.get(arm, {}).get(cell, 0) for arm in ("ROLE", "NO-ROLE"))))
         for arm in chosen:
             chosen[arm] += arms[arm][:n]
     return chosen
@@ -246,13 +257,25 @@ def star_rows(chosen: list, session: int) -> list:
     return rows
 
 
+def _star_rows(star_paths) -> list:
+    return [json.loads(x) for p in star_paths for x in Path(p).read_text(encoding="utf-8").splitlines() if x.strip()]
+
+
 def prior_counts(star_paths) -> dict:
+    """{(lesson, kind): rows kept so far} over one arm's earlier STaR files. Called per arm, so passing both arms'
+    files never doubles a count (Argon's finding 7.1); a row repeated across files counts once, by id."""
     out: dict = {}
-    for p in star_paths:
-        for x in Path(p).read_text(encoding="utf-8").splitlines():
-            if x.strip():
-                r = json.loads(x)
-                out[(r["lesson"], r["kind"])] = out.get((r["lesson"], r["kind"]), 0) + 1
+    for r in {r["id"]: r for r in _star_rows(star_paths)}.values():
+        out[(r["lesson"], r["kind"])] = out.get((r["lesson"], r["kind"]), 0) + 1
+    return out
+
+
+def prior_spans(star_paths) -> set:
+    """The 8-word spans of one arm's earlier STaR answers' thinking, the same text dedup reads (R&D on #137)."""
+    out: set = set()
+    for r in _star_rows(star_paths):
+        t = r["turns"][0]
+        out |= _spans(t["thinking"])
     return out
 
 
@@ -272,13 +295,16 @@ def main(argv=None) -> int:  # pragma: no cover - the sitting runs on the card; 
     t = sub.add_parser("star")
     t.add_argument("--session", type=int, required=True)
     t.add_argument("--kept", nargs=2, required=True, metavar=("ROLE", "NO_ROLE"))
-    t.add_argument("--prior", nargs="*", default=[])
+    t.add_argument("--prior-role", nargs="*", default=[], help="the ROLE arm's earlier STaR files")
+    t.add_argument("--prior-no-role", nargs="*", default=[], help="the NO-ROLE arm's earlier STaR files")
     t.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     if a.cmd == "star":
         def load(p):
             return [json.loads(x) for x in Path(p).read_text(encoding="utf-8").splitlines() if x.strip()]
-        chosen = match_and_cap(load(a.kept[0]), load(a.kept[1]), prior_counts(a.prior))
+        priors = {"ROLE": a.prior_role, "NO-ROLE": a.prior_no_role}
+        chosen = match_and_cap(load(a.kept[0]), load(a.kept[1]), {k: prior_counts(v) for k, v in priors.items()},
+                               prior_spans={k: prior_spans(v) for k, v in priors.items()})
         out = Path(a.out)
         for arm, suffix in (("ROLE", ""), ("NO-ROLE", ".no-role")):
             path = out.with_name(out.stem + suffix + out.suffix)

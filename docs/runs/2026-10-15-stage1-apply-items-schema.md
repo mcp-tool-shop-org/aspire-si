@@ -44,7 +44,13 @@ The approved training procedure's apply step, with R&D's rulings and amendment A
      carries no meaning, so reversing it can't change the right answer. Changelogs, tables and ordered steps are
      false. Only an `order_free: true` item gets R9's reversed-material twin; the others are held (Argon's review,
      settled by R&D, 2026-10-15).
-   - **T10 items, both kinds:** also `r10_twin: {statement, verdict}`. This is a strengthened or weakened claim on
+   - **Decided T01, T04 and T14 items, both kinds:** also `silent_without_deciding` (true or false). It's true
+     when removing the deciding lines leaves the material silent on the statement, so the right answer becomes
+     cannot_tell. A buried exception, or another line that still settles it, is false. Only a `true` item gets
+     the deciding-lines-removed twin, which must answer cannot_tell; the others are held (Argon's finding 6.2,
+     settled by R&D, 2026-10-15).
+   - **T10 items, both kinds:** also `r10_twin: {statement, verdict}`, and exactly one `Statement:` line in the
+     user turn, which the twin replaces (Argon's finding 6.4). This is a strengthened or weakened claim on
      the same material, keyed with a verdict that differs from the item's. It's authored by role-set and
      key-checked by R&D with the item, and it's the twin R10's pass rule needs (R&D on #128, 2026-10-15).
    - **Right** means the three lines pass the pinned scorer against the key: the verdict, DECIDING verbatim (the
