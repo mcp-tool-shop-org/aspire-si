@@ -131,3 +131,12 @@ def test_generate_many_returns_the_harness_fields_for_every_ask(model):
         assert {"text", "prompt_tokens", "new_tokens", "truncated", "seconds"} <= set(r)
         assert r["prompt_tokens"] == len("Is item 0 supported?")
     assert batched.stop_ids(model, FakeTok()) >= {1}
+
+
+def test_on_done_fires_once_per_finished_row_even_across_chunks(model):
+    seen = []
+    w = work(5)
+    out, _ = run(model, w, batch=8, b_tok=8 * 60, chunk_max=10, chunk_min=8,
+                 on_done=lambda key, tokens, seconds: seen.append((key, tokens)))
+    assert sorted(k for k, _ in seen) == sorted(x["key"] for x in w)
+    assert {k: t for k, t in seen} == {k: r["new_tokens"] for k, r in out.items()}
