@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-16 from commit 9e54fbc by Atlas 1.24.0.
+Mapped at 2026-10-16 from commit 958c982 by Atlas 1.24.0.
 
 ## What this is
 
@@ -8,9 +8,9 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (258 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-16 (323b2b0)
+## What changed since 2026-10-16 (9e54fbc)
 
-Nothing structural changed since 2026-10-16; 8 files changed content.
+Nothing structural changed since 2026-10-16; 3 files changed content.
 
 ## What comes in
 
@@ -90,7 +90,7 @@ Read those in order to follow one pull request end to end.
 ## What this map cannot see
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
-- 29 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 26 more.
+- 30 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 27 more.
 - 21 writes and 47 reads use paths built at run time and are not named here.
 - 1 write goes to places this repository does not track, so it is not listed as generated.
 - 73 writes and 103 reads go to a path their caller passes, not to this repository.

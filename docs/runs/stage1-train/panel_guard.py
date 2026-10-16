@@ -3,7 +3,8 @@
 The point test is integer arithmetic, `100 * (b - c) > 2 * n`. A drop of exactly 2.0 points
 does not hold. The p-value is the two-sided small-p binomial test, computed with `math.lgamma`.
 The mean of the three drops is descriptive and is not the test.
-P0 is the base model. Each seed is an adapter, and no two seeds share an adapter sha256.
+P0 is the base model. A round has exactly three seed sittings. Each seed is an adapter
+with its own adapter sha256.
 """
 
 import math
@@ -73,14 +74,18 @@ def pair(baseline: dict, sitting: dict) -> dict:
 
 
 def _require_roles(baseline: dict, sittings: list[dict]) -> None:
-    """P0 is base. Each seed is an adapter. Two seeds may not share an adapter sha256."""
+    """P0 is base. Exactly three seeds. Each is an adapter with its own non-empty sha256."""
     if baseline.get("model") != "base":
         raise SystemExit("refusing to pair: P0 is not model base")
+    if len(sittings) != 3:
+        raise SystemExit("refusing to pair: a round has exactly 3 seed sittings")
     seen: list = []
     for sitting in sittings:
         if sitting.get("model") != "adapter":
             raise SystemExit("refusing to pair: a seed sitting is not an adapter")
         sha = sitting.get("adapter_sha256")
+        if not sha:
+            raise SystemExit("refusing to pair: a seed sitting has no adapter sha256")
         if sha in seen:
             raise SystemExit("refusing to pair: two seed sittings share an adapter sha256")
         seen.append(sha)

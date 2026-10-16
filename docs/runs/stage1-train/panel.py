@@ -34,6 +34,9 @@ import parity  # noqa: E402
 
 # Raw sha256 of panel_score.py. docs/runs/stage1-train is -text, so git stores these bytes.
 PANEL_SCORE_SHA256 = "c26da86890c3028e79ccbeeb11faf8b1e4c1143e36b2f78be8c21f44fd628573"
+# Set once, in the post-freeze leakage commit, before P0. None refuses a sitting and a guard.
+PANEL_ITEMS_SHA256 = None
+_SKIP = object()
 MACHINE_LINE = HERE.parent / "stage1-machine-line.json"
 MACHINE_LINE_SHA256 = "2daa5aa99137c6b07696913585321a7b6d12431fdaf4b9c14c3e294f0cf43830"
 _WEIGHTS = ("adapter_model.safetensors", "adapter_model.bin")
@@ -181,10 +184,34 @@ def write_readout(payload: dict, dest: Path, resets: int) -> None:
         handle.write(json.dumps(payload, ensure_ascii=False, indent=1) + "\n")
 
 
-def prepare(load, *, machine_path: Path | None = None, cap=None, verify=None):
-    """Scorer pin, machine line, then the cap, then the model. A failed check does not load."""
+def require_items(path: Path) -> str:
+    """Refuse an unset pin, a different sha256, or a panel that is not 140 gsm8k and 140 winogrande."""
+    if not PANEL_ITEMS_SHA256:
+        raise SystemExit("refusing to sit: the item file pin is not set")
+    path = Path(path)
+    digest = sha256_file(path)
+    if digest != PANEL_ITEMS_SHA256:
+        raise SystemExit("refusing to sit: the item file sha256 does not match the pin")
+    _meta, kept = load_items(path)
+    counts = {"gsm8k": 0, "winogrande": 0}
+    for row in kept:
+        source = row.get("source")
+        if source in counts:
+            counts[source] += 1
+    if len(kept) != 280 or counts["gsm8k"] != 140 or counts["winogrande"] != 140:
+        raise SystemExit("refusing to sit: the item file is not 140 gsm8k and 140 winogrande")
+    return digest
+
+
+def prepare(load, *, machine_path: Path | None = None, cap=None, verify=None,
+            items_path: Path | None = None, adapter=_SKIP):
+    """Scorer pin, machine line, item pin, adapter, then the cap, then the model."""
     require_scorer()
     line = check_machine(machine_path)
+    if adapter is not _SKIP:
+        adapter_record(adapter)
+    if items_path is not None:
+        require_items(items_path)
     if cap is not None:
         cap()
     if verify is not None:
@@ -199,9 +226,21 @@ def sitting_view(readout: dict) -> dict:
             "items": [{"id": row["id"], "right": row["right"]} for row in readout["items"]]}
 
 
+def _require_recorded_pins(baseline: dict, sittings: list[dict]) -> None:
+    """The readout's recorded scorer and item-file sha256 must be this build's pins."""
+    if baseline.get("scorer_sha256") != PANEL_SCORE_SHA256:
+        raise SystemExit("refusing to pair: the baseline scorer sha256 is not the pin")
+    if not PANEL_ITEMS_SHA256:
+        raise SystemExit("refusing to pair: the item file pin is not set")
+    for sitting in (baseline, *sittings):
+        if sitting.get("item_sha256") != PANEL_ITEMS_SHA256:
+            raise SystemExit("refusing to pair: a readout item sha256 is not the pin")
+
+
 def guard_sittings(baseline: dict, sittings: list[dict]) -> dict:
-    """The scorer pin is checked before any pairing."""
+    """The scorer file, the recorded scorer sha, and the item pin are checked before pairing."""
     require_scorer()
+    _require_recorded_pins(baseline, sittings)
     return panel_guard.round_result(baseline, sittings)
 
 
@@ -217,8 +256,11 @@ def run_generation(items: list[dict], generate_many) -> tuple[list[dict], float]
     return score_sitting(items, generations), minutes
 
 
-def load_sitting(args, out: Path, machine: dict) -> int:
-    """Load the model and write the readout. `prepare` calls this only after the checks."""
+def load_sitting(args, out: Path, machine: dict, t0: float) -> int:
+    """Load the model and write the readout. `prepare` calls this only after the checks.
+
+    `t0` is the start of `sit_main`, taken before `prepare`, and it is the driver-reset clock.
+    """
     import student
     record = adapter_record(args.adapter)
     from peft import PeftModel
@@ -231,7 +273,6 @@ def load_sitting(args, out: Path, machine: dict) -> int:
     generate_many = batched.make_generate_many(model, tok, batch_log)
     meta_path = Path(args.items)
     _meta, items = load_items(meta_path)
-    t0 = time.time()
     records, minutes = run_generation(items, generate_many)
     resets = parity.driver_resets_since(t0)
     payload = readout_for(records, item_sha=sha256_file(meta_path), scorer_sha=require_scorer(),
@@ -252,15 +293,17 @@ def sit_main(argv) -> int:
     args = parser.parse_args(argv)
     out = Path(args.out)
     panel_build.outside_repo(out)
+    t0 = time.time()
 
     def verify():
         import student
         student.verify_weights()
 
     def load(machine):
-        return load_sitting(args, out, machine)
+        return load_sitting(args, out, machine, t0)
 
-    return prepare(load, cap=apply_memory_cap, verify=verify)
+    return prepare(load, cap=apply_memory_cap, verify=verify,
+                   items_path=Path(args.items), adapter=args.adapter)
 
 
 def guard_main(argv) -> int:

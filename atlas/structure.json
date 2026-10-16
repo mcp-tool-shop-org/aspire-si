@@ -2806,6 +2806,7 @@
             "memory_cap",
             "prepare",
             "readout_for",
+            "require_items",
             "require_scorer",
             "run_generation",
             "score_sitting",
@@ -2819,32 +2820,27 @@
             {
               "in": "require_scorer",
               "kind": "raise",
-              "line": 50
+              "line": 53
             },
             {
               "in": "require_scorer",
               "kind": "raise",
-              "line": 53
+              "line": 56
             },
             {
               "in": "check_machine",
               "kind": "raise",
-              "line": 61
+              "line": 64
             },
             {
               "in": "check_machine",
               "kind": "raise",
-              "line": 65
+              "line": 68
             },
             {
               "in": "memory_cap",
               "kind": "raise",
-              "line": 72
-            },
-            {
-              "in": "adapter_record",
-              "kind": "raise",
-              "line": 93
+              "line": 75
             },
             {
               "in": "adapter_record",
@@ -2852,22 +2848,57 @@
               "line": 96
             },
             {
+              "in": "adapter_record",
+              "kind": "raise",
+              "line": 99
+            },
+            {
               "in": "load_items",
               "kind": "raise",
-              "line": 113
+              "line": 116
             },
             {
               "in": "write_readout",
               "kind": "raise",
-              "line": 177
+              "line": 180
+            },
+            {
+              "in": "require_items",
+              "kind": "raise",
+              "line": 190
+            },
+            {
+              "in": "require_items",
+              "kind": "raise",
+              "line": 194
+            },
+            {
+              "in": "require_items",
+              "kind": "raise",
+              "line": 202
+            },
+            {
+              "in": "_require_recorded_pins",
+              "kind": "raise",
+              "line": 232
+            },
+            {
+              "in": "_require_recorded_pins",
+              "kind": "raise",
+              "line": 234
+            },
+            {
+              "in": "_require_recorded_pins",
+              "kind": "raise",
+              "line": 237
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 285
+              "line": 328
             }
           ],
-          "hash": "c3409eb5478de1f0c5b1d64730e18ed2bc9466f8e69b49867c8f2085eec76fa7",
+          "hash": "1cafbfdf49bf66685f530a29adccf5cb731bc873bb099c9fe3d9ae42c94b45ff",
           "importsFiles": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/det_run.py",
@@ -2963,35 +2994,45 @@
             {
               "in": "pair",
               "kind": "raise",
-              "line": 53
+              "line": 54
             },
             {
               "in": "pair",
               "kind": "raise",
-              "line": 55
+              "line": 56
             },
             {
               "in": "pair",
               "kind": "raise",
-              "line": 59
+              "line": 60
             },
             {
               "in": "_require_roles",
               "kind": "raise",
-              "line": 78
+              "line": 79
             },
             {
               "in": "_require_roles",
               "kind": "raise",
-              "line": 82
+              "line": 81
             },
             {
               "in": "_require_roles",
               "kind": "raise",
               "line": 85
+            },
+            {
+              "in": "_require_roles",
+              "kind": "raise",
+              "line": 88
+            },
+            {
+              "in": "_require_roles",
+              "kind": "raise",
+              "line": 90
             }
           ],
-          "hash": "ca61981108d0e96c39696ab5bb9059b450d369a4b53053256ff3f46428618a1d",
+          "hash": "f04ce68d44cfddb4b4a54e074ce9c0730a155fff3c086bbffa8ace76f76966b7",
           "path": "docs/runs/stage1-train/panel_guard.py"
         },
         {
@@ -3856,6 +3897,7 @@
         {
           "exports": [
             "panel_score_sha",
+            "test_adapter_and_the_reset_clock_are_checked_before_the_model",
             "test_adapter_without_a_manifest_or_a_partial_set_is_refused",
             "test_an_instruction_hit_does_not_drop_the_source",
             "test_answer_inside_thinking_is_never_read",
@@ -3872,10 +3914,12 @@
             "test_exact_two_point_drop_does_not_hold",
             "test_frozen_table_parses_and_a_bad_sha_is_refused",
             "test_gold_answer_scores_right_and_a_wrong_one_does_not",
+            "test_guard_refuses_a_baseline_scorer_sha_that_is_not_the_pin",
             "test_guard_refuses_a_changed_scorer_before_pairing",
             "test_hash_order_is_stable_and_not_file_order",
             "test_id_and_seed_are_the_same_across_sittings_and_the_order_is_kept",
             "test_incomplete_machine_line_exits",
+            "test_item_pin_is_required_before_the_cap_and_on_the_guard",
             "test_last_of_several_answer_lines_wins",
             "test_machine_line_mismatch_exits_before_load",
             "test_machine_line_sha_mismatch_exits_before_the_live_line",
@@ -3886,8 +3930,10 @@
             "test_pairing_refuses_mismatched_item_file_scorer_or_ids",
             "test_partition_counts_sum_to_n_and_a_capped_unparsed_row_is_truncated",
             "test_readout_inside_the_repository_is_refused",
+            "test_round_refuses_a_missing_or_empty_adapter_sha",
             "test_round_refuses_a_p0_that_is_not_base",
             "test_round_refuses_a_seed_that_is_not_an_adapter",
+            "test_round_refuses_any_count_but_three_seeds",
             "test_round_refuses_two_seeds_with_the_same_adapter_sha",
             "test_scored_records_stay_in_file_order",
             "test_sealed_directory_is_refused_and_a_planted_file_is_checked",
@@ -3905,7 +3951,7 @@
             "test_unknown_cap_exits_before_load",
             "test_wrong_letter_and_a_non_letter_are_not_right"
           ],
-          "hash": "8823b618e9fc70bcf72c5246712ccd01c58a56e735afed2f517ffd028ba23299",
+          "hash": "044b94062761d5bab3903025d5f6a9aa0cd7e234f8e345c47c977dbe2a9ed1b4",
           "importsFiles": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/det_run.py",
@@ -5084,7 +5130,7 @@
           "why": "dynamic"
         }
       ],
-      "unresolvedSites": 27
+      "unresolvedSites": 28
     },
     {
       "dynamicReads": 14,
@@ -8519,7 +8565,7 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "9e54fbc5e46e8a2c7e9d2c732124cdef8334bbd8",
+    "commit": "958c982c027994c9fb76c0a1d85cfa79f8fd312c",
     "tracked": 436
   },
   "landings": [

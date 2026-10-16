@@ -253,21 +253,51 @@ def test_sitting_view_keeps_the_model_and_the_adapter_sha():
     assert view["items"] == [{"id": "i0", "right": True}]
 
 
+def _three(*seeds):
+    return list(seeds)
+
+
 def test_round_refuses_a_p0_that_is_not_base():
     p0 = _rights([True, False], model="adapter", adapter_sha="seed-a")
+    seeds = _three(_seed([True, False], "seed-b"), _seed([True, False], "seed-c"),
+                   _seed([False, True], "seed-d"))
     with pytest.raises(SystemExit, match="model base"):
-        panel_guard.round_result(p0, [_seed([True, False], "seed-b")])
+        panel_guard.round_result(p0, seeds)
 
 
 def test_round_refuses_a_seed_that_is_not_an_adapter():
+    seeds = _three(_rights([True, False]), _seed([True, False], "seed-b"),
+                   _seed([False, True], "seed-c"))
     with pytest.raises(SystemExit, match="not an adapter"):
-        panel_guard.round_result(_rights([True, False]), [_rights([True, False])])
+        panel_guard.round_result(_rights([True, False]), seeds)
 
 
 def test_round_refuses_two_seeds_with_the_same_adapter_sha():
+    seeds = _three(_seed([True, False], "same"), _seed([False, True], "same"),
+                   _seed([True, False], "other"))
     with pytest.raises(SystemExit, match="share an adapter"):
-        panel_guard.round_result(_rights([True, False]),
-                                  [_seed([True, False], "same"), _seed([False, True], "same")])
+        panel_guard.round_result(_rights([True, False]), seeds)
+
+
+def test_round_refuses_any_count_but_three_seeds():
+    base = _rights([True, False])
+    two = [_seed([True, False], "a"), _seed([False, True], "b")]
+    with pytest.raises(SystemExit, match="exactly 3"):
+        panel_guard.round_result(base, two)
+    four = [*two, _seed([True, False], "c"), _seed([True, False], "d")]
+    with pytest.raises(SystemExit, match="exactly 3"):
+        panel_guard.round_result(base, four)
+
+
+def test_round_refuses_a_missing_or_empty_adapter_sha():
+    base = _rights([True, False])
+    rest = [_seed([True, False], "b"), _seed([False, True], "c")]
+    missing = _rights([True, False], model="adapter", adapter_sha=None)
+    with pytest.raises(SystemExit, match="no adapter"):
+        panel_guard.round_result(base, [missing, *rest])
+    empty = _rights([True, False], model="adapter", adapter_sha="")
+    with pytest.raises(SystemExit, match="no adapter"):
+        panel_guard.round_result(base, [empty, *rest])
 
 
 def test_pairing_refuses_mismatched_item_file_scorer_or_ids():
@@ -359,6 +389,108 @@ def panel_score_sha() -> str:
 def test_unchanged_scorer_is_accepted():
     assert panel.require_scorer() == panel.PANEL_SCORE_SHA256
     assert panel.require_scorer() == panel_score_sha()
+
+
+def _kept_file(path: Path, n_gsm: int = 140, n_wino: int = 140) -> Path:
+    lines = ['{"record": "meta"}']
+    for i in range(n_gsm):
+        lines.append(json.dumps({"decision": "kept", "source": "gsm8k", "id": f"gsm8k-test-{i}"}))
+    for i in range(n_wino):
+        lines.append(json.dumps({"decision": "kept", "source": "winogrande", "id": f"w-{i}"}))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
+def _frozen_machine(monkeypatch):
+    frozen = json.loads(panel.MACHINE_LINE.read_text(encoding="utf-8"))
+    monkeypatch.setattr(det_run, "machine_line", lambda: frozen)
+
+
+def test_item_pin_is_required_before_the_cap_and_on_the_guard(monkeypatch, tmp_path):
+    seen = []
+    _frozen_machine(monkeypatch)
+    monkeypatch.setattr(panel, "PANEL_ITEMS_SHA256", None)
+    items = _kept_file(tmp_path / "items.jsonl")
+    with pytest.raises(SystemExit, match="pin is not set"):
+        panel.prepare(lambda _line: seen.append("load"), cap=lambda: seen.append("cap"),
+                      items_path=items, adapter=None)
+    assert seen == []
+    monkeypatch.setattr(panel, "PANEL_ITEMS_SHA256", "0" * 64)
+    with pytest.raises(SystemExit, match="does not match"):
+        panel.require_items(items)
+    short = _kept_file(tmp_path / "short.jsonl", n_gsm=1, n_wino=1)
+    monkeypatch.setattr(panel, "PANEL_ITEMS_SHA256", panel.sha256_file(short))
+    with pytest.raises(SystemExit, match="140"):
+        panel.require_items(short)
+    monkeypatch.setattr(panel, "PANEL_ITEMS_SHA256", "abc")
+    baseline = {"scorer_sha256": panel.PANEL_SCORE_SHA256, "item_sha256": "nope",
+                "model": "base", "items": []}
+    with pytest.raises(SystemExit, match="item sha256 is not the pin"):
+        panel.guard_sittings(baseline, [])
+
+
+def test_guard_refuses_a_baseline_scorer_sha_that_is_not_the_pin(monkeypatch):
+    called = []
+    monkeypatch.setattr(panel_guard, "round_result", lambda *_args: called.append("pair"))
+    baseline = {"scorer_sha256": "0" * 64, "item_sha256": "item", "model": "base", "items": []}
+    with pytest.raises(SystemExit, match="baseline scorer"):
+        panel.guard_sittings(baseline, [])
+    assert called == []
+
+
+def test_adapter_and_the_reset_clock_are_checked_before_the_model(monkeypatch, tmp_path):
+    seen = []
+    real_load = panel.load_sitting
+    _frozen_machine(monkeypatch)
+    monkeypatch.setattr(panel_build, "outside_repo", lambda _path: None)
+    monkeypatch.setattr(panel, "apply_memory_cap", lambda: seen.append("cap"))
+    monkeypatch.setattr(panel, "load_sitting", lambda *args, **kwargs: seen.append("load"))
+    adapter = tmp_path / "nest" / "adapter"
+    adapter.mkdir(parents=True)
+    items = tmp_path / "items.jsonl"
+    items.write_text('{"record": "meta"}\n', encoding="utf-8", newline="\n")
+    out = tmp_path / "out.json"
+    with pytest.raises(SystemExit, match="manifest"):
+        panel.sit_main(["--items", str(items), "--out", str(out), "--adapter", str(adapter)])
+    assert seen == []
+
+    clock = {"n": 0}
+
+    def now():
+        clock["n"] += 1
+        return float(clock["n"])
+
+    monkeypatch.setattr(panel.time, "time", now)
+    real_prepare = panel.prepare
+
+    def wrapped(load, **kwargs):
+        clock["at_prepare"] = panel.time.time()
+        return real_prepare(load, **kwargs)
+
+    monkeypatch.setattr(panel, "prepare", wrapped)
+    monkeypatch.setattr(panel, "load_sitting", real_load)
+    monkeypatch.setattr(panel, "require_items", lambda path: "pinned")
+    captured = {}
+
+    def resets(t0):
+        captured["t0"] = t0
+        return 0
+
+    monkeypatch.setattr(parity, "driver_resets_since", resets)
+    import student
+    monkeypatch.setattr(student, "verify_weights", lambda *args, **kwargs: None)
+    monkeypatch.setattr(student, "load_tokenizer", lambda *args, **kwargs: object())
+
+    class _Model:
+        def eval(self):
+            return self
+
+    monkeypatch.setattr(student, "load_student", lambda *args, **kwargs: _Model())
+    monkeypatch.setattr(batched, "make_generate_many", lambda *args, **kwargs: (lambda asks: {}))
+    monkeypatch.setattr(panel, "run_generation", lambda items, generate_many: ([], 0.0))
+    monkeypatch.setattr(panel, "load_items", lambda path: ({"record": "meta"}, []))
+    panel.sit_main(["--items", str(items), "--out", str(out)])
+    assert captured["t0"] < clock["at_prepare"]
 
 
 def test_guard_refuses_a_changed_scorer_before_pairing(monkeypatch):
