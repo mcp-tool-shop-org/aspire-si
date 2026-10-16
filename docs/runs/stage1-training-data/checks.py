@@ -115,9 +115,11 @@ def report(rows):
     print(f"  content kinds: {dict(sorted(kinds.items()))}")
     print(f"  tiers: {dict(sorted(tiers.items()))}")
     warns = []
+    # L lessons are 30 items, 6 of each kind. T lessons stay 40 and 8.
+    expected = 6 if rows and str(rows[0].get("lesson", "")).startswith("L") else 8
     for k in KINDS:
-        if by_kind.get(k, 0) != 8:
-            warns.append(f"kind {k}: {by_kind.get(k, 0)} items, expected 8")
+        if by_kind.get(k, 0) != expected:
+            warns.append(f"kind {k}: {by_kind.get(k, 0)} items, expected {expected}")
     small = min(sides.values(), default=0)
     if small < sum(sides.values()) * 0.4:
         warns.append("counterweight sides off balance")
@@ -151,11 +153,14 @@ def report(rows):
 def render(rows, path):
     lesson = rows[0]["lesson"] if rows else "??"
     trait = rows[0]["trait"] if rows else "?"
+    # L lessons publish 30 items, 6 of each kind. T lessons stay 40 and 8.
+    per_kind = 6 if str(lesson).startswith("L") else 8
+    total = per_kind * 5
     out = [f"# Stage 1 training data — {lesson}: {trait}",
            "",
            f"*Generated from `{path.name}` by `checks.py --render`. Edit the JSONL, not this file.*",
            "",
-           "The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 of each "
+           f"The role-shaping curriculum (handoff of 2026-10-10): {total} items for one trait, {per_kind} of each "
            "kind — A identity and purpose, B thinking patterns (at least 3 non-verification), "
            "C contrasting cases, D the role in action with if–then self-talk, E quiz items each "
            "with one pre-written variant. Every assistant reply, whole, is the training target.",

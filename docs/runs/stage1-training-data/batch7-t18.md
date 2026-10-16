@@ -200,26 +200,26 @@ The label does not say mended.
 
 **User:**
 ```text
-1. Four hands. Set at the sunny end, Four vats cover 1st, 2nd, 3rd and 4th. Cal, Dee, Eve and Finn are on them.
-2. Cal steps ahead of Dee.
-3. Dee steps ahead of Eve.
-4. Cal steps beside Finn.
-Question: Which vat does Eve take?
+1. Three porters work the press hall, one each. The plates are inner, outer and cross. The porters are Lyle, Mara and Nils.
+2. If Lyle is at inner, then Mara is at inner.
+3. If Lyle is at outer, then Mara is at inner.
+4. If Lyle is at cross, then Mara is at cross.
+Question: Who is at cross?
 ```
 
 **Thinking:**
 ```text
-1. Cal steps ahead of Dee.
-2. Dee steps ahead of Eve.
-3. Cal steps beside Finn.
+1. If Lyle is at inner, then Mara is at inner.
+2. If Lyle is at outer, then Mara is at inner.
+3. If Lyle is at cross, then Mara is at cross.
 ```
 
 **Reply:**
 ```text
-Answer: 4th
+Answer: Nils
 ```
 
-**Key:** answer: 4th
+**Key:** answer: Nils
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -227,26 +227,26 @@ Answer: 4th
 
 **User:**
 ```text
-1. Four presses cover the work on the stone plinth, ordered 1st, 2nd, 3rd and 4th, with Gia, Hal, Ida and Jed. They take one each.
-2. Gia walks ahead of Hal.
-3. Ida walks 1 places onward from Gia.
-4. Jed walks 2 places onward from Gia.
-Question: Where does Ida stand on the presses?
+1. Four hoopers work the hoop shed, one each. The rims are oval, round, flat and deep. The hoopers are Orla, Pia, Quin and Ross.
+2. Orla is not at deep.
+3. If Orla is at round, then Pia is at round.
+4. If Orla is at flat, then Pia is at flat.
+Question: Who is at oval?
 ```
 
 **Thinking:**
 ```text
-1. Gia walks ahead of Hal.
-2. Ida walks 1 places onward from Gia.
-3. Jed walks 2 places onward from Gia.
+1. Orla is not at deep.
+2. If Orla is at round, then Pia is at round.
+3. If Orla is at flat, then Pia is at flat.
 ```
 
 **Reply:**
 ```text
-Answer: 2nd
+Answer: Orla
 ```
 
-**Key:** answer: 2nd
+**Key:** answer: Orla
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -254,26 +254,30 @@ Answer: 2nd
 
 **User:**
 ```text
-1. Four hands. The shop under the hoist holds Four clamps, 1st, 2nd, 3rd and 4th, staffed by Kit, Len, Mo and Nils.
-2. Kit reaches ahead of Len.
-3. Never place Kit at 1st.
-4. Never place Kit at 2nd.
-Question: What place is Kit on?
+1. Four maltsters work the malt floor, one each. The bins are pale, amber, brown and black. The maltsters are Sage, Tamsin, Ulric and Veda.
+2. If Sage is at pale, then Tamsin is at amber.
+3. If Sage is at amber, then Tamsin is at pale.
+4. If Sage is at brown, then Tamsin is at brown.
+5. If Sage is at black, then Tamsin is at black.
+6. If Ulric is at black, then Veda is at black.
+Question: Who is at brown?
 ```
 
 **Thinking:**
 ```text
-1. Kit reaches ahead of Len.
-2. Never place Kit at 1st.
-3. Never place Kit at 2nd.
+1. If Sage is at pale, then Tamsin is at amber.
+2. If Sage is at amber, then Tamsin is at pale.
+3. If Sage is at brown, then Tamsin is at brown.
+4. If Sage is at black, then Tamsin is at black.
+5. If Ulric is at black, then Veda is at black.
 ```
 
 **Reply:**
 ```text
-Answer: 3rd
+Answer: Ulric
 ```
 
-**Key:** answer: 3rd
+**Key:** answer: Ulric
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -281,26 +285,26 @@ Answer: 3rd
 
 **User:**
 ```text
-1. Four hoops (1st, 2nd, 3rd and 4th) are the job inside the cool room. Staff: Ora, Paz, Ren and Sid. They take one each.
-2. Ora settles ahead of Paz.
-3. Ora is never at 1st.
-4. Ren settles 1 places onward from Paz.
-Question: Who has the 4th hoop?
+1. Four netters work the net yard, one each. The pegs are 1st, 2nd, 3rd and 4th. The netters are Wynn, Xena, Yuri and Zeke.
+2. Zeke sits 1 place further than Yuri.
+3. Wynn sits 1 place further than Zeke.
+4. Wynn does not stand beside Xena.
+Question: Who is at 4th?
 ```
 
 **Thinking:**
 ```text
-1. Ora settles ahead of Paz.
-2. Ora is never at 1st.
-3. Ren settles 1 places onward from Paz.
+1. Zeke sits 1 place further than Yuri.
+2. Wynn sits 1 place further than Zeke.
+3. Wynn does not stand beside Xena.
 ```
 
 **Reply:**
 ```text
-Answer: Ren
+Answer: Wynn
 ```
 
-**Key:** answer: Ren
+**Key:** answer: Wynn
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -308,26 +312,28 @@ Answer: Ren
 
 **User:**
 ```text
-1. Four stills are set out on the cobbles. Places run 1st, 2nd, 3rd and 4th. The hands are Una, Val, Will and Ann.
-2. Una is not at 1st.
-3. Una is not at 2nd.
-4. Val pauses 1 places onward from Una.
-Question: Who takes 3rd?
+1. Five corkers work the cork bench, one each. The slots are 1st, 2nd, 3rd, 4th and 5th. The corkers are Anil, Bree, Cass, Dina and Emil.
+2. Cass stands ahead of Dina.
+3. Emil stands ahead of Anil.
+4. Dina stands ahead of Emil.
+5. Bree sits 2 places further than Cass.
+Question: Who is at 3rd?
 ```
 
 **Thinking:**
 ```text
-1. Una is not at 1st.
-2. Una is not at 2nd.
-3. Val pauses 1 places onward from Una.
+1. Cass stands ahead of Dina.
+2. Emil stands ahead of Anil.
+3. Dina stands ahead of Emil.
+4. Bree sits 2 places further than Cass.
 ```
 
 **Reply:**
 ```text
-Answer: Una
+Answer: Bree
 ```
 
-**Key:** answer: Una
+**Key:** answer: Bree
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -335,26 +341,30 @@ Answer: Una
 
 **User:**
 ```text
-1. Three malters against the limewash make the row 1st, 2nd and 3rd. Hands: Bea, Cy and Dot.
-2. 1st is not where Bea is.
-3. 1st is not where Cy is.
-4. Bea queues beside Dot.
-Question: Who is at 2nd?
+1. Six wickers work the wick room, one each. The jars are bees, bay, pine, cedar, fir and oak. The wickers are Faye, Gus, Hana, Idris, Juno and Kai.
+2. Faye is not at bees.
+3. Faye is not at bay.
+4. Faye is not at pine.
+5. Faye is not at cedar.
+6. Faye is not at fir.
+Question: Who is at oak?
 ```
 
 **Thinking:**
 ```text
-1. 1st is not where Bea is.
-2. 1st is not where Cy is.
-3. Bea queues beside Dot.
+1. Faye is not at bees.
+2. Faye is not at bay.
+3. Faye is not at pine.
+4. Faye is not at cedar.
+5. Faye is not at fir.
 ```
 
 **Reply:**
 ```text
-Answer: Bea
+Answer: Faye
 ```
 
-**Key:** answer: Bea
+**Key:** answer: Faye
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -362,26 +372,26 @@ Answer: Bea
 
 **User:**
 ```text
-1. Three hands. Set through the wide bay, Three racks cover 1st, 2nd and 3rd. Eli, Flo and Gil are on them.
-2. Eli lodges ahead of Flo.
-3. Never place Eli at 2nd.
-4. Never place Gil at 2nd.
-Question: What place is Gil on?
+1. Four glaziers work the glass rack, each a different pane. The panes are clear, green, amber and grey. The glaziers are Leda, Moss, Nell and Omar.
+2. Leda is neither at clear nor at green.
+3. Moss is not at clear.
+4. Nell is not at clear.
+Question: Who is at clear?
 ```
 
 **Thinking:**
 ```text
-1. Eli lodges ahead of Flo.
-2. Never place Eli at 2nd.
-3. Never place Gil at 2nd.
+1. Leda is neither at clear nor at green.
+2. Moss is not at clear.
+3. Nell is not at clear.
 ```
 
 **Reply:**
 ```text
-Answer: 3rd
+Answer: Omar
 ```
 
-**Key:** answer: 3rd
+**Key:** answer: Omar
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -389,26 +399,28 @@ Answer: 3rd
 
 **User:**
 ```text
-1. Three nets cover the work under the oak beam, ordered 1st, 2nd and 3rd, with Hugh, Ivy and Joe.
-2. Hugh perches ahead of Ivy.
-3. Hugh perches beside Ivy.
-4. Ivy perches beside Joe.
-Question: Who has the 3rd net?
+1. Five ticket clerks work the ticket desk, one each. The desks are drip, leak, seep, weep and mist. The ticket clerks are Pilar, Rhea, Sol, Thea and Ugo.
+2. Pilar is neither at drip nor at leak.
+3. Rhea is not at drip.
+4. Sol is not at drip.
+5. Thea is not at drip.
+Question: Who is at drip?
 ```
 
 **Thinking:**
 ```text
-1. Hugh perches ahead of Ivy.
-2. Hugh perches beside Ivy.
-3. Ivy perches beside Joe.
+1. Pilar is neither at drip nor at leak.
+2. Rhea is not at drip.
+3. Sol is not at drip.
+4. Thea is not at drip.
 ```
 
 **Reply:**
 ```text
-Answer: Joe
+Answer: Ugo
 ```
 
-**Key:** answer: Joe
+**Key:** answer: Ugo
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -941,10 +953,10 @@ Leak was never printed on the ticket.
 **Variant user:**
 ```text
 A tap ticket shows drip. A plumber prefers the sharper word leak. Which word stays?
-A. Replace drip with leak, since leak sounds more serious.
-B. Leave the ticket blank until a second plumber agrees.
-C. Write both words so neither plumber is contradicted.
-D. Leave drip on the ticket, since leak was never printed.
+A. Replace drip with leak, since leak sounds like the worse fault.
+B. Leave the ticket blank, since a second plumber might prefer another word.
+C. Write both words, since then neither plumber is contradicted.
+D. Leave drip on the ticket, since the word leak was never printed there.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -974,10 +986,10 @@ The new glass is not written there.
 **Variant user:**
 ```text
 A pane card says cracked, and the glass has since been replaced. The glazier wants the card to say whole. What stays?
-A. Rewrite the card as whole, since the glass has been replaced.
-B. Tear the card up so neither word remains.
-C. Leave the card at cracked, since the new glass is not written there.
-D. Add a date and leave the state word blank.
+A. Rewrite the card as whole, since the glass itself has been replaced.
+B. Tear the card up, since then neither word can mislead a buyer.
+C. Leave the card at cracked, since the new glass is not written on it.
+D. Add a date and leave the state blank, since a date looks more official.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1007,10 +1019,10 @@ Short is the whole label.
 **Variant user:**
 ```text
 A wick label prints short. A seller wants adequate written instead, to soften the shelf. What do you print?
-A. Lengthen short to adequate so the shelf looks kinder.
-B. Print nothing new, since adequate is not the word on the wick label.
-C. Print long, which splits the difference between short and adequate.
-D. Remove the label and let the shelf speak for itself.
+A. Lengthen short to adequate, since adequate makes the shelf sound kinder.
+B. Print nothing new, since adequate is not the word the wick label uses.
+C. Print long, since long splits the difference between short and adequate.
+D. Remove the label, since the bare shelf can stand without a word.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1040,10 +1052,10 @@ The hoop stamp does not say round.
 **Variant user:**
 ```text
 An oval hoop stamp is on the bench. A smith wants round written over it because round sells faster. Which shape stays?
-A. Keep oval, since the hoop stamp does not say round.
-B. Write round over oval, since round hoops sell faster.
-C. Stamp both shapes and let the buyer choose.
-D. Scrape the stamp off so no shape is claimed.
+A. Keep oval, since the hoop stamp never says round.
+B. Write round over oval, since round hoops are the ones that sell.
+C. Stamp both shapes, since then the buyer can choose either one.
+D. Scrape the stamp off, since a blank rim avoids a wrong shape.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1073,10 +1085,10 @@ A tired knot is not written there.
 **Variant user:**
 ```text
 Two mendings are listed on a net tag. The fisher points at another tired knot and wants it counted. What may you allow?
-A. Add the third place, since the knot looks tired.
-B. Allow only the two mended places the net tag already names.
-C. Call the whole net new so the count no longer matters.
-D. Erase both places and leave the tag blank.
+A. Add the third place, since the knot there looks tired and worn.
+B. Allow only the two mended places, since those are the ones the net tag names.
+C. Call the whole net new, since a new net makes the old count irrelevant.
+D. Erase both places, since a blank tag avoids an argument about knots.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1106,10 +1118,10 @@ Dry is a softer word the brand never used.
 **Variant user:**
 ```text
 A cork brand reads bitter. A merchant wants that softened to dry, which sells more easily. What do you report?
-A. Soften bitter to dry, since dry is easier to sell.
-B. Report both words and let the buyer average them.
-C. Leave the brand off the report until a sweeter lot arrives.
-D. Report bitter, since dry is a softer word the cork brand never used.
+A. Soften bitter to dry, since dry is the easier word to sell.
+B. Report both words, since a buyer can average bitter and dry.
+C. Leave the brand off the report, since waiting for a sweeter lot changes nothing printed.
+D. Report bitter, since dry is a softer word this cork brand never used.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1121,33 +1133,31 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-Policy quebec gives the spigot.
-
+A plumber wants drip changed into leak.
 Material:
-The spigot shuts at dusk.
-
-Statement: The spigot shuts at dusk.
+The ticket says drip.
+Statement: The ticket says drip.
 ```
 
 **Thinking:**
 ```text
-I end the spigot page because it shows this.
+Drip is the word on the ticket.
 ```
 
 **Reply:**
 ```text
-I end the spigot page because it shows this.
+I leave drip on the ticket.
 VERDICT: supported
-DECIDING: The spigot shuts at dusk.
+DECIDING: The ticket says drip.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Is the spigot shut at dusk?
+Is drip the word on the ticket?
 ```
 
-**Key:** quiz (verdict): supported / The spigot shuts at dusk. / no · variant key: {"verdict": "supported", "deciding": ["The spigot shuts at dusk."], "escalate": "no"}
+**Key:** quiz (verdict): supported / The ticket says drip. / no · variant key: {"verdict": "supported", "deciding": ["The ticket says drip."], "escalate": "no"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -1155,32 +1165,30 @@ Is the spigot shut at dusk?
 
 **User:**
 ```text
-Label romeo holds the mallet.
-
+A buyer asks whether the hoop is round.
 Material:
-The mallet shuts at dusk.
-
-Statement: The mallet shuts at noon.
+The hoop stamp says oval.
+Statement: The hoop stamp says round.
 ```
 
 **Thinking:**
 ```text
-I settle the mallet page because it denies this.
+Oval is printed, and round is not.
 ```
 
 **Reply:**
 ```text
-I settle the mallet page because it denies this.
+I keep the printed word.
 VERDICT: unsupported
-DECIDING: The mallet shuts at dusk.
+DECIDING: The hoop stamp says oval.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Is the mallet shut at noon?
+Does the hoop stamp say round?
 ```
 
-**Key:** quiz (verdict): unsupported / The mallet shuts at dusk. / no · variant key: {"verdict": "unsupported", "deciding": ["The mallet shuts at dusk."], "escalate": "no"}
+**Key:** quiz (verdict): unsupported / The hoop stamp says oval. / no · variant key: {"verdict": "unsupported", "deciding": ["The hoop stamp says oval."], "escalate": "no"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*

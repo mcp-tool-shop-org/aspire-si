@@ -200,26 +200,26 @@ I do not read it hoping for smaller.
 
 **User:**
 ```text
-1. Four wheels are set by the north wall. Places run 1st, 2nd, 3rd and 4th. The hands are Nia, Otto, Pia and Quin.
-2. Nia stands ahead of Otto.
-3. Otto stands ahead of Pia.
-4. Otto stands ahead of Quin.
-Question: Which wheel does Otto take?
+1. Four clerks work the north dock, one each. The berths are 1st, 2nd, 3rd and 4th. The clerks are Nia, Bram, Cora and Drew.
+2. Cora stands ahead of Nia.
+3. Bram stands ahead of Nia.
+4. Cora sits 1 place further than Drew.
+Question: Who is at 4th?
 ```
 
 **Thinking:**
 ```text
-1. Nia stands ahead of Otto.
-2. Otto stands ahead of Pia.
-3. Otto stands ahead of Quin.
+1. Cora stands ahead of Nia.
+2. Bram stands ahead of Nia.
+3. Cora sits 1 place further than Drew.
 ```
 
 **Reply:**
 ```text
-Answer: 2nd
+Answer: Nia
 ```
 
-**Key:** answer: 2nd
+**Key:** answer: Nia
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -227,26 +227,28 @@ Answer: 2nd
 
 **User:**
 ```text
-1. Four hooks under the skylight make the row 1st, 2nd, 3rd and 4th. Hands: Rosa, Sol, Tess and Uma. They take one each.
-2. Rosa sits ahead of Sol.
-3. Rosa sits ahead of Tess.
-4. Uma sits 2 places onward from Rosa.
-Question: Where does Uma stand on the hooks?
+1. Five bakers work the east kiln, one each. The shelves are 1st, 2nd, 3rd, 4th and 5th. The bakers are Enid, Falk, Gwen, Holt and Ivo.
+2. Falk stands ahead of Holt.
+3. Enid stands ahead of Gwen.
+4. Holt does not stand beside Gwen.
+5. Falk sits 1 place further than Enid.
+Question: Who is at 4th?
 ```
 
 **Thinking:**
 ```text
-1. Rosa sits ahead of Sol.
-2. Rosa sits ahead of Tess.
-3. Uma sits 2 places onward from Rosa.
+1. Falk stands ahead of Holt.
+2. Enid stands ahead of Gwen.
+3. Holt does not stand beside Gwen.
+4. Falk sits 1 place further than Enid.
 ```
 
 **Reply:**
 ```text
-Answer: 3rd
+Answer: Ivo
 ```
 
-**Key:** answer: 3rd
+**Key:** answer: Ivo
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -254,26 +256,26 @@ Answer: 3rd
 
 **User:**
 ```text
-1. Four hands. Set along the east bench, Four rakes cover 1st, 2nd, 3rd and 4th. Vic, Wes, Yale and Zia are on them.
-2. Vic waits ahead of Wes.
-3. Never place Vic at 1st.
-4. Wes waits ahead of Yale.
-Question: What place is Yale on?
+1. Four weavers work the south loft, one each. The pegs are 1st, 2nd, 3rd and 4th. The weavers are Joss, Kira, Lars and Mira.
+2. Mira stands ahead of Kira.
+3. Joss sits 1 place further than Lars.
+4. Mira does not stand beside Joss.
+Question: Who is at 1st?
 ```
 
 **Thinking:**
 ```text
-1. Vic waits ahead of Wes.
-2. Never place Vic at 1st.
-3. Wes waits ahead of Yale.
+1. Mira stands ahead of Kira.
+2. Joss sits 1 place further than Lars.
+3. Mira does not stand beside Joss.
 ```
 
 **Reply:**
 ```text
-Answer: 4th
+Answer: Mira
 ```
 
-**Key:** answer: 4th
+**Key:** answer: Mira
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -281,74 +283,18 @@ Answer: 4th
 
 **User:**
 ```text
-1. Four shelfs cover the work past the drying line, ordered 1st, 2nd, 3rd and 4th, with Bram, Cleo, Dina and Enzo. They take one each.
-2. Bram rests ahead of Cleo.
-3. Cleo rests ahead of Dina.
-4. Bram does not rests beside Cleo.
-Question: Who has the 3rd shelf?
+1. Four dyers work the dye house, one each. The vats are madder, woad, weld and indigo. The dyers are Ned, Opal, Penn and Ruth.
+2. Ned is not at madder.
+3. Ned is not at weld.
+4. Ned is not at woad.
+Question: Who is at indigo?
 ```
 
 **Thinking:**
 ```text
-1. Bram rests ahead of Cleo.
-2. Cleo rests ahead of Dina.
-3. Bram does not rests beside Cleo.
-```
-
-**Reply:**
-```text
-Answer: Cleo
-```
-
-**Key:** answer: Cleo
-
-*invented: puzzle, written for this item (key by construction)*
-
-### T15-B-05 · kind B · puzzle · tier 3 · rechecks a settled line · tags: non-verification
-
-**User:**
-```text
-1. Four hands. The shop across from the cistern holds Four cradles, 1st, 2nd, 3rd and 4th, staffed by Faye, Gus, Hana and Ivo.
-2. Faye is not at 1st.
-3. Faye is not at 2nd.
-4. Faye is not at 3rd.
-Question: Who takes 4th?
-```
-
-**Thinking:**
-```text
-1. Faye is not at 1st.
-2. Faye is not at 2nd.
-3. Faye is not at 3rd.
-```
-
-**Reply:**
-```text
-Answer: Faye
-```
-
-**Key:** answer: Faye
-
-*invented: puzzle, written for this item (key by construction)*
-
-### T15-B-06 · kind B · puzzle · tier 3 · stops once settled · tags: non-verification
-
-**User:**
-```text
-1. Five beams (1st, 2nd, 3rd, 4th and 5th) are the job near the loading door. Staff: Joss, Kira, Ludo, Mara and Ned.
-2. 1st is not where Joss is.
-3. 1st is not where Kira is.
-4. 1st is not where Ludo is.
-5. 1st is not where Mara is.
-Question: Who is at 1st?
-```
-
-**Thinking:**
-```text
-1. 1st is not where Joss is.
-2. 1st is not where Kira is.
-3. 1st is not where Ludo is.
-4. 1st is not where Mara is.
+1. Ned is not at madder.
+2. Ned is not at weld.
+3. Ned is not at woad.
 ```
 
 **Reply:**
@@ -360,34 +306,86 @@ Answer: Ned
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T15-B-07 · kind B · puzzle · tier 4 · rechecks a settled line · tags: non-verification
+### T15-B-05 · kind B · puzzle · tier 3 · rechecks a settled line · tags: non-verification
 
 **User:**
 ```text
-1. Six oars are set over the drain grate. Places run 1st, 2nd, 3rd, 4th, 5th and 6th. The hands are Opal, Penn, Quill, Rhea, Soren and Tamsin.
-2. Never place Opal at 1st.
-3. Never place Penn at 1st.
-4. Never place Quill at 1st.
-5. Never place Rhea at 1st.
-6. Never place Soren at 1st.
-Question: Which hand is on 1st?
+1. Five riggers work the rope walk, one each. The coils are hemp, flax, coir, sisal and jute. The riggers are Seth, Tess, Una, Vera and Wes.
+2. Una is not at jute.
+3. Una is not at flax.
+4. Una is not at hemp.
+5. Una is not at sisal.
+Question: Who is at coir?
 ```
 
 **Thinking:**
 ```text
-1. Never place Opal at 1st.
-2. Never place Penn at 1st.
-3. Never place Quill at 1st.
-4. Never place Rhea at 1st.
-5. Never place Soren at 1st.
+1. Una is not at jute.
+2. Una is not at flax.
+3. Una is not at hemp.
+4. Una is not at sisal.
 ```
 
 **Reply:**
 ```text
-Answer: Tamsin
+Answer: Una
 ```
 
-**Key:** answer: Tamsin
+**Key:** answer: Una
+
+*invented: puzzle, written for this item (key by construction)*
+
+### T15-B-06 · kind B · puzzle · tier 3 · stops once settled · tags: non-verification
+
+**User:**
+```text
+1. Three cooks work the spice bench, one each. The tins are ladle, whisk and sieve. The cooks are Yves, Zora and Bea.
+2. If Yves is at ladle, then Zora is at whisk.
+3. If Yves is at whisk, then Zora is at ladle.
+4. Yves is not at sieve.
+Question: Who is at sieve?
+```
+
+**Thinking:**
+```text
+1. If Yves is at ladle, then Zora is at whisk.
+2. If Yves is at whisk, then Zora is at ladle.
+3. Yves is not at sieve.
+```
+
+**Reply:**
+```text
+Answer: Bea
+```
+
+**Key:** answer: Bea
+
+*invented: puzzle, written for this item (key by construction)*
+
+### T15-B-07 · kind B · puzzle · tier 4 · rechecks a settled line · tags: non-verification
+
+**User:**
+```text
+1. Four teachers work the chalk room, each a different tray. The trays are slate, chalk, stylus and sponge. The teachers are Clem, Dale, Fern and Glen.
+2. If Fern is at stylus, then Dale is at sponge.
+3. Dale is at slate.
+4. Fern is not at sponge.
+Question: Who is at chalk?
+```
+
+**Thinking:**
+```text
+1. If Fern is at stylus, then Dale is at sponge.
+2. Dale is at slate.
+3. Fern is not at sponge.
+```
+
+**Reply:**
+```text
+Answer: Fern
+```
+
+**Key:** answer: Fern
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -395,30 +393,26 @@ Answer: Tamsin
 
 **User:**
 ```text
-1. Six rungs at the tool chest make the row 1st, 2nd, 3rd, 4th, 5th and 6th. Hands: Ulric, Willa, Xen, Yara, Ada and Bo.
-2. Ulric boards ahead of Willa.
-3. Willa boards ahead of Xen.
-4. Xen boards ahead of Yara.
-5. Yara boards ahead of Ada.
-6. Ada boards ahead of Bo.
-Question: Which place holds Ada?
+1. Four makers work the sail loft, one each. The hooks are locker, spar, sail and cleat. The makers are Hedy, Iris, Jules and Kit.
+2. If Hedy is at spar, then Iris is at spar.
+3. If Hedy is at sail, then Iris is at sail.
+4. If Hedy is at cleat, then Iris is at cleat.
+Question: Who is at locker?
 ```
 
 **Thinking:**
 ```text
-1. Ulric boards ahead of Willa.
-2. Willa boards ahead of Xen.
-3. Xen boards ahead of Yara.
-4. Yara boards ahead of Ada.
-5. Ada boards ahead of Bo.
+1. If Hedy is at spar, then Iris is at spar.
+2. If Hedy is at sail, then Iris is at sail.
+3. If Hedy is at cleat, then Iris is at cleat.
 ```
 
 **Reply:**
 ```text
-Answer: 5th
+Answer: Hedy
 ```
 
-**Key:** answer: 5th
+**Key:** answer: Hedy
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -955,10 +949,10 @@ The peg already settled the water.
 **Variant user:**
 ```text
 The water claim rests on a peg that is already down. A colleague offers another watch of it. Which course is yours?
-A. Decline the second watch, since the sluice peg already settled the water.
-B. Watch the peg again, since a first look can be too quick to trust.
-C. Ask for a different sluice before answering the water claim.
-D. Raise the peg so the offered watch has a new position.
+A. Turn down the extra watch, since the sluice peg has already settled the water.
+B. Watch the peg again, since a hurried first look can miss a later change.
+C. Ask for a different sluice, since a fresh channel would be easier to read.
+D. Raise the peg, since a higher peg gives the new watch a different height.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -988,10 +982,10 @@ A second writing changes nothing.
 **Variant user:**
 ```text
 Cool is already chalked on the kiln door. Rubbing it out is on offer. Which line do you keep?
-A. Rub the cool mark out and chalk it again more firmly.
-B. Keep the cool mark, since rubbing it out only starts a second lap.
-C. Ask the baker which temperature was meant before trusting chalk.
-D. Leave the door blank so neither chalk has to be trusted.
+A. Rub the cool mark out, since a firmer chalk line would look more sure.
+B. Keep the cool mark, since wiping the chalk only opens a second lap.
+C. Ask the baker which temperature was meant, since the chalk might be a guess.
+D. Leave the door blank, since blank chalk cannot be misread by the next shift.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1021,10 +1015,10 @@ The signature already closed the count.
 **Variant user:**
 ```text
 Nine crates are already signed on a cargo tally. A third count is requested. Which figure stays?
-A. Count the crates a third time, since a signature can be hasty.
-B. Send the tally back unsigned until a fourth count agrees.
-C. Keep the signed nine, since a third count does not replace the tally.
-D. Change nine to ten so the extra count has a reason.
+A. Count the crates a third time, since a signature can be rushed.
+B. Send the tally back unsigned, since a fourth count might finally agree.
+C. Keep the signed nine, since another count does not replace that tally.
+D. Change nine to ten, since the extra crate needs a figure of its own.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1054,10 +1048,10 @@ Reading it aloud adds no silt.
 **Variant user:**
 ```text
 Silt has already closed a weir gate in the log. A night hand wants that entry read aloud. What do you do?
-A. Copy the entry into a second book before anyone acts.
-B. Open the gate while the entry is being read aloud.
-C. Ask whether the silt was measured in inches or feet.
-D. Leave the closed entry, since reading it aloud adds no new silt.
+A. Copy the entry into a second book, since a copy feels safer before anyone acts.
+B. Open the gate while the entry is read, since the night hand is already waiting.
+C. Ask whether the silt was measured in inches, since the unit might change the call.
+D. Leave the closed entry, since saying it aloud adds no new silt.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1087,10 +1081,10 @@ The card does not print a hidden defect.
 **Variant user:**
 ```text
 Batch 4 is marked finished on its dye card. A search for an unprinted defect is requested. Which course follows?
-A. Reopen finished and hunt the card for a defect it does not name.
-B. Mark the batch ruined so the search has a result.
-C. Leave finished closed, since the dye card prints no hidden defect.
-D. Ask for a new batch number before accepting finished.
+A. Reopen finished and hunt the card, since an unnamed defect might still be hiding.
+B. Mark the batch ruined, since the search needs a result to file.
+C. Leave finished closed, since the dye card names no hidden defect.
+D. Ask for a new batch number, since a fresh number would restart the card.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1120,10 +1114,10 @@ One failure already sits there.
 **Variant user:**
 ```text
 A spar gauge has failed its bend. Someone wants a second failure stamp on that same gauge. Which line do you keep?
-A. Add the second stamp so the file looks thorough.
-B. Refuse the second stamp, since the spar gauge has already failed the bend.
-C. Pass the bend and keep only the tidier stamp.
-D. Measure a different spar before answering this gauge.
+A. Add the second stamp, since two stamps make the file look thorough.
+B. Refuse the second stamp, since the spar gauge has already failed that bend.
+C. Pass the bend, since the tidier stamp is the one people will read.
+D. Measure a different spar, since this gauge might belong to another job.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -1135,33 +1129,31 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-Policy quebec gives the harness.
-
+The dock gate was read once already.
 Material:
-The harness shuts at dusk.
-
-Statement: The harness shuts at dusk.
+The dock gate is shut.
+Statement: The dock gate is shut.
 ```
 
 **Thinking:**
 ```text
-I end the harness page because it shows this.
+The gate line is already read.
 ```
 
 **Reply:**
 ```text
-I end the harness page because it shows this.
+I leave that settled line.
 VERDICT: supported
-DECIDING: The harness shuts at dusk.
+DECIDING: The dock gate is shut.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Is the harness shut at dusk?
+Does the card say the dock gate is shut?
 ```
 
-**Key:** quiz (verdict): supported / The harness shuts at dusk. / no · variant key: {"verdict": "supported", "deciding": ["The harness shuts at dusk."], "escalate": "no"}
+**Key:** quiz (verdict): supported / The dock gate is shut. / no · variant key: {"verdict": "supported", "deciding": ["The dock gate is shut."], "escalate": "no"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -1169,32 +1161,30 @@ Is the harness shut at dusk?
 
 **User:**
 ```text
-Label romeo holds the ledger.
-
+An oven card is taped to the door.
 Material:
-The ledger shuts at dusk.
-
-Statement: The ledger shuts at noon.
+The oven card reads 180.
+Statement: The oven card reads 200.
 ```
 
 **Thinking:**
 ```text
-I settle the ledger page because it denies this.
+The card shows 180, not 200.
 ```
 
 **Reply:**
 ```text
-I settle the ledger page because it denies this.
+I close the page here.
 VERDICT: unsupported
-DECIDING: The ledger shuts at dusk.
+DECIDING: The oven card reads 180.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Is the ledger shut at noon?
+Does the oven card read 200?
 ```
 
-**Key:** quiz (verdict): unsupported / The ledger shuts at dusk. / no · variant key: {"verdict": "unsupported", "deciding": ["The ledger shuts at dusk."], "escalate": "no"}
+**Key:** quiz (verdict): unsupported / The oven card reads 180. / no · variant key: {"verdict": "unsupported", "deciding": ["The oven card reads 180."], "escalate": "no"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*

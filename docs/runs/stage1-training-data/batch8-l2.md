@@ -2,7 +2,7 @@
 
 *Generated from `batch8-l2.jsonl` by `checks.py --render`. Edit the JSONL, not this file.*
 
-The role-shaping curriculum (handoff of 2026-10-10): 40 items for one trait, 8 of each kind — A identity and purpose, B thinking patterns (at least 3 non-verification), C contrasting cases, D the role in action with if–then self-talk, E quiz items each with one pre-written variant. Every assistant reply, whole, is the training target.
+The role-shaping curriculum (handoff of 2026-10-10): 30 items for one trait, 6 of each kind — A identity and purpose, B thinking patterns (at least 3 non-verification), C contrasting cases, D the role in action with if–then self-talk, E quiz items each with one pre-written variant. Every assistant reply, whole, is the training target.
 
 ### L2-A-01 · kind A · teaching · tier 1 · works the pattern through · tags: tree-with-pruning
 
@@ -149,57 +149,59 @@ The three assays under it stay unread.
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
-### L2-B-01 · kind B · puzzle · tier 2 · stops when the pattern settles · tags: non-verification, constraint-grid
+### L2-B-01 · kind B · puzzle · tier 2 · stops when the pattern settles · tags: non-verification, tree-with-pruning
 
 **User:**
 ```text
-1. Four hands. The shop along the clay trough holds Four lofts, 1st, 2nd, 3rd and 4th, staffed by Yves, Zora, Cora and Dane.
-2. Yves roosts ahead of Zora.
-3. Yves roosts ahead of Cora.
-4. Yves roosts ahead of Dane.
-Question: What place is Yves on?
+1. Four tilers work the loft board, one each. The marks are cracked, whole, patched and open. The tilers are Kern, Leif, Mina and Nova.
+2. If Kern is at cracked, then Leif is at whole.
+3. If Leif is at whole, then Mina is at patched.
+4. Mina is not at patched.
+Question: Is Kern at cracked?
 ```
 
 **Thinking:**
 ```text
-1. Yves roosts ahead of Zora.
-2. Yves roosts ahead of Cora.
-3. Yves roosts ahead of Dane.
+1. If Kern is at cracked, then Leif is at whole.
+2. If Leif is at whole, then Mina is at patched.
+3. Mina is not at patched.
 ```
 
 **Reply:**
 ```text
-Answer: 1st
+Answer: unsupported
 ```
 
-**Key:** answer: 1st
+**Key:** answer: unsupported
 
 *invented: puzzle, written for this item (key by construction)*
 
-### L2-B-02 · kind B · puzzle · tier 2 · works the pattern through · tags: non-verification, constraint-grid
+### L2-B-02 · kind B · puzzle · tier 2 · works the pattern through · tags: non-verification, falsifier
 
 **User:**
 ```text
-1. Four slabs (1st, 2nd, 3rd and 4th) are the job near the wool bin. Staff: Elle, Ford, Gwen and Hart. They take one each.
-2. Elle kneels ahead of Ford.
-3. Elle kneels ahead of Gwen.
-4. Hart kneels 1 places onward from Elle.
-Question: Which place holds Hart?
+1. Four waxers work the wax shelf, one each. The jars are brass, tin, clay and iron. The waxers are Otis, Pema, Quill and Rafi.
+2. If Otis is at tin, then Pema is at brass.
+3. If Otis is at clay, then Pema is at brass.
+4. If Otis is at iron, then Pema is at brass.
+5. Pema cannot be at brass.
+Question: Is Otis at brass?
 ```
 
 **Thinking:**
 ```text
-1. Elle kneels ahead of Ford.
-2. Elle kneels ahead of Gwen.
-3. Hart kneels 1 places onward from Elle.
+1. If Otis is at tin, then Pema is at brass.
+2. If Otis is at clay, then Pema is at brass.
+3. If Otis is at iron, then Pema is at brass.
+4. Pema cannot be at brass.
 ```
 
 **Reply:**
 ```text
-Answer: 2nd
+Answer: supported
 ```
 
-**Key:** answer: 2nd
+**Key:** answer: supported
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -207,107 +209,111 @@ Answer: 2nd
 
 **User:**
 ```text
-1. Four ricks are set on the maple block. Places run 1st, 2nd, 3rd and 4th. The hands are Iris, Kipp, Lena and Moss.
-2. Iris clusters ahead of Kipp.
-3. Iris clusters ahead of Lena.
-4. Iris is not at 1st.
-Question: Who takes 2nd?
+1. Five coaters work the coat row, one each. The hooks are wool, linen, hide, felt and canvas. The coaters are Sela, Tate, Uma, Vail and Xio.
+2. Vail is not at canvas.
+3. Sela is not at canvas.
+4. Tate is not at canvas.
+5. Uma is not at canvas.
+Question: Who is at canvas?
 ```
 
 **Thinking:**
 ```text
-1. Iris clusters ahead of Kipp.
-2. Iris clusters ahead of Lena.
-3. Iris is not at 1st.
+1. Vail is not at canvas.
+2. Sela is not at canvas.
+3. Tate is not at canvas.
+4. Uma is not at canvas.
 ```
 
 **Reply:**
 ```text
-Answer: Iris
+Answer: Xio
 ```
 
-**Key:** answer: Iris
+**Key:** answer: Xio
 
 *invented: puzzle, written for this item (key by construction)*
 
-### L2-B-04 · kind B · puzzle · tier 3 · works the pattern through · tags: non-verification, elimination
+### L2-B-04 · kind B · puzzle · tier 3 · works the pattern through · tags: non-verification, constraint-grid
 
 **User:**
 ```text
-1. Four shovels past the tin cistern make the row 1st, 2nd, 3rd and 4th. Hands: Orla, Piet, Remy and Suki. They take one each.
-2. Orla files ahead of Piet.
-3. Orla files ahead of Remy.
-4. Piet does not files beside Remy.
-Question: Where does Suki stand on the shovels?
+1. Three soot readers work the hearth step, one each. The jars are honey, tar and wax. The soot readers are Zed, Abel and Noor.
+2. If Zed is at honey, then Abel is at honey.
+3. If Zed is at tar, then Abel is at honey.
+4. If Abel is at honey, then Noor is at tar.
+Question: Who is at wax?
 ```
 
 **Thinking:**
 ```text
-1. Orla files ahead of Piet.
-2. Orla files ahead of Remy.
-3. Piet does not files beside Remy.
+1. If Zed is at honey, then Abel is at honey.
+2. If Zed is at tar, then Abel is at honey.
+3. If Abel is at honey, then Noor is at tar.
 ```
 
 **Reply:**
 ```text
-Answer: 3rd
+Answer: Zed
 ```
 
-**Key:** answer: 3rd
+**Key:** answer: Zed
 
 *invented: puzzle, written for this item (key by construction)*
 
-### L2-B-05 · kind B · puzzle · tier 4 · stops when the pattern settles · tags: non-verification, elimination
+### L2-B-05 · kind B · puzzle · tier 4 · stops when the pattern settles · tags: non-verification, constraint-grid
 
 **User:**
 ```text
-1. Three hands. Set under the reed mat, Three churns cover 1st, 2nd and 3rd. Theo, Veda and Abel are on them.
-2. Never place Theo at 1st.
-3. Never place Theo at 2nd.
-4. Theo marches beside Veda.
-Question: Which hand is on 1st?
+1. Four spouters work the gutter run, each a different cap. The caps are north, south, east and west. The spouters are Pavel, Rune, Sable and Torin.
+2. If Sable is at south, then Torin is at west.
+3. Sable is at south.
+4. Rune is not at east.
+Question: Who is at north?
 ```
 
 **Thinking:**
 ```text
-1. Never place Theo at 1st.
-2. Never place Theo at 2nd.
-3. Theo marches beside Veda.
+1. If Sable is at south, then Torin is at west.
+2. Sable is at south.
+3. Rune is not at east.
 ```
 
 **Reply:**
 ```text
-Answer: Abel
+Answer: Rune
 ```
 
-**Key:** answer: Abel
+**Key:** answer: Rune
 
 *invented: puzzle, written for this item (key by construction)*
 
-### L2-B-06 · kind B · puzzle · tier 4 · works the pattern through · tags: non-verification, elimination
+### L2-B-06 · kind B · puzzle · tier 4 · works the pattern through · tags: non-verification, stopping
 
 **User:**
 ```text
-1. Four weirs cover the work by the ash pail, ordered 1st, 2nd, 3rd and 4th, with Bess, Cass, Drew and Edie. They take one each.
-2. Bess is never at 1st.
-3. Bess is never at 3rd.
-4. Drew drifts 2 places onward from Cass.
-Question: Who has the 1st weir?
+1. Four branchers work the branch rail, one each. The pegs are 1st, 2nd, 3rd and 4th. The branchers are Ulma, Vesper, Ysolde and Zinn.
+2. Ulma stands ahead of Vesper.
+3. Vesper stands ahead of Ysolde.
+4. Ysolde stands ahead of Zinn.
+5. Zinn is not at 1st.
+Question: After which numbered line is the person at 2nd settled?
 ```
 
 **Thinking:**
 ```text
-1. Bess is never at 1st.
-2. Bess is never at 3rd.
-3. Drew drifts 2 places onward from Cass.
+1. Ulma stands ahead of Vesper.
+2. Vesper stands ahead of Ysolde.
+3. Ysolde stands ahead of Zinn.
+4. Zinn is not at 1st.
 ```
 
 **Reply:**
 ```text
-Answer: Cass
+Answer: 4
 ```
 
-**Key:** answer: Cass
+**Key:** answer: 4
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -734,10 +740,10 @@ Rain killed the holed branch.
 **Variant user:**
 ```text
 The tin roof splits into a holed branch and a whole branch. Loft rain kills the holed one. What remains?
-A. Keep both branches until the gutter is checked.
-B. Keep the whole branch, since rain in the loft kills holed.
-C. Keep holed, because rain can be mopped later.
-D. Abandon the roof pattern and call the loft unreadable.
+A. Keep both branches, since the gutter still has not been checked.
+B. Keep the whole branch, since rain in the loft rules holed out.
+C. Keep holed, since rain on the loft floor can be mopped up later.
+D. Abandon the roof reading, since the loft marks are too messy to trust.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -767,10 +773,10 @@ Unstained is already contradicted.
 **Variant user:**
 ```text
 Unstained linen meets a soot line before three praise lines. Where does the pattern finish?
-A. Finish after the praise lines, since they were written too.
-B. Finish by averaging soot and praise into slightly marked.
-C. Finish at the soot line, since unstained is already contradicted.
-D. Finish by striking the soot line as too harsh.
+A. Finish after the praise lines, since those lines were written on the card too.
+B. Finish by averaging soot and praise, since slightly marked sounds fairer.
+C. Finish at the soot line, since unstained is already contradicted by it.
+D. Finish by striking the soot line, since that word feels too harsh.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -801,10 +807,10 @@ Honey and tar fail the spill.
 **Variant user:**
 ```text
 Honey, wax, and tar could be a spill. The spill is dry and unscented. Honey and tar are neither. Which jar remains?
-A. Keep honey, because it is the most common jar.
-B. Keep tar, because a dark spill looks like tar.
-C. Keep all three until someone smells the spill.
-D. Keep the wax jar, since honey and tar fail the dry unscented spill.
+A. Keep honey, since honey is the jar people reach for first.
+B. Keep tar, since a dark spill looks like tar more than wax.
+C. Keep all three, since nobody has smelled the spill yet.
+D. Keep the wax jar, since honey and tar fail a dry unscented spill.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -834,10 +840,10 @@ An open hook is still work.
 **Variant user:**
 ```text
 Three hooks and three coats, two coats already placed, one hook still empty. Do you halt?
-A. Place the last coat, since an empty hook is still an open cell.
+A. Hang the last coat, since an empty hook leaves a cell open.
 B. Halt now, since two coats are enough to see the idea.
-C. Remove a placed coat and leave two hooks empty.
-D. Call the grid finished because most cells are full.
+C. Remove one placed coat, since two empty hooks look more balanced.
+D. Call the row finished, since most hooks already hold a coat.
 Put the letter alone on an ANSWER: line.
 ```
 
@@ -849,33 +855,31 @@ Put the letter alone on an ANSWER: line.
 
 **User:**
 ```text
-Config mike gives the garnet.
-
+Holed is already chalked on the loft board.
 Material:
-The garnet shuts at dusk.
-
-Statement: The garnet shuts at dusk.
+The loft board says holed.
+Statement: The loft board says holed.
 ```
 
 **Thinking:**
 ```text
-I end the garnet page because it shows this.
+Holed is already chalked.
 ```
 
 **Reply:**
 ```text
-I end the garnet page because it shows this.
+I leave the board at holed.
 VERDICT: supported
-DECIDING: The garnet shuts at dusk.
+DECIDING: The loft board says holed.
 ESCALATE: no
 ```
 
 **Variant user:**
 ```text
-Is the garnet shut at dusk?
+Does the loft board say holed?
 ```
 
-**Key:** quiz (verdict): supported / The garnet shuts at dusk. / no · variant key: {"verdict": "supported", "deciding": ["The garnet shuts at dusk."], "escalate": "no"}
+**Key:** quiz (verdict): supported / The loft board says holed. / no · variant key: {"verdict": "supported", "deciding": ["The loft board says holed."], "escalate": "no"}
 
 *invented: notice, statement and checker trace, written for this item (key by construction)*
 
@@ -883,22 +887,20 @@ Is the garnet shut at dusk?
 
 **User:**
 ```text
-Record november holds the zircon.
-
+A stock form asks the jar tag for litres.
 Material:
-The zircon shuts at dusk.
-
-Statement: The zircon holds forty litres.
+The jar tag says wax.
+Statement: The jar tag says forty litres.
 ```
 
 **Thinking:**
 ```text
-I settle the zircon page because it skips this.
+Wax is written, and litres are not.
 ```
 
 **Reply:**
 ```text
-I settle the zircon page because it skips this.
+I do not invent a volume.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -906,7 +908,7 @@ ESCALATE: no
 
 **Variant user:**
 ```text
-Does the zircon hold forty litres?
+Does the jar tag give a volume?
 ```
 
 **Key:** quiz (verdict): cannot_tell / NONE / no · variant key: {"verdict": "cannot_tell", "deciding": [], "escalate": "no"}
