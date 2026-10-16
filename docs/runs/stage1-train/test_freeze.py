@@ -24,6 +24,13 @@ import no_role  # noqa: E402
 import receipts  # noqa: E402
 
 DATA = HERE.parent / "stage1-training-data"
+
+
+def _real_pin():
+    """The repo's pinned NO-ROLE file as it stands. It exists once the freeze has been written,
+    so a test checks that it is left unchanged, not that it is absent."""
+    p = freeze.REPO / freeze.NO_ROLE_PIN
+    return p.read_bytes() if p.exists() else None
 ORDER = (
     "pilot-t04.jsonl",
     "batch2-t01.jsonl", "batch2-t14.jsonl", "batch2-t16.jsonl",
@@ -88,6 +95,7 @@ def check(tmp, files, monkeypatch, *, partial=True, sealed=None, apply=None, cou
 
 
 def test_a_partial_pilot_passes_and_cannot_write_frozen(tmp_path, monkeypatch):
+    real_pin = _real_pin()
     code, report = check(tmp_path, [DATA / "pilot-t04.jsonl"], monkeypatch)
     assert code == 0, report["failed"]
     assert report["partial_set"] is True
@@ -105,7 +113,7 @@ def test_a_partial_pilot_passes_and_cannot_write_frozen(tmp_path, monkeypatch):
     status = freeze.main(["write", "--report", str(tmp_path / "out" / freeze.REPORT_NAME),
                           "--out", str(frozen), "--no-role-out", str(pin)])
     assert status == 1 and not frozen.exists() and not pin.exists()
-    assert not (freeze.REPO / freeze.NO_ROLE_PIN).exists()
+    assert _real_pin() == real_pin
 
 
 @pytest.mark.skipif(not tokenizer_available(), reason="the student's tokenizer isn't cached here")
@@ -335,6 +343,7 @@ def _write(tmp: Path, report: dict, nr: bytes, capsys):
 
 
 def test_write_refuses_a_failed_report_and_is_byte_stable(tmp_path, capsys):
+    real_pin = _real_pin()
     nr = b'{"id": "T04-A-01-nr"}\n'
     report = _passing_report(hashlib.sha256(nr).hexdigest())
     code, sha1, frozen, pin = _write(tmp_path / "a", report, nr, capsys)
@@ -351,7 +360,7 @@ def test_write_refuses_a_failed_report_and_is_byte_stable(tmp_path, capsys):
     assert "sealed pin: e1e515b4" in body
     assert receipts.sha256_file(frozen) == sha1
     assert pin.read_bytes() == nr
-    assert not (freeze.REPO / freeze.NO_ROLE_PIN).exists()
+    assert _real_pin() == real_pin
     code2, sha2, frozen2, _pin2 = _write(tmp_path / "b", report, nr, capsys)
     assert code2 == 0 and sha2 == sha1 and frozen2.read_bytes() == text
 
