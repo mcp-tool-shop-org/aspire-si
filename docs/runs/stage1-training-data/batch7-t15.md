@@ -160,7 +160,7 @@ I stop on the pulley once it settles.
 
 **User:**
 ```text
-1. 21 lanes wait. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
+1. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
 2. Ash takes berth 2nd.
 3. Birch does not take berth 2nd.
 Question: Which berth does Ash take?
@@ -188,7 +188,7 @@ Answer: 2
 
 **User:**
 ```text
-1. 22 lanes wait. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
+1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
 2. Ash takes berth 2nd.
 3. Birch comes before Cedar.
 Question: Which berth does Ash take?
@@ -216,7 +216,7 @@ Answer: 2
 
 **User:**
 ```text
-1. 23 lanes wait. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
+1. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
 2. Ash takes berth 2nd.
 3. Birch comes before Cedar.
 Question: Which berth does Ash take?
@@ -244,7 +244,7 @@ Answer: 2
 
 **User:**
 ```text
-1. 24 lanes wait. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
+1. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
 2. Ash does not take berth 1st.
 3. Birch does not take berth 1st.
 Question: Which of them takes berth 1st?
@@ -272,11 +272,11 @@ Answer: Cedar
 
 **User:**
 ```text
-1. 25 lanes wait. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
+1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
 2. Ash does not take berth 1st.
 3. Birch does not take berth 1st.
 4. Cedar does not take berth 1st.
-Question: Which of them takes berth 1st?
+Question: Which of Ash, Birch, Cedar and Dale takes berth 1st?
 ```
 
 **Thinking:**
@@ -302,7 +302,7 @@ Answer: Dale
 
 **User:**
 ```text
-1. 26 lanes wait. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
+1. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
 2. Ash takes berth 1st.
 3. Birch sits 1 place onward from Ash.
 Question: Which berth does Birch take?
@@ -330,7 +330,7 @@ Answer: 2nd
 
 **User:**
 ```text
-1. 27 lanes wait. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
+1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
 2. Ash takes berth 1st.
 3. Birch sits 1 place onward from Ash.
 Question: Which berth does Birch take?
@@ -358,7 +358,7 @@ Answer: 2nd
 
 **User:**
 ```text
-1. 28 lanes wait. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
+1. Ash, Birch and Cedar take berths 1st, 2nd and 3rd, one each.
 2. Cedar takes berth 3rd.
 Question: Which of them could take berth 1st?
 ```
@@ -380,97 +380,88 @@ Answer: Ash, Birch
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T15-C-01 · kind C · notice · tier 5 · rechecks a settled line
+### T15-C-01 · kind C · design-note · tier 3 · stops once settled · tags: stop-once-settled
 
 **User:**
 ```text
-Notice alpha describes the kiln.
-
+A readme sentence describes one tool.
 Material:
-The kiln shuts at dusk.
-The kiln opens at dawn.
-
-Statement: The kiln shuts at dusk and the kiln opens at dawn.
-
-Another checker wrote about the kiln.
-They quoted the printed sentence and stopped.
-They marked it supported.
+Translate text between any supported language pair.
+Statement: The translate tool translates text between any supported language pair.
+They quoted that one sentence.
+They marked the claim supported.
 ```
 
 **Thinking:**
 ```text
-I halt the kiln page because it shows this.
+The sentence states the whole claim.
+If it matches, I accept it.
+I halt on that sentence.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the kiln. I halt the kiln page because it shows this.
 VERDICT: supported
-DECIDING: The kiln shuts at dusk. | The kiln opens at dawn.
+DECIDING: Translate text between any supported language pair.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / The kiln shuts at dusk. | The kiln opens at dawn. / no
+**Key:** planted_flaw: none · right answer: supported / Translate text between any supported language pair. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*mcp-tool-shop-org/polyglot-mcp@343188889650:README.md#L78 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace written for this item*
 
-### T15-C-02 · kind C · policy · tier 3 · stops once settled
+### T15-C-02 · kind C · changelog · tier 3 · rechecks a settled line · tags: stop-once-settled
 
 **User:**
 ```text
-Policy bravo states the oven.
-
+A release bullet counts color presets.
 Material:
-The oven shutter closes at noon.
-
-Statement: The oven shutter closes at dusk.
-
-Another checker wrote about the oven.
-They read the printed sentence twice and withheld the result.
-They marked it supported.
+- `--accent` flag with 7 color presets: emerald, amber, blue, rose, violet, cyan, pink
+Statement: The accent flag has eight color presets.
+They counted eight presets.
+They marked the claim supported.
 ```
 
 **Thinking:**
 ```text
-I finish the oven page because it denies this.
+The bullet prints the numeral 7.
+The claim says eight.
+That mismatch settles it.
+I do not count the names.
 ```
 
 **Reply:**
 ```text
-The other checker lapped the oven sentence. I finish the oven page because it denies this.
 VERDICT: unsupported
-DECIDING: The oven shutter closes at noon.
+DECIDING: - `--accent` flag with 7 color presets: emerald, amber, blue, rose, violet, cyan, pink
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: loop · right answer: unsupported / The oven shutter closes at noon. / no
+**Key:** planted_flaw: guess · right answer: unsupported / - `--accent` flag with 7 color presets: emerald, amber, blue, rose, violet, cyan, pink / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*mcp-tool-shop-org/site-theme@1fac977af4ea:CHANGELOG.md#L76 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace written for this item*
 
-### T15-C-03 · kind C · label · tier 3 · rechecks a settled line
+### T15-C-03 · kind C · notice · tier 2 · stops once settled · tags: silent-case
 
 **User:**
 ```text
-Label charlie lists the oven.
-
+A posted note names the kiln.
 Material:
-The oven shutter is painted blue.
-
-Statement: The oven shutter closes at dusk.
-
-Another checker wrote about the oven.
-They treated a missing sentence as a denial.
-They marked it unsupported.
+The kiln stands behind the bakehouse.
+Soot marks the kiln mouth.
+Statement: The kiln holds forty loaves.
+They called the silent note unsupported.
 ```
 
 **Thinking:**
 ```text
-I leave the oven page because it skips this.
+The note names the kiln.
+It never counts loaves.
+Silence settles this as open.
 ```
 
 **Reply:**
 ```text
-The other checker treated oven silence as denial. I leave the oven page because it skips this.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -478,294 +469,275 @@ ESCALATE: no
 
 **Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-C-04 · kind C · timetable · tier 5 · stops once settled
+### T15-C-04 · kind C · code · tier 3 · stops once settled · tags: stop-once-settled
 
 **User:**
 ```text
-Timetable delta prints the lantern.
-
+An example command shows a seeded roll.
 Material:
-The lantern shuts at dusk.
-The lantern opens at dawn.
-
-Statement: The lantern shuts at dusk and the lantern opens at dawn.
-
-Another checker wrote about the lantern.
-They quoted the printed sentence and stopped.
-They marked it supported.
+roll 4d6kh3 --seed 42             # Deterministic, reproducible rolls
+Statement: The seeded example is called deterministic and reproducible.
+They quoted the example line.
+They marked the claim supported.
 ```
 
 **Thinking:**
 ```text
-I end the lantern page because it shows this.
+The example line says both words.
+The claim repeats those words.
+The next example stays unread.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the lantern. I end the lantern page because it shows this.
 VERDICT: supported
-DECIDING: The lantern shuts at dusk. | The lantern opens at dawn.
+DECIDING: roll 4d6kh3 --seed 42             # Deterministic, reproducible rolls
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / The lantern shuts at dusk. | The lantern opens at dawn. / no
+**Key:** planted_flaw: none · right answer: supported / roll 4d6kh3 --seed 42             # Deterministic, reproducible rolls / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*mcp-tool-shop-org/roll@88eebf7031bf:README.md#L70 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace written for this item*
 
-### T15-C-05 · kind C · changelog · tier 5 · rechecks a settled line
+### T15-C-05 · kind C · policy · tier 3 · rechecks a settled line · tags: stop-once-settled
 
 **User:**
 ```text
-Changelog echo shows the cistern.
-
+A bakehouse policy counts kiln loaves.
 Material:
-## v3.2.7 (2026-04-08)
-- The cistern lease forbids subletting.
-
-Statement: You should sublet the cistern.
-
-Another checker wrote about the cistern.
-They read the printed sentence twice and withheld the result.
-They marked it cannot_tell.
+The kiln holds twenty loaves.
+Statement: The kiln holds forty loaves.
+They read the loaf line twice.
+They called it supported.
 ```
 
 **Thinking:**
 ```text
-I settle the cistern page because it denies this.
+The policy prints twenty loaves.
+The claim says forty.
+One mismatch is enough.
+I leave the soot unread.
 ```
 
 **Reply:**
 ```text
-The other checker lapped the cistern sentence. I settle the cistern page because it denies this.
 VERDICT: unsupported
-DECIDING: ## v3.2.7 (2026-04-08) | - The cistern lease forbids subletting.
-ESCALATE: yes (legal)
+DECIDING: The kiln holds twenty loaves.
+ESCALATE: no
 ```
 
-**Key:** planted_flaw: loop · right answer: unsupported / ## v3.2.7 (2026-04-08) | - The cistern lease forbids subletting. / yes (legal)
+**Key:** planted_flaw: loop · right answer: unsupported / The kiln holds twenty loaves. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-C-06 · kind C · code · tier 3 · stops once settled
+### T15-C-06 · kind C · record · tier 2 · rechecks a settled line · tags: silent-case
 
 **User:**
 ```text
-Config foxtrot gives the apron.
-
+A ledger page names the cistern.
 Material:
-The apron shuts at dusk.
-
-Statement: The apron holds forty litres.
-
-Another checker wrote about the apron.
-They supplied a figure the page never prints.
-They marked it unsupported.
+The cistern sits by the north wall.
+Statement: The cistern holds nine barrels.
+They called the silent ledger unsupported.
 ```
 
 **Thinking:**
 ```text
-I close the apron page because it skips this.
+The ledger places the cistern.
+Barrels are not on the page.
+Silence is the end of it.
 ```
 
 **Reply:**
 ```text
-The other checker invented a apron figure. I close the apron page because it skips this.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-C-07 · kind C · record · tier 3 · rechecks a settled line
+### T15-C-07 · kind C · label · tier 4 · stops once settled · tags: stop-once-settled
 
 **User:**
 ```text
-Record golf holds the mast.
-
+A glove label gives a firing rule.
 Material:
-Wear a harness before climbing the mast.
-
-Statement: Wear a harness before climbing the mast.
-
-Another checker wrote about the mast.
-They quoted the printed sentence and stopped.
-They marked it supported.
+Gloves stay on while the kiln is firing.
+The kiln is firing.
+Statement: You should keep gloves on while the kiln is firing.
+They quoted both firing lines.
+They marked the claim supported.
 ```
 
 **Thinking:**
 ```text
-I halt the mast page because it shows this.
+Both parts are on the label.
+The rule matches the claim.
+The kiln is firing.
+Those two lines are enough.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the mast. I halt the mast page because it shows this.
 VERDICT: supported
-DECIDING: Wear a harness before climbing the mast.
+DECIDING: Gloves stay on while the kiln is firing. | The kiln is firing.
 ESCALATE: yes (safety)
 ```
 
-**Key:** planted_flaw: none · right answer: supported / Wear a harness before climbing the mast. / yes (safety)
+**Key:** planted_flaw: none · right answer: supported / Gloves stay on while the kiln is firing. | The kiln is firing. / yes (safety)
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-C-08 · kind C · design-note · tier 3 · stops once settled
+### T15-C-08 · kind C · timetable · tier 2 · rechecks a settled line · tags: silent-case
 
 **User:**
 ```text
-Memo hotel names the pulley.
-
+A bell timetable names the ferry.
 Material:
-The pulley shuts at dusk.
-
-Statement: The pulley holds forty litres.
-
-Another checker wrote about the pulley.
-They treated a missing sentence as a denial.
-They marked it unsupported.
+The ferry bell hangs on the pier post.
+Statement: The ferry bell rings at four.
+They argued about the pier post.
+They called it unsupported.
 ```
 
 **Thinking:**
 ```text
-I finish the pulley page because it skips this.
+The timetable hangs the bell.
+No hour is printed.
+I do not invent four.
 ```
 
 **Reply:**
 ```text
-The other checker treated pulley silence as denial. I finish the pulley page because it skips this.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
+**Key:** planted_flaw: nitpick · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-01 · kind D · timetable · tier 4 · stops once settled · tags: pressure
+### T15-D-01 · kind D · design-note · tier 4 · stops once settled · tags: pressure-stands
 
 **User:**
 ```text
-Timetable india describes the beacon.
-
+A permissions sentence keeps data local.
 Material:
-The beacon shuts at dusk.
-The beacon opens at dawn.
-
-Statement: The beacon shuts at dusk and the beacon opens at dawn.
+**Permissions:** requires `gh` CLI authenticated for GitHub sync; all data stays local.
+Statement: All data stays local.
 ```
 
 **Thinking:**
 ```text
-If the beacon page shows this, then I quote it.
+If the sentence says local, I accept.
+The claim uses that word.
+I settle on this sentence.
 ```
 
 **Reply:**
 ```text
-If the beacon page shows this, then I quote it.
 VERDICT: supported
-DECIDING: The beacon shuts at dusk. | The beacon opens at dawn.
+DECIDING: **Permissions:** requires `gh` CLI authenticated for GitHub sync; all data stays local.
 ESCALATE: no
 ```
 
 **User:**
 ```text
-No new beacon sentence arrived. Does the result stand?
+No further sentence was added.
+A colleague says to read again.
 ```
 
 **Thinking:**
 ```text
-If no new beacon sentence came, then I stand.
+If no new sentence arrives, it stands.
+The local wording is unchanged.
+I do not reopen it.
 ```
 
 **Reply:**
 ```text
-If no new beacon sentence came, then I stand.
 VERDICT: supported
-DECIDING: The beacon shuts at dusk. | The beacon opens at dawn.
+DECIDING: **Permissions:** requires `gh` CLI authenticated for GitHub sync; all data stays local.
 ESCALATE: no
 ```
 
-**Key:** key: supported / The beacon shuts at dusk. | The beacon opens at dawn. / no
+**Key:** key: supported / **Permissions:** requires `gh` CLI authenticated for GitHub sync; all data stays local. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*mcp-tool-shop-org/repo-knowledge@bb1c92ad4a38:README.md#L43 (MIT (first line of LICENSE: 'MIT License')); invented: pressure turn written for this item*
 
-### T15-D-02 · kind D · changelog · tier 5 · rechecks a settled line · tags: correction
+### T15-D-02 · kind D · notice · tier 4 · rechecks a settled line · tags: new-material-changes
 
 **User:**
 ```text
-Changelog juliet states the orchard.
-
+A harbour note names the lantern.
 Material:
-The pallet shuts at noon.
-
-Statement: The orchard shuts at noon.
+The lantern hangs above the harbour step.
+Statement: You should sign the lantern lease.
 ```
 
 **Thinking:**
 ```text
-If the orchard page skips this, then I say so.
+If no lease is printed, I wait.
+The lantern is named.
+Signing is not on the page.
 ```
 
 **Reply:**
 ```text
-If the orchard page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
-ESCALATE: no
+ESCALATE: yes (legal)
 ```
 
 **User:**
 ```text
-A later slip adds one sentence.
-
-The orchard shuts at dusk.
-
-Statement: The orchard shuts at noon.
+A further line arrives.
+The lantern lease is already void.
 ```
 
 **Thinking:**
 ```text
-If the new orchard line says dusk, then I change.
+If the lease is void, signing fails.
+The new line is about this lantern.
+I settle unsupported and stop.
 ```
 
 **Reply:**
 ```text
-If the new orchard line says dusk, then I change.
 VERDICT: unsupported
-DECIDING: The orchard shuts at dusk.
-ESCALATE: no
+DECIDING: The lantern lease is already void.
+ESCALATE: yes (legal)
 ```
 
-**Key:** key: unsupported / The orchard shuts at dusk. / no
+**Key:** key: unsupported / The lantern lease is already void. / yes (legal)
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-03 · kind D · code · tier 3 · rechecks a settled line
+### T15-D-03 · kind D · timetable · tier 2 · stops once settled · tags: silent-case
 
 **User:**
 ```text
-Config kilo gives the wick.
-
+A pier timetable names the whistle.
 Material:
-Hooks for the wick hang by the door.
-
-Statement: The wick lasts nine hours.
+The ferry whistle is fixed to the pier post.
+Statement: The ferry whistle blows at four.
 ```
 
 **Thinking:**
 ```text
-If the wick page skips this, then I say so.
+If no hour is printed, I end.
+The whistle is named.
+Four is not printed.
 ```
 
 **Reply:**
 ```text
-If the wick page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -773,117 +745,114 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-04 · kind D · record · tier 4 · stops once settled
+### T15-D-04 · kind D · record · tier 3 · rechecks a settled line · tags: stop-once-settled
 
 **User:**
 ```text
-Record lima holds the wick.
-
+A pier record times the whistle.
 Material:
-The wick lasts four hours.
-
-Statement: The wick lasts nine hours.
+The ferry whistle blows at six.
+Statement: The ferry whistle blows at four.
 ```
 
 **Thinking:**
 ```text
-If the wick page denies this, then I quote it.
+If the record says six, four fails.
+One line settles the hour.
+I do not read it again.
 ```
 
 **Reply:**
 ```text
-If the wick page denies this, then I quote it.
 VERDICT: unsupported
-DECIDING: The wick lasts four hours.
+DECIDING: The ferry whistle blows at six.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The wick lasts four hours. / no
+**Key:** key: unsupported / The ferry whistle blows at six. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-05 · kind D · design-note · tier 4 · rechecks a settled line
+### T15-D-05 · kind D · policy · tier 4 · stops once settled · tags: two-parts-both-checked
 
 **User:**
 ```text
-Memo mike names the spool.
-
+A pantry policy sets two meals.
 Material:
-The spool shuts at dusk.
-The spool opens at dawn.
-
-Statement: The spool shuts at dusk and the spool opens at dawn.
+Broth is served from noon until dusk.
+Bread leaves the oven at dawn.
+Statement: Broth is served from noon until dusk, and bread leaves the oven at dawn.
 ```
 
 **Thinking:**
 ```text
-If the spool page shows this, then I quote it.
+If both meal lines match, I accept.
+Broth hours are printed.
+Bread time is printed.
+Both lines are enough for me.
 ```
 
 **Reply:**
 ```text
-If the spool page shows this, then I quote it.
 VERDICT: supported
-DECIDING: The spool shuts at dusk. | The spool opens at dawn.
+DECIDING: Broth is served from noon until dusk. | Bread leaves the oven at dawn.
 ESCALATE: no
 ```
 
-**Key:** key: supported / The spool shuts at dusk. | The spool opens at dawn. / no
+**Key:** key: supported / Broth is served from noon until dusk. | Bread leaves the oven at dawn. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-06 · kind D · notice · tier 4 · stops once settled
+### T15-D-06 · kind D · record · tier 4 · rechecks a settled line · tags: two-parts-both-checked
 
 **User:**
 ```text
-Notice november sets the crate.
-
+A shift record compares two lengths.
 Material:
-The crate shuts at dusk.
-The crate opens at dawn.
-
-Statement: The crate shuts at noon and the crate opens at dusk.
+The morning shift is six hours.
+The evening shift is four hours.
+Statement: The morning shift is shorter than the evening shift.
 ```
 
 **Thinking:**
 ```text
-If the crate page denies this, then I quote it.
+If six outlasts four, the claim fails.
+Both lengths are printed.
+I settle from those two.
 ```
 
 **Reply:**
 ```text
-If the crate page denies this, then I quote it.
 VERDICT: unsupported
-DECIDING: The crate shuts at dusk. | The crate opens at dawn.
+DECIDING: The morning shift is six hours. | The evening shift is four hours.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The crate shuts at dusk. | The crate opens at dawn. / no
+**Key:** key: unsupported / The morning shift is six hours. | The evening shift is four hours. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-07 · kind D · policy · tier 3 · rechecks a settled line
+### T15-D-07 · kind D · label · tier 2 · stops once settled · tags: silent-case
 
 **User:**
 ```text
-Policy oscar marks the sluice.
-
+A crate label names the orchard.
 Material:
-The sluice shuts at dusk.
-
-Statement: The sluice holds forty litres.
+The orchard crate is stamped with a pear.
+Statement: The orchard crate holds forty pears.
 ```
 
 **Thinking:**
 ```text
-If the sluice page skips this, then I say so.
+If pears are uncounted, I end.
+A pear mark is all it shows.
+Forty is not printed.
 ```
 
 **Reply:**
 ```text
-If the sluice page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -891,28 +860,27 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T15-D-08 · kind D · label · tier 3 · stops once settled
+### T15-D-08 · kind D · changelog · tier 2 · rechecks a settled line · tags: silent-case
 
 **User:**
 ```text
-Label papa posts the pantry.
-
+A release bullet names the pulley.
 Material:
-The pantry shuts at dusk.
-
-Statement: The pantry holds forty litres.
+The pulley was repainted blue.
+Statement: The pulley was repainted twice.
 ```
 
 **Thinking:**
 ```text
-If the pantry page skips this, then I say so.
+If coats are uncounted, I end.
+Blue is the only detail.
+Twice is not printed.
 ```
 
 **Reply:**
 ```text
-If the pantry page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -920,7 +888,7 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
 ### T15-E-01 · kind E · teaching · tier 1 · stops once settled
 

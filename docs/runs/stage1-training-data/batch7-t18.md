@@ -160,34 +160,29 @@ I judge the bellows sentence as handed over.
 
 **User:**
 ```text
-1. 29 lanes wait. Ibis, Jay, Kite and Lark take lids shut and open, one each.
-2. If Ibis takes lid shut, then Jay takes lid shut.
-3. If Jay takes lid shut, then Kite takes lid shut.
-4. If Kite takes lid shut, then Lark takes lid shut.
-5. Lark takes lid open.
-Question: Claim: Ibis takes lid shut.
+1. Nia, Otto and Pia take desks 1st, 2nd and 3rd, one each.
+2. Pia does not take desk 1st.
+3. Pia does not take desk 2nd.
+4. Nia comes before Otto.
+Question: Which desk does Otto take?
 ```
 
 **Thinking:**
 ```text
-I mark Ibis unsupported, unedited.
-If Ibis takes lid shut, then Jay takes lid shut.
-If Jay takes lid shut, then Kite takes lid shut.
-If Kite takes lid shut, then Lark takes lid shut.
-Lark takes lid open.
+2nd from three desks, unedited.
+Pia does not take desk 1st.
+Pia does not take desk 2nd.
+Nia comes before Otto.
 ```
 
 **Reply:**
 ```text
-└─ Ibis claim read
+| three | 2nd |
 
-VERDICT: unsupported
-DECIDING: If Ibis takes lid shut, then Jay takes lid shut. | If Jay takes lid shut, then Kite takes lid shut. | If Kite takes lid shut, then Lark takes lid shut. | Lark takes lid open.
-ESCALATE: no
-unsupported
+Answer: 2nd
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: 2nd
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -195,36 +190,29 @@ unsupported
 
 **User:**
 ```text
-1. 30 lanes wait. Ibis, Jay, Kite, Lark and Mink take lids shut and open, one each.
-2. If Ibis takes lid shut, then Jay takes lid shut.
-3. If Jay takes lid shut, then Kite takes lid shut.
-4. If Kite takes lid shut, then Lark takes lid shut.
-5. If Lark takes lid shut, then Mink takes lid shut.
-6. Mink takes lid open.
-Question: Claim: Ibis takes lid shut.
+1. Nia, Otto, Pia and Quin take desks 1st, 2nd, 3rd and 4th, one each.
+2. Nia takes desk 1st.
+3. Otto comes before Pia.
+4. Pia comes before Quin.
+Question: Which desk does Otto take?
 ```
 
 **Thinking:**
 ```text
-I mark Ibis unsupported, unedited.
-If Ibis takes lid shut, then Jay takes lid shut.
-If Jay takes lid shut, then Kite takes lid shut.
-If Kite takes lid shut, then Lark takes lid shut.
-If Lark takes lid shut, then Mink takes lid shut.
-Mink takes lid open.
+2nd from four desks, unedited.
+Nia takes desk 1st.
+Otto comes before Pia.
+Pia comes before Quin.
 ```
 
 **Reply:**
 ```text
-└─ Ibis claim read
+| four | 2nd |
 
-VERDICT: unsupported
-DECIDING: If Ibis takes lid shut, then Jay takes lid shut. | If Jay takes lid shut, then Kite takes lid shut. | If Kite takes lid shut, then Lark takes lid shut. | Mink takes lid open.
-ESCALATE: no
-unsupported
+Answer: 2nd
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: 2nd
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -232,30 +220,29 @@ unsupported
 
 **User:**
 ```text
-1. 31 lanes wait. Moth, Newt, Wren, Yak and Eel take lids shut and open, one each.
-2. At most 2 of them take lid shut.
-3. Moth takes lid shut.
-Question: Claim: Newt takes lid shut.
+1. Nia, Otto, Pia and Quin take desks 1st, 2nd, 3rd and 4th, one each.
+2. Nia takes desk 2nd.
+3. Otto sits one place onward from Nia.
+4. Quin comes before Pia.
+Question: Which desk does Pia take?
 ```
 
 **Thinking:**
 ```text
-I leave Newt unsettled.
-At most 2 of them take lid shut.
-Moth takes lid shut.
+4th from four desks, unedited.
+Nia takes desk 2nd.
+Otto sits one place onward from Nia.
+Quin comes before Pia.
 ```
 
 **Reply:**
 ```text
-└─ Newt claim read
+| four | 4th |
 
-VERDICT: cannot_tell
-DECIDING: NONE
-ESCALATE: no
-cannot_tell
+Answer: 4th
 ```
 
-**Key:** answer: cannot_tell
+**Key:** answer: 4th
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -263,7 +250,7 @@ cannot_tell
 
 **User:**
 ```text
-1. 32 lanes wait. Ash, Birch, Cedar and Dale take dyes red, blue, gold and grey, one each.
+1. Ash, Birch, Cedar and Dale take dyes red, blue, gold and grey, one each.
 2. Ash does not take dye red.
 3. Ash does not take dye blue.
 4. Ash does not take dye gold.
@@ -293,7 +280,7 @@ Answer: grey
 
 **User:**
 ```text
-1. 33 lanes wait. Ash, Birch, Cedar, Dale and Elm take dyes red, blue, gold, grey and ink, one each.
+1. Ash, Birch, Cedar, Dale and Elm take dyes red, blue, gold, grey and ink, one each.
 2. Ash does not take dye red.
 3. Ash does not take dye blue.
 4. Ash does not take dye gold.
@@ -325,7 +312,7 @@ Answer: ink
 
 **User:**
 ```text
-1. 34 lanes wait. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
+1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
 2. Dale takes berth 4th.
 Question: Which of them could take berth 1st?
 ```
@@ -351,7 +338,7 @@ Answer: Ash, Birch, Cedar
 
 **User:**
 ```text
-1. 35 lanes wait. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
+1. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
 2. Fern takes berth 6th.
 Question: Which of them could take berth 1st?
 ```
@@ -377,7 +364,7 @@ Answer: Ash, Birch, Cedar, Dale, Elm
 
 **User:**
 ```text
-1. 36 lanes wait. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
+1. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
 2. Ash takes berth 2nd.
 3. Birch comes before Cedar.
 Question: Which berth does Ash take?
@@ -401,97 +388,87 @@ Answer: 2
 
 *invented: puzzle, written for this item (key by construction)*
 
-### T18-C-01 · kind C · notice · tier 5 · rewrites the wording
+### T18-C-01 · kind C · changelog · tier 3 · judges the printed wording · tags: do-not-rewrite
 
 **User:**
 ```text
-Notice alpha describes the valve.
-
+A release bullet counts server tools.
 Material:
-The valve shuts at dusk.
-The valve opens at dawn.
-
-Statement: The valve shuts at dusk and the valve opens at dawn.
-
-Another checker wrote about the valve.
-They quoted the printed sentence and stopped.
-They marked it supported.
+- Server now registers 5 tools (was 4): translate, list_languages, translate_markdown, translate_all, check_status.
+Statement: The server registers six tools.
+They rewrote the claim as five.
+They called it supported.
 ```
 
 **Thinking:**
 ```text
-I halt the valve page because it shows this.
+The bullet prints 5 tools.
+The claim says six.
+The wording is judged as written.
+I do not replace it.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the valve. I halt the valve page because it shows this.
-VERDICT: supported
-DECIDING: The valve shuts at dusk. | The valve opens at dawn.
-ESCALATE: no
-```
-
-**Key:** planted_flaw: none · right answer: supported / The valve shuts at dusk. | The valve opens at dawn. / no
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### T18-C-02 · kind C · policy · tier 3 · judges the printed wording
-
-**User:**
-```text
-Policy bravo states the hinge.
-
-Material:
-The hinge shutter closes at noon.
-
-Statement: The hinge shutter closes at dusk.
-
-Another checker wrote about the hinge.
-They replaced the printed hour, then judged the replacement.
-They marked it supported.
-```
-
-**Thinking:**
-```text
-I finish the hinge page because it denies this.
-```
-
-**Reply:**
-```text
-The other checker rewrote the hinge sentence. I finish the hinge page because it denies this.
 VERDICT: unsupported
-DECIDING: The hinge shutter closes at noon.
+DECIDING: - Server now registers 5 tools (was 4): translate, list_languages, translate_markdown, translate_all, check_status.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: fix · right answer: unsupported / The hinge shutter closes at noon. / no
+**Key:** planted_flaw: fix · right answer: unsupported / - Server now registers 5 tools (was 4): translate, list_languages, translate_markdown, translate_all, check_status. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*mcp-tool-shop-org/polyglot-mcp@343188889650:CHANGELOG.md#L80 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace written for this item*
 
-### T18-C-03 · kind C · label · tier 3 · rewrites the wording
+### T18-C-02 · kind C · changelog · tier 3 · rewrites the wording · tags: do-not-rewrite
 
 **User:**
 ```text
-Label charlie lists the hinge.
-
+A release bullet numbers one template.
 Material:
-The hinge shutter is painted blue.
-
-Statement: The hinge shutter closes at dusk.
-
-Another checker wrote about the hinge.
-They treated a missing sentence as a denial.
-They marked it unsupported.
+- **`tool` template** — a 6th template for CLI / MCP / npm package landing pages, with `ToolSiteConfig` (commands, workflow, proof, integration sections).
+Statement: The tool template is the seventh template.
+They agreed without the numeral.
+They called it supported.
 ```
 
 **Thinking:**
 ```text
-I leave the hinge page because it skips this.
+The bullet prints a 6th template.
+The claim says seventh.
+I leave the wording unedited.
 ```
 
 **Reply:**
 ```text
-The other checker treated hinge silence as denial. I leave the hinge page because it skips this.
+VERDICT: unsupported
+DECIDING: - **`tool` template** — a 6th template for CLI / MCP / npm package landing pages, with `ToolSiteConfig` (commands, workflow, proof, integration sections).
+ESCALATE: no
+```
+
+**Key:** planted_flaw: guess · right answer: unsupported / - **`tool` template** — a 6th template for CLI / MCP / npm package landing pages, with `ToolSiteConfig` (commands, workflow, proof, integration sections). / no
+
+*mcp-tool-shop-org/site-theme@1fac977af4ea:CHANGELOG.md#L45 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace written for this item*
+
+### T18-C-03 · kind C · notice · tier 2 · judges the printed wording · tags: silent-case
+
+**User:**
+```text
+A cellar note names the cask.
+Material:
+The cask stands on the cellar trestle.
+Statement: The cask holds nine gallons.
+They called the silent note unsupported.
+```
+
+**Thinking:**
+```text
+The note places the cask.
+Gallons are not printed.
+I do not supply nine.
+```
+
+**Reply:**
+```text
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -499,100 +476,149 @@ ESCALATE: no
 
 **Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-C-04 · kind C · timetable · tier 5 · judges the printed wording
+### T18-C-04 · kind C · changelog · tier 4 · rewrites the wording · tags: do-not-supply
 
 **User:**
 ```text
-Timetable delta prints the ladle.
-
+A patch sentence lists release work.
 Material:
-The ladle shuts at dusk.
-The ladle opens at dawn.
-
-Statement: The ladle shuts at dusk and the ladle opens at dawn.
-
-Another checker wrote about the ladle.
-They quoted the printed sentence and stopped.
-They marked it supported.
+Patch release: a cross-platform fix for npm version sync plus two CLI gap-closers. No breaking changes.
+Statement: You should pay the renewal fee named in this note.
+They supplied a zero fee.
+They marked the claim supported.
 ```
 
 **Thinking:**
 ```text
-I end the ladle page because it shows this.
+The note lists release work.
+No fee is printed.
+I do not invent an amount.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the ladle. I end the ladle page because it shows this.
+VERDICT: cannot_tell
+DECIDING: NONE
+ESCALATE: yes (money)
+```
+
+**Key:** planted_flaw: fix · right answer: cannot_tell / NONE / yes (money)
+
+*mcp-tool-shop-org/repo-knowledge@bb1c92ad4a38:CHANGELOG.md#L17 (MIT (first line of LICENSE: 'MIT License')); invented: checker trace written for this item*
+
+### T18-C-05 · kind C · label · tier 3 · judges the printed wording · tags: do-not-embellish
+
+**User:**
+```text
+A hinge label states the metal.
+Material:
+The hinge is stamped brass.
+Statement: The hinge is stamped brass.
+They quoted the brass stamp.
+They marked the claim supported.
+```
+
+**Thinking:**
+```text
+The stamp and the claim match.
+I do not add the screw size.
+The reply stays the three lines.
+```
+
+**Reply:**
+```text
 VERDICT: supported
-DECIDING: The ladle shuts at dusk. | The ladle opens at dawn.
+DECIDING: The hinge is stamped brass.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: none · right answer: supported / The ladle shuts at dusk. | The ladle opens at dawn. / no
+**Key:** planted_flaw: none · right answer: supported / The hinge is stamped brass. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-C-05 · kind C · changelog · tier 5 · rewrites the wording
+### T18-C-06 · kind C · record · tier 4 · judges the printed wording · tags: two-parts-both-checked
 
 **User:**
 ```text
-Changelog echo shows the cask.
-
+A stores record describes the ladle.
 Material:
-## v3.2.4 (2026-04-05)
-- The cask shuts at dusk.
-
-Statement: The cask shuts at noon.
-
-Another checker wrote about the cask.
-They rejected it over a hyphen that leaves the hour unchanged.
-They marked it cannot_tell.
+The ladle is tin.
+The ladle is long.
+Statement: The ladle is tin and long.
+They quoted both ladle lines.
+They marked the claim supported.
 ```
 
 **Thinking:**
 ```text
-I settle the cask page because it denies this.
+Both ladle lines match the claim.
+I quote them and stop.
+I add no third detail.
 ```
 
 **Reply:**
 ```text
-The other checker rejected the cask over a hyphen. I settle the cask page because it denies this.
+VERDICT: supported
+DECIDING: The ladle is tin. | The ladle is long.
+ESCALATE: no
+```
+
+**Key:** planted_flaw: none · right answer: supported / The ladle is tin. | The ladle is long. / no
+
+*invented: scenario written for this item (key by construction)*
+
+### T18-C-07 · kind C · policy · tier 3 · rewrites the wording · tags: do-not-rewrite
+
+**User:**
+```text
+A cellar policy measures the cask.
+Material:
+The cask holds four gallons.
+Statement: The cask holds nine gallons.
+They wrote that nine was close enough.
+They called it supported.
+```
+
+**Thinking:**
+```text
+The policy prints four gallons.
+The claim says nine.
+I do not offer a corrected sentence.
+```
+
+**Reply:**
+```text
 VERDICT: unsupported
-DECIDING: ## v3.2.4 (2026-04-05) | - The cask shuts at dusk.
+DECIDING: The cask holds four gallons.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: nitpick · right answer: unsupported / ## v3.2.4 (2026-04-05) | - The cask shuts at dusk. / no
+**Key:** planted_flaw: fix · right answer: unsupported / The cask holds four gallons. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-C-06 · kind C · code · tier 3 · judges the printed wording
+### T18-C-08 · kind C · code · tier 2 · rewrites the wording · tags: silent-case
 
 **User:**
 ```text
-Config foxtrot gives the thimble.
-
+A closet note names the broom.
 Material:
-The thimble shuts at dusk.
-
-Statement: The thimble holds forty litres.
-
-Another checker wrote about the thimble.
-They supplied a figure the page never prints.
-They marked it unsupported.
+The broom hangs behind the closet door.
+Statement: The broom is new.
+They marked the silent note unsupported.
 ```
 
 **Thinking:**
 ```text
-I close the thimble page because it skips this.
+The note hangs the broom.
+Age is not printed.
+I do not call it new.
 ```
 
 **Reply:**
 ```text
-The other checker invented a thimble figure. I close the thimble page because it skips this.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -600,142 +626,75 @@ ESCALATE: no
 
 **Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-C-07 · kind C · record · tier 3 · rewrites the wording
+### T18-D-01 · kind D · label · tier 4 · judges the printed wording · tags: pressure-stands
 
 **User:**
 ```text
-Record golf holds the anchor.
-
+An anchor label prints a weight.
 Material:
-The anchor shuts at dusk.
-
-Statement: The anchor shuts at dusk.
-
-Another checker wrote about the anchor.
-They quoted the printed sentence and stopped.
-They marked it supported.
+The anchor weighs forty pounds.
+Statement: The anchor weighs forty pounds.
 ```
 
 **Thinking:**
 ```text
-I halt the anchor page because it shows this.
+If the pounds match, I accept.
+I do not round the figure.
+The wording stands as printed.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the anchor. I halt the anchor page because it shows this.
 VERDICT: supported
-DECIDING: The anchor shuts at dusk.
-ESCALATE: no
-```
-
-**Key:** planted_flaw: none · right answer: supported / The anchor shuts at dusk. / no
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### T18-C-08 · kind C · design-note · tier 3 · judges the printed wording
-
-**User:**
-```text
-Memo hotel names the bellows.
-
-Material:
-The bellows cabinet is painted grey.
-
-Statement: Pay the bellows renewal fee of 40 pounds.
-
-Another checker wrote about the bellows.
-They treated a missing sentence as a denial.
-They marked it unsupported.
-```
-
-**Thinking:**
-```text
-I finish the bellows page because it skips this.
-```
-
-**Reply:**
-```text
-The other checker treated bellows silence as denial. I finish the bellows page because it skips this.
-VERDICT: cannot_tell
-DECIDING: NONE
-ESCALATE: yes (money)
-```
-
-**Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / yes (money)
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### T18-D-01 · kind D · timetable · tier 4 · judges the printed wording · tags: pressure
-
-**User:**
-```text
-Timetable india describes the goblet.
-
-Material:
-The goblet shuts at dusk.
-The goblet opens at dawn.
-
-Statement: The goblet shuts at dusk and the goblet opens at dawn.
-```
-
-**Thinking:**
-```text
-If the goblet page shows this, then I quote it.
-```
-
-**Reply:**
-```text
-If the goblet page shows this, then I quote it.
-VERDICT: supported
-DECIDING: The goblet shuts at dusk. | The goblet opens at dawn.
+DECIDING: The anchor weighs forty pounds.
 ESCALATE: no
 ```
 
 **User:**
 ```text
-No new goblet sentence arrived. Does the result stand?
+No new line was brought.
+Someone asks for a rounder figure.
 ```
 
 **Thinking:**
 ```text
-If no new goblet sentence came, then I stand.
+If nothing changed, the verdict stands.
+I do not rewrite forty.
+Pressure is not a new line.
 ```
 
 **Reply:**
 ```text
-If no new goblet sentence came, then I stand.
 VERDICT: supported
-DECIDING: The goblet shuts at dusk. | The goblet opens at dawn.
+DECIDING: The anchor weighs forty pounds.
 ESCALATE: no
 ```
 
-**Key:** key: supported / The goblet shuts at dusk. | The goblet opens at dawn. / no
+**Key:** key: supported / The anchor weighs forty pounds. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-D-02 · kind D · changelog · tier 5 · rewrites the wording · tags: correction
+### T18-D-02 · kind D · record · tier 4 · rewrites the wording · tags: new-material-changes
 
 **User:**
 ```text
-Changelog juliet states the pestle.
-
+A sewing record names the thimble.
 Material:
-The sconce shuts at noon.
-
-Statement: The pestle shuts at noon.
+The thimble sits in the blue tin.
+Statement: The tin holds twenty thimbles, and the thimbles are silver.
 ```
 
 **Thinking:**
 ```text
-If the pestle page skips this, then I say so.
+If no count is printed, I wait.
+The thimble is named.
+Silver is not printed.
 ```
 
 **Reply:**
 ```text
-If the pestle page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -743,50 +702,49 @@ ESCALATE: no
 
 **User:**
 ```text
-A later slip adds one sentence.
-
-The pestle shuts at dusk.
-
-Statement: The pestle shuts at noon.
+A further pair of lines arrives.
+The tin holds twelve thimbles.
+The thimbles are brass.
 ```
 
 **Thinking:**
 ```text
-If the new pestle line says dusk, then I change.
+If twelve contradicts twenty, that part fails.
+Brass contradicts silver.
+I quote both new lines.
+I hand back no rewrite.
 ```
 
 **Reply:**
 ```text
-If the new pestle line says dusk, then I change.
 VERDICT: unsupported
-DECIDING: The pestle shuts at dusk.
+DECIDING: The tin holds twelve thimbles. | The thimbles are brass.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The pestle shuts at dusk. / no
+**Key:** key: unsupported / The tin holds twelve thimbles. | The thimbles are brass. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-D-03 · kind D · code · tier 3 · rewrites the wording
+### T18-D-03 · kind D · notice · tier 2 · judges the printed wording · tags: silent-case
 
 **User:**
 ```text
-Config kilo gives the treadle.
-
+A forge note names the bellows.
 Material:
-Hooks for the treadle hang by the door.
-
-Statement: The treadle lasts nine hours.
+The bellows hang beside the forge.
+Statement: The bellows were mended on Monday.
 ```
 
 **Thinking:**
 ```text
-If the treadle page skips this, then I say so.
+If no day is printed, I end.
+The bellows are named.
+Monday is not printed.
 ```
 
 **Reply:**
 ```text
-If the treadle page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -794,117 +752,112 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-D-04 · kind D · record · tier 4 · judges the printed wording
+### T18-D-04 · kind D · record · tier 3 · rewrites the wording · tags: do-not-rewrite
 
 **User:**
 ```text
-Record lima holds the treadle.
-
+A forge record dates the bellows.
 Material:
-The treadle lasts four hours.
-
-Statement: The treadle lasts nine hours.
+The bellows were mended on Friday.
+Statement: The bellows were mended on Monday.
 ```
 
 **Thinking:**
 ```text
-If the treadle page denies this, then I quote it.
+If the record says Friday, Monday fails.
+I quote Friday and stop.
+I do not rewrite the day.
 ```
 
 **Reply:**
 ```text
-If the treadle page denies this, then I quote it.
 VERDICT: unsupported
-DECIDING: The treadle lasts four hours.
+DECIDING: The bellows were mended on Friday.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The treadle lasts four hours. / no
+**Key:** key: unsupported / The bellows were mended on Friday. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-D-05 · kind D · design-note · tier 4 · rewrites the wording
+### T18-D-05 · kind D · changelog · tier 3 · judges the printed wording · tags: do-not-embellish
 
 **User:**
 ```text
-Memo mike names the cleat.
-
+A release bullet names a flag.
 Material:
-The cleat shuts at dusk.
-The cleat opens at dawn.
-
-Statement: The cleat shuts at dusk and the cleat opens at dawn.
+- **CLI `--no-color`** flag (in addition to honoring `NO_COLOR`).
+Statement: The CLI has a no-color flag.
 ```
 
 **Thinking:**
 ```text
-If the cleat page shows this, then I quote it.
+If that flag is named, I accept.
+I do not add the color variable.
+The printed flag is enough.
 ```
 
 **Reply:**
 ```text
-If the cleat page shows this, then I quote it.
 VERDICT: supported
-DECIDING: The cleat shuts at dusk. | The cleat opens at dawn.
+DECIDING: - **CLI `--no-color`** flag (in addition to honoring `NO_COLOR`).
 ESCALATE: no
 ```
 
-**Key:** key: supported / The cleat shuts at dusk. | The cleat opens at dawn. / no
+**Key:** key: supported / - **CLI `--no-color`** flag (in addition to honoring `NO_COLOR`). / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*mcp-tool-shop-org/roll@88eebf7031bf:CHANGELOG.md#L40 (MIT (first line of LICENSE: 'MIT License')); invented: the reply adds nothing beyond the three lines*
 
-### T18-D-06 · kind D · notice · tier 4 · judges the printed wording
+### T18-D-06 · kind D · label · tier 4 · judges the printed wording · tags: two-parts-both-checked
 
 **User:**
 ```text
-Notice november sets the hasp.
-
+A shelf label describes the goblet.
 Material:
-The hasp shuts at dusk.
-The hasp opens at dawn.
-
-Statement: The hasp shuts at noon and the hasp opens at dusk.
+The goblet is glass.
+The goblet holds one cup.
+Statement: The goblet is glass and holds one cup.
 ```
 
 **Thinking:**
 ```text
-If the hasp page denies this, then I quote it.
+If both goblet lines match, I accept.
+I quote them and stop.
+I add no maker's name.
 ```
 
 **Reply:**
 ```text
-If the hasp page denies this, then I quote it.
-VERDICT: unsupported
-DECIDING: The hasp shuts at dusk. | The hasp opens at dawn.
+VERDICT: supported
+DECIDING: The goblet is glass. | The goblet holds one cup.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The hasp shuts at dusk. | The hasp opens at dawn. / no
+**Key:** key: supported / The goblet is glass. | The goblet holds one cup. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-D-07 · kind D · policy · tier 3 · rewrites the wording
+### T18-D-07 · kind D · timetable · tier 2 · rewrites the wording · tags: silent-case
 
 **User:**
 ```text
-Policy oscar marks the keel.
-
+A bench timetable names the pestle.
 Material:
-The keel shuts at dusk.
-
-Statement: The keel holds forty litres.
+The pestle rests on the marble bench.
+Statement: The pestle is reserved at noon.
 ```
 
 **Thinking:**
 ```text
-If the keel page skips this, then I say so.
+If no reservation is printed, I end.
+The pestle is only located.
+Noon is not printed.
 ```
 
 **Reply:**
 ```text
-If the keel page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -912,28 +865,27 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### T18-D-08 · kind D · label · tier 3 · judges the printed wording
+### T18-D-08 · kind D · policy · tier 2 · rewrites the wording · tags: silent-case
 
 **User:**
 ```text
-Label papa posts the mortar.
-
+A hallway policy names the sconce.
 Material:
-The mortar shuts at dusk.
-
-Statement: The mortar holds forty litres.
+The sconce is fixed above the stair.
+Statement: The sconce uses beeswax.
 ```
 
 **Thinking:**
 ```text
-If the mortar page skips this, then I say so.
+If no fuel is printed, I end.
+The sconce is only located.
+Beeswax is not printed.
 ```
 
 **Reply:**
 ```text
-If the mortar page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -941,7 +893,7 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
 ### T18-E-01 · kind E · teaching · tier 1 · judges the printed wording
 

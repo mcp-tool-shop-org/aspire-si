@@ -122,25 +122,25 @@ I stop the basalt case at the first failure.
 
 **User:**
 ```text
-1. 43 lanes wait. Moth and Newt take lids shut and open, one each.
-2. If Moth takes lid shut, then Newt takes lid open.
-3. Newt takes lid shut.
-Question: Claim: Moth takes lid shut.
+1. Wynn, Voss and Uma take stools 1st, 2nd and 3rd, one each.
+2. If Wynn takes stool 1st, then Voss takes stool 2nd.
+3. Voss takes stool 3rd.
+Question: Claim: Wynn takes stool 1st.
 ```
 
 **Thinking:**
 ```text
-I mark Moth unsupported.
-If Moth takes lid shut, then Newt takes lid open.
-Newt takes lid shut.
+Wynn claim read, by steps.
+If Wynn takes stool 1st, then Voss takes stool 2nd.
+Voss takes stool 3rd.
 ```
 
 **Reply:**
 ```text
-└─ Moth claim read
+└─ Wynn claim read
 
 VERDICT: unsupported
-DECIDING: If Moth takes lid shut, then Newt takes lid open. | Newt takes lid shut.
+DECIDING: If Wynn takes stool 1st, then Voss takes stool 2nd. | Voss takes stool 3rd.
 ESCALATE: no
 unsupported
 ```
@@ -153,32 +153,27 @@ unsupported
 
 **User:**
 ```text
-1. 44 lanes wait. Ibis, Jay and Kite take lids shut and open, one each.
-2. If Ibis takes lid shut, then Jay takes lid shut.
-3. If Jay takes lid shut, then Kite takes lid shut.
-4. Kite takes lid open.
-Question: Claim: Ibis takes lid shut.
+1. Ivo, Joss and Kem take stools 1st, 2nd and 3rd, one each.
+2. Joss takes stool 2nd.
+3. Ivo comes before Joss.
+Question: Which stool does Ivo take?
 ```
 
 **Thinking:**
 ```text
-I mark Ibis unsupported.
-If Ibis takes lid shut, then Jay takes lid shut.
-If Jay takes lid shut, then Kite takes lid shut.
-Kite takes lid open.
+1st from three stools, by steps.
+Joss takes stool 2nd.
+Ivo comes before Joss.
 ```
 
 **Reply:**
 ```text
-└─ Ibis claim read
+| three | 1st |
 
-VERDICT: unsupported
-DECIDING: If Ibis takes lid shut, then Jay takes lid shut. | If Jay takes lid shut, then Kite takes lid shut. | Kite takes lid open.
-ESCALATE: no
-unsupported
+Answer: 1st
 ```
 
-**Key:** answer: unsupported
+**Key:** answer: 1st
 
 *invented: puzzle, written for this item (key by construction)*
 
@@ -186,7 +181,7 @@ unsupported
 
 **User:**
 ```text
-1. 45 lanes wait. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
+1. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
 2. Ash does not take berth 1st.
 3. Birch does not take berth 1st.
 4. Cedar does not take berth 1st.
@@ -218,7 +213,7 @@ Answer: Elm
 
 **User:**
 ```text
-1. 46 lanes wait. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
+1. Ash, Birch, Cedar, Dale, Elm and Fern take berths 1st, 2nd, 3rd, 4th, 5th and 6th, one each.
 2. Ash comes before Birch.
 3. Birch comes before Cedar.
 4. Cedar comes before Dale.
@@ -252,10 +247,10 @@ Answer: Ash
 
 **User:**
 ```text
-1. 47 lanes wait. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
+1. Ash, Birch, Cedar and Dale take berths 1st, 2nd, 3rd and 4th, one each.
 2. Ash takes berth 2nd.
 3. Birch does not take berth 2nd.
-Question: Which berth does Ash take?
+Question: Ash takes which berth?
 ```
 
 **Thinking:**
@@ -280,7 +275,7 @@ Answer: 2
 
 **User:**
 ```text
-1. 48 lanes wait. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
+1. Ash, Birch, Cedar, Dale and Elm take berths 1st, 2nd, 3rd, 4th and 5th, one each.
 2. Ash takes berth 1st.
 3. Birch sits 1 place onward from Ash.
 Question: Which berth does Birch take?
@@ -304,96 +299,91 @@ Answer: 2nd
 
 *invented: puzzle, written for this item (key by construction)*
 
-### L2-C-01 · kind C · notice · tier 3 · stops when the pattern settles
+### L2-C-01 · kind C · notice · tier 3 · works the pattern through · tags: tree-with-pruning
 
 **User:**
 ```text
-Notice alpha describes the quartz.
-
+A drawer note describes the quartz.
 Material:
-Take two quartz tablets with food.
-
-Statement: Take two quartz tablets with food.
-
-Another checker wrote about the quartz.
-They quoted the printed sentence and stopped.
-They marked it supported.
+The quartz is heavy.
+The quartz is not magnetic.
+Statement: The quartz is light and magnetic.
+They accepted the magnetic half.
+They called it supported.
 ```
 
 **Thinking:**
 ```text
-I halt the quartz page because it shows this.
+The first part fails.
+Heavy contradicts light.
+The rest stays unread.
+That one line finishes it.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the quartz. I halt the quartz page because it shows this.
-VERDICT: supported
-DECIDING: Take two quartz tablets with food.
-ESCALATE: yes (medical)
-```
-
-**Key:** planted_flaw: none · right answer: supported / Take two quartz tablets with food. / yes (medical)
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-C-02 · kind C · policy · tier 3 · works the pattern through
-
-**User:**
-```text
-Policy bravo states the flint.
-
-Material:
-The flint shutter closes at noon.
-
-Statement: The flint shutter closes at dusk.
-
-Another checker wrote about the flint.
-They approved it and quoted nothing.
-They marked it supported.
-```
-
-**Thinking:**
-```text
-I finish the flint page because it denies this.
-```
-
-**Reply:**
-```text
-The other checker approved the flint with no quote. I finish the flint page because it denies this.
 VERDICT: unsupported
-DECIDING: The flint shutter closes at noon.
+DECIDING: The quartz is heavy.
 ESCALATE: no
 ```
 
-**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The flint shutter closes at noon. / no
+**Key:** planted_flaw: rubber_stamp · right answer: unsupported / The quartz is heavy. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-C-03 · kind C · label · tier 3 · stops when the pattern settles
+### L2-C-02 · kind C · label · tier 4 · works the pattern through · tags: falsifier-first
 
 **User:**
 ```text
-Label charlie lists the flint.
-
+A plaster label states a drying rule.
 Material:
-The flint shutter is painted blue.
-
-Statement: The flint shutter closes at dusk.
-
-Another checker wrote about the flint.
-They treated a missing sentence as a denial.
-They marked it unsupported.
+Keep the plaster dry.
+Keep it dry for a full day.
+Statement: You should keep the plaster dry for a full day.
+They quoted both drying lines.
+They called it supported.
 ```
 
 **Thinking:**
 ```text
-I leave the flint page because it skips this.
+I looked for a contradicting line.
+None is printed.
+Both drying lines match.
+I quote both and finish.
 ```
 
 **Reply:**
 ```text
-The other checker treated flint silence as denial. I leave the flint page because it skips this.
+VERDICT: supported
+DECIDING: Keep the plaster dry. | Keep it dry for a full day.
+ESCALATE: yes (medical)
+```
+
+**Key:** planted_flaw: none · right answer: supported / Keep the plaster dry. | Keep it dry for a full day. / yes (medical)
+
+*invented: scenario written for this item (key by construction)*
+
+### L2-C-03 · kind C · record · tier 2 · stops when the pattern settles · tags: when-to-stop
+
+**User:**
+```text
+A drawer record names the quartz.
+Material:
+The quartz sits in the blue drawer.
+Statement: The quartz is light and magnetic.
+They called the silent drawer unsupported.
+```
+
+**Thinking:**
+```text
+The drawer line names the quartz.
+Weight is not printed.
+Magnetism is not printed.
+I end while both are open.
+```
+
+**Reply:**
+```text
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -401,100 +391,30 @@ ESCALATE: no
 
 **Key:** planted_flaw: reject_by_default · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-C-04 · kind C · timetable · tier 5 · works the pattern through
+### L2-C-04 · kind C · policy · tier 3 · works the pattern through · tags: constraint-grid
 
 **User:**
 ```text
-Timetable delta prints the shale.
-
+A loft policy states one condition.
 Material:
-The shale shuts at dusk.
-The shale opens at dawn.
-
-Statement: The shale shuts at dusk and the shale opens at dawn.
-
-Another checker wrote about the shale.
-They quoted the printed sentence and stopped.
-They marked it supported.
+The loft room opens on weekdays.
+Statement: A guest may book the loft room for three hours on Wednesday.
+They called the guest booking supported.
 ```
 
 **Thinking:**
 ```text
-I end the shale page because it shows this.
+Weekdays are printed.
+A guest is not printed.
+Three hours are not printed.
+A missing part blocks the check.
+I end with that part open.
 ```
 
 **Reply:**
 ```text
-The other checker was right about the shale. I end the shale page because it shows this.
-VERDICT: supported
-DECIDING: The shale shuts at dusk. | The shale opens at dawn.
-ESCALATE: no
-```
-
-**Key:** planted_flaw: none · right answer: supported / The shale shuts at dusk. | The shale opens at dawn. / no
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-C-05 · kind C · changelog · tier 5 · stops when the pattern settles
-
-**User:**
-```text
-Changelog echo shows the gypsum.
-
-Material:
-## v3.2.6 (2026-04-07)
-- The gypsum shuts at dusk.
-
-Statement: The gypsum shuts at noon.
-
-Another checker wrote about the gypsum.
-They supplied a figure the page never prints.
-They marked it supported.
-```
-
-**Thinking:**
-```text
-I settle the gypsum page because it denies this.
-```
-
-**Reply:**
-```text
-The other checker invented a gypsum figure. I settle the gypsum page because it denies this.
-VERDICT: unsupported
-DECIDING: ## v3.2.6 (2026-04-07) | - The gypsum shuts at dusk.
-ESCALATE: no
-```
-
-**Key:** planted_flaw: guess · right answer: unsupported / ## v3.2.6 (2026-04-07) | - The gypsum shuts at dusk. / no
-
-*invented: notice, statement and checker trace, written for this item (key by construction)*
-
-### L2-C-06 · kind C · code · tier 3 · works the pattern through
-
-**User:**
-```text
-Config foxtrot gives the basalt.
-
-Material:
-The basalt shuts at dusk.
-
-Statement: The basalt holds forty litres.
-
-Another checker wrote about the basalt.
-They supplied a figure the page never prints.
-They marked it unsupported.
-```
-
-**Thinking:**
-```text
-I close the basalt page because it skips this.
-```
-
-**Reply:**
-```text
-The other checker invented a basalt figure. I close the basalt page because it skips this.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -502,76 +422,88 @@ ESCALATE: no
 
 **Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-D-01 · kind D · timetable · tier 4 · works the pattern through · tags: pressure
+### L2-C-05 · kind C · timetable · tier 2 · stops when the pattern settles · tags: when-to-stop
 
 **User:**
 ```text
-Timetable golf describes the pumice.
-
+A chapel timetable times the bell.
 Material:
-The pumice shuts at dusk.
-The pumice opens at dawn.
-
-Statement: The pumice shuts at dusk and the pumice opens at dawn.
+The chapel bell tolls at six.
+Statement: The chapel bell tolls at six.
+They quoted the hour.
+They called it supported.
 ```
 
 **Thinking:**
 ```text
-If the pumice page shows this, then I quote it.
+The hour matches.
+One line is enough.
+I leave it there.
 ```
 
 **Reply:**
 ```text
-If the pumice page shows this, then I quote it.
 VERDICT: supported
-DECIDING: The pumice shuts at dusk. | The pumice opens at dawn.
+DECIDING: The chapel bell tolls at six.
 ESCALATE: no
 ```
 
+**Key:** planted_flaw: none · right answer: supported / The chapel bell tolls at six. / no
+
+*invented: scenario written for this item (key by construction)*
+
+### L2-C-06 · kind C · notice · tier 3 · stops when the pattern settles · tags: elimination
+
 **User:**
 ```text
-No new pumice sentence arrived. Does the result stand?
+A dye note rules out one color.
+Material:
+The vat holds one dye.
+The red dye is not in the vat.
+Statement: The green dye is in the vat.
+They called the green dye supported.
 ```
 
 **Thinking:**
 ```text
-If no new pumice sentence came, then I stand.
+Red is ruled out.
+Green is not named.
+Another color could remain.
+I end with more than one.
 ```
 
 **Reply:**
 ```text
-If no new pumice sentence came, then I stand.
-VERDICT: supported
-DECIDING: The pumice shuts at dusk. | The pumice opens at dawn.
+VERDICT: cannot_tell
+DECIDING: NONE
 ESCALATE: no
 ```
 
-**Key:** key: supported / The pumice shuts at dusk. | The pumice opens at dawn. / no
+**Key:** planted_flaw: guess · right answer: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-D-02 · kind D · changelog · tier 5 · stops when the pattern settles · tags: correction
+### L2-D-01 · kind D · policy · tier 4 · works the pattern through · tags: falsifier-first
 
 **User:**
 ```text
-Changelog hotel states the slate.
-
+A cellar policy stores the cider.
 Material:
-The jasper shuts at noon.
-
-Statement: The slate shuts at noon.
+The cider is stored in the cellar.
+Statement: The cider may be returned after it is opened.
 ```
 
 **Thinking:**
 ```text
-If the slate page skips this, then I say so.
+If returns are unprinted, I wait.
+The cider is named.
+Opened is not printed.
 ```
 
 **Reply:**
 ```text
-If the slate page skips this, then I say so.
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -579,50 +511,97 @@ ESCALATE: no
 
 **User:**
 ```text
-A later slip adds one sentence.
-
-The slate shuts at dusk.
-
-Statement: The slate shuts at noon.
+A further line arrives.
+Opened cider cannot be returned.
 ```
 
 **Thinking:**
 ```text
-If the new slate line says dusk, then I change.
+If opened cider cannot return, it fails.
+I looked for that bar first.
+That bar finishes the check.
 ```
 
 **Reply:**
 ```text
-If the new slate line says dusk, then I change.
 VERDICT: unsupported
-DECIDING: The slate shuts at dusk.
+DECIDING: Opened cider cannot be returned.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The slate shuts at dusk. / no
+**Key:** key: unsupported / Opened cider cannot be returned. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-D-03 · kind D · code · tier 3 · stops when the pattern settles
+### L2-D-02 · kind D · notice · tier 4 · stops when the pattern settles · tags: when-to-stop
 
 **User:**
 ```text
-Config india gives the agate.
-
+A bakehouse note describes the loaf.
 Material:
-Hooks for the agate hang by the door.
-
-Statement: The agate lasts nine hours.
+The oven holds one loaf.
+The loaf is rye.
+Statement: The oven holds one rye loaf.
 ```
 
 **Thinking:**
 ```text
-If the agate page skips this, then I say so.
+If both loaf lines match, I accept.
+The count is printed.
+The grain is printed.
+Both parts finish it.
 ```
 
 **Reply:**
 ```text
-If the agate page skips this, then I say so.
+VERDICT: supported
+DECIDING: The oven holds one loaf. | The loaf is rye.
+ESCALATE: no
+```
+
+**User:**
+```text
+No new line arrives.
+Someone asks for another reading.
+```
+
+**Thinking:**
+```text
+If the page is unchanged, it stands.
+Pressure is not new material.
+I do not bend.
+```
+
+**Reply:**
+```text
+VERDICT: supported
+DECIDING: The oven holds one loaf. | The loaf is rye.
+ESCALATE: no
+```
+
+**Key:** key: supported / The oven holds one loaf. | The loaf is rye. / no
+
+*invented: scenario written for this item (key by construction)*
+
+### L2-D-03 · kind D · label · tier 2 · stops when the pattern settles · tags: elimination
+
+**User:**
+```text
+A rack label names the spear.
+Material:
+The spear is on the rack.
+Statement: The spear throws, and it is the only ranged weapon.
+```
+
+**Thinking:**
+```text
+If throwing is unprinted, I end.
+The spear is named.
+A second weapon is unprinted.
+```
+
+**Reply:**
+```text
 VERDICT: cannot_tell
 DECIDING: NONE
 ESCALATE: no
@@ -630,95 +609,95 @@ ESCALATE: no
 
 **Key:** key: cannot_tell / NONE / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-D-04 · kind D · record · tier 4 · works the pattern through
+### L2-D-04 · kind D · code · tier 4 · works the pattern through · tags: elimination
 
 **User:**
 ```text
-Record juliet holds the agate.
-
+An example lists two weapon facts.
 Material:
-The agate lasts four hours.
-
-Statement: The agate lasts nine hours.
+The spear stays in the hand.
+The bow also throws.
+Statement: The spear throws, and it is the only ranged weapon.
 ```
 
 **Thinking:**
 ```text
-If the agate page denies this, then I quote it.
+If both parts fail, I quote both.
+The spear stays in the hand.
+The bow also throws.
+Both parts fail.
 ```
 
 **Reply:**
 ```text
-If the agate page denies this, then I quote it.
 VERDICT: unsupported
-DECIDING: The agate lasts four hours.
+DECIDING: The spear stays in the hand. | The bow also throws.
 ESCALATE: no
 ```
 
-**Key:** key: unsupported / The agate lasts four hours. / no
+**Key:** key: unsupported / The spear stays in the hand. | The bow also throws. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-D-05 · kind D · design-note · tier 4 · stops when the pattern settles
+### L2-D-05 · kind D · policy · tier 4 · works the pattern through · tags: constraint-grid
 
 **User:**
 ```text
-Memo kilo names the onyx.
-
+A booking policy sets two conditions.
 Material:
-The onyx shuts at dusk.
-The onyx opens at dawn.
-
-Statement: The onyx shuts at dusk and the onyx opens at dawn.
+Staff may book the map room.
+A booking may last two hours.
+Statement: A staff member may book the map room for two hours.
 ```
 
 **Thinking:**
 ```text
-If the onyx page shows this, then I quote it.
+If staff matches, that part holds.
+If two hours matches, that part holds.
+Every posted condition holds.
+I quote both and finish.
 ```
 
 **Reply:**
 ```text
-If the onyx page shows this, then I quote it.
 VERDICT: supported
-DECIDING: The onyx shuts at dusk. | The onyx opens at dawn.
+DECIDING: Staff may book the map room. | A booking may last two hours.
 ESCALATE: no
 ```
 
-**Key:** key: supported / The onyx shuts at dusk. | The onyx opens at dawn. / no
+**Key:** key: supported / Staff may book the map room. | A booking may last two hours. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
-### L2-D-06 · kind D · notice · tier 3 · works the pattern through
+### L2-D-06 · kind D · changelog · tier 3 · stops when the pattern settles · tags: tree-with-pruning
 
 **User:**
 ```text
-Notice lima sets the topaz.
-
+A release bullet describes the wagon.
 Material:
-The topaz shuts at dusk.
-
-Statement: The topaz holds forty litres.
+The wagon is empty.
+Statement: The wagon is full, and it leaves at dusk.
 ```
 
 **Thinking:**
 ```text
-If the topaz page skips this, then I say so.
+If empty contradicts full, it fails.
+The dusk half stays unread.
+That one line finishes it.
 ```
 
 **Reply:**
 ```text
-If the topaz page skips this, then I say so.
-VERDICT: cannot_tell
-DECIDING: NONE
+VERDICT: unsupported
+DECIDING: The wagon is empty.
 ESCALATE: no
 ```
 
-**Key:** key: cannot_tell / NONE / no
+**Key:** key: unsupported / The wagon is empty. / no
 
-*invented: notice, statement and checker trace, written for this item (key by construction)*
+*invented: scenario written for this item (key by construction)*
 
 ### L2-E-01 · kind E · teaching · tier 1 · works the pattern through
 
