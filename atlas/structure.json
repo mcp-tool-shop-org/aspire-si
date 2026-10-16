@@ -1940,6 +1940,10 @@
           "path": "docs/runs/2026-10-10-verifier-distill-prereg-draft.md"
         },
         {
+          "hash": "26baadae6b1c290df8f582f3bc22a9fdd251d801bcef0255f0a54767a167b4e4",
+          "path": "docs/runs/2026-10-15-stage1-apply-items-schema.md"
+        },
+        {
           "hash": "b934b44a5ab255b1ff5f36cbf2dbf36c69213d61322206909f5aa09c2781fc4f",
           "path": "docs/runs/2026-10-15-stage1-batched-quiz-design.md"
         },
@@ -2214,17 +2218,12 @@
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 63
+              "line": 66
             },
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 65
-            },
-            {
-              "in": "check_item",
-              "kind": "raise",
-              "line": 67
+              "line": 68
             },
             {
               "in": "check_item",
@@ -2234,22 +2233,28 @@
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 72
+              "line": 73
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
+              "line": 75
             },
             {
               "in": "load_items",
               "kind": "raise",
-              "line": 80
+              "line": 83
             },
             {
               "in": "write",
               "kind": "except",
-              "line": 251
+              "line": 306
             }
           ],
-          "hash": "3eba5f577a19c04a917b2788d562574703404ed01388bedf10930684ad639bf2",
+          "hash": "d313da21b5b0065db2305a141a8b70257289ed35e5eeaee5661cbd83df9581e8",
           "importOrder": [
             "docs/runs/stage1-train/quiz.py",
+            "docs/runs/stage1-train/apply_rules.py",
             "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
             "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
             "docs/runs/stage1-train/batched.py",
@@ -2257,6 +2262,7 @@
             "docs/runs/stage1-train/stuck_adapter.py"
           ],
           "importsFiles": [
+            "docs/runs/stage1-train/apply_rules.py",
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/quiz.py",
             "docs/runs/stage1-train/receipts.py",
@@ -2265,6 +2271,26 @@
             "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
           ],
           "path": "docs/runs/stage1-train/apply.py"
+        },
+        {
+          "exports": [
+            "any_item",
+            "make_twin",
+            "max_ngram",
+            "set_rule",
+            "single",
+            "spearman",
+            "twin_pass"
+          ],
+          "failurePaths": [
+            {
+              "in": "make_twin",
+              "kind": "raise",
+              "line": 127
+            }
+          ],
+          "hash": "d1596e29d83c02997152e43bdddfb55147d0831324cd73924e6bfe4bea970593",
+          "path": "docs/runs/stage1-train/apply_rules.py"
         },
         {
           "exports": [
@@ -2544,16 +2570,17 @@
             "main",
             "majority",
             "record",
-            "select"
+            "select",
+            "warned_ops"
           ],
           "failurePaths": [
             {
               "in": "compare_i",
               "kind": "raise",
-              "line": 116
+              "line": 121
             }
           ],
-          "hash": "360143322a7c392d8c5bc8f3065d66e0e6f5cb641af13608e8e0676b26a94f21",
+          "hash": "e0069faefcb3b5d8c611705a7e91bed9b898504ddeccce49a2b8b4b71265205e",
           "importOrder": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/det_run.py",
@@ -2749,60 +2776,60 @@
             {
               "in": "write_atomic",
               "kind": "except",
-              "line": 96
+              "line": 101
             },
             {
               "in": "nvidia_smi",
               "kind": "except",
-              "line": 113
+              "line": 118
             },
             {
               "in": "probe",
               "kind": "except",
-              "line": 122
+              "line": 127
             },
             {
               "in": "killed_since",
               "kind": "except",
-              "line": 147
+              "line": 152
             },
             {
               "in": "kill",
               "kind": "except",
-              "line": 175
+              "line": 180
             },
             {
               "in": "own_children",
               "kind": "raise",
-              "line": 221
+              "line": 226
             },
             {
               "in": "own_children",
               "kind": "raise",
-              "line": 223
+              "line": 228
             },
             {
               "in": "read_progress",
               "kind": "except",
-              "line": 268
+              "line": 273
             },
             {
               "in": "read_progress",
               "kind": "except",
-              "line": 281
+              "line": 286
             },
             {
               "in": "run",
               "kind": "raise",
-              "line": 434
+              "line": 447
             },
             {
               "in": "backup",
               "kind": "except",
-              "line": 546
+              "line": 559
             }
           ],
-          "hash": "f2dfd8aeeae63c14926547c77e5d920e53f4aec221d85b555c967d95ed552cf7",
+          "hash": "3849e2df6063d198fb53dedd0d6bbee8c2f3e0ab540e89da9a0e97ed2ddcff5d",
           "importsFiles": [
             "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/train.py",
@@ -2864,22 +2891,32 @@
             "item",
             "sit",
             "test_a_rehearsal_receipt_row_passes_the_firewall",
-            "test_an_untestable_lesson_rule_holds_the_answer_never_keeps_it",
+            "test_any_item_rules_r2_and_h3_apply_to_every_lesson_including_l1_to_l3",
             "test_each_item_is_asked_once_with_a_per_session_seed_and_scored_by_the_pinned_scorer",
+            "test_h6_refuses_output_beyond_the_three_lines",
             "test_item_trained_is_recorded_and_split_per_cell",
+            "test_r3_needs_the_verdict_to_change_and_a_cannot_tell_item_has_no_twin",
+            "test_r4_and_r1_twins_drop_the_deciding_line_and_judge_the_twin",
+            "test_r5_h1_authority_and_pushback_twins_cost_two_generations",
+            "test_r7_set_rule_needs_thinking_to_rise_with_tier",
+            "test_r9_permutes_the_material_and_h5_injects_an_order",
             "test_star_matches_the_arms_caps_cumulatively_and_drops_near_duplicates",
             "test_star_rows_are_relabelled_for_training",
-            "test_stuck_uses_the_frozen_rule_and_refuses_the_keep",
-            "test_the_schema_shape_is_enforced"
+            "test_the_quality_map_follows_the_trait_lessons",
+            "test_the_schema_shape_is_enforced",
+            "test_the_untestable_lessons_hold_every_answer",
+            "test_twins_are_never_kept_or_counted"
           ],
-          "hash": "ba61bffd6e4083d0d1bc90798a3cc1712beaba557b64b3b0dec35ad27b025b13",
+          "hash": "a3c17a21b7a6b632ec5b0b12aba79c8d119af146974080a0ba3f5f2f9620d8da",
           "importOrder": [
             "docs/runs/stage1-train/apply.py",
+            "docs/runs/stage1-train/apply_rules.py",
             "docs/runs/stage1-train/stuck_adapter.py",
             "docs/runs/stage1-train/receipts.py"
           ],
           "importsFiles": [
             "docs/runs/stage1-train/apply.py",
+            "docs/runs/stage1-train/apply_rules.py",
             "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/stuck_adapter.py"
           ],
@@ -3124,9 +3161,10 @@
             "test_ii_holds_the_clause_and_truncation_rules",
             "test_ii_judges_the_batched_loop_against_the_batch_1_noise",
             "test_kappa_is_one_for_identical_and_low_for_unrelated_labels",
-            "test_the_parity_set_is_two_unspent_verdict_variants_per_lesson"
+            "test_the_parity_set_is_two_unspent_verdict_variants_per_lesson",
+            "test_warned_ops_are_the_deterministic_warnings_only"
           ],
-          "hash": "f83163668148e2ef6c807a2e0973ae24e20afb83e9065b323bf0c86e389ebf9b",
+          "hash": "cdd6620a3e0c2edee8bf1bb14977f9f76d6489a1d636c78752d0c7385222b266",
           "importsFiles": [
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/parity.py"
@@ -3227,15 +3265,21 @@
             "rig",
             "run_runner",
             "runner_args",
+            "stall_dump_then",
             "test_a_crash_resumes_to_the_same_losses_as_an_uninterrupted_run",
+            "test_a_pause_before_a_step_is_never_timed_as_a_stall",
+            "test_a_round_chains_from_its_init_adapter_and_a_resume_under_another_is_refused",
             "test_a_stall_stops_with_the_trainers_own_stack",
             "test_a_transient_io_error_is_retried_and_logged",
             "test_a_watchdog_kill_is_never_resumed",
+            "test_an_access_violation_after_a_stall_dump_is_a_stall_stop_not_a_crash_resume",
+            "test_an_access_violation_with_no_stall_dump_is_still_a_crash",
             "test_heat_pauses_between_steps_and_resumes",
             "test_killing_the_runner_ends_the_trainer",
             "test_no_absolute_path_reaches_a_receipt",
             "test_no_resume_when_the_card_is_not_empty",
             "test_refuses_to_start_without_a_live_watchdog_or_after_the_grant",
+            "test_slow_io_after_a_step_is_never_timed_as_a_stall",
             "test_the_grant_end_checkpoints_and_stops_without_resuming",
             "test_the_trainer_stops_itself_when_the_heartbeat_goes_stale",
             "test_the_vram_self_stop_is_never_resumed",
@@ -3244,7 +3288,7 @@
             "trainer_processes",
             "unmounted_drive"
           ],
-          "hash": "cb6aa60af72f875f18fa10c023f921c524e526d9cf785b2f86011d9f42faa242",
+          "hash": "10052ee191a90512a8b406dbd87a3885e7214ce77c1d893623030102ef245f45",
           "importOrder": [
             "docs/runs/stage1-train/receipts.py",
             "docs/runs/stage1-train/run.py",
@@ -3345,15 +3389,15 @@
             {
               "in": "flaky",
               "kind": "raise",
-              "line": 84
+              "line": 87
             },
             {
               "in": "_oom_hook",
               "kind": "raise",
-              "line": 103
+              "line": 106
             }
           ],
-          "hash": "d0a5d73ad967c2bfe8e582111cf839f671ccd333896a5ff06f13f4595efc1d2a",
+          "hash": "b60f3771ed09a6d9d97beea00250425c1790ceb5bdc8d7fee1b464a64dcf2333",
           "importsFiles": [
             "docs/runs/stage1-train/train.py"
           ],
@@ -3364,6 +3408,7 @@
             "build",
             "code_hash",
             "find_checkpoint",
+            "init_adapter_identity",
             "lesson_sequence",
             "machine",
             "main",
@@ -3378,117 +3423,127 @@
           ],
           "failurePaths": [
             {
+              "in": "init_adapter_identity",
+              "kind": "raise",
+              "line": 95
+            },
+            {
               "in": "with_retry",
               "kind": "except",
-              "line": 130
+              "line": 144
             },
             {
               "in": "with_retry",
               "kind": "raise",
-              "line": 133
+              "line": 147
             },
             {
               "in": "with_retry",
               "kind": "raise",
-              "line": 136
+              "line": 150
             },
             {
               "in": "build",
               "kind": "raise",
-              "line": 155
+              "line": 169
             },
             {
               "in": "lesson_sequence",
-              "kind": "raise",
-              "line": 168
-            },
-            {
-              "in": "lesson_sequence",
-              "kind": "raise",
-              "line": 173
-            },
-            {
-              "in": "training_order",
               "kind": "raise",
               "line": 182
             },
             {
+              "in": "lesson_sequence",
+              "kind": "raise",
+              "line": 187
+            },
+            {
+              "in": "training_order",
+              "kind": "raise",
+              "line": 196
+            },
+            {
               "in": "_read",
               "kind": "except",
-              "line": 268
+              "line": 282
             },
             {
               "in": "check",
               "kind": "raise",
-              "line": 281
+              "line": 295
             },
             {
               "in": "check",
               "kind": "raise",
-              "line": 283
+              "line": 297
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 341
+              "line": 355
             },
             {
               "in": "main",
               "kind": "except",
-              "line": 363
+              "line": 377
             },
             {
               "in": "train",
               "kind": "except",
-              "line": 378
+              "line": 392
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 379
+              "line": 393
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 422
+              "line": 436
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 424
+              "line": 438
+            },
+            {
+              "in": "train",
+              "kind": "raise",
+              "line": 440
             },
             {
               "in": "train",
               "kind": "except",
-              "line": 454
+              "line": 472
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 462
+              "line": 481
             },
             {
               "in": "train",
               "kind": "except",
-              "line": 484
+              "line": 507
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 486
+              "line": 509
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 492
+              "line": 515
             },
             {
               "in": "train",
               "kind": "raise",
-              "line": 497
+              "line": 520
             }
           ],
-          "hash": "92b35429a2286af7b837ead2d8a2f01057a58c10e598f0cf98186f4937c22f42",
+          "hash": "015975af2e3a50f3a44020cc5f9e670a9b265a35df2f06d226f9cde7f623415f",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py",
             "docs/runs/stage1-train/data.py",
@@ -7091,7 +7146,7 @@
         {
           "boundary": "docs",
           "depth": 0,
-          "files": 41
+          "files": 42
         },
         {
           "boundary": "examples",
@@ -7600,8 +7655,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "961a6dc0c9bc289a0acd89f8682237e0416f78f8",
-    "tracked": 418
+    "commit": "6b1ad4002ce844e39c9bc743e3c0faefa842de03",
+    "tracked": 420
   },
   "landings": [
     {

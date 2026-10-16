@@ -63,3 +63,14 @@ def test_ii_holds_the_clause_and_truncation_rules():
 def test_kappa_is_one_for_identical_and_low_for_unrelated_labels():
     assert parity.kappa([True, False, True], [True, False, True]) == 1.0
     assert parity.kappa([True, False] * 10, [False, True] * 10) < 0
+
+
+def test_warned_ops_are_the_deterministic_warnings_only():
+    import warnings
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        warnings.warn("index_copy_cuda does not have a deterministic implementation, but you set warn_only")
+        warnings.warn("index_copy_cuda does not have a deterministic implementation, but you set warn_only")
+        warnings.warn("an unrelated deprecation")
+    assert parity.warned_ops(caught) == [
+        "index_copy_cuda does not have a deterministic implementation, but you set warn_only"]

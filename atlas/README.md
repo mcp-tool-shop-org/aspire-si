@@ -1,16 +1,16 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-15 from commit 961a6dc by Atlas 1.24.0.
+Mapped at 2026-10-16 from commit 6b1ad40 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (246 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (247 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-15 (cfd95d3)
+## What changed since 2026-10-15 (961a6dc)
 
-Nothing structural changed since 2026-10-15; 4 files added and 3 changed content.
+Nothing structural changed since 2026-10-15; 2 files added and 8 changed content.
 
 ## What comes in
 

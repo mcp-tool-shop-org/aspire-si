@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 49,
+      "qualifyingSourceCommits": 51,
       "rebaseline": null
     },
     {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 28,
-        "lines": 658,
+        "commits": 29,
+        "lines": 675,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 28,
-        "lines": 2091,
+        "commits": 29,
+        "lines": 2129,
         "path": "atlas/page.json"
       },
       {
-        "commits": 28,
-        "lines": 7563,
+        "commits": 29,
+        "lines": 7662,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 28,
-        "lines": 17554,
+        "commits": 29,
+        "lines": 17748,
         "path": "atlas/structure.json"
       },
       {
@@ -769,6 +769,16 @@
         "path": "docs/runs/stage1-train/_evaldir.py"
       },
       {
+        "commits": 2,
+        "lines": 376,
+        "path": "docs/runs/stage1-train/apply.py"
+      },
+      {
+        "commits": 1,
+        "lines": 177,
+        "path": "docs/runs/stage1-train/apply_rules.py"
+      },
+      {
         "commits": 1,
         "lines": 218,
         "path": "docs/runs/stage1-train/batched.py"
@@ -819,8 +829,8 @@
         "path": "docs/runs/stage1-train/parity.py"
       },
       {
-        "commits": 3,
-        "lines": 392,
+        "commits": 4,
+        "lines": 402,
         "path": "docs/runs/stage1-train/quiz.py"
       },
       {
@@ -847,6 +857,11 @@
         "commits": 1,
         "lines": 16,
         "path": "docs/runs/stage1-train/test_answer_format.py"
+      },
+      {
+        "commits": 2,
+        "lines": 369,
+        "path": "docs/runs/stage1-train/test_apply.py"
       },
       {
         "commits": 1,
@@ -2259,9 +2274,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-15T23:46:58.058Z",
+  "generatedAt": "2026-10-16T00:01:05.975Z",
   "generatedFrom": {
-    "commit": "961a6dc0c9bc289a0acd89f8682237e0416f78f8"
+    "commit": "6b1ad4002ce844e39c9bc743e3c0faefa842de03"
   },
   "pairs": [
     {
@@ -2470,43 +2485,43 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 21,
-      "shared": 21,
+      "either": 22,
+      "shared": 22,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 21,
-      "shared": 21,
+      "either": 22,
+      "shared": 22,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 21,
-      "shared": 21,
+      "either": 22,
+      "shared": 22,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 21,
-      "shared": 21,
+      "either": 22,
+      "shared": 22,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 21,
-      "shared": 21,
+      "either": 22,
+      "shared": 22,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 21,
-      "shared": 21,
+      "either": 22,
+      "shared": 22,
       "strength": 1
     },
     {
@@ -2751,16 +2766,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-15T19:12:16-04:00",
-    "inScopeFiles": 423,
+    "headDate": "2026-10-15T19:59:41-04:00",
+    "inScopeFiles": 425,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 197,
+    "qualifyingCommits": 199,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-18T23:12:16.000Z",
+    "since": "2026-04-18T23:59:41.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
