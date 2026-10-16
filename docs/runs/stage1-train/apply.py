@@ -41,6 +41,7 @@ in review elsewhere).
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -207,21 +208,70 @@ def sit(items: list, session: int, generate_many, count, rule: dict, write, trai
     return readout, kept
 
 
-def _spans(text: str) -> set:
-    return gates._shingles(text, 8)
+def _own_texts(item: dict) -> list:
+    """The item's own material lines and its statement: text the model was given, not text it originated."""
+    lines = [x.strip() for x in (item.get("material") or "").splitlines() if x.strip()]
+    lines += [x.strip() for t in item.get("turns") or [] for x in t.get("new_material", []) if x.strip()]
+    stmt = (item.get("statement") or "").strip() or \
+        gates._statement((item.get("turns") or [{}])[0].get("user", "")).strip().strip('"“”').strip()
+    return lines + ([stmt] if stmt else [])
 
 
-def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP, prior_spans: dict | None = None) -> dict:
+def originated_spans(thinking: str, item: dict, learned: set = frozenset()) -> set:
+    """The 8-word spans of a STaR answer's thinking that the model originated (R&D's rule on Argon's 7.1
+    condition, by the same steps as context.check_not_from_traces):
+    1. gates.line_spans of each thinking line, skipping the lines gates._spans skips (material lines, the
+       Statement line, the three-line block);
+    2. less the spans of the item's own material and statement. A quote of them inside a line is also cut out
+       first, so no span straddles a quote: the fixed closing `... settles the statement: "<statement>"` then
+       carries no 8-word span that differs only by the statement's first words;
+    3. less `learned`, every span the arm's training rows hold (learned_spans)."""
+    own = _own_texts(item)
+    content = gates._content_lines(item)
+    cut = re.compile("|".join(r"\s+".join(map(re.escape, t.split())) for t in sorted(own, key=len, reverse=True)),
+                     re.I) if own else None
+    out: set = set()
+    for line in thinking.splitlines():
+        bare = gates.ws(line).replace('\\"', '"').strip("\"'“” ").lower()
+        if not bare or gates.THREE_LINE.match(line) or gates.STATEMENT_RE.match(line) or bare in content:
+            continue
+        for piece in (cut.split(line) if cut else [line]):
+            out |= gates.line_spans(piece)
+    mine = set().union(*(gates.line_spans(t) for t in own)) if own else set()
+    return out - mine - set(learned)
+
+
+def learned_spans(paths) -> set:
+    """Every 8-word span one arm's training rows hold (gates._spans over each row of the files given). The arm's
+    learned set is exactly the files passed for it, and each arm subtracts only its own training rows (R&D,
+    2026-10-16; the run sheet's STaR step names them):
+    - ROLE: `--training-role` with the FROZEN.md curriculum files;
+    - NO-ROLE: `--training-no-role` with the pinned no_role.py output only (its rows already carry the shared
+      prompts and the fixed closings);
+    - earlier STaR rows are never subtracted: they are what the drop compares against, through prior_spans."""
+    out: set = set()
+    for p in paths:
+        for x in Path(p).read_text(encoding="utf-8").splitlines():
+            if x.strip():
+                out |= gates._spans(json.loads(x))
+    return out
+
+
+def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP, prior_spans: dict | None = None,
+                  learned: dict | None = None) -> dict:
     """{arm: chosen candidates} after the near-duplicate drop, matching across the arms and the cumulative cap.
-    `prior` is {arm: {(lesson, kind): kept so far}}; `prior_spans` is {arm: the 8-word spans of that arm's earlier
-    STaR rows}, so a candidate repeating an earlier kept answer is dropped (Argon's finding 7.1). Items trained
+    `prior` is {arm: {(lesson, kind): kept so far}}; `prior_spans` is {arm: the originated spans of that arm's
+    earlier STaR rows}, so a candidate repeating an earlier kept answer is dropped (Argon's finding 7.1). Only
+    spans the model originated count (originated_spans, with `learned` = {arm: learned_spans}). Items trained
     before are not excluded (R&D). Candidates are {"item", "thinking", "answer"}."""
     prior_spans = prior_spans or {}
+    learned = learned or {}
 
     def dedup(cands, arm):
         out, seen = [], set(prior_spans.get(arm, set()))
         for c in sorted(cands, key=lambda c: c["item"]["id"]):
-            sp = _spans(c["thinking"])  # the thinking only: the reply is fixed by the key (R&D on #137)
+            # the thinking only: the reply is fixed by the key (R&D on #137)
+            sp = originated_spans(c["thinking"], c["item"], learned.get(arm, set()))
             if sp & seen:
                 continue
             seen |= sp
@@ -271,12 +321,12 @@ def prior_counts(star_paths) -> dict:
     return out
 
 
-def prior_spans(star_paths) -> set:
-    """The 8-word spans of one arm's earlier STaR answers' thinking, the same text dedup reads (R&D on #137)."""
+def prior_spans(star_paths, learned: set = frozenset()) -> set:
+    """The originated spans of one arm's earlier STaR answers' thinking, reduced as dedup reduces a candidate's:
+    a STaR row keeps its item's material and user turn, so its own quotes are left out the same way."""
     out: set = set()
     for r in _star_rows(star_paths):
-        t = r["turns"][0]
-        out |= _spans(t["thinking"])
+        out |= originated_spans(r["turns"][0]["thinking"], r, learned)
     return out
 
 
@@ -298,14 +348,21 @@ def main(argv=None) -> int:  # pragma: no cover - the sitting runs on the card; 
     t.add_argument("--kept", nargs=2, required=True, metavar=("ROLE", "NO_ROLE"))
     t.add_argument("--prior-role", nargs="*", default=[], help="the ROLE arm's earlier STaR files")
     t.add_argument("--prior-no-role", nargs="*", default=[], help="the NO-ROLE arm's earlier STaR files")
+    # required, never defaulted: a STaR step run without them would subtract nothing (R&D on #142)
+    t.add_argument("--training-role", nargs="+", required=True,
+                   help="the ROLE arm's training files (the FROZEN.md curriculum): their spans are learned")
+    t.add_argument("--training-no-role", nargs="+", required=True,
+                   help="the NO-ROLE arm's training files (its pinned no_role.py output only)")
     t.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     if a.cmd == "star":
         def load(p):
             return [json.loads(x) for x in Path(p).read_text(encoding="utf-8").splitlines() if x.strip()]
         priors = {"ROLE": a.prior_role, "NO-ROLE": a.prior_no_role}
+        learned = {"ROLE": learned_spans(a.training_role), "NO-ROLE": learned_spans(a.training_no_role)}
         chosen = match_and_cap(load(a.kept[0]), load(a.kept[1]), {k: prior_counts(v) for k, v in priors.items()},
-                               prior_spans={k: prior_spans(v) for k, v in priors.items()})
+                               prior_spans={k: prior_spans(v, learned[k]) for k, v in priors.items()},
+                               learned=learned)
         out = Path(a.out)
         for arm, suffix in (("ROLE", ""), ("NO-ROLE", ".no-role")):
             path = out.with_name(out.stem + suffix + out.suffix)

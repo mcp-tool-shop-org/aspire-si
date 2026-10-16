@@ -463,3 +463,99 @@ def test_the_near_duplicate_check_reads_the_thinking_only():
     assert len(kept["ROLE"]) == 2  # the same three-line reply, different thinking: both kept
     same = apply.match_and_cap([cand(c1, a), cand(c2, a, CT)], [cand(c1, "x"), cand(c2, "y")], prior={})
     assert [c["item"]["id"] for c in same["ROLE"]] == [c1["id"]]  # the same thinking collides, another reply or not
+
+
+# R&D's rule on Argon's 7.1 condition (2026-10-16): the near-duplicate drop counts only spans the model originated.
+# These run the star CLI as the run sheet's STaR step invokes it.
+
+REASON_A = "First I ask what would make the claim false, then whether any line says exactly that."
+REASON_B = "Working backwards from the claim, the only way it could hold is a Sunday opening hour."
+
+
+def write_jsonl(path, rows):
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    return str(path)
+
+
+def star_cli(tmp_path, role, no_role, prior_role=(), prior_no_role=(), training_role=(), training_no_role=()):
+    """apply.py star with the given candidates and files; returns {arm: [star_of ids]}."""
+    args = ["star", "--session", "2", "--kept", write_jsonl(tmp_path / "kept.jsonl", role),
+            write_jsonl(tmp_path / "kept.no-role.jsonl", no_role), "--out", str(tmp_path / "star-s2.jsonl")]
+    for flag, rows, name in (("--prior-role", prior_role, "prior"), ("--prior-no-role", prior_no_role, "prior-nr")):
+        if rows:
+            args += [flag, write_jsonl(tmp_path / f"{name}.jsonl", rows)]
+    for flag, rows, name in (("--training-role", training_role, "train"),
+                             ("--training-no-role", training_no_role, "train-nr")):
+        args += [flag, write_jsonl(tmp_path / f"{name}.jsonl", rows)]  # required: an empty file when none
+    assert apply.main(args) == 0
+    read = lambda f: [json.loads(x)["star_of"] for x in f.read_text(encoding="utf-8").splitlines() if x]
+    return {"ROLE": read(tmp_path / "star-s2.jsonl"), "NO-ROLE": read(tmp_path / "star-s2.no-role.jsonl")}
+
+
+def quoting(reason):
+    """A thinking that quotes the item's whole material inline, then reasons."""
+    return f"The notice says {MATERIAL.replace(chr(10), ' ')} and that is all it says. {reason}"
+
+
+def test_the_same_item_answered_again_quoting_its_material_with_new_reasoning_is_kept(tmp_path):
+    c1 = item("T05", "C", 1)
+    earlier = apply.star_rows([cand(c1, quoting(REASON_A))], session=1)
+    got = star_cli(tmp_path, [cand(c1, quoting(REASON_B))], [cand(c1, "x")], prior_role=earlier)
+    assert got["ROLE"] == [c1["id"]]  # the shared material quote isn't the model's; the reasoning differs
+
+
+def nr_closing_item(n, statement):
+    r = item("T05", "D", n, verdict="cannot_tell", deciding=())
+    r["turns"][0]["user"] = f"Material:\n{MATERIAL}\nStatement: {statement}"
+    return r
+
+
+def nr_closing(r):
+    stmt = r["turns"][0]["user"].split("Statement: ")[1]
+    return f"The material says:\n{MATERIAL}\nNothing in the material settles the statement: \"{stmt}\"."
+
+
+def test_two_no_role_cannot_tell_answers_with_the_fixed_closing_do_not_collide(tmp_path):
+    d1 = nr_closing_item(1, "The depot opens early on public holidays.")
+    d2 = nr_closing_item(2, "The depot opens late on the first Monday.")
+    builder = [{**nr_closing_item(9, "The kiln cools overnight."), "id": "T05-D-09-nr"}]
+    builder[0]["turns"][0]["thinking"] = nr_closing(builder[0])
+    got = star_cli(tmp_path, [cand(d1, REASON_A), cand(d2, REASON_B)], [cand(d1, nr_closing(d1)),
+                   cand(d2, nr_closing(d2))], training_no_role=builder)
+    assert got["NO-ROLE"] == [d1["id"], d2["id"]] and got["ROLE"] == [d1["id"], d2["id"]]
+
+
+def test_no_role_given_only_its_builder_output_subtracts_those_rows(tmp_path):
+    """R&D: NO-ROLE's learned set is its pinned no_role.py output only. A sentence those rows hold is learned
+    wording, not the model's, so two NO-ROLE answers repeating it don't collide; without that file they do."""
+    learned = "Reading each line in turn and asking whether it settles the statement before deciding."
+    builder_row = {**item("T05", "D", 9), "id": "T05-D-09-nr"}
+    builder_row["turns"][0]["thinking"] = learned
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    role, no_role = [cand(c1, REASON_A), cand(c2, REASON_B)], [cand(c1, learned), cand(c2, learned)]
+    assert star_cli(tmp_path, role, no_role, training_no_role=[builder_row])["NO-ROLE"] == [c1["id"], c2["id"]]
+    assert star_cli(tmp_path, role, no_role)["NO-ROLE"] == [c1["id"]]  # not given the file: the model's own
+
+
+def test_the_same_originated_reasoning_repeated_collides(tmp_path):
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    got = star_cli(tmp_path, [cand(c1, REASON_A), cand(c2, REASON_A)], [cand(c1, "x"), cand(c2, "y")])
+    assert got["ROLE"] == [c1["id"]]
+    earlier = apply.star_rows([cand(c1, quoting(REASON_A))], session=1)
+    got = star_cli(tmp_path, [cand(c2, REASON_A)], [cand(c2, "y")], prior_role=earlier)
+    assert got["ROLE"] == []  # an earlier kept answer's own reasoning is never subtracted
+
+
+def test_the_star_command_refuses_without_either_training_flag(tmp_path, capsys):
+    """R&D on #142: both arms' training files are required, so a STaR step can't silently subtract nothing."""
+    c1 = item("T05", "C", 1)
+    base = ["star", "--session", "2", "--kept", write_jsonl(tmp_path / "k.jsonl", [cand(c1, REASON_A)]),
+            write_jsonl(tmp_path / "k.no-role.jsonl", [cand(c1, "x")]), "--out", str(tmp_path / "s.jsonl")]
+    train = write_jsonl(tmp_path / "t.jsonl", [])
+    for missing in ("--training-role", "--training-no-role"):
+        args = base + [x for f in ("--training-role", "--training-no-role") if f != missing for x in (f, train)]
+        with pytest.raises(SystemExit) as e:
+            apply.main(args)
+        assert e.value.code == 2 and missing in capsys.readouterr().err
+    assert not (tmp_path / "s.jsonl").exists()
+    assert apply.main(base + ["--training-role", train, "--training-no-role", train]) == 0
