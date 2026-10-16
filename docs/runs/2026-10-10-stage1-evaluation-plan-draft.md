@@ -513,6 +513,33 @@ as rnd's record (`experiments/stage1-role-eval/README.md`, "Amendments, 2026-10-
 - **Disclosed sensitivity:** at about 300 items, with roughly 15% discordant pairs, it reliably stops only on drops of
   about 4–5 points. Smaller drops are reported, not acted on.
 
+**Note, 2026-10-16 (R&D, on B3's panel design, aspire-si#150, merged as `23809eb`): amendment B's disclosure,
+corrected, and the per-seed hold.** Recorded in the same words as rnd's record (`experiments/stage1-role-eval/README.md`,
+rnd #112). The maintainer approved the design, and Argon reviewed the hold rule. The stop rule itself is
+unchanged: a drop of more than 2.0 points **and** p ≤ 0.05 (exact paired McNemar).
+- **The disclosure, corrected.** "Reliably stops only on drops of about 4–5 points" was optimistic. At the
+  panel's 280 items with about 15% discordant pairs:
+  - the smallest drop that can stop a round is **5.0 points**;
+  - it stops reliably (80% power) at about **6.4 points**.
+
+  Drops of 2–5 points are reported, not acted on. The power table across 250–300 items and 5–25% discordance is in
+  the design's §8.
+- **The pairing.** The three training seeds aren't pooled or majority-voted. Each seed's adapter gets its own
+  table, one sampled pass against the base model's one sampled pass (P0), at the same per-item seed. The round
+  holds for the maintainer when **any one seed's** table meets the rule. Majority voting was rejected because a
+  majority of three adapters against one P0 sample is biased in a direction set by the items. Argon approved the
+  any-seed rule: stricter rules miss a single-seed collapse, and seeds chain from round to round.
+- **False holds**, under no true drop, at 15% discordance:
+  - **Independence bounds** (computed): about 2% for one table, 6% a round and 33% over 6 rounds.
+  - **The true rates are lower,** because the seeds share P0 and the items. Argon's figures are about 4–5% a round
+    and 15–22% over 6 rounds; R&D has not recomputed them.
+
+  A hold is a stop for a person, not a verdict. Its readout shows whether the drop is in one seed or shared across
+  seeds.
+- **What the panel is:** a change detector against P0 on public items (GSM8K and WinoGrande), not a capability
+  score. The base model has likely seen those items in pretraining. That's accepted for this guard and disclosed
+  in the design's §3.3.
+
 ## The pre-interview (descriptive, plus one tested measure)
 
 The pre-interview's 12 questions are given at every sitting: the baseline, after Stage 1, and after domain
