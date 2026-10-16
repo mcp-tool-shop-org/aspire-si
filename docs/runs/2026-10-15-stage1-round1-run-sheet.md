@@ -100,6 +100,13 @@ These come from the evaluation plan, unchanged.
     procedure says), the reserve and steering.
   - **Round 1 doesn't start without B6** (Q4, ruled), so there's no round 1 without the apply step. Kept answers
     only enter session 2.
+  - **The STaR step's command** (matching, the near-duplicate drop and the cap of 8 per lesson and kind):
+    `apply.py star --session <n> --kept <ROLE kept> <NO-ROLE kept> --prior-role <ROLE's earlier STaR files>
+    --prior-no-role <NO-ROLE's earlier STaR files> --training-role <the FROZEN.md files> --training-no-role
+    <the pinned NO-ROLE file> --out <STaR file>`. The drop counts only spans the model originated, so each arm
+    subtracts its own training rows: ROLE the curriculum, NO-ROLE its pinned no_role.py output only. Earlier
+    STaR rows are never subtracted; they're what the drop compares against (R&D on Argon's 7.1 condition,
+    2026-10-16).
 
   Two questions for R&D before STaR first keeps anything (Q5):
   - **NO-ROLE:** does it keep its own apply answers, to stay compute-matched, or none?
