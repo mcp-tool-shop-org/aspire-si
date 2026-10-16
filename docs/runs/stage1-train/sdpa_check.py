@@ -13,13 +13,18 @@ under each setting:
 - FLASH alone;
 - FLASH and EFFICIENT together.
 
-Each run's turns (text and new_tokens) are compared with the setting's other run and with A_0's stored record for
-that task at seed 0.
+Each run's turns (text and new_tokens) are compared with the setting's other run, with today's default run on the
+same stack, and with A_0's stored record for that task at seed 0.
 
-**The pin, by Argon's rule** (`decide`):
-- **FLASH:** it ran twice equal (deterministic) and matches A_0.
-- **[FLASH, EFFICIENT]:** FLASH alone raised or didn't match, and the pair ran twice equal and matches A_0.
-- **No pin settled:** neither did. det_run's pin is then a question for R&D; nothing is changed here.
+**The pin is chosen against today's default, not A_0** (R&D on #133). A_0 ran on driver 617.14 without the
+deterministic settings, so if the stack alone moved, every pin would miss A_0 and "none" would be reported for
+the wrong reason. `equals_a0` stays in the report as G0 evidence.
+
+**The pin** (`decide`):
+- **FLASH:** it ran twice equal (deterministic) and equals the default run.
+- **[FLASH, EFFICIENT]:** FLASH alone raised or didn't match, and the pair ran twice equal and equals the default.
+- **No pin settled:** neither did, or the default itself didn't run twice equal. det_run's pin is then a question
+  for R&D; nothing is changed here.
 
 `sdpa-check.json` records every run's outcome, the comparisons, the warned ops, the machine line and the decision.
 """
@@ -49,28 +54,38 @@ def turns_of(rec: dict) -> list:
 
 
 def compare(results: dict, a0: dict) -> dict:
-    """{setting: {"ran", "repeat_equal", "equals_a0", "error"}} from {setting: [run record or {"error"}]}."""
+    """{setting: {"ran", "repeat_equal", "equals_default", "equals_a0", "error"}} from {setting: [run record or
+    {"error"}]}. equals_default compares with the default setting's first run on this stack."""
+    default = results.get("default") or []
+    ref = turns_of(default[0]) if default and "error" not in default[0] else None
     out = {}
     for name, runs in results.items():
         errors = [r["error"] for r in runs if "error" in r]
         if errors:
-            out[name] = {"ran": False, "repeat_equal": False, "equals_a0": False, "error": errors[0]}
+            out[name] = {"ran": False, "repeat_equal": False, "equals_default": False, "equals_a0": False,
+                         "error": errors[0]}
             continue
         a, b = (turns_of(r) for r in runs)
-        out[name] = {"ran": True, "repeat_equal": a == b, "equals_a0": a == turns_of(a0), "error": None}
+        out[name] = {"ran": True, "repeat_equal": a == b, "equals_default": ref is not None and a == ref,
+                     "equals_a0": a == turns_of(a0), "error": None}
     return out
 
 
 def decide(cmp: dict) -> str:
-    """Argon's rule: FLASH if it's deterministic and matches A_0; else the pair if it is; else no pin settled."""
+    """FLASH if it's deterministic and equals today's default; else the pair if it is; else no pin settled.
+    A_0 is not the reference (R&D on #133): equals_a0 is G0's evidence, not the pin's."""
+    d = cmp.get("default") or {}
+    if not (d.get("ran") and d.get("repeat_equal")):
+        return "none: the default backends did not run twice equal on this stack; R&D decides"
+
     def good(name):
         c = cmp.get(name) or {}
-        return c.get("ran") and c.get("repeat_equal") and c.get("equals_a0")
+        return c.get("ran") and c.get("repeat_equal") and c.get("equals_default")
     if good("flash"):
         return "flash"
     if good("flash+efficient"):
         return "flash+efficient"
-    return "none: no pinned setting is deterministic and matches A_0; R&D decides"
+    return "none: no pinned setting is deterministic and equals the default; R&D decides"
 
 
 def main(argv=None) -> int:  # pragma: no cover - runs on the card

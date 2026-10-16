@@ -13,7 +13,8 @@ OTHER = {"turns": [{"text": "<think>b</think>VERDICT: supported", "new_tokens": 
 
 def test_flash_is_pinned_when_it_is_deterministic_and_matches_a0():
     cmp = sdpa_check.compare({"default": [SAME, SAME], "flash": [SAME, SAME], "flash+efficient": [SAME, SAME]}, A0)
-    assert cmp["flash"] == {"ran": True, "repeat_equal": True, "equals_a0": True, "error": None}
+    assert cmp["flash"] == {"ran": True, "repeat_equal": True, "equals_default": True, "equals_a0": True,
+                            "error": None}
     assert sdpa_check.decide(cmp) == "flash"
 
 
@@ -37,3 +38,15 @@ def test_the_check_task_is_a_real_dev_task():
     ids = {json.loads(x)["id"] for f in sdpa_check.TASK_FILES
            for x in (here / f).read_text(encoding="utf-8").splitlines() if x.strip()}
     assert "rv-bc9c8c5439" in ids
+
+
+def test_the_pin_follows_todays_default_when_the_stack_alone_moved_from_a0():
+    """R&D on #133: every setting agrees on this stack but none matches A_0 (driver 617.14, no deterministic
+    settings). FLASH is still the pin; equals_a0 records the move for G0."""
+    cmp = sdpa_check.compare({"default": [OTHER, OTHER], "flash": [OTHER, OTHER], "flash+efficient": [OTHER, OTHER]},
+                             A0)
+    assert cmp["flash"]["equals_default"] and not cmp["flash"]["equals_a0"]
+    assert sdpa_check.decide(cmp) == "flash"
+    off = sdpa_check.compare({"default": [OTHER, OTHER], "flash": [SAME, SAME], "flash+efficient": [OTHER, OTHER]},
+                             A0)
+    assert off["flash"]["equals_a0"] and sdpa_check.decide(off) == "flash+efficient"  # FLASH differs from today
