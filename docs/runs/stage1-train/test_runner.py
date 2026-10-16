@@ -56,7 +56,8 @@ def rig(tmp_path):
             stop.wait(2)
     threading.Thread(target=beat, daemon=True).start()
     sealed = tmp_path / "sealed.jsonl"
-    sealed.write_text(json.dumps({"id": "sx-planted0001", "material": "the planted sealed line says the north "
+    sealed.write_text(json.dumps({"id": "sx-planted0001", "claim": "the north gate opens at seven",
+                                  "material": "the planted sealed line says the north "
                                   "gate opens at seven every morning except holidays"}) + "\n", encoding="utf-8")
     gpu = tmp_path / "gpu.json"
     gpu.write_text(json.dumps({"temp_c": 50, "power_w": 100, "sm_clock_mhz": 2400, "mem_used_mib": 1000}))
@@ -162,7 +163,7 @@ def test_a_stall_stops_with_the_trainers_own_stack(rig):
     assert status["state"] == "stopped" and status["stop_reason"] == "stall"
     # the runner's stall limit, or the trainer dying in its own dump (an access violation): both are the stall stop
     stall = [x for x in actions if x["trigger"] in ("no step within the stall limit",
-                                                       "access violation after a stall dump")][0]
+                                                       "exit after a stall dump")][0]
     assert stall["stack"] and "File" in stall["stack"]  # faulthandler's dump of the hung step
     assert status["resumes"] == 0
 
@@ -339,22 +340,22 @@ def test_slow_io_after_a_step_is_never_timed_as_a_stall(tmp_path):
     stack = out / "stall-stack.txt"
     assert not stack.exists() or stack.read_text(encoding="utf-8").strip() == ""
 
-def stall_dump_then(tmp_path, dump: bool):
-    """A stand-in trainer: optionally writes a stall dump, then dies with an access violation."""
+def stall_dump_then(tmp_path, dump: bool, code: int = -1073741819):
+    """A stand-in trainer: optionally writes a stall dump, then exits with `code` (default: an access violation)."""
     t = tmp_path / "av.py"
     t.write_text("import os, sys\n"
                  "out = sys.argv[sys.argv.index('--out') + 1]\n"
                  "os.makedirs(out, exist_ok=True)\n"
                  + ("open(os.path.join(out, 'stall-stack.txt'), 'a').write('Timeout (0:00:04)! (a stall dump)')\n"
                     if dump else "")
-                 + "os._exit(-1073741819)\n")  # 0xC0000005 as Windows reports it
+                 + f"os._exit({code})\n")  # -1073741819 is 0xC0000005 as Windows reports it
     return t
 
 
 def test_an_access_violation_after_a_stall_dump_is_a_stall_stop_not_a_crash_resume(rig, tmp_path):
     p, d, status, actions = run_runner(rig, None, "--trainer", str(stall_dump_then(tmp_path, dump=True)))
     assert status["state"] == "stopped" and status["stop_reason"] == "stall" and status["resumes"] == 0
-    assert [x["action"] for x in actions if x["trigger"] == "access violation after a stall dump"] == \
+    assert [x["action"] for x in actions if x["trigger"] == "exit after a stall dump"] == \
         ["stop (never resumed)"]
 
 
@@ -392,3 +393,69 @@ def test_a_round_chains_from_its_init_adapter_and_a_resume_under_another_is_refu
     assert manifest["init_adapter"] == {"path": str(a / "adapter"), "sha256": sha[a]}
     missing = tiny(tmp_path / "round-x", "--max-steps", "2", "--init-adapter", str(tmp_path / "nowhere"))
     assert missing.returncode != 0 and "no adapter_model.safetensors" in missing.stderr
+
+
+def test_any_exit_after_a_stall_dump_is_a_stall_stop(rig, tmp_path):
+    """Argon's finding 9.1: not only an access violation; any unknown exit once the dump fired is the stall."""
+    p, d, status, actions = run_runner(rig, None, "--trainer", str(stall_dump_then(tmp_path, dump=True, code=3)))
+    assert status["stop_reason"] == "stall" and status["resumes"] == 0
+    assert [x["exit_code"] for x in actions if x["trigger"] == "exit after a stall dump"] == [3]
+
+
+def test_run_passes_the_seed_and_the_held_out_sets_to_the_trainer(rig, tmp_path):
+    """Argon's findings 3 and 8.1: run.py's --seed and the sealed and DEV files reach train.py's command."""
+    t = tmp_path / "echo.py"
+    t.write_text("import json, os, sys\n"
+                 "out = sys.argv[sys.argv.index('--out') + 1]\n"
+                 "os.makedirs(out, exist_ok=True)\n"
+                 "open(os.path.join(out, 'argv.json'), 'w').write(json.dumps(sys.argv[1:]))\n")
+    p, d, status, _ = run_runner(rig, None, "--trainer", str(t))
+    argv = json.loads((d / "train" / "argv.json").read_text(encoding="utf-8"))
+    assert argv[argv.index("--seed") + 1] == "0"
+    held = argv[argv.index("--held-out") + 1:argv.index("--held-out") + 4]
+    assert held[0] == str(rig["sealed"]) and [Path(h).name for h in held[1:]] == sorted(receipts.DEV_FILES)
+
+
+@needs_tokenizer
+def test_the_seed_trains_differently_and_a_resume_under_another_seed_is_refused(tmp_path):
+    """Argon's finding 3: the seed reaches the order, the RNG and the checkpoint, so seeds differ, and a checkpoint
+    of one seed never resumes under another."""
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""}
+
+    def tiny(out, seed, crash=None):
+        e = {**env, **({"TINY_CRASH_AT_STEP": str(crash)} if crash else {})}
+        return subprocess.run([PY, TINY, "--data", *DATA, "--out", str(out), "--max-steps", "3", "--ckpt-every", "2",
+                               "--seed", str(seed)], env=e, capture_output=True, text=True, timeout=900)
+    a, b = tmp_path / "s0", tmp_path / "s1"
+    assert tiny(a, 0).returncode == 0 and tiny(b, 1).returncode == 0
+    ma, mb = (json.loads((x / "manifest.json").read_text(encoding="utf-8")) for x in (a, b))
+    assert (ma["opt"]["seed"], ma["order"]["seed"], mb["opt"]["seed"], mb["order"]["seed"]) == (0, 0, 1, 1)
+    assert losses_of(a) != losses_of(b)
+    c = tmp_path / "s2"
+    assert tiny(c, 2, crash=3).returncode == 1  # crashed after the step-2 checkpoint
+    other = tiny(c, 5)
+    assert other.returncode != 0 and "the checkpoint is seed 2, not 5" in other.stderr
+
+
+def losses_of(out):
+    return [json.loads(x)["loss"] for x in (out / "loss.jsonl").read_text(encoding="utf-8").splitlines() if x]
+
+
+def test_a_full_round_refuses_a_smoke_init_adapter(tmp_path):
+    """Argon's finding 9.2: --init-adapter on a full round needs an adapter trained on the whole frozen dataset."""
+    import train
+    def adapter(name, manifest):
+        a = tmp_path / name / "adapter"
+        a.mkdir(parents=True)
+        (a / "adapter_model.safetensors").write_bytes(name.encode())
+        if manifest is not None:
+            (a.parent / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        return a
+    smoke = adapter("smoke", {"freeze_report": {"partial_set": True}})
+    with pytest.raises(SystemExit, match="partial-set"):
+        train.init_adapter_identity(smoke)
+    assert train.init_adapter_identity(smoke, smoke_ok=True)["sha256"]  # a smoke run may chain on a smoke adapter
+    full = adapter("full", {"freeze_report": {"shortfalls": []}})
+    assert train.init_adapter_identity(full)["path"] == str(full)
+    with pytest.raises(SystemExit, match="no manifest"):
+        train.init_adapter_identity(adapter("bare", None))

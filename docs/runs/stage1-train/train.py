@@ -85,14 +85,21 @@ class Stop(Exception):
         self.reason, self.code, self.detail = reason, code, detail
 
 
-def init_adapter_identity(path) -> dict | None:
+def init_adapter_identity(path, smoke_ok: bool = False) -> dict | None:
     """The round this one continues from (--init-adapter, round r-1's adapter): its path as given and the sha256 of
-    its weights, recorded in the manifest and every checkpoint, so a resume under another init adapter is refused."""
+    its weights, recorded in the manifest and every checkpoint, so a resume under another init adapter is refused.
+    A full round (not --partial-set) refuses an init adapter that wasn't trained on the whole frozen dataset, by
+    eval_adapter's rule (Argon's finding 9.2)."""
     if not path:
         return None
     weights = Path(path) / "adapter_model.safetensors"
     if not weights.exists():
         raise SystemExit(f"--init-adapter {path}: no adapter_model.safetensors there")
+    if not smoke_ok:
+        from eval_adapter import frozen_adapter_problem
+        why = frozen_adapter_problem(Path(path))
+        if why:
+            raise SystemExit(f"--init-adapter {path}: {why}")
     return {"path": str(path), "sha256": sha256_file(weights)}
 
 
@@ -313,6 +320,8 @@ def main(argv=None):
     ap.add_argument("--data", required=True, nargs="+")
     ap.add_argument("--out", required=True)
     ap.add_argument("--init-adapter")
+    ap.add_argument("--seed", type=int, default=OPT["seed"],
+                    help="the training seed: data order, dropout and init (Argon's finding 3; run.py passes it)")
     ap.add_argument("--held-out", nargs="*", default=[])
     ap.add_argument("--max-steps", type=int)
     ap.add_argument("--dry-run", action="store_true")
@@ -358,16 +367,16 @@ def main(argv=None):
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     manifest = {"code_sha256": code_hash(), "gates": gates_identity(), "student": student.identity(),
-                "lora": LORA, "opt": OPT,
+                "lora": LORA, "opt": {**OPT, "seed": a.seed},
                 "data": {p: sha256_file(Path(p)) for p in a.data},
                 "held_out": {p: sha256_file(Path(p)) for p in a.held_out}, "examples": len(rows),
                 "sequences": len(seqs), "target_tokens": sum(len(s["target_ids"]) for s in seqs),
                 "near_length_caps": near_caps(seqs, OPT["max_len"], OPT["max_target"]),
-                "order": {"mode": a.order, "seed": OPT["seed"],
+                "order": {"mode": a.order, "seed": a.seed,
                           "lessons": None if a.order == "shuffled" else lesson_sequence(seqs, lesson_order)},
                 "freeze_report": freeze, "closed_form": closed_form,
                 "closed_form_figures": data.closed_form_figures(rows),
-                "init_adapter": init_adapter_identity(a.init_adapter)}
+                "init_adapter": init_adapter_identity(a.init_adapter, smoke_ok=a.partial_set)}
     if a.dry_run:
         print(json.dumps({k: v for k, v in manifest.items() if k != "student"}, indent=1))
         return 0
@@ -397,8 +406,8 @@ def train(a, seqs, manifest, out, events):
         # clean out-of-memory error, well before the rig's watchdog line at 31.2 GB.
         total = torch.cuda.get_device_properties(0).total_memory
         torch.cuda.set_per_process_memory_fraction(min(1.0, VRAM_CAP_GB * 2**30 / total))
-    random.seed(OPT["seed"])
-    torch.manual_seed(OPT["seed"])
+    random.seed(a.seed)
+    torch.manual_seed(a.seed)
     model = student.load_student()
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.enable_input_require_grads()
@@ -434,6 +443,8 @@ def train(a, seqs, manifest, out, events):
         st = json.loads((ckpt / "state.json").read_text(encoding="utf-8"))
         if st["code_sha256"] != manifest["code_sha256"] or st["data"] != manifest["data"]:
             raise SystemExit("refusing to resume: code or data differ from the checkpoint")
+        if st.get("seed", 0) != a.seed:  # checkpoints from before --seed existed were all seed 0
+            raise SystemExit(f"refusing to resume: the checkpoint is seed {st.get('seed', 0)}, not {a.seed}")
         if st.get("order", manifest["order"]) != manifest["order"]:
             raise SystemExit("refusing to resume: the training order differs from the checkpoint's")
         if (st.get("init_adapter") or {}).get("sha256") != (manifest["init_adapter"] or {}).get("sha256"):
@@ -472,6 +483,7 @@ def train(a, seqs, manifest, out, events):
         except StopRequested as e:
             if step > saved_at:  # flush: the steps finished since the last checkpoint are kept
                 state = {"step": step, "code_sha256": manifest["code_sha256"], "data": manifest["data"], "order": manifest["order"],
+                     "seed": a.seed,
                      "init_adapter": manifest["init_adapter"],
                          "train_seconds": prior_seconds + time.time() - t0 - paused,
                          "paused_seconds": prior_paused + paused}
@@ -543,6 +555,7 @@ def train(a, seqs, manifest, out, events):
         print(json.dumps(rec), flush=True)
         if (step + 1) % a.ckpt_every == 0 or step + 1 == total_steps:
             state = {"step": step + 1, "code_sha256": manifest["code_sha256"], "data": manifest["data"], "order": manifest["order"],
+                     "seed": a.seed,
                      "init_adapter": manifest["init_adapter"],
                      "train_seconds": prior_seconds + time.time() - t0 - paused,
                      "paused_seconds": prior_paused + paused}

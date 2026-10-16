@@ -24,8 +24,8 @@ the evaluation) is never touched: the run stops and a person decides. The automa
    run, then stop. Paused time is excluded from train_seconds; wall time is reported beside it.
 5. A stall (no step within 5x the median step time; before the 3rd step, the startup allowance): train.py
    dumps its own stack, then the run stops. Never restarted by itself. The dump times a step's work only, never the
-   supervisor's pause before it. If the trainer dies with an access violation after its dump fired in that attempt
-   (a dump can crash it on Windows), that's this stop too, not a crash to resume.
+   supervisor's pause before it. If the trainer exits with any unknown code after its dump fired in that attempt
+   (a dump can crash it on Windows), that's this stop too, not a crash to resume (Argon's finding 9.1).
 6. The card grant's planned end passes: train.py is asked to stop, writes its checkpoint at the last finished
    step, and exits; the run stops and is never resumed by itself. Extending a grant is the Publisher's call, made
    before the end, never the runner's.
@@ -68,9 +68,6 @@ HEAT = {"pause_c": 85, "hold_s": 60, "resume_c": 75}
 STALL_FACTOR = 5
 WATCHDOG_MAX_AGE_S = 60
 CARD_SLACK_MIB = 1024
-# 0xC0000005, an access violation, as Windows reports it (unsigned) and as a signed int. faulthandler's stall dump
-# walks the main thread's frames from a watchdog thread; caught in native code it can crash the trainer this way.
-ACCESS_VIOLATION = {0xC0000005, 0xC0000005 - 2**32}
 EXIT_REASON = {71: "VRAM self-stop (28 GB)", 72: "non-finite loss", 73: "loss spike", 74: "disk full",
                75: "supervisor heartbeat lost", 76: "I/O still failing after 5 tries", 77: "card grant ended"}
 
@@ -325,8 +322,8 @@ class Runner:
 
     def attempt(self) -> tuple:
         """Run train.py until it exits or a stop; returns (state, reason)."""
-        cmd = self.trainer + ["--out", str(self.train_dir), "--status", str(self.dir / "status.json")] \
-            + self.a.train_args
+        cmd = self.trainer + ["--out", str(self.train_dir), "--status", str(self.dir / "status.json"),
+                              "--seed", str(self.a.seed), "--held-out", *self.held_out()] + self.a.train_args
         env = dict(os.environ)
         job = Job(cmd, env, self.dir / "train.log")
         self.write_status(state="running", pid=job.proc.pid)
@@ -403,6 +400,10 @@ class Runner:
             if job.poll() is None:
                 job.kill()
 
+    def held_out(self) -> list:
+        """The sealed set and the DEV files, for train.py's leakage check (Argon's finding 8.1)."""
+        return [self.a.sealed] + [str(receipts.DEV_DIR / f) for f in sorted(receipts.DEV_FILES)]
+
     def exit_state(self, code: int, started: float, stack_at_start: int = 0) -> tuple:
         if code == 0:
             return "done", None
@@ -414,9 +415,9 @@ class Runner:
             self.act("the rig watchdog killed train.py", "stop (never resumed)", exit_code=code)
             return "stopped", "watchdog kill"
         stack = self.train_dir / "stall-stack.txt"
-        if code in ACCESS_VIOLATION and stack.exists() and stack.stat().st_size > stack_at_start:
+        if stack.exists() and stack.stat().st_size > stack_at_start:  # any exit after the dump (Argon's 9.1)
             # the trainer's own stall dump fired in this attempt, then the process died: a stall, never resumed (rule 5)
-            self.act("access violation after a stall dump", "stop (never resumed)", exit_code=code,
+            self.act("exit after a stall dump", "stop (never resumed)", exit_code=code,
                      stack=stack.read_text(encoding="utf-8", errors="replace")[-4000:])
             return "stopped", "stall"
         return "crashed", f"exit code {code}"
