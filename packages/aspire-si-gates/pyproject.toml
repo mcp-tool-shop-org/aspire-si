@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aspire-si-gates"
-version = "1.7.3"
+version = "1.7.4"
 description = "The Stage 1 role-training data gates (schema, amendments, diversity, floors), standard library only"
 requires-python = ">=3.10"
 dependencies = []

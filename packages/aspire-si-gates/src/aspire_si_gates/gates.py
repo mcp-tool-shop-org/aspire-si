@@ -1224,11 +1224,12 @@ def check_star_row(r: dict, n: int, star_check) -> None:
     turns = r.get("turns") or []
     if len(turns) != 1 or not all(isinstance(turns[0].get(k), str) for k in ("user", "thinking", "reply")):
         raise DataError(f"{where}: a STaR row has one turn with user, thinking and reply")
-    blob = turns[0]["thinking"] + turns[0]["reply"]
-    if "<think>" in blob or "</think>" in blob:  # as check_item does (Argon's re-review, new finding 3)
-        raise DataError(f"{where}: <think> tags")
     if any(k not in r for k in ("verdict", "deciding", "escalate")):
         raise DataError(f"{where}: a STaR row keeps its item's verdict, deciding and escalate keys")
+    # As check_item: no <think> tags anywhere in the thinking or the reply (NF3).
+    said = turns[0]["thinking"] + turns[0]["reply"]
+    if "<think>" in said or "</think>" in said:
+        raise DataError(f"{where}: a STaR row's thinking or reply holds <think> tags")
     if star_check is None:
         raise DataError(f"{where}: STaR rows need the trainer's three-line check (star_check)")
     if not star_check(r):
@@ -1348,10 +1349,11 @@ def leakage(rows: list[dict], held_out: list[dict], interview: list[str]) -> lis
     qs = [(i + 1, _grams(q)) for i, q in enumerate(interview)]
     for r in rows:
         # the statement alone as well as the whole turn, so the material doesn't dilute the 5-gram Jaccard; a
-        # null variant reads as none (Argon's finding 8.2). Kind-B rows keep the claim on `statement`, where
-        # _statement(user) is empty (Argon's re-review, new finding 3).
+        # null variant reads as none (Argon's finding 8.2)
+        # A kind-B row keeps its claim in the `statement` field, which a user turn without a Statement line never
+        # shows (NF3, clean-room from the Publisher's brief, 2026-10-16).
         texts = [t["user"] for t in r["turns"]] + [_statement(t["user"]) for t in r["turns"]] + \
-            [(r.get("variant") or {}).get("user", "")] + [r.get("statement") or ""]
+            [(r.get("variant") or {}).get("user", ""), r.get("statement") or ""]
         mat = _lines((r.get("material") or "") + "\n" + "\n".join(t["user"] for t in r["turns"]))
         for hid, hc, hg, hl in held:
             for t in texts:

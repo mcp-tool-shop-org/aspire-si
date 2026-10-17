@@ -140,25 +140,22 @@ def test_a_resume_keeps_the_earlier_warned_ops(rig):
         "scatter_cuda does not have a deterministic implementation, but you set warn_only"]
 
 
-def test_each_sdpa_choice_maps_to_its_backend_list_and_an_unknown_is_refused(rig):
-    """Argon's re-review, new finding 1: flash, efficient and flash+efficient each map to their backend list.
-    wrapper-config.json keeps the choice's name. An unknown choice is refused."""
+def test_each_sdpa_choice_pins_its_backends_and_an_unknown_one_is_refused():
+    # NF1: one table for G0 and parity.
+    assert det_run.sdpa_names("flash") == ("FLASH_ATTENTION",)
+    assert det_run.sdpa_names("efficient") == ("EFFICIENT_ATTENTION",)
+    assert det_run.sdpa_names("flash+efficient") == ("FLASH_ATTENTION", "EFFICIENT_ATTENTION")
     from torch.nn.attention import SDPBackend
-    assert det_run.sdpa_backends("flash") == [SDPBackend.FLASH_ATTENTION]
-    assert det_run.sdpa_backends("efficient") == [SDPBackend.EFFICIENT_ATTENTION]
-    pair = [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
-    assert det_run.sdpa_backends("flash+efficient") == pair
-    assert det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--sdpa", "flash+efficient")) == 0
-    assert config(rig)["sdpa_backend"] == "flash+efficient"
-    with pytest.raises(SystemExit):
-        det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--sdpa", "math"))
+
+    assert det_run.sdpa_backends("flash+efficient") == [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+    with pytest.raises(ValueError, match="--sdpa must be one of"):
+        det_run.sdpa_names("math")
 
 
-def test_parity_accepts_flash_plus_efficient_and_defaults_to_flash():
-    """Argon's re-review, new finding 1: parity's batch-1 draws take det_run's --sdpa, default flash."""
+def test_parity_takes_the_same_sdpa_choices_and_defaults_to_flash():
     import parity
-    p = parity.parser()
-    assert p.parse_args(["--data", "x", "--out", "y", "--sdpa", "flash+efficient"]).sdpa == "flash+efficient"
-    assert p.parse_args(["--data", "x", "--out", "y"]).sdpa == "flash"
+
+    assert parity.parse_args(["--data", "d.jsonl", "--out", "o"]).sdpa == "flash"
+    assert parity.parse_args(["--data", "d.jsonl", "--out", "o", "--sdpa", "flash+efficient"]).sdpa == "flash+efficient"
     with pytest.raises(SystemExit):
-        p.parse_args(["--data", "x", "--out", "y", "--sdpa", "math"])
+        parity.parse_args(["--data", "d.jsonl", "--out", "o", "--sdpa", "math"])

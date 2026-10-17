@@ -12,10 +12,10 @@ Before anything is imported from torch, it sets CUBLAS_WORKSPACE_CONFIG. Then, a
 - torch.use_deterministic_algorithms(True), or with warn_only=True under --warn-only (R&D: acceptable when the
   strict mode raises; every warned op is logged);
 - cudnn.deterministic = True and cudnn.benchmark = False;
-- the SDPA backend pinned with torch.nn.attention.sdpa_kernel, from one table: flash, efficient, or flash+efficient.
-  The pin is the record: sdpa_kernel errors if the chosen backend can't run, and that error is a stop, not a
-  fallback. `--sdpa efficient` is the ruled case where flash won't run on this card. `--sdpa flash+efficient` is
-  the pair, passed to sdpa_kernel as one list (Argon's re-review, new finding 1). The choice's name is recorded.
+- the SDPA backends pinned with torch.nn.attention.sdpa_kernel, from the one table SDPA (flash, efficient, or the
+  pair flash+efficient), which parity.py uses too, so G0 and parity can never pin differently. The pin is the record:
+  sdpa_kernel errors if the pinned backends can't run, and that error is a stop, not a fallback. Choices other than
+  flash exist only for the ruled cases where flash alone won't run on this card, and the choice is recorded.
 
 **The machine line, a hard stop (run sheet §3; Argon's Q2).** The GPU name, the driver, torch's CUDA, torch and
 transformers are read first. With --machine-line, any field that differs from the frozen line stops the sitting
@@ -54,6 +54,32 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from _evaldir import EVAL_DIR  # noqa: E402
 
+# NF1 (clean-room from the Publisher's brief, 2026-10-16): one table of SDPA choices, by SDPBackend member name, shared
+# by det_run (G0) and parity.py. Names, not enum members: torch must stay unimported until CUBLAS_WORKSPACE_CONFIG is
+# set, which happens at this module's top.
+SDPA = {
+    "flash": ("FLASH_ATTENTION",),
+    "efficient": ("EFFICIENT_ATTENTION",),
+    "flash+efficient": ("FLASH_ATTENTION", "EFFICIENT_ATTENTION"),
+}
+
+
+def sdpa_names(choice: str) -> tuple[str, ...]:
+    """The SDPBackend member names a choice pins, in order. An unknown choice is refused."""
+
+    if choice not in SDPA:
+        raise ValueError(f"--sdpa must be one of {', '.join(SDPA)}, got {choice!r}")
+    return SDPA[choice]
+
+
+def sdpa_backends(choice: str) -> list:  # pragma: no cover - imports torch; sdpa_names is the tested part
+    """The list sdpa_kernel receives for a choice. Imports torch, so call it only after the module's top has set the
+    CUBLAS workspace."""
+
+    from torch.nn.attention import SDPBackend
+
+    return [getattr(SDPBackend, n) for n in sdpa_names(choice)]
+
 sys.path.insert(0, str(EVAL_DIR))
 TARGETS = ("harness", "eval_adapter", "interview_adapter")
 MACHINE_FIELDS = ("gpu", "driver", "cuda", "torch", "transformers")
@@ -69,18 +95,6 @@ def gpu_line() -> dict:
         return {"gpu": name, "driver": driver}
     except (OSError, subprocess.SubprocessError, IndexError, ValueError):
         return {"gpu": "", "driver": ""}
-
-
-# One table for det_run and parity, so G0 and the batch-1 draws can't pin differently (Argon's re-review,
-# new finding 1). Member names, resolved in sdpa_backends: torch stays unimported until CUBLAS is set.
-SDPA = {"flash": ("FLASH_ATTENTION",), "efficient": ("EFFICIENT_ATTENTION",),
-        "flash+efficient": ("FLASH_ATTENTION", "EFFICIENT_ATTENTION")}
-
-
-def sdpa_backends(name: str) -> list:
-    """The SDPBackend list sdpa_kernel gets for a pin name. An unknown name raises KeyError."""
-    from torch.nn.attention import SDPBackend
-    return [getattr(SDPBackend, member) for member in SDPA[name]]
 
 
 def machine_line() -> dict:
