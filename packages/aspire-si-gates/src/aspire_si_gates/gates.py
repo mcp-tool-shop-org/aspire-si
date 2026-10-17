@@ -846,14 +846,69 @@ MATERIAL_IN_TURN_EXEMPT = {
 }
 
 
+def _is_apply(r: dict) -> bool:
+    return r.get("split") == "apply" or "-AP-" in str(r.get("id", ""))
+
+
 def check_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=None, closed_form=None) -> None:
     """Every check on one row that needs no other row. `n` is its line number in the file (for messages);
     `seen`, when given, is the set of ids before it (the duplicate-id check)."""
     where = f"line {n} ({r.get('id', '?')})"
-    if r.get("split") == "apply" or "-AP-" in str(r.get("id", "")):  # Argon's finding 7.2
+    if _is_apply(r):  # Argon's finding 7.2
         raise DataError(f"{where}: an apply item (split apply or an -AP- id) is never trained")
     if r.get("split") == "star":
         raise DataError(f"{where}: a STaR row is checked by validate_training_set's star check, not check_item")
+    _check_item_body(r, where, pre_amendment, seen, closed_form)
+
+
+# The apply items' twin fields, by lesson (aspire-si#127, #137; R&D's rulings on #128): T10 carries a keyed companion
+# claim, T09 whether its lines can be reversed, and T01, T04 and T14 whether dropping the deciding lines leaves the
+# material silent on the statement.
+SILENT_TWIN_LESSONS = ("T01", "T04", "T14")
+
+
+def check_apply_item(r: dict, n: int = 1, pre_amendment=PRE_AMENDMENT_LESSONS, seen=None, closed_form=None) -> None:
+    """An apply item: asked once after each session and never trained (aspire-si#127). The same content and shape
+    checks check_item runs (one shared body, so the two can't drift), without its never-trained refusal, plus the apply
+    rules. A row that isn't an apply item is refused, so this can never wave a training row through; check_item and
+    validate_training_set still refuse apply rows (R&D ruling, 2026-10-17)."""
+    where = f"line {n} ({r.get('id', '?')})"
+    if r.get("split") != "apply" or "-AP-" not in str(r.get("id", "")):
+        raise DataError(f"{where}: check_apply_item takes only apply items (split apply and an -AP- id); training rows "
+                        "go through check_item")
+    if r.get("kind") not in ("C", "D"):
+        raise DataError(f"{where}: an apply item is kind C or D, not {r.get('kind')!r}")
+    if not isinstance(r.get("turns"), list) or len(r["turns"]) != 1 or r.get("turn_keys"):
+        raise DataError(f"{where}: an apply item is one turn: the model is asked its first user turn once")
+    if r.get("pair"):
+        raise DataError(f"{where}: an apply item carries no contrast pair")
+    lesson, verdict = r.get("lesson"), r.get("verdict")
+    if lesson == "T10":
+        twin = r.get("r10_twin")
+        if not isinstance(twin, dict) or not isinstance(twin.get("statement"), str) or not twin["statement"].strip() \
+                or twin.get("verdict") not in VERDICTS:
+            raise DataError(f"{where}: a T10 apply item needs r10_twin {{statement, verdict}}")
+        if twin["verdict"] == verdict:
+            raise DataError(f"{where}: r10_twin's verdict must differ from the item's ({verdict})")
+        lines = [ln for ln in r["turns"][0].get("user", "").split(chr(10)) if re.match(r"\s*Statement:", ln)]
+        if len(lines) != 1:  # the twin swaps that one line (Argon's finding 6.4)
+            raise DataError(f"{where}: a T10 apply item needs exactly one Statement line, not {len(lines)}")
+    if lesson == "T09" and not isinstance(r.get("order_free"), bool):
+        raise DataError(f"{where}: a T09 apply item needs order_free (true or false)")
+    if lesson in SILENT_TWIN_LESSONS:
+        # As the apply sitting's own schema check has it (docs/runs/stage1-train/apply.py): a decided item needs the
+        # flag; a cannot_tell item has no deciding lines, so it may leave the flag out but never set it true.
+        silent = r.get("silent_without_deciding")
+        if verdict in ("supported", "unsupported") and not isinstance(silent, bool):
+            raise DataError(f"{where}: a decided {lesson} apply item needs silent_without_deciding (true or false)")
+        if silent is True and verdict == "cannot_tell":
+            raise DataError(f"{where}: silent_without_deciding is never true on a cannot_tell item; it has no deciding "
+                            "lines to drop")
+    _check_item_body(r, where, pre_amendment, seen, closed_form)
+
+
+def _check_item_body(r: dict, where: str, pre_amendment, seen, closed_form) -> None:
+    """The content and shape checks every item gets, training or apply."""
     for k, typ in REQUIRED.items():
         if not isinstance(r.get(k), typ):
             raise DataError(f"{where}: field {k} missing or not {typ.__name__}")
