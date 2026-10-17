@@ -49,9 +49,8 @@ untreated and doesn't count.
     maintainer's to put in place.
 - **The determinism wrapper:** every batch-1 sitting (DEV, sealed, interview, and G0's M1 and M2) runs through
   `det_run.py`, with the harness unchanged. It applies deterministic algorithms (warn_only only if strict mode
-  raises, with the warned ops logged), the cuDNN flags and the CUBLAS workspace, and pins SDPA from one table
-  (`flash`, `efficient`, or `flash+efficient`; default `flash`). Parity's batch-1 draws take the same `--sdpa`
-  and the same table. The choice's name is recorded in each sitting's `wrapper-config.json`.
+  raises, with the warned ops logged), the cuDNN flags and the CUBLAS workspace, and pins SDPA to flash. Its
+  settings are recorded in each sitting's `wrapper-config.json`.
 - **Leakage:**
   - the receipt firewall refuses sealed, interview and DEV ids and text;
   - the leakage gate has been run against the sealed set, the pilot and the interview;
@@ -107,10 +106,7 @@ These come from the evaluation plan, unchanged.
     <the pinned NO-ROLE file> --out <STaR file>`. The drop counts only spans the model originated, so each arm
     subtracts its own training rows: ROLE the curriculum, NO-ROLE its pinned no_role.py output only. Earlier
     STaR rows are never subtracted; they're what the drop compares against (R&D on Argon's 7.1 condition,
-    2026-10-16). A trace with no 8-word span left after that subtraction is compared by its item id and its
-    thinking, whitespace collapsed and in lower case, with the arm's kept thinkings and its earlier STaR rows.
-    Earlier rows are keyed by the row's star_of. An exact match on the same item is dropped. The same wording
-    on a different item is a different training example (R&D on #144).
+    2026-10-16).
 
   Two questions for R&D before STaR first keeps anything (Q5):
   - **NO-ROLE:** does it keep its own apply answers, to stay compute-matched, or none?

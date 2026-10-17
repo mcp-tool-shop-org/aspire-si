@@ -138,27 +138,3 @@ def test_a_resume_keeps_the_earlier_warned_ops(rig):
     assert config(rig)["warned_ops"] == [
         "index_copy_cuda does not have a deterministic implementation, but you set warn_only",
         "scatter_cuda does not have a deterministic implementation, but you set warn_only"]
-
-
-def test_each_sdpa_choice_maps_to_its_backend_list_and_an_unknown_is_refused(rig):
-    """Argon's re-review, new finding 1: flash, efficient and flash+efficient each map to their backend list.
-    wrapper-config.json keeps the choice's name. An unknown choice is refused."""
-    from torch.nn.attention import SDPBackend
-    assert det_run.sdpa_backends("flash") == [SDPBackend.FLASH_ATTENTION]
-    assert det_run.sdpa_backends("efficient") == [SDPBackend.EFFICIENT_ATTENTION]
-    pair = [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
-    assert det_run.sdpa_backends("flash+efficient") == pair
-    assert det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--sdpa", "flash+efficient")) == 0
-    assert config(rig)["sdpa_backend"] == "flash+efficient"
-    with pytest.raises(SystemExit):
-        det_run.main(args(rig, "--machine-line", str(rig["frozen"]), "--sdpa", "math"))
-
-
-def test_parity_accepts_flash_plus_efficient_and_defaults_to_flash():
-    """Argon's re-review, new finding 1: parity's batch-1 draws take det_run's --sdpa, default flash."""
-    import parity
-    p = parity.parser()
-    assert p.parse_args(["--data", "x", "--out", "y", "--sdpa", "flash+efficient"]).sdpa == "flash+efficient"
-    assert p.parse_args(["--data", "x", "--out", "y"]).sdpa == "flash"
-    with pytest.raises(SystemExit):
-        p.parse_args(["--data", "x", "--out", "y", "--sdpa", "math"])

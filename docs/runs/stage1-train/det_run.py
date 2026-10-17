@@ -12,10 +12,9 @@ Before anything is imported from torch, it sets CUBLAS_WORKSPACE_CONFIG. Then, a
 - torch.use_deterministic_algorithms(True), or with warn_only=True under --warn-only (R&D: acceptable when the
   strict mode raises; every warned op is logged);
 - cudnn.deterministic = True and cudnn.benchmark = False;
-- the SDPA backend pinned with torch.nn.attention.sdpa_kernel, from one table: flash, efficient, or flash+efficient.
-  The pin is the record: sdpa_kernel errors if the chosen backend can't run, and that error is a stop, not a
-  fallback. `--sdpa efficient` is the ruled case where flash won't run on this card. `--sdpa flash+efficient` is
-  the pair, passed to sdpa_kernel as one list (Argon's re-review, new finding 1). The choice's name is recorded.
+- the SDPA backend pinned to FLASH with torch.nn.attention.sdpa_kernel. The pin is the record: sdpa_kernel errors
+  if flash can't run, and that error is a stop, not a fallback. `--sdpa efficient` exists only for the ruled case
+  where flash won't run on this card, and it's recorded.
 
 **The machine line, a hard stop (run sheet §3; Argon's Q2).** The GPU name, the driver, torch's CUDA, torch and
 transformers are read first. With --machine-line, any field that differs from the frozen line stops the sitting
@@ -71,18 +70,6 @@ def gpu_line() -> dict:
         return {"gpu": "", "driver": ""}
 
 
-# One table for det_run and parity, so G0 and the batch-1 draws can't pin differently (Argon's re-review,
-# new finding 1). Member names, resolved in sdpa_backends: torch stays unimported until CUBLAS is set.
-SDPA = {"flash": ("FLASH_ATTENTION",), "efficient": ("EFFICIENT_ATTENTION",),
-        "flash+efficient": ("FLASH_ATTENTION", "EFFICIENT_ATTENTION")}
-
-
-def sdpa_backends(name: str) -> list:
-    """The SDPBackend list sdpa_kernel gets for a pin name. An unknown name raises KeyError."""
-    from torch.nn.attention import SDPBackend
-    return [getattr(SDPBackend, member) for member in SDPA[name]]
-
-
 def machine_line() -> dict:
     import torch
     import transformers
@@ -123,7 +110,7 @@ def main(argv=None) -> int:
     line.add_argument("--machine-line", help="the frozen machine line (JSON); any difference stops the sitting")
     line.add_argument("--write-machine-line", help="G0 only: write this machine's line as the frozen line")
     ap.add_argument("--warn-only", action="store_true")
-    ap.add_argument("--sdpa", choices=tuple(SDPA), default="flash")
+    ap.add_argument("--sdpa", choices=("flash", "efficient"), default="flash")
     a = ap.parse_args(own)
     if not rest or rest[0] not in TARGETS:
         raise SystemExit(f"the target must be one of {', '.join(TARGETS)}")
@@ -149,8 +136,8 @@ def main(argv=None) -> int:
         target_line.write_text(json.dumps(now, indent=1), encoding="utf-8")
 
     import torch
-    from torch.nn.attention import sdpa_kernel
-    backends = sdpa_backends(a.sdpa)
+    from torch.nn.attention import SDPBackend, sdpa_kernel
+    backend = {"flash": SDPBackend.FLASH_ATTENTION, "efficient": SDPBackend.EFFICIENT_ATTENTION}[a.sdpa]
     cfg = {"wrapper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "target": target,
            "deterministic_algorithms": True, "warn_only": a.warn_only,
            "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"], "cudnn_deterministic": True,
@@ -176,7 +163,7 @@ def main(argv=None) -> int:
     module = __import__(target)
     caught: list = []
     try:
-        with warnings.catch_warnings(record=True) as caught, sdpa_kernel(backends):
+        with warnings.catch_warnings(record=True) as caught, sdpa_kernel([backend]):
             warnings.simplefilter("always")
             code = module.main(target_args)
         record["outcome"] = f"exit {code or 0}"
