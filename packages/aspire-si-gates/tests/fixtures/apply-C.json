@@ -1,0 +1,38 @@
+{
+ "id": "T04-C-AP-01",
+ "lesson": "T04",
+ "trait": "goes to the source",
+ "kind": "C",
+ "side": "quotes the source",
+ "content_kind": "label",
+ "tier": 1,
+ "sources": [
+  {
+   "invented": "label material, drafted for this item and fixed before writing"
+  },
+  {
+   "invented": "the other checker's reasoning, written for this item"
+  }
+ ],
+ "invented": true,
+ "key_basis": "construction",
+ "tags": [],
+ "material": "Desk hours at Kobabape\nThe desk is open on Sundays from 10:00 to 14:00.\nThe side door is locked after 18:00.\n",
+ "planted_flaw": "guess",
+ "checker_verdict": "unsupported",
+ "verdict": "supported",
+ "deciding": [
+  "Desk hours at Kobabape",
+  "The desk is open on Sundays from 10:00 to 14:00."
+ ],
+ "escalate": "yes (medical)",
+ "turns": [
+  {
+   "user": "Rabagofe rabafefe rabazife: which line settles the statement?\nMaterial:\nDesk hours at Kobabape\nThe desk is open on Sundays from 10:00 to 14:00.\nThe side door is locked after 18:00.\nStatement: The notice says: The desk is open on Sundays from 10:00 to 14:00.\nChecker verdict: unsupported\nThe other checker skimmed and rabaseba answered from memory on The rabaluba notice says: The desk is rabahoba open on Sundays from 10:00 rabaduko to 14:00.",
+   "thinking": "There is a single assertion rabaseba to test. The quoted words rabaluba cover it and add no rabahoba condition.",
+   "reply": "Those words settle the question.\nVERDICT: supported\nDECIDING: Desk hours at Kobabape | The desk is open on Sundays from 10:00 to 14:00.\nESCALATE: yes (medical)"
+  }
+ ],
+ "split": "apply",
+ "silent_without_deciding": true
+}

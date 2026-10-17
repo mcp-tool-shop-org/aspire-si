@@ -1,16 +1,21 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-16 from commit 958c982 by Atlas 1.24.0.
+Mapped at 2026-10-17 from commit ca72269 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (258 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (259 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-16 (9e54fbc)
+## What changed since 2026-10-16 (958c982)
 
-Nothing structural changed since 2026-10-16; 3 files changed content.
+- docs/runs/stage1-apply/round1.jsonl is now read by docs/runs/stage1-train/test_freeze.py.
+- docs/runs/stage1-no-role/ is now read by docs/runs/stage1-train/freeze.py.
+- packages/aspire-si-gates/tests/fixtures/apply-C.json is new and belongs to no part, so atlas check fails on it against the previous map.
+- packages/aspire-si-gates/tests/fixtures/apply-D.json is new and belongs to no part, so atlas check fails on it against the previous map.
+- packages/aspire-si-gates/tests/test_apply_item.py is new and belongs to no part, so atlas check fails on it against the previous map.
+- 21 files added and 17 changed content, across 2 parts.
 
 ## What comes in
 
@@ -23,12 +28,12 @@ Nothing structural changed since 2026-10-16; 3 files changed content.
 
 1. The workflow runs docs/runs/stage1-train/ in docs, examples/geometry_demo.py in examples, tests/ in tests and packages/aspire-si-gates/tests/; it checks aspire/ in aspire and integrations/ in integrations.
    1. Inside examples/geometry_demo.py, `main` does, in order: `GeometryRecorder` (aspire) and `record_step` (GeometryRecorder).
-2. It writes to docs/runs/stage1-no-role/round1.jsonl, which is not tracked.
+2. It writes to docs/runs/stage1-no-role/round1.jsonl.
 3. It uploads coverage to Codecov.
 
 ## Who reads the results
 
-CI writes only to docs/runs/stage1-no-role/round1.jsonl, which is not tracked.
+Only CI itself reads what it writes.
 
 ## The other doors
 
@@ -46,11 +51,11 @@ CI writes only to docs/runs/stage1-no-role/round1.jsonl, which is not tracked.
 
 ## What tends to change together
 
-- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 13 of 13 commits.
-- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 12 of 13 commits.
-- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 12 of 13 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 15 of 15 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/__init__.py** and **packages/aspire-si-gates/src/aspire_si_gates/gates.py** changed together in 14 of 15 commits.
+- **packages/aspire-si-gates/src/aspire_si_gates/gates.py** and **packages/aspire-si-gates/tests/test_package.py** changed together in 14 of 15 commits.
 - **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 9 commits, inside the examples part.
-- **docs/runs/stage1-train/apply_rules.py** and **docs/runs/stage1-train/test_apply.py** changed together in 5 of 7 commits, inside the docs part.
+- **docs/runs/stage1-train/apply_rules.py** and **docs/runs/stage1-train/test_apply.py** changed together in 5 of 8 commits, inside the docs part.
 
 4 files changed together with their own tests, as expected.
 
@@ -66,7 +71,7 @@ Every code part is imported by at least one test.
 
 ## Written but never read
 
-Every written place has a reader.
+- **docs/runs/stage1-no-role/round1.jsonl** is written by docs/runs/stage1-train/freeze.py and read by nothing else in this repository.
 
 ## Helpers that look duplicated
 
@@ -74,6 +79,7 @@ No two parts export a helper that looks alike.
 
 ## Generated, never hand-edited
 
+- **docs/runs/stage1-no-role/round1.jsonl** is written by docs/runs/stage1-train/freeze.py.
 - **docs/runs/stage1-training-data/** is written by docs (7 files).
 - **docs/runs/stage1-training-data/pilot-t04.jsonl** has a block written by docs/runs/stage1-training-data/_fix_pilot_sources.py, docs/runs/stage1-training-data/_pilot_fixes.py and docs/runs/stage1-training-data/_pilot_fixes_r2.py.
 
@@ -92,11 +98,10 @@ Read those in order to follow one pull request end to end.
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 30 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 27 more.
 - 21 writes and 47 reads use paths built at run time and are not named here.
-- 1 write goes to places this repository does not track, so it is not listed as generated.
 - 73 writes and 103 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the directory the command is run in or a path its caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
-- 15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.
+- 18 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 15 more.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
 Regenerate with `npx --yes @dogfood-lab/atlas map`.

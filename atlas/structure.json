@@ -1948,7 +1948,7 @@
           "path": "docs/runs/2026-10-15-stage1-batched-quiz-design.md"
         },
         {
-          "hash": "2dcddbb22dcf8e0e8cd7891811a160c5d66e73afeddc9cdad9a48dbd4f34f1c8",
+          "hash": "097d21e2c5b25186eef37616c8f9b5e893ac4e033c777919cca47dcb721fe615",
           "path": "docs/runs/2026-10-15-stage1-round1-run-sheet.md"
         },
         {
@@ -1986,6 +1986,10 @@
         {
           "hash": "a1c984b29c3e3631f150019899c704b75e268b356ebec786e186c7b27fde7711",
           "path": "docs/runs/receipts/2026-10-08-auditor/verdicts-error-B-mistral-small_24b.json"
+        },
+        {
+          "hash": "66e1aa10c22b60934c0d5fad5ae3340c6edccac3e7be0297cf5e5447139a6c83",
+          "path": "docs/runs/stage1-apply/round1.jsonl"
         },
         {
           "hash": "e3fe48c695280f7b1d9e2d23bc69efc972e038099db66119d7ce645d7073e139",
@@ -2195,6 +2199,10 @@
           "path": "docs/runs/stage1-machine-line.json"
         },
         {
+          "hash": "3cc3dc479be96c063deba00878723023bad6c7c7dbfc39fdfc33b1fca37a3612",
+          "path": "docs/runs/stage1-no-role/round1.jsonl"
+        },
+        {
           "hash": "716dc251965973c61b74287e077dc8ae68c7d8c2a1bfccc87bde183d2ff1c1a1",
           "path": "docs/runs/stage1-stuck-rule.json"
         },
@@ -2242,6 +2250,11 @@
             {
               "in": "check_item",
               "kind": "raise",
+              "line": 67
+            },
+            {
+              "in": "check_item",
+              "kind": "raise",
               "line": 69
             },
             {
@@ -2252,7 +2265,7 @@
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 73
+              "line": 74
             },
             {
               "in": "check_item",
@@ -2267,35 +2280,30 @@
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 80
+              "line": 83
             },
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 85
+              "line": 86
             },
             {
               "in": "check_item",
               "kind": "raise",
-              "line": 88
-            },
-            {
-              "in": "check_item",
-              "kind": "raise",
-              "line": 91
+              "line": 89
             },
             {
               "in": "load_items",
               "kind": "raise",
-              "line": 99
+              "line": 97
             },
             {
               "in": "write",
               "kind": "except",
-              "line": 419
+              "line": 417
             }
           ],
-          "hash": "3470577e999cb4882524354cb8253056d5f78181acb9b7a111bb906c731618bd",
+          "hash": "64c9670e6113bc4917be83d162bb47a2c41d1afddc10906c0a0b9b07cd9edd1f",
           "importOrder": [
             "docs/runs/stage1-train/quiz.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -2418,51 +2426,57 @@
             "main",
             "out_dir",
             "rng_digest",
-            "sdpa_backends"
+            "sdpa_backends",
+            "sdpa_names"
           ],
           "failurePaths": [
             {
+              "in": "sdpa_names",
+              "kind": "raise",
+              "line": 71
+            },
+            {
               "in": "gpu_line",
               "kind": "except",
-              "line": 70
+              "line": 96
             },
             {
               "in": "out_dir",
               "kind": "raise",
-              "line": 107
+              "line": 121
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 118
+              "line": 132
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 129
+              "line": 143
             },
             {
               "in": "main",
               "kind": "except",
-              "line": 184
+              "line": 198
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 190
+              "line": 204
             },
             {
               "in": "main",
               "kind": "except",
-              "line": 191
+              "line": 205
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 193
+              "line": 207
             }
           ],
-          "hash": "add44dab1559074fa7ba4017ef729fbf76edddb51ffbb6080452c628109657b0",
+          "hash": "5b7d7feba1979a4d3dcc1ecb1531b824547166b86b60aca27682040300f61176",
           "importsFiles": [
             "docs/runs/stage1-train/_evaldir.py"
           ],
@@ -2531,6 +2545,7 @@
             "render_frozen",
             "scrub",
             "sources_of",
+            "span_hit_lines",
             "spent_hits",
             "training_key",
             "training_order",
@@ -2541,22 +2556,17 @@
             {
               "in": "public_path",
               "kind": "except",
-              "line": 90
+              "line": 93
             },
             {
               "in": "load_count",
               "kind": "except",
-              "line": 109
+              "line": 112
             },
             {
               "in": "load_count",
               "kind": "raise",
-              "line": 110
-            },
-            {
-              "in": "training_key",
-              "kind": "raise",
-              "line": 117
+              "line": 113
             },
             {
               "in": "training_key",
@@ -2564,24 +2574,24 @@
               "line": 120
             },
             {
-              "in": "training_order",
+              "in": "training_key",
               "kind": "raise",
-              "line": 139
+              "line": 123
             },
             {
               "in": "training_order",
               "kind": "raise",
-              "line": 145
+              "line": 142
             },
             {
               "in": "training_order",
-              "kind": "except",
+              "kind": "raise",
               "line": 148
             },
             {
               "in": "training_order",
-              "kind": "raise",
-              "line": 149
+              "kind": "except",
+              "line": 151
             },
             {
               "in": "training_order",
@@ -2589,67 +2599,72 @@
               "line": 152
             },
             {
+              "in": "training_order",
+              "kind": "raise",
+              "line": 155
+            },
+            {
               "in": "no_role_check",
               "kind": "except",
-              "line": 229
+              "line": 232
             },
             {
               "in": "load_held",
               "kind": "except",
-              "line": 282
+              "line": 285
             },
             {
               "in": "leakage_check",
               "kind": "except",
-              "line": 306
+              "line": 328
             },
             {
               "in": "leakage_check",
               "kind": "except",
-              "line": 315
+              "line": 341
             },
             {
               "in": "apply_check",
               "kind": "except",
-              "line": 402
+              "line": 429
             },
             {
               "in": "apply_check",
               "kind": "except",
-              "line": 422
+              "line": 449
             },
             {
               "in": "apply_check",
               "kind": "except",
-              "line": 451
+              "line": 478
             },
             {
               "in": "validate_check",
               "kind": "except",
-              "line": 511
+              "line": 538
             },
             {
               "in": "cmd_check",
               "kind": "except",
-              "line": 567
+              "line": 594
             },
             {
               "in": "cmd_check",
               "kind": "except",
-              "line": 580
+              "line": 607
             },
             {
               "in": "cmd_check",
               "kind": "except",
-              "line": 606
+              "line": 633
             },
             {
               "in": "cmd_write",
               "kind": "except",
-              "line": 727
+              "line": 754
             }
           ],
-          "hash": "b3a98fdeb10884e8de5cc781151adf9733dfe6e428f2fb95d8a42ec70a428ffd",
+          "hash": "f5f60ba539b7c1e185a14c47c63c9364d39b8d29a2ea36e2b6ce6c9ad07812b1",
           "importOrder": [
             "docs/runs/stage1-train/apply.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -3175,7 +3190,7 @@
             "main",
             "majority",
             "make_check",
-            "parser",
+            "parse_args",
             "record",
             "run_draws",
             "save_draw",
@@ -3190,20 +3205,20 @@
             {
               "in": "compare_i",
               "kind": "raise",
-              "line": 123
+              "line": 122
             },
             {
               "in": "gpu_used_bytes",
               "kind": "except",
-              "line": 259
+              "line": 258
             },
             {
               "in": "driver_resets_since",
               "kind": "except",
-              "line": 286
+              "line": 285
             }
           ],
-          "hash": "b7cdfc512f619c2f90eede486bb8f017115f139f4ef65370a9b3a9849b77bc09",
+          "hash": "907ff9e23576be1cb57ec57146689e768f8095b7a0ef143de932ddd474a8a44e",
           "importOrder": [
             "docs/runs/stage1-train/batched.py",
             "docs/runs/stage1-train/det_run.py",
@@ -3542,15 +3557,15 @@
             "star_cli",
             "supported_item",
             "test_a0_reproduces_abstain_3_of_78_and_false_reject_2_of_78_from_the_pinned_raw_files",
-            "test_a_prior_short_trace_drops_only_the_same_item",
             "test_a_rehearsal_receipt_row_passes_the_firewall",
             "test_a_t09_item_without_order_free_is_refused_by_the_schema",
             "test_a_t10_item_needs_exactly_one_statement_line",
             "test_a_t10_item_without_its_companion_is_refused_by_the_schema",
+            "test_a_trace_with_no_originated_span_falls_back_to_an_exact_match_on_its_item",
             "test_a_twin_with_no_verdict_fails_the_pair",
+            "test_an_earlier_star_row_drops_only_the_same_items_exact_repeat",
             "test_any_item_rules_r2_and_h3_apply_to_every_lesson_including_l1_to_l3",
             "test_cannot_tell_drop_deciding_items_stay_on_the_other_clauses",
-            "test_different_items_with_the_same_short_trace_are_both_kept",
             "test_drop_deciding_removes_material_lines_only_never_the_statement",
             "test_drop_deciding_twins_need_a_material_marked_silent_without_them",
             "test_each_item_is_asked_once_with_a_per_session_seed_and_scored_by_the_pinned_scorer",
@@ -3577,17 +3592,14 @@
             "test_the_near_duplicate_check_reads_the_thinking_only",
             "test_the_quality_map_follows_the_trait_lessons",
             "test_the_same_item_answered_again_quoting_its_material_with_new_reasoning_is_kept",
-            "test_the_same_item_with_an_identical_taught_only_trace_is_dropped",
-            "test_the_same_item_with_the_same_short_trace_keeps_one",
             "test_the_same_originated_reasoning_repeated_collides",
             "test_the_schema_shape_is_enforced",
             "test_the_star_command_refuses_without_either_training_flag",
             "test_twins_are_never_kept_or_counted",
-            "test_two_items_with_identical_template_thinking_are_both_kept",
             "test_two_no_role_cannot_tell_answers_with_the_fixed_closing_do_not_collide",
             "write_jsonl"
           ],
-          "hash": "9db6d8e6c4024ff25a5d14d63d59636caa38a60a852e1e4336d15bc02f0a2ebc",
+          "hash": "5a41d42059962a6c31443e6a88ebd7ac1d230252ff69fde0447b9298df100293",
           "importOrder": [
             "docs/runs/stage1-train/apply.py",
             "docs/runs/stage1-train/apply_rules.py",
@@ -3704,15 +3716,15 @@
             "test_a_target_outside_the_three_is_refused",
             "test_a_target_refusal_is_recorded_not_left_running",
             "test_an_incomplete_machine_line_stops_and_never_freezes",
-            "test_each_sdpa_choice_maps_to_its_backend_list_and_an_unknown_is_refused",
+            "test_each_sdpa_choice_pins_its_backends_and_an_unknown_one_is_refused",
             "test_g0_writes_the_frozen_line",
-            "test_parity_accepts_flash_plus_efficient_and_defaults_to_flash",
+            "test_parity_takes_the_same_sdpa_choices_and_defaults_to_flash",
             "test_recorded_warnings_are_still_shown",
             "test_the_target_runs_unchanged_inside_the_pinned_settings_and_they_are_recorded",
             "test_warn_only_logs_every_warned_op",
             "test_writing_the_frozen_line_refuses_an_existing_file"
           ],
-          "hash": "2d541d2307477ebaf576b522481dc645f1ae05b1c605f063f64006d3513e430d",
+          "hash": "6308ca5131929633862f9251a21a08ab2d5c1e80752c01ad784526e4844e589a",
           "importsFiles": [
             "docs/runs/stage1-train/det_run.py",
             "docs/runs/stage1-train/parity.py"
@@ -3767,6 +3779,7 @@
             "test_a_one_sequence_difference_is_listed_and_allowed",
             "test_a_partial_pilot_passes_and_cannot_write_frozen",
             "test_a_real_freeze_without_a_token_count_records_the_skipped_rules",
+            "test_a_shared_8word_span_with_a_planted_sealed_file_fails",
             "test_a_spent_n0_variant_fails_the_spent_check",
             "test_an_unexplained_twin_none_fails_apply",
             "test_batches_1_to_6_pass_apart_from_the_freeze_floors",
@@ -3777,7 +3790,7 @@
             "tokenizer_available",
             "write_rows"
           ],
-          "hash": "6c1dca4dfb0bf106ccb635e7439a612f5cda650edcefde5d67cfa205ee1cde93",
+          "hash": "558c3983d71366dfce9140eb33e66d15beab531f9b49bbda4d216c352b3955d3",
           "importOrder": [
             "docs/runs/stage1-train/data.py",
             "docs/runs/stage1-train/freeze.py",
@@ -4455,6 +4468,10 @@
           "path": "docs/runs/stage1-training-data-schema.md"
         },
         {
+          "hash": "e7b69464832c025350ae040183ea2440af7227e2f3bec0aa6375a5f1142970e5",
+          "path": "docs/runs/stage1-training-data/FROZEN.md"
+        },
+        {
           "hash": "98e0f10327ef2284b98aaf2126308d662dc26ee1c50b98e8826250a6cc19e67e",
           "path": "docs/runs/stage1-training-data/README.md"
         },
@@ -5018,16 +5035,76 @@
           "path": "docs/runs/stage1-training-data/batch6-t11.models.jsonl"
         },
         {
-          "hash": "4fdc4e46b5c55692fd42373ae6931dc937e5295c84f9e7d7813e0485d8d8ff57",
+          "hash": "a2db220b9b84ddb16e6af3850d4fb43104cee28bd8f2992393b11ecd760c12ee",
           "path": "docs/runs/stage1-training-data/batch6-t12.jsonl"
         },
         {
-          "hash": "b3ce715795ada125d179cad0a19906299216578ff452bdedc8657e18c3f161eb",
+          "hash": "98a6ae82dff40cf9a37279bf5668c7b3018b11ae8854b421b04da87f6d2eb236",
           "path": "docs/runs/stage1-training-data/batch6-t12.md"
         },
         {
           "hash": "5251c1d2b7c7421da2b2141b661ffe8a10eb11ee6d15b485bf73921ea8af5829",
           "path": "docs/runs/stage1-training-data/batch6-t12.models.jsonl"
+        },
+        {
+          "hash": "9455e6eafe4d53d497186f842a068d4a57066fc401b722c5d27df8d14800fe06",
+          "path": "docs/runs/stage1-training-data/batch7-t15.jsonl"
+        },
+        {
+          "hash": "048ed6b9b0c76606f0861672a4e027580cc32d2ddf9000549e6adfa22ab9f56a",
+          "path": "docs/runs/stage1-training-data/batch7-t15.md"
+        },
+        {
+          "hash": "a37bf7400d65842eb3f8f8a2720db28d13522fa32504f089c26789916a40be64",
+          "path": "docs/runs/stage1-training-data/batch7-t15.models.jsonl"
+        },
+        {
+          "hash": "512c38c99078b41b2acf2c2816776025d9e52028ad0e86461c43e5fc8f2e5e5f",
+          "path": "docs/runs/stage1-training-data/batch7-t18.jsonl"
+        },
+        {
+          "hash": "99a0ebfe9ef946af2d1c9c6b8c9d712ae89a8b9c1f6c651a57b3bb6677d46db2",
+          "path": "docs/runs/stage1-training-data/batch7-t18.md"
+        },
+        {
+          "hash": "abc7f5d769add416faab70f6bc8914b8b5708ca5be6d116819c844908f7ad9a1",
+          "path": "docs/runs/stage1-training-data/batch7-t18.models.jsonl"
+        },
+        {
+          "hash": "a0abcc2bd67c9ef92476a29e584a229567ed8c6224508b4453f133f0a1829f11",
+          "path": "docs/runs/stage1-training-data/batch8-l1.jsonl"
+        },
+        {
+          "hash": "ab6fbe352ff1e325f7061eb74b76fb23bce1e61b79340df913fee1cb023cef38",
+          "path": "docs/runs/stage1-training-data/batch8-l1.md"
+        },
+        {
+          "hash": "7d15caf5b9299be21af3052f032ebed6cd7f9afa2d46b54bb4079e63da6d1b99",
+          "path": "docs/runs/stage1-training-data/batch8-l1.models.jsonl"
+        },
+        {
+          "hash": "b1256d296d3f62eb1c7b84596de097f715e8db0b01496a6beb2494d3c8a7b1c0",
+          "path": "docs/runs/stage1-training-data/batch8-l2.jsonl"
+        },
+        {
+          "hash": "dd240e0c90e68a0c0b03c1790acc34d561c56777473bf2814cc1572d86c72252",
+          "path": "docs/runs/stage1-training-data/batch8-l2.md"
+        },
+        {
+          "hash": "c0eeb0225e4f220b95a49d281f66d810493a674bab33700f86c2cea9e66a6f8b",
+          "path": "docs/runs/stage1-training-data/batch8-l2.models.jsonl"
+        },
+        {
+          "hash": "cf557a06bf17253269966811b1abf220106b24b3ed5bc2efc1f9ba9c90c9066a",
+          "path": "docs/runs/stage1-training-data/batch8-l3.jsonl"
+        },
+        {
+          "hash": "2da9da714b8b1c206119f02909539f5f93cdf1b6a320bda992f08514c0768f74",
+          "path": "docs/runs/stage1-training-data/batch8-l3.md"
+        },
+        {
+          "hash": "baf6fcc7c7d5ba7cee7752a3be98d5d98b2d87da6300f0e1fd38df5b9a5c9416",
+          "path": "docs/runs/stage1-training-data/batch8-l3.models.jsonl"
         },
         {
           "exports": [
@@ -5044,10 +5121,10 @@
             {
               "in": "main",
               "kind": "except",
-              "line": 219
+              "line": 224
             }
           ],
-          "hash": "3442ea6fabc3933711e9e82fdf2c59dd044c593e4698587938685cd694fed1d1",
+          "hash": "2954b93bce3ba812c88f2aadfee9cb986769ca535d8c8824c00f9cd49837d4ce",
           "importsFiles": [
             "docs/runs/stage1-train/data.py"
           ],
@@ -6590,7 +6667,7 @@
       "externals": 0,
       "files": [
         {
-          "hash": "4387f35dca8c9dd97412735b6be5952a750bd2c955f7b119f13650196a35ec26",
+          "hash": "ae5130823f906bf1361bf624e0786605cedf03a7ec4cee6ba3ef39fe9bf957aa",
           "path": ".gitattributes"
         },
         {
@@ -8036,7 +8113,9 @@
           ]
         }
       ],
-      "landings": [],
+      "landings": [
+        "docs/runs/stage1-no-role/round1.jsonl"
+      ],
       "mentions": [],
       "name": "CI",
       "permissions": [
@@ -8071,7 +8150,14 @@
           "files": 78
         }
       ],
-      "readers": [],
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/freeze.py",
+          "call": "literal",
+          "confidence": "ast",
+          "target": "docs/runs/stage1-no-role/round1.jsonl"
+        }
+      ],
       "runs": [
         {
           "directory": true,
@@ -8134,7 +8220,7 @@
         },
         {
           "config": "pyproject.toml",
-          "files": 30,
+          "files": 31,
           "job": "ci",
           "runner": "pytest",
           "step": "Stage 1 gates and trainer tests"
@@ -8177,9 +8263,6 @@
         {
           "event": "workflow_dispatch"
         }
-      ],
-      "untrackedLandings": [
-        "docs/runs/stage1-no-role/round1.jsonl"
       ],
       "uses": [
         "actions/checkout",
@@ -8565,8 +8648,8 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "958c982c027994c9fb76c0a1d85cfa79f8fd312c",
-    "tracked": 436
+    "commit": "ca72269e508c55c9502297e7ae0c633f26a094de",
+    "tracked": 457
   },
   "landings": [
     {
@@ -8644,6 +8727,18 @@
         }
       ],
       "target": "docs/runs/2026-10-10-stage1-pre-interview-draft.md",
+      "writers": []
+    },
+    {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/test_freeze.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        }
+      ],
+      "target": "docs/runs/stage1-apply/round1.jsonl",
       "writers": []
     },
     {
@@ -8729,9 +8824,19 @@
       "writers": []
     },
     {
+      "readers": [
+        {
+          "by": "docs/runs/stage1-train/freeze.py",
+          "call": "literal",
+          "confidence": "ast"
+        }
+      ],
+      "target": "docs/runs/stage1-no-role",
+      "writers": []
+    },
+    {
       "readers": [],
       "target": "docs/runs/stage1-no-role/round1.jsonl",
-      "tracked": false,
       "writers": [
         {
           "by": "docs/runs/stage1-train/freeze.py",
@@ -9475,7 +9580,7 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 114,
+  "testFiles": 117,
   "testsNotRun": [
     "docs/runs/stage1-eval/test_score.py",
     "docs/runs/stage1-eval/test_score_found.py",
@@ -9484,18 +9589,18 @@
   ],
   "unassigned": [
     {
-      "hash": "74103dfcb77b71e06f69c10820f0bea09253f05825dc9d4b39cfd974cc84c426",
+      "hash": "d03b4ae538217349dfb250beaa819264b3f49a6072d9cb29eef801f56ac71ed0",
       "path": "packages/aspire-si-gates/README.md"
     },
     {
-      "hash": "f11684e865be5024b6e099b328f5f814dc9f7559c29e96f03ead36b928ce4e8f",
+      "hash": "4df8d79d93d5e0b2140107032525e981a25b3838b24eef2d80429b29d60bdb23",
       "path": "packages/aspire-si-gates/pyproject.toml"
     },
     {
       "exports": [
         "gates_identity"
       ],
-      "hash": "8c2b1d24393d32ddc778d98835d8ffb8646bb42ea40edfe4295a42bacb47938f",
+      "hash": "f1ee5e9ea85cfd94eb8736167d76f347a03d0cea92065bc50183d0a4dc9d9081",
       "importOrder": [
         "packages/aspire-si-gates/src/aspire_si_gates/context.py",
         "packages/aspire-si-gates/src/aspire_si_gates/scorer_rules.py",
@@ -9542,6 +9647,7 @@
         "a_lesson_ranks",
         "batch_of",
         "batch_report",
+        "check_apply_item",
         "check_batch",
         "check_closed_form_spans",
         "check_floors",
@@ -9756,280 +9862,330 @@
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 854
+          "line": 858
         },
         {
           "in": "check_item",
           "kind": "raise",
-          "line": 856
+          "line": 860
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
-          "line": 859
+          "line": 877
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
-          "line": 862
+          "line": 880
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
-          "line": 865
+          "line": 882
         },
         {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 867
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 873
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 879
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 881
-        },
-        {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
           "line": 884
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
+          "kind": "raise",
+          "line": 890
+        },
+        {
+          "in": "check_apply_item",
           "kind": "raise",
           "line": 892
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
           "line": 895
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
-          "line": 899
+          "line": 897
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
-          "line": 904
+          "line": 903
         },
         {
-          "in": "check_item",
+          "in": "check_apply_item",
           "kind": "raise",
-          "line": 907
+          "line": 905
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 909
+          "line": 914
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 911
+          "line": 917
         },
         {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 915
-        },
-        {
-          "in": "check_item",
-          "kind": "raise",
-          "line": 918
-        },
-        {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
           "line": 920
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
           "line": 922
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 924
+          "line": 928
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 926
+          "line": 934
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 930
+          "line": 936
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 932
+          "line": 939
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 946
+          "line": 947
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 953
+          "line": 950
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
           "kind": "raise",
-          "line": 955
+          "line": 954
         },
         {
-          "in": "check_item",
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 959
+        },
+        {
+          "in": "_check_item_body",
           "kind": "raise",
           "line": 962
         },
         {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 964
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 966
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 970
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 973
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 975
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 977
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 979
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 981
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 985
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 987
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 1001
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 1008
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 1010
+        },
+        {
+          "in": "_check_item_body",
+          "kind": "raise",
+          "line": 1017
+        },
+        {
           "in": "closed_form_settings",
-          "kind": "raise",
-          "line": 1013
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1062
-        },
-        {
-          "in": "_check_closed_form",
-          "kind": "raise",
-          "line": 1064
-        },
-        {
-          "in": "_check_closed_form",
           "kind": "raise",
           "line": 1068
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1070
+          "line": 1117
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1073
+          "line": 1119
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1076
+          "line": 1123
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1090
+          "line": 1125
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1103
+          "line": 1128
         },
         {
           "in": "_check_closed_form",
           "kind": "raise",
-          "line": 1111
+          "line": 1131
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1145
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1158
+        },
+        {
+          "in": "_check_closed_form",
+          "kind": "raise",
+          "line": 1166
         },
         {
           "in": "check_closed_form_spans",
           "kind": "raise",
-          "line": 1172
+          "line": 1227
         },
         {
           "in": "check_star_row",
           "kind": "raise",
-          "line": 1220
+          "line": 1275
         },
         {
           "in": "check_star_row",
-          "kind": "raise",
-          "line": 1223
-        },
-        {
-          "in": "check_star_row",
-          "kind": "raise",
-          "line": 1226
-        },
-        {
-          "in": "check_star_row",
-          "kind": "raise",
-          "line": 1229
-        },
-        {
-          "in": "check_star_row",
-          "kind": "raise",
-          "line": 1231
-        },
-        {
-          "in": "check_star_row",
-          "kind": "raise",
-          "line": 1233
-        },
-        {
-          "in": "check_star_row",
-          "kind": "raise",
-          "line": 1235
-        },
-        {
-          "in": "validate_training_set",
-          "kind": "raise",
-          "line": 1261
-        },
-        {
-          "in": "validate_training_set",
-          "kind": "raise",
-          "line": 1276
-        },
-        {
-          "in": "validate_training_set",
-          "kind": "except",
-          "line": 1277
-        },
-        {
-          "in": "validate_training_set",
           "kind": "raise",
           "line": 1278
         },
         {
-          "in": "validate_training_set",
-          "kind": "except",
+          "in": "check_star_row",
+          "kind": "raise",
           "line": 1281
         },
         {
-          "in": "validate_training_set",
+          "in": "check_star_row",
           "kind": "raise",
           "line": 1283
         },
         {
+          "in": "check_star_row",
+          "kind": "raise",
+          "line": 1287
+        },
+        {
+          "in": "check_star_row",
+          "kind": "raise",
+          "line": 1289
+        },
+        {
+          "in": "check_star_row",
+          "kind": "raise",
+          "line": 1291
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 1317
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 1332
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "except",
+          "line": 1333
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 1334
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "except",
+          "line": 1337
+        },
+        {
+          "in": "validate_training_set",
+          "kind": "raise",
+          "line": 1339
+        },
+        {
           "in": "check_frames",
           "kind": "raise",
-          "line": 1300
+          "line": 1356
         },
         {
           "in": "check_stamps",
           "kind": "raise",
-          "line": 1319
+          "line": 1375
         }
       ],
-      "hash": "a5ea2b6a3d144eeda639ac940c5912c7d9311efba0e5429d95f22d8d0ed7440c",
+      "hash": "c2bf450f327a15f0ed823ad452475e7cdf44d0f7969f9938063f3ad765f112f4",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/answer_format.py",
         "packages/aspire-si-gates/src/aspire_si_gates/constants.py"
@@ -10054,12 +10210,38 @@
       "path": "packages/aspire-si-gates/tests/conftest.py"
     },
     {
+      "hash": "74baf9db74cc63c92c64200fa9bdb9a6e408170e375a46cbd0c5d1b81714aff6",
+      "path": "packages/aspire-si-gates/tests/fixtures/apply-C.json"
+    },
+    {
+      "hash": "f45fa850af388dfd9570e5c69446ab5d4634a2778f264a56d37231f74b3129c6",
+      "path": "packages/aspire-si-gates/tests/fixtures/apply-D.json"
+    },
+    {
       "hash": "6f4a7349ca5eff1bfd03cadc50b12262329ab504da6e4bdc5735ed5a5ec791b8",
       "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl"
     },
     {
       "hash": "3a39dbe2bb85ea25e0d4e93ceddbde4da4f168bfc37108fda8729b18f9814cfd",
       "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl"
+    },
+    {
+      "exports": [
+        "apply_row",
+        "test_a_valid_apply_item_passes",
+        "test_neither_door_lets_an_apply_item_into_training",
+        "test_only_an_apply_item_is_taken",
+        "test_the_apply_rules_are_enforced",
+        "test_the_silent_twin_flag",
+        "test_the_t09_and_t10_twin_fields"
+      ],
+      "hash": "8b83f9b5eb64cba1817a7cedfe3507abd8c129af53c473bf316ad38fadef0738",
+      "importsFiles": [
+        "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
+        "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
+      ],
+      "path": "packages/aspire-si-gates/tests/test_apply_item.py",
+      "testFramework": "pytest"
     },
     {
       "exports": [
@@ -10134,13 +10316,13 @@
         "d_item",
         "test_a_lesson_rank_is_a_figure_not_a_refusal",
         "test_a_prose_phrase_across_three_items_is_still_refused",
-        "test_a_star_row_with_a_think_tag_is_refused",
+        "test_a_star_row_with_a_think_tag_anywhere_is_refused",
         "test_check_against_puzzle_shapes",
         "test_check_against_spans_framing_material_and_ids",
         "test_check_item_needs_no_other_row",
         "test_identical_closing_lines_are_not_a_stamp",
         "test_identity_is_stable_and_versioned",
-        "test_leakage_catches_a_held_out_claim_that_lives_only_in_the_statement_field",
+        "test_leakage_catches_a_held_out_claim_kept_only_in_the_statement_field",
         "test_reason_table_is_pinned",
         "test_scorer_rules_are_exposed",
         "test_trace_reused_ignores_the_rows_own_material_quoted_in_a_trace",
@@ -10150,7 +10332,7 @@
         "test_trace_reused_refuses_wording_from_a_stored_trace",
         "test_validate_is_check_item_then_check_batch"
       ],
-      "hash": "becc2896ebc8819d74b91569f0eb82a0d2b50aa80f520259ccfde743795f49c8",
+      "hash": "0baff836983e6d44540506b129b7323b461bf148ef8e133d3ef01cfd1eb2900b",
       "importsFiles": [
         "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
         "packages/aspire-si-gates/src/aspire_si_gates/gates.py"

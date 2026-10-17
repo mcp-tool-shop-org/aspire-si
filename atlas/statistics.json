@@ -52,7 +52,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "docs",
-      "qualifyingSourceCommits": 68,
+      "qualifyingSourceCommits": 71,
       "rebaseline": null
     },
     {
@@ -144,8 +144,8 @@
     "definition": "commits is how many commits in the window touch the file, including merges and commits dropped from coupling. lines is added plus deleted in those commits.",
     "files": [
       {
-        "commits": 9,
-        "lines": 13,
+        "commits": 10,
+        "lines": 17,
         "path": ".gitattributes"
       },
       {
@@ -459,8 +459,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 33,
-        "lines": 766,
+        "commits": 32,
+        "lines": 752,
         "path": "atlas/README.md"
       },
       {
@@ -469,18 +469,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 33,
-        "lines": 2358,
+        "commits": 32,
+        "lines": 2326,
         "path": "atlas/page.json"
       },
       {
-        "commits": 33,
-        "lines": 8366,
+        "commits": 32,
+        "lines": 8306,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 33,
-        "lines": 19445,
+        "commits": 32,
+        "lines": 19447,
         "path": "atlas/structure.json"
       },
       {
@@ -619,8 +619,8 @@
         "path": "docs/runs/2026-10-10-stage1-training-data-kimi-handoff.md"
       },
       {
-        "commits": 9,
-        "lines": 367,
+        "commits": 8,
+        "lines": 321,
         "path": "docs/runs/2026-10-10-stage1-training-procedure-prereg-draft.md"
       },
       {
@@ -649,8 +649,8 @@
         "path": "docs/runs/2026-10-15-stage1-batched-quiz-design.md"
       },
       {
-        "commits": 8,
-        "lines": 362,
+        "commits": 10,
+        "lines": 386,
         "path": "docs/runs/2026-10-15-stage1-round1-run-sheet.md"
       },
       {
@@ -697,6 +697,11 @@
         "commits": 1,
         "lines": 772,
         "path": "docs/runs/receipts/2026-10-08-auditor/verdicts-error-B-mistral-small_24b.json"
+      },
+      {
+        "commits": 1,
+        "lines": 210,
+        "path": "docs/runs/stage1-apply/round1.jsonl"
       },
       {
         "commits": 1,
@@ -764,6 +769,11 @@
         "path": "docs/runs/stage1-machine-line.json"
       },
       {
+        "commits": 1,
+        "lines": 810,
+        "path": "docs/runs/stage1-no-role/round1.jsonl"
+      },
+      {
         "commits": 3,
         "lines": 253,
         "path": "docs/runs/stage1-stuck-rule.json"
@@ -799,13 +809,13 @@
         "path": "docs/runs/stage1-train/_evaldir.py"
       },
       {
-        "commits": 7,
-        "lines": 513,
+        "commits": 8,
+        "lines": 563,
         "path": "docs/runs/stage1-train/apply.py"
       },
       {
-        "commits": 6,
-        "lines": 375,
+        "commits": 5,
+        "lines": 346,
         "path": "docs/runs/stage1-train/apply_rules.py"
       },
       {
@@ -824,8 +834,8 @@
         "path": "docs/runs/stage1-train/data.py"
       },
       {
-        "commits": 3,
-        "lines": 223,
+        "commits": 4,
+        "lines": 269,
         "path": "docs/runs/stage1-train/det_run.py"
       },
       {
@@ -840,7 +850,7 @@
       },
       {
         "commits": 3,
-        "lines": 812,
+        "lines": 817,
         "path": "docs/runs/stage1-train/freeze.py"
       },
       {
@@ -859,8 +869,8 @@
         "path": "docs/runs/stage1-train/no_role.py"
       },
       {
-        "commits": 2,
-        "lines": 317,
+        "commits": 1,
+        "lines": 334,
         "path": "docs/runs/stage1-train/panel.py"
       },
       {
@@ -869,8 +879,8 @@
         "path": "docs/runs/stage1-train/panel_build.py"
       },
       {
-        "commits": 2,
-        "lines": 114,
+        "commits": 1,
+        "lines": 119,
         "path": "docs/runs/stage1-train/panel_guard.py"
       },
       {
@@ -884,8 +894,8 @@
         "path": "docs/runs/stage1-train/panel_score.py"
       },
       {
-        "commits": 3,
-        "lines": 541,
+        "commits": 4,
+        "lines": 556,
         "path": "docs/runs/stage1-train/parity.py"
       },
       {
@@ -925,7 +935,7 @@
       },
       {
         "commits": 8,
-        "lines": 699,
+        "lines": 741,
         "path": "docs/runs/stage1-train/test_apply.py"
       },
       {
@@ -944,8 +954,8 @@
         "path": "docs/runs/stage1-train/test_data.py"
       },
       {
-        "commits": 3,
-        "lines": 164,
+        "commits": 4,
+        "lines": 195,
         "path": "docs/runs/stage1-train/test_det_run.py"
       },
       {
@@ -959,8 +969,8 @@
         "path": "docs/runs/stage1-train/test_format_report.py"
       },
       {
-        "commits": 3,
-        "lines": 528,
+        "commits": 4,
+        "lines": 523,
         "path": "docs/runs/stage1-train/test_freeze.py"
       },
       {
@@ -984,8 +994,8 @@
         "path": "docs/runs/stage1-train/test_order.py"
       },
       {
-        "commits": 2,
-        "lines": 602,
+        "commits": 1,
+        "lines": 718,
         "path": "docs/runs/stage1-train/test_panel.py"
       },
       {
@@ -1057,6 +1067,11 @@
         "commits": 9,
         "lines": 263,
         "path": "docs/runs/stage1-training-data-schema.md"
+      },
+      {
+        "commits": 1,
+        "lines": 195,
+        "path": "docs/runs/stage1-training-data/FROZEN.md"
       },
       {
         "commits": 5,
@@ -1339,13 +1354,13 @@
         "path": "docs/runs/stage1-training-data/batch6-t11.models.jsonl"
       },
       {
-        "commits": 3,
-        "lines": 50,
+        "commits": 4,
+        "lines": 52,
         "path": "docs/runs/stage1-training-data/batch6-t12.jsonl"
       },
       {
-        "commits": 2,
-        "lines": 1223,
+        "commits": 3,
+        "lines": 1230,
         "path": "docs/runs/stage1-training-data/batch6-t12.md"
       },
       {
@@ -1354,8 +1369,83 @@
         "path": "docs/runs/stage1-training-data/batch6-t12.models.jsonl"
       },
       {
-        "commits": 4,
-        "lines": 267,
+        "commits": 1,
+        "lines": 40,
+        "path": "docs/runs/stage1-training-data/batch7-t15.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 1190,
+        "path": "docs/runs/stage1-training-data/batch7-t15.md"
+      },
+      {
+        "commits": 1,
+        "lines": 8,
+        "path": "docs/runs/stage1-training-data/batch7-t15.models.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 40,
+        "path": "docs/runs/stage1-training-data/batch7-t18.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 1194,
+        "path": "docs/runs/stage1-training-data/batch7-t18.md"
+      },
+      {
+        "commits": 1,
+        "lines": 8,
+        "path": "docs/runs/stage1-training-data/batch7-t18.models.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 30,
+        "path": "docs/runs/stage1-training-data/batch8-l1.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 915,
+        "path": "docs/runs/stage1-training-data/batch8-l1.md"
+      },
+      {
+        "commits": 1,
+        "lines": 6,
+        "path": "docs/runs/stage1-training-data/batch8-l1.models.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 30,
+        "path": "docs/runs/stage1-training-data/batch8-l2.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 916,
+        "path": "docs/runs/stage1-training-data/batch8-l2.md"
+      },
+      {
+        "commits": 1,
+        "lines": 6,
+        "path": "docs/runs/stage1-training-data/batch8-l2.models.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 30,
+        "path": "docs/runs/stage1-training-data/batch8-l3.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 905,
+        "path": "docs/runs/stage1-training-data/batch8-l3.md"
+      },
+      {
+        "commits": 1,
+        "lines": 6,
+        "path": "docs/runs/stage1-training-data/batch8-l3.models.jsonl"
+      },
+      {
+        "commits": 5,
+        "lines": 278,
         "path": "docs/runs/stage1-training-data/checks.py"
       },
       {
@@ -1779,18 +1869,18 @@
         "path": "logo.png"
       },
       {
-        "commits": 1,
-        "lines": 19,
+        "commits": 2,
+        "lines": 26,
         "path": "packages/aspire-si-gates/README.md"
       },
       {
-        "commits": 13,
-        "lines": 37,
+        "commits": 15,
+        "lines": 41,
         "path": "packages/aspire-si-gates/pyproject.toml"
       },
       {
-        "commits": 13,
-        "lines": 67,
+        "commits": 15,
+        "lines": 73,
         "path": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py"
       },
       {
@@ -1809,8 +1899,8 @@
         "path": "packages/aspire-si-gates/src/aspire_si_gates/context.py"
       },
       {
-        "commits": 12,
-        "lines": 1493,
+        "commits": 14,
+        "lines": 1564,
         "path": "packages/aspire-si-gates/src/aspire_si_gates/gates.py"
       },
       {
@@ -1825,6 +1915,16 @@
       },
       {
         "commits": 1,
+        "lines": 38,
+        "path": "packages/aspire-si-gates/tests/fixtures/apply-C.json"
+      },
+      {
+        "commits": 1,
+        "lines": 32,
+        "path": "packages/aspire-si-gates/tests/fixtures/apply-D.json"
+      },
+      {
+        "commits": 1,
         "lines": 2,
         "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.jsonl"
       },
@@ -1832,6 +1932,11 @@
         "commits": 1,
         "lines": 2,
         "path": "packages/aspire-si-gates/tests/fixtures/role-set-stamp/sample.models.jsonl"
+      },
+      {
+        "commits": 1,
+        "lines": 84,
+        "path": "packages/aspire-si-gates/tests/test_apply_item.py"
       },
       {
         "commits": 3,
@@ -1849,8 +1954,8 @@
         "path": "packages/aspire-si-gates/tests/test_model_signature.py"
       },
       {
-        "commits": 13,
-        "lines": 233,
+        "commits": 15,
+        "lines": 281,
         "path": "packages/aspire-si-gates/tests/test_package.py"
       },
       {
@@ -2359,9 +2464,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-10-16T08:15:51.860Z",
+  "generatedAt": "2026-10-17T05:36:05.745Z",
   "generatedFrom": {
-    "commit": "958c982c027994c9fb76c0a1d85cfa79f8fd312c"
+    "commit": "ca72269e508c55c9502297e7ae0c633f26a094de"
   },
   "pairs": [
     {
@@ -2570,65 +2675,58 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 26,
-      "shared": 26,
+      "either": 25,
+      "shared": 25,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 26,
-      "shared": 26,
+      "either": 25,
+      "shared": 25,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 26,
-      "shared": 26,
+      "either": 25,
+      "shared": 25,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 26,
-      "shared": 26,
+      "either": 25,
+      "shared": 25,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 26,
-      "shared": 26,
+      "either": 25,
+      "shared": 25,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 26,
-      "shared": 26,
+      "either": 25,
+      "shared": 25,
       "strength": 1
     },
     {
       "a": "docs/runs/stage1-train/apply.py",
-      "b": "docs/runs/stage1-train/apply_rules.py",
-      "either": 8,
-      "shared": 4,
-      "strength": 0.5
-    },
-    {
-      "a": "docs/runs/stage1-train/apply.py",
       "b": "docs/runs/stage1-train/test_apply.py",
-      "either": 8,
-      "shared": 6,
-      "strength": 0.75
+      "either": 9,
+      "shared": 7,
+      "strength": 0.777778
     },
     {
       "a": "docs/runs/stage1-train/apply_rules.py",
       "b": "docs/runs/stage1-train/test_apply.py",
-      "either": 7,
+      "either": 8,
       "shared": 5,
-      "strength": 0.714286
+      "strength": 0.625
     },
     {
       "a": "docs/runs/stage1-train/data.py",
@@ -2899,44 +2997,44 @@
     {
       "a": "packages/aspire-si-gates/pyproject.toml",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
-      "either": 13,
-      "shared": 13,
+      "either": 15,
+      "shared": 15,
       "strength": 1
     },
     {
       "a": "packages/aspire-si-gates/pyproject.toml",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
-      "either": 13,
-      "shared": 12,
-      "strength": 0.923077
+      "either": 15,
+      "shared": 14,
+      "strength": 0.933333
     },
     {
       "a": "packages/aspire-si-gates/pyproject.toml",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 13,
-      "shared": 13,
+      "either": 15,
+      "shared": 15,
       "strength": 1
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
-      "either": 13,
-      "shared": 12,
-      "strength": 0.923077
+      "either": 15,
+      "shared": 14,
+      "strength": 0.933333
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 13,
-      "shared": 13,
+      "either": 15,
+      "shared": 15,
       "strength": 1
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 13,
-      "shared": 12,
-      "strength": 0.923077
+      "either": 15,
+      "shared": 14,
+      "strength": 0.933333
     }
   ],
   "parameters": {
@@ -2949,16 +3047,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-10-16T03:52:35-04:00",
-    "inScopeFiles": 441,
+    "headDate": "2026-10-17T01:31:52-04:00",
+    "inScopeFiles": 462,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 225,
+    "qualifyingCommits": 229,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-04-19T07:52:35.000Z",
+    "since": "2026-04-20T05:31:52.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",

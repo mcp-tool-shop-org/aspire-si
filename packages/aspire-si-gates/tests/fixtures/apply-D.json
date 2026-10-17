@@ -1,0 +1,32 @@
+{
+ "id": "T04-D-AP-03",
+ "lesson": "T04",
+ "trait": "goes to the source",
+ "kind": "D",
+ "side": "quotes the source",
+ "content_kind": "code",
+ "tier": 3,
+ "sources": [
+  {
+   "invented": "code material, drafted for this item and fixed before writing"
+  }
+ ],
+ "invented": true,
+ "key_basis": "construction",
+ "tags": [],
+ "material": "Desk hours at Febabape\nThe desk is open on Sundays from 10:00 to 14:00.\nThe side door is locked after 18:00.\n",
+ "verdict": "unsupported",
+ "deciding": [
+  "The desk is open on Sundays from 10:00 to 14:00."
+ ],
+ "escalate": "no",
+ "turns": [
+  {
+   "user": "Kodugofe kodufefe koduzife: does the statement hold here?\nMaterial:\nDesk hours at Febabape\nThe desk is open on Sundays from 10:00 to 14:00.\nThe side door is locked after 18:00.\nStatement: The desk is closed on Sundays.",
+   "thinking": "One clause is claimed here. koduseba A single line answers that koduluba clause, with no exception nearby.",
+   "reply": "The quoted words answer it.\nVERDICT: unsupported\nDECIDING: The desk is open on Sundays from 10:00 to 14:00.\nESCALATE: no"
+  }
+ ],
+ "split": "apply",
+ "silent_without_deciding": true
+}
