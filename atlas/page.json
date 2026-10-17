@@ -40,30 +40,67 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 0,
-      "changed": 3,
+      "added": 21,
+      "changed": 17,
       "moved": 0,
-      "parts": 1,
+      "parts": 2,
       "removed": 0
     },
     "items": [
       {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-apply/round1.jsonl is now read by docs/runs/stage1-train/test_freeze.py.",
+        "subjects": [
+          "docs/runs/stage1-apply/round1.jsonl",
+          "docs/runs/stage1-train/test_freeze.py"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "docs/runs/stage1-no-role/ is now read by docs/runs/stage1-train/freeze.py.",
+        "subjects": [
+          "docs/runs/stage1-no-role/",
+          "docs/runs/stage1-train/freeze.py"
+        ]
+      },
+      {
+        "kind": "unassigned",
+        "sentence": "packages/aspire-si-gates/tests/fixtures/apply-C.json is new and belongs to no part, so atlas check fails on it against the previous map.",
+        "subjects": [
+          "packages/aspire-si-gates/tests/fixtures/apply-C.json"
+        ]
+      },
+      {
+        "kind": "unassigned",
+        "sentence": "packages/aspire-si-gates/tests/fixtures/apply-D.json is new and belongs to no part, so atlas check fails on it against the previous map.",
+        "subjects": [
+          "packages/aspire-si-gates/tests/fixtures/apply-D.json"
+        ]
+      },
+      {
+        "kind": "unassigned",
+        "sentence": "packages/aspire-si-gates/tests/test_apply_item.py is new and belongs to no part, so atlas check fails on it against the previous map.",
+        "subjects": [
+          "packages/aspire-si-gates/tests/test_apply_item.py"
+        ]
+      },
+      {
         "kind": "counts",
-        "sentence": "Nothing structural changed since 2026-10-16; 3 files changed content.",
+        "sentence": "21 files added and 17 changed content, across 2 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "9e54fbc5e46e8a2c7e9d2c732124cdef8334bbd8",
-      "generatedAt": "2026-10-16T07:52:11.742Z"
+      "commit": "958c982c027994c9fb76c0a1d85cfa79f8fd312c",
+      "generatedAt": "2026-10-16T08:15:51.860Z"
     },
-    "unchanged": true
+    "unchanged": false
   },
   "changesTogether": [
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 13,
+      "either": 15,
       "partLabels": [
         null,
         null
@@ -73,12 +110,12 @@
         null
       ],
       "relation": "unassigned",
-      "shared": 13
+      "shared": 15
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/__init__.py",
       "b": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
-      "either": 13,
+      "either": 15,
       "partLabels": [
         null,
         null
@@ -88,12 +125,12 @@
         null
       ],
       "relation": "unassigned",
-      "shared": 12
+      "shared": 14
     },
     {
       "a": "packages/aspire-si-gates/src/aspire_si_gates/gates.py",
       "b": "packages/aspire-si-gates/tests/test_package.py",
-      "either": 13,
+      "either": 15,
       "partLabels": [
         null,
         null
@@ -103,7 +140,7 @@
         null
       ],
       "relation": "unassigned",
-      "shared": 12
+      "shared": 14
     },
     {
       "a": "examples/sft-experiment/critic_heads.py",
@@ -123,7 +160,7 @@
     {
       "a": "docs/runs/stage1-train/apply_rules.py",
       "b": "docs/runs/stage1-train/test_apply.py",
-      "either": 7,
+      "either": 8,
       "partLabels": [
         "docs",
         "docs"
@@ -142,9 +179,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 8 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 4,
-  "commit": "958c982c027994c9fb76c0a1d85cfa79f8fd312c",
+  "commit": "ca72269e508c55c9502297e7ae0c633f26a094de",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (258 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (259 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 5 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -155,7 +192,9 @@
       "checksMore": 0,
       "file": ".github/workflows/ci.yml",
       "id": ".github/workflows/ci.yml",
-      "landings": [],
+      "landings": [
+        "docs/runs/stage1-no-role/round1.jsonl"
+      ],
       "name": "CI",
       "pushes": false,
       "reach": [
@@ -201,8 +240,7 @@
         "on a pull request to main or verifier-distill-prereg-draft touching 9 paths",
         "on a push to main touching 7 paths",
         "or by hand"
-      ],
-      "untracked": "docs/runs/stage1-no-role/round1.jsonl, which is not tracked"
+      ]
     },
     {
       "checks": [
@@ -310,6 +348,12 @@
   "engine": "1.24.0",
   "generated": [
     {
+      "place": "docs/runs/stage1-no-role/round1.jsonl",
+      "writers": [
+        "docs/runs/stage1-train/freeze.py"
+      ]
+    },
+    {
       "place": "docs/runs/stage1-training-data/",
       "writers": [
         "docs (7 files)"
@@ -325,16 +369,15 @@
       ]
     }
   ],
-  "generatedAt": "2026-10-16T08:15:51.860Z",
+  "generatedAt": "2026-10-17T05:36:05.745Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "30 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `docs/runs/stage1-train/apply.py` imports `student`, which is no module on its import path and no declared dependency; `docs/runs/stage1-train/batched.py` imports `harness`, which is no module on its import path and no declared dependency; and 27 more.",
     "21 writes and 47 reads use paths built at run time and are not named here.",
-    "1 write goes to places this repository does not track, so it is not listed as generated.",
     "73 writes and 103 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the directory the command is run in or a path its caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
-    "15 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 12 more.",
+    "18 files belong to no part: packages/aspire-si-gates/README.md, packages/aspire-si-gates/pyproject.toml, packages/aspire-si-gates/src/aspire_si_gates/__init__.py and 15 more.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
   ],
   "mainDoor": ".github/workflows/ci.yml",
@@ -384,19 +427,26 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 114,
+  "testFiles": 117,
   "testedBy": {
     "aspire": 49,
     "examples": 10,
     "integrations": 21
   },
   "unnamedWrites": 21,
-  "unread": [],
+  "unread": [
+    {
+      "place": "docs/runs/stage1-no-role/round1.jsonl",
+      "writers": [
+        "docs/runs/stage1-train/freeze.py"
+      ]
+    }
+  ],
   "unreadFiles": 0,
   "unreadNote": [],
   "untested": [],
   "untestedNote": [
     "4 test files run in no workflow: docs/runs/stage1-eval/test_score.py, docs/runs/stage1-eval/test_score_found.py, docs/runs/stage1-eval/test_score_v2.py and 1 more."
   ],
-  "written": 2
+  "written": 3
 }
