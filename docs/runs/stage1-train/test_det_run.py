@@ -138,3 +138,24 @@ def test_a_resume_keeps_the_earlier_warned_ops(rig):
     assert config(rig)["warned_ops"] == [
         "index_copy_cuda does not have a deterministic implementation, but you set warn_only",
         "scatter_cuda does not have a deterministic implementation, but you set warn_only"]
+
+
+def test_each_sdpa_choice_pins_its_backends_and_an_unknown_one_is_refused():
+    # NF1: one table for G0 and parity.
+    assert det_run.sdpa_names("flash") == ("FLASH_ATTENTION",)
+    assert det_run.sdpa_names("efficient") == ("EFFICIENT_ATTENTION",)
+    assert det_run.sdpa_names("flash+efficient") == ("FLASH_ATTENTION", "EFFICIENT_ATTENTION")
+    from torch.nn.attention import SDPBackend
+
+    assert det_run.sdpa_backends("flash+efficient") == [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION]
+    with pytest.raises(ValueError, match="--sdpa must be one of"):
+        det_run.sdpa_names("math")
+
+
+def test_parity_takes_the_same_sdpa_choices_and_defaults_to_flash():
+    import parity
+
+    assert parity.parse_args(["--data", "d.jsonl", "--out", "o"]).sdpa == "flash"
+    assert parity.parse_args(["--data", "d.jsonl", "--out", "o", "--sdpa", "flash+efficient"]).sdpa == "flash+efficient"
+    with pytest.raises(SystemExit):
+        parity.parse_args(["--data", "d.jsonl", "--out", "o", "--sdpa", "math"])

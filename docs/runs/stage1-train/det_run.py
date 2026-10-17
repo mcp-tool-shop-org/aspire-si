@@ -12,9 +12,10 @@ Before anything is imported from torch, it sets CUBLAS_WORKSPACE_CONFIG. Then, a
 - torch.use_deterministic_algorithms(True), or with warn_only=True under --warn-only (R&D: acceptable when the
   strict mode raises; every warned op is logged);
 - cudnn.deterministic = True and cudnn.benchmark = False;
-- the SDPA backend pinned to FLASH with torch.nn.attention.sdpa_kernel. The pin is the record: sdpa_kernel errors
-  if flash can't run, and that error is a stop, not a fallback. `--sdpa efficient` exists only for the ruled case
-  where flash won't run on this card, and it's recorded.
+- the SDPA backends pinned with torch.nn.attention.sdpa_kernel, from the one table SDPA (flash, efficient, or the
+  pair flash+efficient), which parity.py uses too, so G0 and parity can never pin differently. The pin is the record:
+  sdpa_kernel errors if the pinned backends can't run, and that error is a stop, not a fallback. Choices other than
+  flash exist only for the ruled cases where flash alone won't run on this card, and the choice is recorded.
 
 **The machine line, a hard stop (run sheet §3; Argon's Q2).** The GPU name, the driver, torch's CUDA, torch and
 transformers are read first. With --machine-line, any field that differs from the frozen line stops the sitting
@@ -52,6 +53,32 @@ from pathlib import Path  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from _evaldir import EVAL_DIR  # noqa: E402
+
+# NF1 (clean-room from the Publisher's brief, 2026-10-16): one table of SDPA choices, by SDPBackend member name, shared
+# by det_run (G0) and parity.py. Names, not enum members: torch must stay unimported until CUBLAS_WORKSPACE_CONFIG is
+# set, which happens at this module's top.
+SDPA = {
+    "flash": ("FLASH_ATTENTION",),
+    "efficient": ("EFFICIENT_ATTENTION",),
+    "flash+efficient": ("FLASH_ATTENTION", "EFFICIENT_ATTENTION"),
+}
+
+
+def sdpa_names(choice: str) -> tuple[str, ...]:
+    """The SDPBackend member names a choice pins, in order. An unknown choice is refused."""
+
+    if choice not in SDPA:
+        raise ValueError(f"--sdpa must be one of {', '.join(SDPA)}, got {choice!r}")
+    return SDPA[choice]
+
+
+def sdpa_backends(choice: str) -> list:  # pragma: no cover - imports torch; sdpa_names is the tested part
+    """The list sdpa_kernel receives for a choice. Imports torch, so call it only after the module's top has set the
+    CUBLAS workspace."""
+
+    from torch.nn.attention import SDPBackend
+
+    return [getattr(SDPBackend, n) for n in sdpa_names(choice)]
 
 sys.path.insert(0, str(EVAL_DIR))
 TARGETS = ("harness", "eval_adapter", "interview_adapter")
@@ -110,7 +137,7 @@ def main(argv=None) -> int:
     line.add_argument("--machine-line", help="the frozen machine line (JSON); any difference stops the sitting")
     line.add_argument("--write-machine-line", help="G0 only: write this machine's line as the frozen line")
     ap.add_argument("--warn-only", action="store_true")
-    ap.add_argument("--sdpa", choices=("flash", "efficient"), default="flash")
+    ap.add_argument("--sdpa", choices=tuple(SDPA), default="flash")
     a = ap.parse_args(own)
     if not rest or rest[0] not in TARGETS:
         raise SystemExit(f"the target must be one of {', '.join(TARGETS)}")
@@ -136,8 +163,8 @@ def main(argv=None) -> int:
         target_line.write_text(json.dumps(now, indent=1), encoding="utf-8")
 
     import torch
-    from torch.nn.attention import SDPBackend, sdpa_kernel
-    backend = {"flash": SDPBackend.FLASH_ATTENTION, "efficient": SDPBackend.EFFICIENT_ATTENTION}[a.sdpa]
+    from torch.nn.attention import sdpa_kernel
+    backends = sdpa_backends(a.sdpa)
     cfg = {"wrapper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(), "target": target,
            "deterministic_algorithms": True, "warn_only": a.warn_only,
            "cublas_workspace_config": os.environ["CUBLAS_WORKSPACE_CONFIG"], "cudnn_deterministic": True,
@@ -163,7 +190,7 @@ def main(argv=None) -> int:
     module = __import__(target)
     caught: list = []
     try:
-        with warnings.catch_warnings(record=True) as caught, sdpa_kernel([backend]):
+        with warnings.catch_warnings(record=True) as caught, sdpa_kernel(backends):
             warnings.simplefilter("always")
             code = module.main(target_args)
         record["outcome"] = f"exit {code or 0}"

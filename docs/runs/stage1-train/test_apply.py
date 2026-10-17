@@ -581,3 +581,29 @@ def test_the_star_command_refuses_without_either_training_flag(tmp_path, capsys)
         assert e.value.code == 2 and missing in capsys.readouterr().err
     assert not (tmp_path / "s.jsonl").exists()
     assert apply.main(base + ["--training-role", train, "--training-no-role", train]) == 0
+
+
+def test_a_trace_with_no_originated_span_falls_back_to_an_exact_match_on_its_item(tmp_path):
+    # NF2, as R&D ruled on aspire-si#144: no span left after the learned subtraction -> the exact key decides.
+    learned = "Reading each line in turn and asking whether it settles the statement before deciding."
+    builder_row = {**item("T05", "D", 9), "id": "T05-D-09-nr"}
+    builder_row["turns"][0]["thinking"] = learned
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    # The same item answered twice with the same taught-only trace: one kept.
+    twice = star_cli(tmp_path, [cand(c1, REASON_A)], [cand(c1, learned), cand(c1, "  " + learned.upper())],
+                     training_no_role=[builder_row])
+    assert twice["NO-ROLE"] == [c1["id"]]
+    # Two items with the same template thinking are two training examples: both kept.
+    pair = star_cli(tmp_path, [cand(c1, REASON_A), cand(c2, REASON_B)], [cand(c1, "ok."), cand(c2, "ok.")])
+    assert pair["NO-ROLE"] == [c1["id"], c2["id"]]
+
+
+def test_an_earlier_star_row_drops_only_the_same_items_exact_repeat(tmp_path):
+    c1, c2 = item("T05", "C", 1), item("T05", "C", 2)
+    earlier = apply.star_rows([cand(c1, "Short.")], session=1)
+    f = tmp_path / "prior.jsonl"
+    f.write_text("".join(json.dumps(r) + "\n" for r in earlier), encoding="utf-8")
+    assert apply.exact_key(c1["id"], "Short.") in apply.prior_spans([f])
+    got = star_cli(tmp_path, [cand(c1, REASON_A), cand(c2, REASON_B)], [cand(c1, "short. "), cand(c2, "Short.")],
+                   prior_no_role=earlier)
+    assert got["NO-ROLE"] == [c2["id"]]  # c1 repeats its own earlier answer; c2 is another item

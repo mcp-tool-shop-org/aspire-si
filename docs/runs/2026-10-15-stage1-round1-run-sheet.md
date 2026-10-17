@@ -106,7 +106,9 @@ These come from the evaluation plan, unchanged.
     <the pinned NO-ROLE file> --out <STaR file>`. The drop counts only spans the model originated, so each arm
     subtracts its own training rows: ROLE the curriculum, NO-ROLE its pinned no_role.py output only. Earlier
     STaR rows are never subtracted; they're what the drop compares against (R&D on Argon's 7.1 condition,
-    2026-10-16).
+    2026-10-16). A trace with no originated span left after that subtraction (a short trace, all quotes, or taught
+    wording only) is matched exactly instead: the same apply item answered again with the same thinking (whitespace
+    collapsed, lower case) is dropped, and the same wording on another item is kept (NF2, R&D's ruling on #144).
 
   Two questions for R&D before STaR first keeps anything (Q5):
   - **NO-ROLE:** does it keep its own apply answers, to stay compute-matched, or none?
@@ -287,7 +289,7 @@ A change to the design after any counted run is a dated amendment, and it never 
 
 The harness `4fa52448`, score.py `fd59cb50`, score_v2 `64f52f6f`, score_found `55b4d0ea`, no_role.py
 `ac795e2b` (was `63162cf4`; Argon's finding 5a, then the B items' statement field, both before any counted run), stuck.py `8097b039`, stuck rule `716dc251`, the machine line `2daa5aa9` (G0, 2026-10-16), the sealed set `e1e515b4`, the student
-`b968826d9c46`, gates 1.7.3 (after B5; Argon findings 7.2 and 8.2; NF3), the data `e7b69464` (`FROZEN.md`, written 2026-10-16), and the NO-ROLE file from the composition check (`freeze.py write` copied `3cc3dc47` to `docs/runs/stage1-no-role/round1.jsonl`; confirmed 2026-10-16: 0 of 909 cells differ, sha 3cc3dc47 reproduced, ratio 0.656). Each run's manifest and receipt
+`b968826d9c46`, gates 1.7.4 (after B5; Argon findings 7.2 and 8.2; NF3, re-implemented clean-room after Google's ML clause ruled out Argon's code), the data `e7b69464` (`FROZEN.md`, written 2026-10-16), and the NO-ROLE file from the composition check (`freeze.py write` copied `3cc3dc47` to `docs/runs/stage1-no-role/round1.jsonl`; confirmed 2026-10-16: 0 of 909 cells differ, sha 3cc3dc47 reproduced, ratio 0.656). Each run's manifest and receipt
 records them. A mismatch at start is refused.
 
 **Freeze note (2026-10-16):** the apply set's T10 verdict mix is 5 supported / 5 unsupported / 0 cannot_tell,

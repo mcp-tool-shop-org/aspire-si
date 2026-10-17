@@ -241,6 +241,14 @@ def originated_spans(thinking: str, item: dict, learned: set = frozenset()) -> s
     return out - mine - set(learned)
 
 
+def exact_key(item_id: str, thinking: str) -> tuple:
+    """NF2 (R&D's ruling on aspire-si#144): the key a trace with no originated span is matched on. The thinking is
+    whitespace-collapsed and lower case, and the apply item's id is part of the key, so only the same item answered
+    again with the same thinking collides; the same wording on another item is another training example."""
+
+    return (item_id, " ".join(thinking.split()).lower())
+
+
 def learned_spans(paths) -> set:
     """Every 8-word span one arm's training rows hold (gates._spans over each row of the files given). The arm's
     learned set is exactly the files passed for it, and each arm subtracts only its own training rows (R&D,
@@ -272,7 +280,14 @@ def match_and_cap(role: list, no_role: list, prior: dict, cap: int = CAP, prior_
         for c in sorted(cands, key=lambda c: c["item"]["id"]):
             # the thinking only: the reply is fixed by the key (R&D on #137)
             sp = originated_spans(c["thinking"], c["item"], learned.get(arm, set()))
-            if sp & seen:
+            if not sp:
+                # No span left after the learned subtraction (a short trace, all quotes, or taught wording only):
+                # an empty set never collides, so the exact key decides (NF2).
+                key = exact_key(c["item"]["id"], c["thinking"])
+                if key in seen:
+                    continue
+                seen.add(key)
+            elif sp & seen:
                 continue
             seen |= sp
             out.append(c)
@@ -323,10 +338,13 @@ def prior_counts(star_paths) -> dict:
 
 def prior_spans(star_paths, learned: set = frozenset()) -> set:
     """The originated spans of one arm's earlier STaR answers' thinking, reduced as dedup reduces a candidate's:
-    a STaR row keeps its item's material and user turn, so its own quotes are left out the same way."""
+    a STaR row keeps its item's material and user turn, so its own quotes are left out the same way. Each row's
+    exact key goes in too, under its `star_of` (the apply item's id), for the NF2 fallback."""
     out: set = set()
     for r in _star_rows(star_paths):
-        out |= originated_spans(r["turns"][0]["thinking"], r, learned)
+        thinking = r["turns"][0]["thinking"]
+        out |= originated_spans(thinking, r, learned)
+        out.add(exact_key(r["star_of"], thinking))
     return out
 
 

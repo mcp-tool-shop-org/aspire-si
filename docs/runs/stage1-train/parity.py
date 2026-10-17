@@ -351,7 +351,9 @@ def run_draws(out: Path, expected: set, n_asks: int, cap: int, draw_fn, deadline
     return draws, meta, size
 
 
-def main(argv=None) -> int:  # pragma: no cover - runs on the card
+def parse_args(argv=None):
+    """parity.py's arguments. --sdpa takes det_run's table, so parity and G0 pin the same backends (NF1)."""
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", nargs="+", required=True)
     ap.add_argument("--out", required=True)
@@ -359,10 +361,16 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
     ap.add_argument("--deadline", help="the grant's end, ISO 8601 UTC: a draw that can't finish by then isn't started")
     ap.add_argument("--worst-case", action="store_true",
                     help="one synthetic first-chunk batch at the full budget, EOS suppressed: the peak, then exit")
-    a = ap.parse_args(argv)
+    ap.add_argument("--sdpa", choices=tuple(det_run.SDPA), default="flash",
+                    help="the SDPA backends for the P1/P1' draw, from det_run's table (default flash, as G0)")
+    return ap.parse_args(argv)
+
+
+def main(argv=None) -> int:  # pragma: no cover - runs on the card
+    a = parse_args(argv)
     import torch
     from datetime import datetime
-    from torch.nn.attention import SDPBackend, sdpa_kernel
+    from torch.nn.attention import sdpa_kernel
 
     import student
     deadline = datetime.fromisoformat(a.deadline.replace("Z", "+00:00")).timestamp() if a.deadline else None
@@ -429,7 +437,7 @@ def main(argv=None) -> int:  # pragma: no cover - runs on the card
             torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark = True, False
             seeds = (0, 1, 2) if name == "P1" else (3, 4, 5)
             rows = {}
-            with warnings.catch_warnings(record=True) as caught, sdpa_kernel([SDPBackend.FLASH_ATTENTION]):
+            with warnings.catch_warnings(record=True) as caught, sdpa_kernel(det_run.sdpa_backends(a.sdpa)):
                 warnings.simplefilter("always")
                 for ask in asks:
                     if ask["sample"] != 0:
