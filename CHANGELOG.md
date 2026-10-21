@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `aspire-si-gates` 1.7.6: `check_trace_leaks_label(row)` and `FLAW_STEMS`, wired into `check_batch`, refusing kind C
+  rows whose checker trace names a flaw stem outside the two-step carve-out (verbatim quotes from the material or
+  statement stripped first; own `planted_flaw` stem never excused; other flaw stems excused when the same stem family
+  matches in the material or statement).
+
 - `examples/sft-experiment/`: the fine-tune-then-ASPIRE experiment (#11) and its
   [run report](docs/runs/2026-10-07-sft-then-aspire.md). It holds:
   - a dataset builder that keeps evaluation prompts out by word overlap and embeddings;

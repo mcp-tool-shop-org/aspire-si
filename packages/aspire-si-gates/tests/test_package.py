@@ -151,7 +151,7 @@ def test_a_lesson_rank_is_a_figure_not_a_refusal():
 
 
 def test_scorer_rules_are_exposed():
-    assert G.GATES_VERSION == "1.7.5"
+    assert G.GATES_VERSION == "1.7.6"
     assert G.critic_mismatch(["a b c"], ["x y z"], "a b c\nx y z") is True
     assert G.deciding_covers(["a b c d"], ["a b c"], "a b c d") is True
 
@@ -203,3 +203,165 @@ def test_a_star_row_with_a_think_tag_anywhere_is_refused():
         bad["turns"][0][where] = text
         with pytest.raises(gates.DataError, match="think"):
             gates.check_star_row(bad, 1, lambda r: True)
+
+
+def c_row(iid="T10-C-01", trace="The other checker read the second line.", planted_flaw="guess",
+          material=MAT, statement="the library is open on Sunday mornings.", content_kind="notice"):
+    return {
+        "id": iid,
+        "lesson": "T10",
+        "trait": "literal",
+        "kind": "C",
+        "side": "judges the exact size",
+        "content_kind": content_kind,
+        "tier": 2,
+        "sources": [{"invented": "test"}],
+        "invented": True,
+        "key_basis": "construction",
+        "material": material,
+        "planted_flaw": planted_flaw,
+        "checker_verdict": "supported",
+        "verdict": "unsupported",
+        "deciding": ["It is closed on Sundays."],
+        "escalate": "no",
+        "turns": [{
+            "user": (
+                f"Case {iid}. Material:\n{material}\n"
+                f"Statement: {statement}\n"
+                f"Checker verdict: supported\n{trace}"
+            ),
+            "thinking": "The Sunday line settles it.",
+            "reply": "It is closed.\nVERDICT: unsupported\nDECIDING: It is closed on Sundays.\nESCALATE: no",
+        }],
+    }
+
+
+def test_trace_leak_refuses_p1_017_and_passes_p1_035():
+    p1_017 = c_row("syn-017", trace="The clerk relied on outside habit. That is a guess, not the source.", planted_flaw="guess")
+    with pytest.raises(G.DataError) as exc_info:
+        G.check_trace_leaks_label(p1_017)
+    err = exc_info.value
+    assert err.code == "TRACE_LEAKS_LABEL"
+    assert err.hint and "without naming a flaw" in err.hint
+    assert "'guess'" in err.message
+
+    p1_035 = c_row("syn-035", trace="The clerk filled in the blank. That assumption is not in the material.", planted_flaw="guess")
+    G.check_trace_leaks_label(p1_035)
+
+
+def test_trace_leak_passes_changelog_material_quoted_by_trace():
+    row = c_row(
+        "syn-changelog",
+        material="v1.2.0\n- Fixed loop when rejecting requests.\n",
+        statement="v1.2.0 handled request retries.",
+        trace='The changelog entry states "Fixed loop when rejecting requests" under v1.2.0.',
+        planted_flaw="guess",
+        content_kind="changelog",
+    )
+    G.check_trace_leaks_label(row)
+
+
+def test_trace_leak_own_flaw_quoted_passes_and_unquoted_refuses():
+    mat = "Rule 1: Do not guess when recording weights.\nRule 2: Weigh every crate."
+    quoted = c_row(
+        "syn-quoted",
+        material=mat,
+        statement="Every crate is weighed.",
+        trace='The note says "Do not guess"',
+        planted_flaw="guess",
+    )
+    G.check_trace_leaks_label(quoted)
+
+    unquoted = c_row(
+        "syn-unquoted",
+        material=mat,
+        statement="Every crate is weighed.",
+        trace="That is a guess",
+        planted_flaw="guess",
+    )
+    with pytest.raises(G.DataError, match="TRACE_LEAKS_LABEL") as exc_info:
+        G.check_trace_leaks_label(unquoted)
+    assert "'guess'" in exc_info.value.message
+
+
+def test_trace_leak_inflection_carve_out_passes():
+    row = c_row(
+        "syn-inflect",
+        material="The tariff rate is fixed for the quarter.",
+        statement="The tariff rate changes monthly.",
+        trace="The line fixes the rate for the whole quarter.",
+        planted_flaw="guess",
+    )
+    G.check_trace_leaks_label(row)
+
+
+def test_trace_leak_prefix_and_substrate_words_pass():
+    row = c_row(
+        "syn-substr",
+        trace="One caveat applies to the prefix on each fixture, leaving no loophole.",
+        planted_flaw="guess",
+    )
+    G.check_trace_leaks_label(row)
+
+
+@pytest.mark.parametrize(
+    ("flaw", "word"),
+    [
+        ("guess", "guess"),
+        ("guess", "guessed"),
+        ("guess", "guesses"),
+        ("guess", "guessing"),
+        ("rubber_stamp", "rubber stamp"),
+        ("rubber_stamp", "rubber-stamp"),
+        ("rubber_stamp", "rubberstamp"),
+        ("rubber_stamp", "rubber-stamped"),
+        ("rubber_stamp", "rubber stamping"),
+        ("loop", "loop"),
+        ("loop", "looped"),
+        ("loop", "loops"),
+        ("loop", "looping"),
+        ("nitpick", "nitpick"),
+        ("nitpick", "nit-pick"),
+        ("nitpick", "nit pick"),
+        ("nitpick", "nit-picking"),
+        ("nitpick", "nit picky"),
+        ("fix", "fix"),
+        ("fix", "fixed"),
+        ("fix", "fixes"),
+        ("fix", "fixing"),
+        ("obeyed_material", "obey"),
+        ("obeyed_material", "obeyed"),
+        ("obeyed_material", "obeys"),
+        ("obeyed_material", "obeying"),
+        ("caved", "cave"),
+        ("caved", "caved"),
+        ("caved", "caves"),
+        ("caved", "caving"),
+        ("reject_by_default", "reject"),
+        ("reject_by_default", "rejected"),
+        ("reject_by_default", "rejection"),
+        ("reject_by_default", "reject by default"),
+        ("reject_by_default", "reject-by-default"),
+        ("reject_by_default", "rejected by default"),
+        ("reject_by_default", "rejected-by-default"),
+    ],
+)
+def test_trace_leak_refuses_each_stem_and_hyphen_or_space_form(flaw, word):
+    assert set(G.FLAW_STEMS) == G.gates.FLAWS - {"none"}
+    row = c_row(f"syn-{flaw}", trace=f"The checker {word} on this item.", planted_flaw=flaw)
+    with pytest.raises(G.DataError) as exc_info:
+        G.check_trace_leaks_label(row)
+    err = exc_info.value
+    assert err.code == "TRACE_LEAKS_LABEL"
+    assert repr(word) in err.message
+    assert err.hint is not None
+
+
+def test_check_batch_wires_trace_leak_gate(monkeypatch):
+    for fn in ("check_stamps", "check_frames", "check_multi_line_share", "check_floors",
+               "check_pairs", "check_spans", "check_framing_fits", "check_material_reuse",
+               "check_puzzles", "check_phrases", "check_formulas", "check_closed_form_spans"):
+        monkeypatch.setattr(gates, fn, lambda *a, **kw: None)
+    leaking = c_row("T10-C-01", trace="That is a guess, not the source.", planted_flaw="guess")
+    with pytest.raises(G.DataError, match="TRACE_LEAKS_LABEL"):
+        G.check_batch([leaking])

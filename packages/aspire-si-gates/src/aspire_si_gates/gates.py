@@ -25,7 +25,35 @@ REQUIRED = {"id": str, "lesson": str, "trait": str, "kind": str, "side": str, "c
 
 
 class DataError(ValueError):
-    pass
+    def __init__(self, message: str = "", *, code: str | None = None, hint: str | None = None):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.hint = hint
+
+
+FLAW_STEMS = {
+    "guess": re.compile(r"\bguess(?:ed|es|ing)?\b", re.I),
+    "rubber_stamp": re.compile(r"\brubber[- ]?stamp(?:ed|s|ing)?\b", re.I),
+    "loop": re.compile(r"\bloop(?:ed|s|ing)?\b", re.I),
+    "nitpick": re.compile(r"\bnit[- ]?pick(?:ed|s|ing|y)?\b", re.I),
+    "fix": re.compile(r"\bfix(?:ed|es|ing)?\b", re.I),
+    "obeyed_material": re.compile(r"\bobey(?:ed|s|ing)?\b", re.I),
+    "caved": re.compile(r"\bcav(?:e|ed|es|ing)\b", re.I),
+    "reject_by_default": re.compile(r"\breject(?:ed|s|ing|ion)?[- ]?(?:by[- ]?default)?\b", re.I),
+}
+TRACE_LEAK_RE = re.compile(
+    r"\b(?:guess(?:ed|es|ing)?|rubber[- ]?stamp(?:ed|s|ing)?|loop(?:ed|s|ing)?|nit[- ]?pick(?:ed|s|ing|y)?|fix(?:ed|es|ing)?|obey(?:ed|s|ing)?|cav(?:e|ed|es|ing)|reject(?:ed|s|ing|ion)?[- ]?(?:by[- ]?default)?)\b",
+    re.I,
+)
+_QUOTED_TRACE_SPAN_RE = re.compile(r'"([^"]{4,})"|(?<!\w)\'([^\']{4,})\'(?!\w)|“([^”]{4,})”|‘([^’]{4,})’')
+
+# Frozen Stage 1 items written before the trace-leak gate (1.7.6), exempt by id in check_batch so the frozen set
+# (FROZEN.md e7b69464) validates unchanged.
+TRACE_LEAK_EXEMPT = {
+    "L1-C-05": "batch 8 (frozen Stage 1): L1 trace says 'They obeyed the stamp sentence.'",
+    "L1-C-06": "batch 8 (frozen Stage 1): L1 trace says 'They guessed two pounds.'",
+}
 
 
 REPO_CITATION = re.compile(r"\b[\w.-]+/[\w.-]+@[0-9a-f]{7,40}\b|github\.com/")
@@ -1228,6 +1256,68 @@ def check_closed_form_spans(rows: list[dict], cfg=None) -> None:
                             "would be spent at its first quiz")
 
 
+def _checker_trace(r: dict) -> str:
+    if isinstance(r.get("checker_trace"), str):
+        return r["checker_trace"]
+    turns = r.get("turns") or []
+    user = turns[0].get("user", "") if turns and isinstance(turns[0], dict) else ""
+    m = re.search(r"(?m)^\s*statement\s*:\s*.+$", user, re.I)
+    rest = user[m.end():] if m else ""
+    rest = re.sub(r"(?m)^\s*Checker verdict:.*$", "", rest, flags=re.I)
+    return rest.strip()
+
+
+def _strip_quoted_material_or_statement(trace: str, material: str, statement: str) -> str:
+    norm_mat = ws(material).lower()
+    norm_stmt = ws(statement).lower()
+
+    def _repl(m: re.Match) -> str:
+        inner = next((g for g in m.groups() if g is not None), "")
+        norm_inner = ws(inner).lower()
+        if len(norm_inner) >= 4 and (norm_inner in norm_mat or norm_inner in norm_stmt):
+            return " "
+        return m.group(0)
+
+    return _QUOTED_TRACE_SPAN_RE.sub(_repl, trace)
+
+
+def check_trace_leaks_label(row: dict) -> None:
+    """Refuse a kind C row whose checker trace names its own planted flaw, or any flaw stem outside the carve-out."""
+    if row.get("kind") != "C":
+        return
+    trace = _checker_trace(row)
+    if not trace:
+        return
+    turns = row.get("turns") or []
+    first_user = turns[0].get("user", "") if turns and isinstance(turns[0], dict) else ""
+    stmt = row.get("statement") if isinstance(row.get("statement"), str) else _statement(first_user)
+    material = (row.get("material") or "") + "\n" + "\n".join(
+        x for t in turns if isinstance(t, dict) for x in (t.get("new_material") or [])
+    )
+    cleaned = _strip_quoted_material_or_statement(trace, material, stmt)
+    own = row.get("planted_flaw")
+    mat_and_stmt = f"{material}\n{stmt}"
+    for m in TRACE_LEAK_RE.finditer(cleaned):
+        word = m.group(0).strip(" -")
+        flaw = next((f for f, rx in FLAW_STEMS.items() if rx.fullmatch(word)), None)
+        if flaw is None:  # pragma: no cover
+            continue
+        if flaw != own and FLAW_STEMS[flaw].search(mat_and_stmt):
+            continue
+        rid = row.get("id", "?")
+        code = "TRACE_LEAKS_LABEL"
+        hint = "show the flaw in the checker's reasoning without naming a flaw label or stem"
+        msg = f"{rid}: {code}: checker trace leaks flaw label {word!r} (stem '{flaw}'); hint: {hint}"
+        raise DataError(msg, code=code, hint=hint)
+
+
+def check_trace_leaks(rows: list[dict], skip=PRE_AMENDMENT_LESSONS, exempt=TRACE_LEAK_EXEMPT) -> None:
+    for r in rows:
+        if r.get("lesson") in skip or r.get("id") in exempt:
+            continue
+        check_trace_leaks_label(r)
+
+
 def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_caps: bool = True,
                 closed_form=None, models: dict | None = None) -> None:
     """Every check that needs the whole set: stamps, frames, shares, floors, pairs and the diversity gate.
@@ -1245,6 +1335,7 @@ def check_batch(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, batch_cap
     check_phrases(rows, skip=pre_amendment)
     check_formulas(rows, skip=pre_amendment)
     check_closed_form_spans(rows, closed_form)
+    check_trace_leaks(rows, skip=pre_amendment)
 
 
 def validate(rows: list[dict], pre_amendment=PRE_AMENDMENT_LESSONS, closed_form=None) -> None:

@@ -14,6 +14,11 @@ pip install "git+https://github.com/mcp-tool-shop-org/aspire-si@<sha>#subdirecto
   body), without the never-trained refusal, plus the apply rules: `split: apply` and an `-AP-` id both, kind C or D, one
   turn, no pair, and the lesson's twin field (`r10_twin` for T10, `order_free` for T09, `silent_without_deciding` for
   T01, T04 and T14). It refuses any row that isn't an apply item.
+- `check_trace_leaks_label(row)` (1.7.6): refuses a kind C row whose checker trace names its own planted flaw, or any
+  flaw stem outside the two-step carve-out (verbatim-quoted spans of at least 4 characters from the material or
+  statement are stripped first; on what remains, the row's own `planted_flaw` stem is never excused, while any of the
+  other 7 flaw stems is excused when the same stem family matches in the material or statement). Wired into
+  `check_batch`.
 - `check_against(row, accepted)`: `[(code, message)]` for the exclusivity rules (spans, framings, material,
   puzzle shapes, openings, B phrases) against rows already accepted; codes are in `REASONS`.
 - `check_batch(rows)`: the checks that need the finished set (shares, floors, pairs, phrase and formula limits).
