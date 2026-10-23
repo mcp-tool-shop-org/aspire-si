@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-14 from commit 021ebf0 by Atlas 1.24.0.
+Mapped at 2026-10-23 from commit 8879043 by Atlas 1.24.0.
 
 ## What this is
 
@@ -8,13 +8,9 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (169 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-07 (5c5346d)
+## What changed since 2026-10-14 (021ebf0)
 
-- examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_c.sh and examples/sft-experiment/pod/plan_g.sh.
-- examples/pod-run/real-composite-teacher.yaml is now read by examples/sft-experiment/seed_configs.py.
-- examples/pod-run/real-local-teacher.yaml is now read by examples/sft-experiment/seed_configs.py.
-- And 4 more new writers and readers of places.
-- 53 files added and 20 changed content, across 7 parts.
+Nothing structural changed since 2026-10-14; 1 file added and 10 changed content.
 
 ## What comes in
 
@@ -89,7 +85,7 @@ Read those in order to follow one pull request end to end.
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
 - 3 writes and 22 reads use paths built at run time and are not named here.
-- 57 writes and 63 reads go to a path their caller passes, not to this repository.
+- 58 writes and 64 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-23
+
+### Added
+
+- `examples/sft-experiment/sft.py`: training mechanics for distillation ladders (#168).
+  - `--chat-template-kwargs` applies the same template options to every chat render.
+  - `--overlong drop` (the default) drops and counts over-long items instead of truncating them,
+    and `--max-dropped-fraction 0.01` stops before training if too many are dropped.
+  - `--gradient-checkpointing` on the bf16 path.
+  - `--ledger` / `--record-package` record each run's adapter, merged model, GGUF and Ollama digest.
+    `update_ledger` matches `out` before falling back to `arm` and `seed`, and doesn't stamp an
+    unrequested default seed.
+- Handbook: a page on the fine-tuning experiment and the distillation options.
+
+### Changed
+
+- LICENSE and the forge integration's metadata name mcp-tool-shop as the copyright holder and author (#169).
+- The release workflow pins `pypa/gh-action-pypi-publish` to v1.14.3 (GHSA-5xjx-3w67-w9x9) (#166).
+
+### Fixed
+
+- The 1.3.0 changelog entry had picked up #168's options, which weren't in 1.3.0; they're listed under 1.4.0.
+- The handbook no longer says the policy-gradient term is planned for 1.3.0; it's still planned (#11).
+
 ## [1.3.0] - 2026-10-14
 
 ### Added
@@ -20,12 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - probes with schema 1.1 drift exports;
   - the held-out and judge measures, with intervals that resample prompts;
   - pod scripts that check the rented host's CUDA driver, GPU memory and download speed before
-    installing anything;
-  - distillation-ladder training mechanics in `sft.py`: `--chat-template-kwargs` on every chat
-    render, `--overlong drop` (default) with `--max-dropped-fraction 0.01` stop before training,
-    `--gradient-checkpointing` on the bf16 path, and `--ledger` / `--record-package` (`update_ledger`
-    matches `out` before falling back to `arm` and `seed`, without stamping an unrequested default
-    seed).
+    installing anything.
 
   Result, over three training seeds ([run 1 report](docs/runs/2026-10-07-run-1-seeds.md)):
   fine-tuning the student before ASPIRE makes no reliable difference to how well the critic spots
