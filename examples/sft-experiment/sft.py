@@ -179,14 +179,17 @@ def update_ledger(
         else []
     )
     target_idx = None
-    for idx in range(len(rows) - 1, -1, -1):
-        r = rows[idx]
-        if pub_out is not None and r.get("out") == pub_out:
-            target_idx = idx
-            break
-        if arm is not None and r.get("arm") == arm and (seed is None or r.get("seed") == seed):
-            target_idx = idx
-            break
+    if pub_out is not None:
+        for idx in range(len(rows) - 1, -1, -1):
+            if rows[idx].get("out") == pub_out:
+                target_idx = idx
+                break
+    if target_idx is None and arm is not None:
+        for idx in range(len(rows) - 1, -1, -1):
+            r = rows[idx]
+            if r.get("arm") == arm and (seed is None or r.get("seed") == seed):
+                target_idx = idx
+                break
     updates: dict[str, Any] = {}
     if resolved_gguf_sha is not None:
         updates["gguf_sha256"] = resolved_gguf_sha
@@ -388,7 +391,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--lora-dropout", type=float, default=0.05)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--no-4bit", action="store_true", help="train in bf16 instead of 4-bit")
     parser.add_argument(
@@ -411,7 +414,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--max-dropped-fraction",
         type=float,
-        default=1.0,
+        default=0.01,
         help="stop before training if more than this share of items is dropped as over-long",
     )
     parser.add_argument("--gradient-checkpointing", action="store_true", help="for the bf16 path")
@@ -435,8 +438,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     if args.record_package:
         if args.ledger is None:
             parser.error("--ledger is required with --record-package")
-    elif args.data is None and args.merge_only is None:
-        parser.error("--data is required unless --merge-only or --record-package is given")
+    else:
+        if args.seed is None:
+            args.seed = 42
+        if args.data is None and args.merge_only is None:
+            parser.error("--data is required unless --merge-only or --record-package is given")
     return args
 
 
