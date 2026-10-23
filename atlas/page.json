@@ -41,54 +41,24 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 53,
-      "changed": 20,
+      "added": 1,
+      "changed": 10,
       "moved": 0,
       "parts": 7,
       "removed": 0
     },
     "items": [
       {
-        "kind": "landing",
-        "sentence": "examples/local-run/prompts.json is now also read by examples/sft-experiment/pod/plan_c.sh and examples/sft-experiment/pod/plan_g.sh.",
-        "subjects": [
-          "examples/local-run/prompts.json",
-          "examples/sft-experiment/pod/plan_c.sh",
-          "examples/sft-experiment/pod/plan_g.sh"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "examples/pod-run/real-composite-teacher.yaml is now read by examples/sft-experiment/seed_configs.py.",
-        "subjects": [
-          "examples/pod-run/real-composite-teacher.yaml",
-          "examples/sft-experiment/seed_configs.py"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "examples/pod-run/real-local-teacher.yaml is now read by examples/sft-experiment/seed_configs.py.",
-        "subjects": [
-          "examples/pod-run/real-local-teacher.yaml",
-          "examples/sft-experiment/seed_configs.py"
-        ]
-      },
-      {
-        "kind": "landing",
-        "sentence": "And 4 more new writers and readers of places.",
-        "subjects": []
-      },
-      {
         "kind": "counts",
-        "sentence": "53 files added and 20 changed content, across 7 parts.",
+        "sentence": "Nothing structural changed since 2026-10-14; 1 file added and 10 changed content.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "5c5346d7cb37d1430f93eafab5e3a5cabad4f123",
-      "generatedAt": "2026-10-07T05:07:38.731Z"
+      "commit": "021ebf0d1053e700641688a72c5088ff0c1b1521",
+      "generatedAt": "2026-10-14T23:55:58.958Z"
     },
-    "unchanged": false
+    "unchanged": true
   },
   "changesTogether": [
     {
@@ -128,7 +98,7 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 2 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "021ebf0d1053e700641688a72c5088ff0c1b1521",
+  "commit": "88790438b0b1c749915fc77d889492b589772c98",
   "defaultBranch": "main",
   "derived": "8 parts, mostly Python (169 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
@@ -287,12 +257,12 @@
   ],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-14T23:55:58.958Z",
+  "generatedAt": "2026-10-23T22:35:39.301Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
     "3 writes and 22 reads use paths built at run time and are not named here.",
-    "57 writes and 63 reads go to a path their caller passes, not to this repository.",
+    "58 writes and 64 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
   ],

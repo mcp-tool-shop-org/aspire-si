@@ -43,7 +43,7 @@ The critic also has a head for the teacher's reasoning. The trainer does not tra
 
 The critic is a head on the student's hidden states, and its loss is not stopped at them: it flows back into the student's LoRA adapter. So today the student learns **representations that help the critic predict the teacher's score**.
 
-The student is not yet trained toward better answers. `aspire.losses` has reward, contrastive, trajectory and coherence terms, but the trainer does not feed them: the reward term gets a detached critic score and no log-probabilities, so it has no gradient, and the others get no inputs. Training the student on the critic's judgment, with a policy-gradient term through the reward loss, is planned for 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
+The student is not yet trained toward better answers. `aspire.losses` has reward, contrastive, trajectory and coherence terms, but the trainer does not feed them: the reward term gets a detached critic score and no log-probabilities, so it has no gradient, and the others get no inputs. Training the student on the critic's judgment, with a policy-gradient term through the reward loss, is planned ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
 ## Stage 4: Judgment without the teacher
 
