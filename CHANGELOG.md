@@ -20,7 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - probes with schema 1.1 drift exports;
   - the held-out and judge measures, with intervals that resample prompts;
   - pod scripts that check the rented host's CUDA driver, GPU memory and download speed before
-    installing anything.
+    installing anything;
+  - distillation-ladder training mechanics in `sft.py`: `--chat-template-kwargs` on every chat
+    render, `--overlong drop` (default) with `--max-dropped-fraction 0.01` stop before training,
+    `--gradient-checkpointing` on the bf16 path, and `--ledger` / `--record-package` (`update_ledger`
+    matches `out` before falling back to `arm` and `seed`, without stamping an unrequested default
+    seed).
 
   Result, over three training seeds ([run 1 report](docs/runs/2026-10-07-run-1-seeds.md)):
   fine-tuning the student before ASPIRE makes no reliable difference to how well the critic spots
