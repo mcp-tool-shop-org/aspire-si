@@ -12,10 +12,11 @@ Usage: python sft.py --data data/train.jsonl --out sft [--student Qwen/Qwen2.5-1
 For the distillation exercise (rnd experiments/distill-ladder):
 - --chat-template-kwargs passes the same template options (e.g. {"enable_thinking": false}) to every
   render, so the label span starts where serving starts generating.
-- --overlong drop drops too-long items and counts them instead of truncating, and --max-dropped-fraction
-  stops before training if too many are dropped.
+- --max-length drops too-long items and counts them instead of truncating (default --overlong drop),
+  and --max-dropped-fraction stops before training if too many are dropped.
 - --gradient-checkpointing for the bf16 path.
-- --ledger appends one row per run.
+- --ledger appends one row per run (with adapter/merged/GGUF sha256 and Ollama digest), and
+  --record-package stamps gguf_sha256 and ollama_digest onto a ledger row after packaging.
 """
 
 from __future__ import annotations
@@ -50,14 +51,15 @@ def tokenize_example(
     messages: list[dict[str, str]],
     max_length: int,
     template_kwargs: dict[str, Any] | None = None,
-    overlong: str = "truncate",
+    overlong: str = "drop",
 ) -> dict[str, list[int]] | None:
     """Token ids and labels for one chat; labels are -100 everywhere but the assistant turns.
 
     Each assistant turn's span is found by rendering the chat up to the turn with and without it,
     so the labels follow the tokenizer's own template. `template_kwargs` go to every render (with
     Qwen3's enable_thinking=False the empty think block lands in the prompt, not in the labels).
-    An over-long chat is truncated from the left ("truncate") or returned as None ("drop").
+    An over-long chat is returned as None ("drop", the default; never truncating) or truncated from
+    the left ("truncate").
 
     The span assumes two token prefixes: the render up to the turn begins the render through it, and
     that begins the whole chat's render. If a template (or a BPE merge across a boundary) breaks
@@ -83,6 +85,8 @@ def tokenize_example(
     if len(ids) > max_length:
         if overlong == "drop":
             return None
+        if overlong != "truncate":
+            raise ValueError(f"unknown overlong policy: {overlong!r}")
         ids, labels = ids[-max_length:], labels[-max_length:]  # keep the end: the last turn matters most
     return {"input_ids": ids, "labels": labels}
 
@@ -92,7 +96,7 @@ def prepare_examples(
     rows: list[dict],
     max_length: int,
     template_kwargs: dict[str, Any] | None = None,
-    overlong: str = "truncate",
+    overlong: str = "drop",
     max_dropped_fraction: float = 1.0,
 ) -> tuple[list[dict[str, list[int]]], int, int]:
     """Tokenized examples, the number dropped as over-long, and the number left with no labels.
@@ -153,6 +157,57 @@ def append_ledger(ledger: Path, row: dict) -> None:
     ledger.parent.mkdir(parents=True, exist_ok=True)
     with open(ledger, "a", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def update_ledger(
+    ledger: Path,
+    *,
+    out: Path | str | None = None,
+    arm: str | None = None,
+    seed: int | None = None,
+    gguf: Path | None = None,
+    gguf_sha256: str | None = None,
+    ollama_digest: str | None = None,
+) -> dict:
+    """Stamp `gguf_sha256` and `ollama_digest` onto the matching row in `ledger` (or append a new
+    packaging row if none matches, e.g. for base arm A). Never records an absolute path."""
+    resolved_gguf_sha = sha256_of(Path(gguf)) if gguf is not None else gguf_sha256
+    pub_out = public_out(Path(out)) if out is not None else None
+    rows = (
+        [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if ledger.exists()
+        else []
+    )
+    target_idx = None
+    for idx in range(len(rows) - 1, -1, -1):
+        r = rows[idx]
+        if pub_out is not None and r.get("out") == pub_out:
+            target_idx = idx
+            break
+        if arm is not None and r.get("arm") == arm and (seed is None or r.get("seed") == seed):
+            target_idx = idx
+            break
+    updates: dict[str, Any] = {}
+    if resolved_gguf_sha is not None:
+        updates["gguf_sha256"] = resolved_gguf_sha
+    if ollama_digest is not None:
+        updates["ollama_digest"] = ollama_digest
+    if target_idx is not None:
+        rows[target_idx] = rows[target_idx] | updates
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        with open(ledger, "w", encoding="utf-8", newline="\n") as fh:
+            for r in rows:
+                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+        return rows[target_idx]
+    new_row = {
+        "arm": arm,
+        "seed": seed,
+        "out": pub_out,
+        "gguf_sha256": resolved_gguf_sha,
+        "ollama_digest": ollama_digest,
+    }
+    append_ledger(ledger, new_row)
+    return new_row
 
 
 def collate(batch: list[dict[str, list[int]]], pad_id: int) -> dict[str, torch.Tensor]:
@@ -254,11 +309,15 @@ def train(args: argparse.Namespace) -> dict:
 
     peak_mib = round(torch.cuda.max_memory_allocated() / 2**20) if args.device == "cuda" else None
     merge(args.student, out / f"epoch-{args.epochs}", out / "merged", args.device, args.revision)
+    loss_per_epoch = [h["loss"] for h in history]
+    gguf_sha256 = sha256_of(args.gguf) if getattr(args, "gguf", None) else getattr(args, "gguf_sha256", None)
     summary = {
         "student": public_student(args.student),
         "revision": args.revision,
+        "student_revision": args.revision,
         "examples": len(examples),
         "items": len(rows),
+        "dropped": dropped,
         "dropped_overlong": dropped,
         "unlabelled": unlabelled,
         "max_length": args.max_length,
@@ -269,6 +328,7 @@ def train(args: argparse.Namespace) -> dict:
         "lora_r": args.lora_r,
         "chat_template_kwargs": args.chat_template_kwargs,
         "gradient_checkpointing": args.gradient_checkpointing,
+        "loss_per_epoch": loss_per_epoch,
         "history": history,
         "quantized": quantized,
         "seed": args.seed,
@@ -285,6 +345,8 @@ def train(args: argparse.Namespace) -> dict:
                 "out": public_out(out),
                 "adapter_sha256": sha256_of(out / f"epoch-{args.epochs}"),
                 "merged_sha256": sha256_of(out / "merged"),
+                "gguf_sha256": gguf_sha256,
+                "ollama_digest": getattr(args, "ollama_digest", None),
             },
         )
     print("SFT-OK", out)
@@ -314,13 +376,15 @@ def merge(student: str, adapter: Path, merged: Path, device: str, revision: str 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--data", type=Path, help="train.jsonl (required unless --merge-only)")
+    parser.add_argument(
+        "--data", type=Path, help="train.jsonl (required unless --merge-only or --record-package)"
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--student", default="Qwen/Qwen2.5-1.5B-Instruct")
     parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--lr", type=float, default=2e-4)
     parser.add_argument("--batch-size", type=int, default=4)
-    parser.add_argument("--max-length", type=int, default=1536)
+    parser.add_argument("--max-length", type=int, default=2560)
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--lora-dropout", type=float, default=0.05)
@@ -340,9 +404,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--overlong",
-        choices=("truncate", "drop"),
-        default="truncate",
-        help="over-long chats: truncate from the left (the earlier experiment's behaviour) or drop and count",
+        choices=("drop", "truncate"),
+        default="drop",
+        help="over-long chats: drop and count (default; never truncate) or truncate from the left",
     )
     parser.add_argument(
         "--max-dropped-fraction",
@@ -353,15 +417,45 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--gradient-checkpointing", action="store_true", help="for the bf16 path")
     parser.add_argument("--ledger", type=Path, default=None, help="append one row per run to this jsonl")
     parser.add_argument("--arm", default=None, help="the run's arm label, for the ledger")
+    parser.add_argument(
+        "--gguf", type=Path, default=None, help="quantized GGUF file to hash as gguf_sha256 in the ledger"
+    )
+    parser.add_argument(
+        "--gguf-sha256", default=None, help="precomputed GGUF sha256 to record in the ledger"
+    )
+    parser.add_argument(
+        "--ollama-digest", default=None, help="registered Ollama model digest to record in the ledger"
+    )
+    parser.add_argument(
+        "--record-package",
+        action="store_true",
+        help="only stamp gguf_sha256 and ollama_digest into --ledger for --out/--arm/--seed",
+    )
     args = parser.parse_args(argv)
-    if args.data is None and args.merge_only is None:
-        parser.error("--data is required unless --merge-only is given")
+    if args.record_package:
+        if args.ledger is None:
+            parser.error("--ledger is required with --record-package")
+    elif args.data is None and args.merge_only is None:
+        parser.error("--data is required unless --merge-only or --record-package is given")
     return args
 
 
 if __name__ == "__main__":
     args = parse_args()
-    if args.merge_only:
+    if args.record_package:
+        print(
+            "PACKAGE-OK",
+            update_ledger(
+                args.ledger,
+                out=args.out,
+                arm=args.arm,
+                seed=args.seed,
+                gguf=args.gguf,
+                gguf_sha256=args.gguf_sha256,
+                ollama_digest=args.ollama_digest,
+            ),
+        )
+    elif args.merge_only:
         print(
             "MERGE-OK",
             merge(args.student, args.merge_only, Path(args.out) / "merged", args.device, args.revision),
