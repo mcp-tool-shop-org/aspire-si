@@ -21,6 +21,19 @@ that no model-judge score is in the reward. If it fails, it isn't used, and noth
   - gold supported is a **positive**; gold unsupported or cannot_tell is **fooled**, split by gold.
 - **Counts** (the R&D session's recount matches): positives 477 (grounded 267, reasoning 210); fooled
   unsupported 178 (110 / 68); fooled cannot_tell 22.
+- **What the gold is, and what S1 can show:**
+  - The gold at `e48cc90c` is provisional: Claude-written synthetic items, not human-labelled.
+  - S1 tests one thing: whether the NLI model separates accepted quotes on supported claims from accepted
+    quotes on unsupported claims.
+  - S1 cannot validate the gold keys, and it cannot test the cannot_tell items or the traps where the
+    deciding fact was removed. Those fail by omission outside the quoted span, which a single
+    (quote, claim) score does not see. The gold is never re-keyed or filtered by what the NLI model says.
+- **Doc comments:** 201 of the 477 positives and 75 of the 178 fooled unsupported pairs come from gold items
+  tagged `has_doc_comment: true`, where a prose comment in the evidence can restate the claim. NLI
+  models are trained on prose, so pooling those pairs with code-only pairs could hide a failure on code
+  lines. The readout therefore reports each check type's rates again for three strata: doc-comment pairs,
+  code-only pairs, and pairs whose gold item carries no such flag. The strata are reported and never
+  gated: the pass line below is judged on the pooled pairs, as fixed.
 
 ## Pass line, per check type (fixed now)
 
@@ -29,7 +42,9 @@ that no model-judge score is in the reward. If it fails, it isn't used, and noth
 
 **The rules around it:**
 - Gold-cannot_tell fooled pairs are reported and never gated.
-- An incomplete run (a timeout or a stopped device) never passes.
+- An incomplete run never passes. That covers a timeout or a stopped device, a `--limit` dry check, any pair
+  left unscored, and a device that does not read healthy afterwards. It also never prints `S1-OK`, and a
+  stopped or unhealthy run exits non-zero.
 - NLI is used only for check types that pass. A reasoning fail is expected, because one quoted line rarely
   entails a conclusion about a diff.
 
@@ -44,8 +59,9 @@ that no model-judge score is in the reward. If it fails, it isn't used, and noth
 
   The faster device that agrees becomes the critic's device. The pass line is judged on the NPU run.
 - **The safety shape:** batch 1, static shape 1×512, devices chosen by name (never the RTX 5090).
-  - The NPU's health (`Get-PnpDevice 'Intel(R) AI Boost'`) is checked before and after; the run refuses to
-    start unless it reads OK.
+  - The NPU's health (`Get-PnpDevice 'Intel(R) AI Boost'`) is checked before and after, on every run
+    whichever device it is for; the run refuses to start unless it reads OK, and a run that ends with it
+    not reading OK exits non-zero.
   - Every call has a 10 s timeout. A timeout stops the run and is reported.
   - Nothing else may hold the Intel devices during the window.
 - **Duration:** about 3 minutes of scoring per device, plus model compile, about 10 minutes in all.
@@ -61,7 +77,8 @@ The script ran end to end on the CPU: 0.25 s a pair at 1×512, the NPU healthy b
 
 ## Receipts
 
-- `s1-NPU.json` and `s1-iGPU.json` (readout, latency, health, device names, file hashes);
+- `s1-NPU.json` and `s1-iGPU.json` (readout, latency, health, device names, the sha256 of every verdict
+  file and of the three gold files, and the `--limit` if one was given);
 - `s1-<device>-labels.jsonl`.
 
 They're committed byte for byte under `docs/runs/receipts/2026-10-10-smoke/` after the run, identity-scanned.

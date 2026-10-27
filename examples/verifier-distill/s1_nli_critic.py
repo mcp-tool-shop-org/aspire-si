@@ -10,10 +10,12 @@ experiments/verifier-gold/calibration/results/2026-10-09-chain), by its rule:
 Pass, per check type (fixed before the run):
 - entailment on positives >= 0.85;
 - entailment on gold-unsupported fooled pairs, Wilson 95% upper <= 0.15.
-Gold-cannot_tell fooled pairs are reported, never gated.
+Gold-cannot_tell fooled pairs are reported, never gated. A run that was limited, stopped, or left the device
+unhealthy never passes and never prints S1-OK.
 
 Device rules (the intel-npu skill): batch 1, static shape 1x512; NPU or the Intel iGPU by name, never the
-RTX 5090; a health check before and after; a per-call timeout that stops the run if the device hangs.
+RTX 5090; a health check before (the run refuses to start unless it reads OK) and after (a run that ends
+unhealthy exits non-zero); a per-call timeout that stops the run if the device hangs.
 
   <npu-openvino python> s1_nli_critic.py --chain <dir> --gold <dir> --rnd-commit <sha>
       --device NPU --out <dir>
@@ -56,26 +58,39 @@ def normalise(quote: str) -> str:
 GOLD_FILES = ("grounded.jsonl", "prs/grounded-prs.jsonl", "diffs/reasoning-diffs.jsonl")
 
 
-def load_claims(gold_dir: Path) -> dict[str, str]:
-    """claim_id -> claim text, from the verifier gold files (the verdict lines carry only the id)."""
-    claims = {}
+def read_gold(gold_dir: Path) -> tuple[dict[str, str], dict[str, bool | None], dict[str, str]]:
+    """From the three gold files, read once: claim_id -> claim text (the verdict lines carry only the id),
+    claim_id -> has_doc_comment (None when the gold row has no such field), and each file's sha256."""
+    claims, doc_flags, hashes = {}, {}, {}
     for name in GOLD_FILES:
-        for line in (gold_dir / name).read_text(encoding="utf-8").splitlines():
+        data = (gold_dir / name).read_bytes()
+        hashes[name] = hashlib.sha256(data).hexdigest()
+        for line in data.decode("utf-8").splitlines():
             if line.strip():
                 row = json.loads(line)
                 claims[row["id"]] = row["claim"]
-    return claims
+                flag = row.get("has_doc_comment")
+                doc_flags[row["id"]] = flag if isinstance(flag, bool) else None
+    return claims, doc_flags, hashes
 
 
-def build_pairs(lines: list[dict], claims: dict[str, str]) -> list[dict]:
+def load_claims(gold_dir: Path) -> dict[str, str]:
+    return read_gold(gold_dir)[0]
+
+
+def build_pairs(
+    lines: list[dict], claims: dict[str, str], doc_flags: dict[str, bool | None] | None = None
+) -> list[dict]:
     """The R&D session's pairing rule. First occurrence of each (claim_id, normalised quote) wins.
-    A claim id missing from the gold stops the build rather than being skipped."""
+    A quote that is empty once whitespace is normalised is no quote. A claim id missing from the gold stops
+    the build rather than being skipped. Each pair carries its gold item's has_doc_comment (None: no field).
+    """
     pairs, seen = [], set()
     for r in lines:
-        quote = r.get("evidence_quote")
+        quote = normalise(r.get("evidence_quote") or "")
         if r.get("model_verdict") != "supported" or not r.get("quote_found") or not quote:
             continue
-        key = (r["claim_id"], normalise(quote))
+        key = (r["claim_id"], quote)
         if key in seen:
             continue
         seen.add(key)
@@ -91,31 +106,52 @@ def build_pairs(lines: list[dict], claims: dict[str, str]) -> list[dict]:
                 "quote": key[1],
                 "gold": gold,
                 "role": role,
+                "has_doc_comment": (doc_flags or {}).get(r["claim_id"]),
             }
         )
     return pairs
 
 
-def readout(pairs: list[dict], labels: dict[tuple[str, str], str]) -> dict:
-    """Per check type: entailment rates with Wilson intervals, and the pass decision."""
+ROLES = ("positive", "fooled:unsupported", "fooled:cannot_tell")
+STRATA = (("doc_comment", True), ("code_only", False), ("unflagged", None))
+
+
+def _rates(group: list[dict], labels: dict[tuple[str, str], str]) -> dict:
+    k = sum(labels.get((p["claim_id"], p["quote"])) == "entailment" for p in group)
+    scored = sum((p["claim_id"], p["quote"]) in labels for p in group)
+    lo, hi = wilson(k, scored)
+    return {
+        "n": len(group),
+        "scored": scored,
+        "entailed": k,
+        "rate": None if not scored else k / scored,
+        "wilson95": [lo, hi],
+    }
+
+
+def readout(
+    pairs: list[dict],
+    labels: dict[tuple[str, str], str],
+    *,
+    stopped: dict | None = None,
+    limit: int | None = None,
+    health_after: str | None = "OK",
+) -> dict:
+    """Per check type: entailment rates with Wilson intervals, and the pass decision.
+
+    A check type is complete, and can pass, only when the run was whole: every pair of all three roles was
+    scored, nothing stopped it, no --limit cut the pairs, and the device read healthy afterwards. A strata
+    block reports the same rates for pairs whose gold item has a doc comment, has none, or carries no flag, so
+    prose comments cannot hide the result on code lines; it is reported, never gated.
+    """
+
+    whole = stopped is None and not limit and health_after == "OK"
     out = {}
     for ct in sorted({p["check_type"] for p in pairs}):
         mine = [p for p in pairs if p["check_type"] == ct]
-        block = {}
-        for role in ("positive", "fooled:unsupported", "fooled:cannot_tell"):
-            group = [p for p in mine if p["role"] == role]
-            k = sum(labels.get((p["claim_id"], p["quote"])) == "entailment" for p in group)
-            scored = sum((p["claim_id"], p["quote"]) in labels for p in group)
-            lo, hi = wilson(k, scored)
-            block[role] = {
-                "n": len(group),
-                "scored": scored,
-                "entailed": k,
-                "rate": None if not scored else k / scored,
-                "wilson95": [lo, hi],
-            }
+        block = {role: _rates([p for p in mine if p["role"] == role], labels) for role in ROLES}
         pos, fool = block["positive"], block["fooled:unsupported"]
-        complete = pos["scored"] == pos["n"] and fool["scored"] == fool["n"]
+        complete = whole and all(block[role]["scored"] == block[role]["n"] for role in ROLES)
         block["pass"] = bool(
             complete
             and pos["n"]
@@ -124,8 +160,48 @@ def readout(pairs: list[dict], labels: dict[tuple[str, str], str]) -> dict:
             and fool["wilson95"][1] <= FOOLED_UPPER
         )
         block["complete"] = complete
+        block["strata"] = {}
+        for name, flag in STRATA:
+            stratum = [p for p in mine if p.get("has_doc_comment") is flag]
+            if stratum:
+                block["strata"][name] = {
+                    role: _rates([p for p in stratum if p["role"] == role], labels) for role in ROLES
+                }
         out[ct] = block
     return out
+
+
+def require_healthy_start(health: str) -> None:
+    """The pre-registration: the NPU's health is checked before every run, and the run refuses to start
+    unless it reads OK, whichever device it is for (the NPU's state is part of the quiet window)."""
+    if health != "OK":
+        raise SystemExit(f"NPU health is {health!r}; not starting")
+
+
+def exit_status(stopped: dict | None, health_after: str) -> int:
+    """0 only for a run that was not stopped and left the NPU healthy."""
+    return 1 if stopped or health_after != "OK" else 0
+
+
+def verdict_line(stopped: dict | None, health_after: str, limit: int | None) -> str:
+    """S1-OK is for a whole, healthy run only. A --limit dry check says so."""
+    if stopped:
+        return "S1-STOPPED"
+    if health_after != "OK":
+        return "S1-UNHEALTHY"
+    return "S1-LIMITED" if limit else "S1-OK"
+
+
+def provenance(
+    verdict_hashes: dict[str, str], gold_hashes: dict[str, str], rnd_commit: str, limit: int | None
+) -> dict:
+    """The receipt's input record: what was read, by hash, and whether the pairs were cut."""
+    return {
+        "rnd_commit": rnd_commit,
+        "verdict_files_sha256": verdict_hashes,
+        "gold_files_sha256": gold_hashes,
+        "limit": limit,
+    }
 
 
 def pick_device(core, name: str) -> str:
@@ -172,7 +248,7 @@ def call_with_timeout(fn, seconds: float):
     return box["value"], None
 
 
-def main() -> None:  # pragma: no cover - needs the rig
+def main() -> int:  # pragma: no cover - needs the rig
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--chain", type=Path, required=True, help="the calibration results directory")
     ap.add_argument(
@@ -198,15 +274,15 @@ def main() -> None:  # pragma: no cover - needs the rig
         data = f.read_bytes()
         receipts[f"{f.parent.name}/{f.name}"] = hashlib.sha256(data).hexdigest()
         lines += [json.loads(x) for x in data.decode("utf-8").splitlines() if x.strip()]
-    pairs = build_pairs(lines, load_claims(a.gold))
+    claims, doc_flags, gold_hashes = read_gold(a.gold)
+    pairs = build_pairs(lines, claims, doc_flags)
     if a.limit:
         pairs = pairs[: a.limit]
 
     core = ov.Core()
     device = pick_device(core, a.device)
     health_before = npu_health()
-    if a.device == "NPU" and health_before != "OK":
-        raise SystemExit(f"NPU health is {health_before!r}; not starting")
+    require_healthy_start(health_before)
     tok = AutoTokenizer.from_pretrained(NLI_MODEL, revision=NLI_REVISION)
     model = OVModelForSequenceClassification.from_pretrained(
         NLI_MODEL, revision=NLI_REVISION, export=True, compile=False
@@ -246,8 +322,7 @@ def main() -> None:  # pragma: no cover - needs the rig
         "ov_device_name": core.get_property(device, "FULL_DEVICE_NAME"),
         "openvino": ov.__version__,
         "shape": [1, SEQ],
-        "rnd_commit": a.rnd_commit,
-        "verdict_files_sha256": receipts,
+        **provenance(receipts, gold_hashes, a.rnd_commit, a.limit),
         "pairs": len(pairs),
         "scored": len(labels),
         "stopped": stopped,
@@ -261,7 +336,7 @@ def main() -> None:  # pragma: no cover - needs the rig
         else None,
         "npu_health": {"before": health_before, "after": health_after},
         "pass_line": {"positive_entail_min": POSITIVE_FLOOR, "fooled_unsupported_upper_max": FOOLED_UPPER},
-        "readout": readout(pairs, labels),
+        "readout": readout(pairs, labels, stopped=stopped, limit=a.limit, health_after=health_after),
     }
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / f"s1-{a.device}.json").write_text(json.dumps(body, indent=1), encoding="utf-8", newline="\n")
@@ -274,7 +349,8 @@ def main() -> None:  # pragma: no cover - needs the rig
     )
     print(json.dumps({k: body[k] for k in ("device", "scored", "stopped", "latency_s", "npu_health")}))
     print(json.dumps(body["readout"], indent=1))
-    print("S1-OK" if not stopped else "S1-STOPPED")
+    print(verdict_line(stopped, health_after, a.limit))
+    return exit_status(stopped, health_after)
 
 
 if __name__ == "__main__":
