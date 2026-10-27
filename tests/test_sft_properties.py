@@ -90,8 +90,10 @@ def test_multi_turn_with_thinking_off_raises_rather_than_mislabelling(chat):
 @given(single_turn(), st.integers(min_value=1, max_value=200))
 def test_drop_and_truncate_never_mix(chat, max_length):
     full = sft.tokenize_example(OneTokenPerChar(), chat, 10_000)
+    default = sft.tokenize_example(OneTokenPerChar(), chat, max_length)
     dropped = sft.tokenize_example(OneTokenPerChar(), chat, max_length, overlong="drop")
     truncated = sft.tokenize_example(OneTokenPerChar(), chat, max_length, overlong="truncate")
+    assert default == dropped
     if len(full["input_ids"]) > max_length:
         assert dropped is None
         assert truncated["input_ids"] == full["input_ids"][-max_length:]
@@ -103,6 +105,6 @@ def test_drop_and_truncate_never_mix(chat, max_length):
 @given(st.lists(single_turn(), min_size=1, max_size=12), st.integers(min_value=5, max_value=150))
 def test_prepare_accounts_for_every_item(chats, max_length):
     rows = [{"messages": c} for c in chats]
-    examples, dropped, unlabelled = sft.prepare_examples(OneTokenPerChar(), rows, max_length, overlong="drop")
+    examples, dropped, unlabelled = sft.prepare_examples(OneTokenPerChar(), rows, max_length)
     assert len(examples) + dropped + unlabelled == len(rows)
     assert unlabelled == 0  # in drop mode a kept single-turn chat always has its answer

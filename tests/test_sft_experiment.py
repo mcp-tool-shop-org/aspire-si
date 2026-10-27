@@ -502,7 +502,8 @@ class TestSftTokenizing:
 
     def test_truncation_keeps_the_end(self):
         messages = [{"role": "user", "content": "Q" * 50}, {"role": "assistant", "content": "answer"}]
-        example = sft.tokenize_example(FakeTokenizer(), messages, max_length=20)
+        assert sft.tokenize_example(FakeTokenizer(), messages, max_length=20) is None
+        example = sft.tokenize_example(FakeTokenizer(), messages, max_length=20, overlong="truncate")
         assert len(example["input_ids"]) == 20
         assert "".join(chr(i) for i in example["input_ids"]).endswith("answer</assistant>")
 
@@ -518,12 +519,19 @@ class TestSftTokenizing:
         args = sft.parse_args(["--data", "d.jsonl", "--out", "o"])
         assert (args.lora_r, args.lora_alpha, args.lora_dropout, args.seed) == (16, 32, 0.05, 42)
         assert args.student == "Qwen/Qwen2.5-1.5B-Instruct"
-        assert (args.overlong, args.max_dropped_fraction, args.chat_template_kwargs) == (
-            "truncate",
-            1.0,
+        assert (args.max_length, args.overlong, args.max_dropped_fraction, args.chat_template_kwargs) == (
+            2560,
+            "drop",
+            0.01,
             None,
         )
         assert not args.gradient_checkpointing and args.ledger is None and args.revision is None
+        assert (args.gguf, args.gguf_sha256, args.ollama_digest, args.record_package) == (
+            None,
+            None,
+            None,
+            False,
+        )
 
 
 class QwenLikeTokenizer:
@@ -563,9 +571,12 @@ class TestSftDistillMechanics:
 
     def test_drop_returns_none_and_truncate_keeps_the_end(self):
         long = [{"role": "user", "content": "Q" * 50}, {"role": "assistant", "content": "answer"}]
+        assert sft.tokenize_example(FakeTokenizer(), long, 20) is None
         assert sft.tokenize_example(FakeTokenizer(), long, 20, overlong="drop") is None
         kept = sft.tokenize_example(FakeTokenizer(), long, 20, overlong="truncate")
         assert len(kept["input_ids"]) == 20
+        with pytest.raises(ValueError, match="unknown overlong policy"):
+            sft.tokenize_example(FakeTokenizer(), long, 20, overlong="clip")
 
     def test_prepare_counts_drops_and_stops_over_the_limit(self):
         rows = [
@@ -573,16 +584,59 @@ class TestSftDistillMechanics:
             for n in (1, 2, 80)
         ]
         examples, dropped, unlabelled = sft.prepare_examples(
-            FakeTokenizer(), rows, 40, overlong="drop", max_dropped_fraction=0.5
+            FakeTokenizer(), rows, 40, max_dropped_fraction=0.5
         )
         assert (len(examples), dropped, unlabelled) == (2, 1, 0)
         with pytest.raises(ValueError, match="1 of 3 items exceed 40 tokens"):
-            sft.prepare_examples(FakeTokenizer(), rows, 40, overlong="drop", max_dropped_fraction=0.01)
+            sft.prepare_examples(FakeTokenizer(), rows, 40, max_dropped_fraction=0.01)
+
+    def test_default_max_dropped_fraction_refuses_run_over_one_percent_before_any_step(
+        self, tmp_path, monkeypatch
+    ):
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        data_path = tmp_path / "train.jsonl"
+        rows = [
+            {"messages": [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "a"}]}
+            for _ in range(98)
+        ] + [
+            {"messages": [{"role": "user", "content": "Q" * 100}, {"role": "assistant", "content": "a"}]}
+            for _ in range(2)
+        ]
+        lib.write_jsonl(data_path, rows)
+        tok = FakeTokenizer()
+        tok.pad_token = "<pad>"
+        monkeypatch.setattr(AutoTokenizer, "from_pretrained", lambda *a, **kw: tok)
+
+        model_loaded = []
+        monkeypatch.setattr(
+            AutoModelForCausalLM,
+            "from_pretrained",
+            lambda *a, **kw: model_loaded.append(True),
+        )
+
+        out_dir = tmp_path / "out"
+        args = sft.parse_args(
+            [
+                "--data",
+                str(data_path),
+                "--out",
+                str(out_dir),
+                "--max-length",
+                "40",
+                "--device",
+                "cpu",
+            ]
+        )
+        assert args.max_dropped_fraction == 0.01
+        with pytest.raises(ValueError, match=r"2 of 100 items exceed 40 tokens, over the 1% stop"):
+            sft.train(args)
+        assert not model_loaded and not out_dir.exists()
 
     def test_truncation_never_counts_as_dropped(self):
         rows = [{"messages": [{"role": "user", "content": "Q" * 80}, {"role": "assistant", "content": "a"}]}]
         examples, dropped, unlabelled = sft.prepare_examples(
-            FakeTokenizer(), rows, 40, max_dropped_fraction=0.0
+            FakeTokenizer(), rows, 40, overlong="truncate", max_dropped_fraction=0.0
         )
         assert (len(examples), dropped, unlabelled) == (1, 0, 0)
 
@@ -686,11 +740,373 @@ class TestSftDistillMechanics:
                 "C",
                 "--revision",
                 "abc123",
+                "--gguf",
+                "model-q8_0.gguf",
+                "--ollama-digest",
+                "sha256:6316f062",
             ]
         )
         assert args.chat_template_kwargs == {"enable_thinking": False}
         assert (args.overlong, args.max_dropped_fraction, args.gradient_checkpointing) == ("drop", 0.01, True)
         assert (str(args.ledger), args.arm, args.revision) == ("runs.jsonl", "C", "abc123")
+        assert (str(args.gguf), args.ollama_digest) == ("model-q8_0.gguf", "sha256:6316f062")
+
+    def test_record_package_requires_ledger_and_updates_row(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit):
+            sft.parse_args(["--record-package", "--out", "runs/b-s42"])
+        ledger = tmp_path / "runs.jsonl"
+        gguf = tmp_path / "artifacts" / "model-q8_0.gguf"
+        gguf.parent.mkdir(parents=True)
+        gguf.write_bytes(b"GGUF-Q8-BYTES")
+        sft.append_ledger(ledger, {"arm": "B-full", "seed": 42, "out": "runs/b-s42", "gguf_sha256": None})
+        row = sft.update_ledger(
+            ledger,
+            out=tmp_path / "runs" / "b-s42",
+            gguf=gguf,
+            ollama_digest="6316f0629137b426c9d9b853ffc4c8209589f30ee39aebede6285096c0ff47e7",
+        )
+        assert row["gguf_sha256"] == sft.sha256_of(gguf)
+        assert row["ollama_digest"] == "6316f0629137b426c9d9b853ffc4c8209589f30ee39aebede6285096c0ff47e7"
+        # Base arm A has no training run: update_ledger appends its packaging row cleanly.
+        arm_a_args = sft.parse_args(
+            [
+                "--record-package",
+                "--ledger",
+                str(ledger),
+                "--arm",
+                "A",
+                "--out",
+                str(tmp_path / "runs" / "a"),
+                "--gguf",
+                str(gguf),
+                "--ollama-digest",
+                "aaaa1111",
+            ]
+        )
+        assert arm_a_args.seed is None
+        arm_a = sft.update_ledger(
+            arm_a_args.ledger,
+            arm=arm_a_args.arm,
+            seed=arm_a_args.seed,
+            out=arm_a_args.out,
+            gguf=arm_a_args.gguf,
+            ollama_digest=arm_a_args.ollama_digest,
+        )
+        assert (
+            arm_a["arm"],
+            arm_a["seed"],
+            arm_a["out"],
+            arm_a["gguf_sha256"],
+            arm_a["ollama_digest"],
+        ) == (
+            "A",
+            None,
+            "runs/a",
+            sft.sha256_of(gguf),
+            "aaaa1111",
+        )
+        lines = [json.loads(ln) for ln in ledger.read_text(encoding="utf-8").splitlines()]
+        assert len(lines) == 2 and str(tmp_path) not in ledger.read_text(encoding="utf-8")
+
+    def test_update_ledger_matches_out_before_arm_and_seed_and_preserves_row_seed(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        ledger = tmp_path / "runs.jsonl"
+        sft.append_ledger(ledger, {"arm": "B-full", "seed": 42, "out": "runs/b-s42-v1", "gguf_sha256": None})
+        sft.append_ledger(ledger, {"arm": "B-full", "seed": 42, "out": "runs/b-s42-v2", "gguf_sha256": None})
+        # Even though row 1 is newer and has the same arm and seed, matching on out stamps row 0.
+        stamped = sft.update_ledger(
+            ledger,
+            out=tmp_path / "runs" / "b-s42-v1",
+            arm="B-full",
+            seed=42,
+            gguf_sha256="sha-v1",
+            ollama_digest="digest-v1",
+        )
+        assert stamped["out"] == "runs/b-s42-v1" and stamped["gguf_sha256"] == "sha-v1"
+        rows = [json.loads(ln) for ln in ledger.read_text(encoding="utf-8").splitlines()]
+        assert rows[0]["gguf_sha256"] == "sha-v1" and rows[0]["ollama_digest"] == "digest-v1"
+        assert rows[1]["gguf_sha256"] is None
+        # A row with seed 43 keeps its own seed 43 when --record-package is called without --seed.
+        sft.append_ledger(ledger, {"arm": "C", "seed": 43, "out": "runs/c-s43", "gguf_sha256": None})
+        pkg_args = sft.parse_args(
+            [
+                "--record-package",
+                "--ledger",
+                str(ledger),
+                "--arm",
+                "C",
+                "--out",
+                "runs/c-s43",
+                "--gguf-sha256",
+                "sha-c43",
+                "--ollama-digest",
+                "digest-c43",
+            ]
+        )
+        assert pkg_args.seed is None
+        updated_c = sft.update_ledger(
+            pkg_args.ledger,
+            out=pkg_args.out,
+            arm=pkg_args.arm,
+            seed=pkg_args.seed,
+            gguf_sha256=pkg_args.gguf_sha256,
+            ollama_digest=pkg_args.ollama_digest,
+        )
+        assert updated_c["seed"] == 43 and updated_c["gguf_sha256"] == "sha-c43"
+        # Fallback to arm/seed when no row matches out:
+        fallback = sft.update_ledger(
+            ledger,
+            out="runs/nonexistent",
+            arm="B-full",
+            seed=42,
+            gguf_sha256="sha-v2",
+            ollama_digest="digest-v2",
+        )
+        assert fallback["out"] == "runs/b-s42-v2" and fallback["gguf_sha256"] == "sha-v2"
+
+    def test_train_on_cpu_tiny_model_exercises_all_four_distill_changes(self, tmp_path, monkeypatch):
+        import torch
+        from tokenizers import Tokenizer
+        from tokenizers.models import WordLevel
+        from tokenizers.pre_tokenizers import Split
+        from transformers import AutoModelForCausalLM, PreTrainedTokenizerFast, Qwen3Config, Qwen3ForCausalLM
+
+        monkeypatch.chdir(tmp_path)
+        student_dir = tmp_path / "models" / "Qwen3-1.7B"
+        vocab = {"<pad>": 0, "<eos>": 1, "<unk>": 2, **{chr(i): i for i in range(3, 128)}}
+        tok_obj = Tokenizer(WordLevel(vocab=vocab, unk_token="<unk>"))
+        tok_obj.pre_tokenizer = Split(pattern="", behavior="isolated")
+        template = (
+            "{% for m in messages %}"
+            "{% if m['role'] == 'assistant' and loop.last %}"
+            "<assistant><think></think>{{ m['content'] }}</assistant>"
+            "{% else %}"
+            "<{{ m['role'] }}>{{ m['content'] }}</{{ m['role'] }}>"
+            "{% endif %}"
+            "{% endfor %}"
+            "{% if add_generation_prompt %}"
+            "{% if enable_thinking is defined and not enable_thinking %}"
+            "<assistant><think></think>"
+            "{% else %}"
+            "<assistant>"
+            "{% endif %}"
+            "{% endif %}"
+        )
+        fast_tok = PreTrainedTokenizerFast(
+            tokenizer_object=tok_obj,
+            pad_token="<pad>",
+            eos_token="<eos>",
+            unk_token="<unk>",
+            chat_template=template,
+        )
+        fast_tok.save_pretrained(student_dir)
+        torch.manual_seed(0)
+        cfg = Qwen3Config(
+            vocab_size=128,
+            hidden_size=32,
+            intermediate_size=64,
+            num_hidden_layers=2,
+            num_attention_heads=4,
+            num_key_value_heads=2,
+            head_dim=8,
+        )
+        Qwen3ForCausalLM(cfg).save_pretrained(student_dir)
+
+        data_path = tmp_path / "train.jsonl"
+        short_rows = [
+            {
+                "id": f"mld-{i}",
+                "messages": [
+                    {"role": "user", "content": f"x={i}"},
+                    {"role": "assistant", "content": '{"verdict":"supported"}'},
+                ],
+            }
+            for i in range(4)
+        ]
+        overlong_row = {
+            "id": "mld-overlong",
+            "messages": [
+                {"role": "user", "content": "x=" + ("9" * 120)},
+                {"role": "assistant", "content": '{"verdict":"unsupported"}'},
+            ],
+        }
+        lib.write_jsonl(data_path, [*short_rows, overlong_row])
+
+        out_dir = tmp_path / "runs" / "b-full-s42"
+        ledger_path = tmp_path / "runs" / "runs.jsonl"
+        gguf_path = tmp_path / "runs" / "b-full-s42-q8_0.gguf"
+        gguf_path.parent.mkdir(parents=True, exist_ok=True)
+        gguf_path.write_bytes(b"FAKE-Q8_0-GGUF")
+
+        args = sft.parse_args(
+            [
+                "--data",
+                str(data_path),
+                "--out",
+                str(out_dir),
+                "--student",
+                str(student_dir),
+                "--revision",
+                "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                "--epochs",
+                "2",
+                "--batch-size",
+                "2",
+                "--lr",
+                "5e-3",
+                "--max-length",
+                "90",
+                "--max-dropped-fraction",
+                "0.25",
+                "--chat-template-kwargs",
+                '{"enable_thinking": false}',
+                "--no-4bit",
+                "--gradient-checkpointing",
+                "--device",
+                "cpu",
+                "--seed",
+                "42",
+                "--arm",
+                "B-full",
+                "--ledger",
+                str(ledger_path),
+            ]
+        )
+        summary = sft.train(args)
+        assert summary["chat_template_kwargs"] == {"enable_thinking": False}
+        assert (summary["items"], summary["examples"], summary["dropped"], summary["dropped_overlong"]) == (
+            5,
+            4,
+            1,
+            1,
+        )
+        assert summary["unlabelled"] == 0
+        assert summary["gradient_checkpointing"] is True and summary["quantized"] is False
+        assert summary["steps"] == 4 and len(summary["loss_per_epoch"]) == 2
+        assert summary["loss_per_epoch"][1] < summary["loss_per_epoch"][0]
+
+        merged_model = AutoModelForCausalLM.from_pretrained(out_dir / "merged")
+        assert merged_model.config.hidden_size == 32
+
+        # Stamp GGUF sha256 and Ollama digest after packaging, then check the complete ledger row.
+        sft.update_ledger(
+            ledger_path,
+            out=out_dir,
+            gguf=gguf_path,
+            ollama_digest="6316f0629137b426c9d9b853ffc4c8209589f30ee39aebede6285096c0ff47e7",
+        )
+        rows = [json.loads(ln) for ln in ledger_path.read_text(encoding="utf-8").splitlines()]
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["arm"] == "B-full"
+        assert row["seed"] == 42
+        assert row["student"] == "Qwen3-1.7B"
+        assert row["revision"] == "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+        assert row["student_revision"] == "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+        assert (row["items"], row["examples"], row["dropped"], row["dropped_overlong"]) == (5, 4, 1, 1)
+        assert row["steps"] == 4
+        assert row["loss_per_epoch"] == [h["loss"] for h in row["history"]]
+        assert isinstance(row["wall_seconds"], float) and row["wall_seconds"] >= 0.0
+        assert row["peak_vram_mib"] is None
+        assert row["adapter_sha256"] == sft.sha256_of(out_dir / "epoch-2")
+        assert row["merged_sha256"] == sft.sha256_of(out_dir / "merged")
+        assert row["gguf_sha256"] == sft.sha256_of(gguf_path)
+        assert row["ollama_digest"] == "6316f0629137b426c9d9b853ffc4c8209589f30ee39aebede6285096c0ff47e7"
+        assert row["out"] == "runs/b-full-s42"
+        assert str(tmp_path) not in ledger_path.read_text(encoding="utf-8")
+
+    def test_gradient_checkpointing_is_really_enabled_on_the_model_and_off_without_the_flag(
+        self, tmp_path, monkeypatch
+    ):
+        import peft
+        import torch
+        from tokenizers import Tokenizer
+        from tokenizers.models import WordLevel
+        from tokenizers.pre_tokenizers import Split
+        from transformers import PreTrainedTokenizerFast, Qwen3Config, Qwen3ForCausalLM
+
+        monkeypatch.chdir(tmp_path)
+        student_dir = tmp_path / "models" / "Qwen3-1.7B"
+        vocab = {"<pad>": 0, "<eos>": 1, "<unk>": 2, **{chr(i): i for i in range(3, 128)}}
+        tok_obj = Tokenizer(WordLevel(vocab=vocab, unk_token="<unk>"))
+        tok_obj.pre_tokenizer = Split(pattern="", behavior="isolated")
+        template = (
+            "{% for m in messages %}<{{ m['role'] }}>{{ m['content'] }}</{{ m['role'] }}>{% endfor %}"
+            "{% if add_generation_prompt %}<assistant>{% endif %}"
+        )
+        PreTrainedTokenizerFast(
+            tokenizer_object=tok_obj,
+            pad_token="<pad>",
+            eos_token="<eos>",
+            unk_token="<unk>",
+            chat_template=template,
+        ).save_pretrained(student_dir)
+        torch.manual_seed(0)
+        Qwen3ForCausalLM(
+            Qwen3Config(
+                vocab_size=128,
+                hidden_size=32,
+                intermediate_size=64,
+                num_hidden_layers=2,
+                num_attention_heads=4,
+                num_key_value_heads=2,
+                head_dim=8,
+            )
+        ).save_pretrained(student_dir)
+
+        data_path = tmp_path / "train.jsonl"
+        lib.write_jsonl(
+            data_path,
+            [
+                {
+                    "id": "gc-0",
+                    "messages": [
+                        {"role": "user", "content": "q"},
+                        {"role": "assistant", "content": "a"},
+                    ],
+                }
+            ],
+        )
+
+        captured = []
+        real_get_peft_model = peft.get_peft_model
+
+        def spy_get_peft_model(base_model, peft_config, *a, **kw):
+            peft_model = real_get_peft_model(base_model, peft_config, *a, **kw)
+            captured.append((base_model, peft_model))
+            return peft_model
+
+        monkeypatch.setattr(peft, "get_peft_model", spy_get_peft_model)
+
+        base_flags = [
+            "--data",
+            str(data_path),
+            "--student",
+            str(student_dir),
+            "--epochs",
+            "1",
+            "--batch-size",
+            "1",
+            "--no-4bit",
+            "--device",
+            "cpu",
+        ]
+        sft.train(sft.parse_args([*base_flags, "--out", str(tmp_path / "gc-on"), "--gradient-checkpointing"]))
+        sft.train(sft.parse_args([*base_flags, "--out", str(tmp_path / "gc-off")]))
+
+        assert len(captured) == 2
+        (base_on, peft_on), (base_off, peft_off) = captured
+        assert base_on.is_gradient_checkpointing is True
+        assert peft_on.base_model.model.is_gradient_checkpointing is True
+        assert base_on.config.use_cache is False
+        assert hasattr(base_on, "_require_grads_hook")
+        assert base_off.is_gradient_checkpointing is False
+        assert peft_off.base_model.model.is_gradient_checkpointing is False
+        assert base_off.config.use_cache is True
+        assert not hasattr(base_off, "_require_grads_hook")
 
 
 class TestStatistics:

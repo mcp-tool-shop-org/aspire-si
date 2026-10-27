@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-23
+
+### Added
+
+- `examples/sft-experiment/sft.py`: training mechanics for distillation ladders (#168).
+  - `--chat-template-kwargs` applies the same template options to every chat render.
+  - `--overlong drop` (the default) drops and counts over-long items instead of truncating them,
+    and `--max-dropped-fraction 0.01` stops before training if too many are dropped.
+  - `--gradient-checkpointing` on the bf16 path.
+  - `--ledger` / `--record-package` record each run's adapter, merged model, GGUF and Ollama digest.
+    `update_ledger` matches `out` before falling back to `arm` and `seed`, and doesn't stamp an
+    unrequested default seed.
+- Handbook: a page on the fine-tuning experiment and the distillation options.
+
+### Changed
+
+- LICENSE and the forge integration's metadata name mcp-tool-shop as the copyright holder and author (#169).
+- The release workflow pins `pypa/gh-action-pypi-publish` to v1.14.3 (GHSA-5xjx-3w67-w9x9) (#166).
+
+### Fixed
+
+- The 1.3.0 changelog entry had picked up #168's options, which weren't in 1.3.0; they're listed under 1.4.0.
+- The handbook no longer says the policy-gradient term is planned for 1.3.0; it's still planned (#11).
+
+## [1.3.0] - 2026-10-14
+
 ### Added
 
 - `examples/sft-experiment/`: the fine-tune-then-ASPIRE experiment (#11) and its
@@ -64,6 +90,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `aspire.teachers.local`: the scoring request and its parser are module functions
   (`evaluation_request`, `parse_evaluation`, `extract_score`, `extract_improved`), so other code
   scores exactly as the local teacher does. The request text and the parsed scores are unchanged.
+
+### Security
+
+- **Workflow jobs run with a read-only token by default.** `ci.yml` had jobs with no `permissions` block, so they inherited the repository default token. A top-level `permissions: contents: read` now applies to every job that does not set its own (the jobs that publish or write keep theirs). Closes the `actions/missing-workflow-permissions` code-scanning alerts.
 
 ## [1.2.0] - 2026-10-07
 

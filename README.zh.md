@@ -15,11 +15,11 @@
 </p>
 
 <p align="center">
-  <a href="#the-idea">The Idea</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#teacher-personas">Teachers</a> •
-  <a href="#how-it-works">How It Works</a> •
-  <a href="#integrations">Integrations</a> •
+  <a href="#这个想法">The Idea</a> •
+  <a href="#快速入门">Quick Start</a> •
+  <a href="#教师角色">Teachers</a> •
+  <a href="#工作原理">How It Works</a> •
+  <a href="#集成">Integrations</a> •
   <a href="https://mcp-tool-shop-org.github.io/aspire-si/handbook/">Handbook</a>
 </p>
 
@@ -33,7 +33,7 @@
 
 ---
 
-## 想法
+## 这个想法
 
 **传统的微调：**“这里是正确的答案。请匹配它们。”
 
@@ -64,7 +64,7 @@ ASPIRE 赋予 AI 相同的体验。
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**评论者** 学习预测导师对一个回答的看法。训练后，它会自行判断学生的回答——**在推理时不需要导师**——因此你可以选择不同的尝试，或者围绕它编写一个优化循环。
+**评论者** 学习预测教师对一个回答的看法。训练后，它会独立地评估学生的回答——**在推理时不需要教师**——因此你可以选择不同的尝试，或者围绕它编写一个优化循环。
 
 ---
 
@@ -80,7 +80,7 @@ pip install -e .
 
 ### 设置你的 API 密钥
 
-仅适用于 Claude 或 OpenAI 导师；本地导师不需要（见下文）。
+仅适用于 Claude 或 OpenAI 教师；本地教师不需要（见下文）。
 
 ```bash
 # Windows
@@ -112,7 +112,7 @@ aspire init --output my-config.yaml
 
 ### 一次无需费用的运行
 
-不需要 API 密钥：一个本地导师、一个 1B 的学生和一个 3B 的导师，在一块 24GB 的 GPU 上。
+不需要 API 密钥：一个本地教师、一个 1B 学生和一个 3B 教师，在一块 24GB GPU 上。
 
 ```bash
 aspire train --config examples/local-run/local-teacher.yaml \
@@ -125,21 +125,21 @@ aspire judge outputs/local-teacher/checkpoint-2 \
 
 ---
 
-## 导师角色
+## 教师角色
 
-不同的导师会产生不同的思维模式。明智地选择。
+不同的教师会产生不同的思维模式。明智地选择。
 
 | 角色 | 哲学 | 产生 |
 |---------|------------|----------|
 | 🏛️ **苏格拉底式** | “你做了什么假设？” | 深入的推理，独立的思考 |
 | 🔬 **科学式** | “你的证据是什么？” | 技术上的精确，严谨的思维 |
 | 🎨 **创造式** | “如果我们尝试相反的方法会怎么样？” | 创新，横向思维 |
-| ⚔️ **对抗式** | “我不同意。捍卫你的观点。” | 有力的论证，坚定的信念 |
+| ⚔️ **对抗式** | “我不同意。请为你的观点辩护。” | 有力的论证，坚定的信念 |
 | 💚 **富有同情心** | “有人可能会对这件事有什么感觉？” | 伦理推理，智慧 |
 
-### 复合导师
+### 复合教师
 
-组合多个导师以获得更丰富的学习体验：
+组合多个教师以获得更丰富的学习体验：
 
 ```python
 from aspire.teachers import CompositeTeacher, SocraticTeacher, ScientificTeacher
@@ -157,7 +157,7 @@ teacher = CompositeTeacher(
 
 ### 1. 对抗式对话
 
-学生生成一个回答。导师挑战它。来回进行，探究弱点，要求清晰，深入挖掘。
+学生生成一个回答。教师对其提出挑战。来回进行，探究弱点，要求清晰，深入挖掘。
 
 ```
 Student: "Recursion works by calling itself."
@@ -173,7 +173,7 @@ Teacher: "You say 'stops it' — but how does the computer know
 
 ### 2. 评论者训练
 
-评论者学习预测导师对一个回答的判断：它的 0-10 分。 （它还有一个关于导师推理的模块，但训练器尚未训练它。）
+评论者学习预测教师对一个回答的判断：它的 0-10 分。 （它还具有教师推理能力，但训练器尚未进行训练。）
 
 ```python
 # The critic reads the student's hidden states over the prompt and the response
@@ -183,11 +183,11 @@ critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score
 
 ### 3. 学生学到的内容
 
-评论者是一个位于学生隐藏状态上的模块，它的损失会反馈到学生的 LoRA 适配器中。因此，今天学生学习的是**有助于评论者预测导师评分的表示**。它尚未接受训练以获得更好的答案：在 `aspire.losses` 中存在奖励、对比和轨迹项，但训练器不会输入这些项，因此它们不会产生任何影响。计划在 1.3.0 版本中对学生进行评论者判断的训练（[#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)）。
+评论者是学生隐藏状态中的一个模块，它的损失会反馈到学生的 LoRA 适配器中。因此，今天学生学习的是**有助于评论者预测教师评分的表示**。它尚未接受针对更好答案的训练：在 `aspire.losses` 中存在奖励、对比和轨迹项，但训练器不会提供这些项，因此它们不会产生任何影响。计划在 1.3.0 版本中对学生进行评论者判断的训练（[#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)）。
 
-### 4. 无需导师的判断
+### 4. 无需教师的判断
 
-训练后，评论者仅根据学生的隐藏状态对一个回答进行评分，因此不需要导师来判断。你可以围绕它编写一个优化循环；ASPIRE 提供了训练好的评论者和 `aspire.judge`，而不是循环：
+训练后，评论者仅根据学生的隐藏状态对一个回答进行评分，因此不需要教师来判断。你可以围绕它编写一个优化循环；ASPIRE 提供了经过训练的评论者和 `aspire.judge`，而不是循环：
 
 ```python
 from aspire.judge import Judge
@@ -256,7 +256,7 @@ aspire judge outputs/checkpoint-3 --prompt "..." --response "..."
 aspire judge outputs/checkpoint-3 --pairs pairs.json --json
 ```
 
-错误会打印一个代码、一条消息以及如何处理，而不会显示回溯：
+错误会打印一个代码、一条消息以及如何解决，而不会显示回溯：
 
 ```
 ASPIRE_MISSING_API_KEY  ANTHROPIC_API_KEY not found.
@@ -269,31 +269,23 @@ To fix this, set your API key: ...
 
 ## 在 ScalarScope 中观察运行
 
-`aspire train --geometry`（或配置中的 `training.geometry_export: true`）会写入
-`geometry.json` 位于检查点旁边：运行的训练动态，格式为
-[ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) 可以读取。并排打开两个，以比较运行。
+`aspire train --geometry`（或配置中的 `training.geometry_export: true`）会将 `geometry.json` 写入检查点旁边：运行的训练动态，格式为 [ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) 读取。将其中两个并排打开以比较运行。
 
 | 字段 | 它包含的内容 |
 |-------|---------------|
-| 轨迹 | 学生的最后一个隐藏层，在令牌和批次上进行池化，并投影到它的前两个主成分上。速度、有符号曲率（以 pi 为单位的转角，当运行几乎没有移动时会衰减）和有效维度（在窗口中的参与率）。 |
-| 标量 | 每个评估维度，导师给出的分数，范围为 0 到 1。 |
-| 特征值 | 每一步，维度分数在窗口中变化的程度，以分数形式表示。较大的第一个值意味着一个方向可以解释导师的判断。 |
-| 教授 | 每个导师一个箭头：在状态空间中，其分数上升的方向。复合导师会为每个成员提供一个。 |
-| 失败 | 在某个维度至少下降 0.1 以下其最近中值的步骤。 |
+| 轨迹 | 学生的最后一个隐藏层，在令牌和批次上进行池化，并投影到它的前两个主成分上。速度、有符号曲率（以 pi 为单位的转角，当运行几乎没有移动时进行阻尼），以及有效维度（在窗口中的参与率）。 |
+| 标量 | 教师对每个评估维度进行评分，范围为 0 到 1。 |
+| 特征值 | 每一步，维度分数在窗口中变化的程度，以分数形式表示。较大的第一个值意味着一个方向解释了教师的判断。 |
+| 教授 | 每个教师一个箭头：在状态空间中，其分数上升的方向。复合教师为每个成员提供一个。 |
+| 失败 | 在某个步骤中，一个维度至少下降 0.1，低于其最近的中位数。 |
 
-没有模型或 API 密钥？`python examples/geometry_demo.py` 模拟两次运行并写入两个
-导出，这是查看视图的最快方法。
+没有模型或 API 密钥？`python examples/geometry_demo.py` 模拟两次运行并写入两个导出文件，这是查看视图的最快方法。
 
-记录器（`aspire.geometry.GeometryRecorder`）在内存中保留每个步骤的一个池化向量。
-对于长时间运行，请设置 `training.geometry_every` 以将多个批次平均到一个步骤。导出
-在每个 epoch 结束时以及在最后也会写入，因此提前停止的运行会保留它记录的内容。
+记录器（`aspire.geometry.GeometryRecorder`）在内存中保留每个步骤的一个池化向量。对于长时间运行，请设置 `training.geometry_every`，以便将多个批次平均到一个步骤中。导出文件在每个 epoch 结束时以及在最后都会写入，因此提前停止的运行会保留其记录的内容。
 
-**分析实际运行结果。** 在第一次实际模型运行中（1.5B的学生模型，32B的教师模型，3个epochs；[运行报告](docs/runs/2026-10-06-pod-run.md)），每个步骤的隐藏状态主要反映了该步骤训练的*提示*是什么：两个提示之间的距离大约是三个epochs训练所移动的学生模型的10,000倍。标量值在每个epoch中重复出现，因为第一个epoch之后的epochs会重现缓存的教师评分。为了查看训练如何改变，`examples/pod-run/probe.py`和`drift.py`将相同的固定对话输入到基础学生模型和每个epoch的检查点中，并导出一个*漂移*文件，其中移除了提示标识。ScalarScope的实际测试用例包括这两种类型，并且它们都涵盖了所有三个epoch。
+**分析真实运行结果。** 在第一次真实模型运行中（1.5B 学生模型，32B 教师模型，3 个 epoch；[运行报告](docs/runs/2026-10-06-pod-run.md)），每个步骤的隐藏状态主要反映了该步骤训练的*提示*是什么：两个提示之间的距离大约是 10,000 倍，而三个 epoch 的训练对学生模型的影响。标量值在每个 epoch 中重复出现，因为第一个 epoch 之后的 epoch 会重复使用缓存的教师评分。为了查看训练如何改变，`examples/pod-run/probe.py` 和 `drift.py` 将相同的固定对话输入到基础学生模型和每个 epoch 的检查点中，并导出一个*漂移*文件，其中移除了提示标识。ScalarScope 的真实测试用例包括两种类型，并且所有测试用例都涵盖了所有三个 epoch。对于相同条件的每个 seed，每个步骤的读取结果会有所不同，因为每个 seed 都会采样新的对话，从而产生新的教师评分；比较漂移导出文件中的不同条件。
 
-导出的数据采用架构 1.1。`run_metadata` 说明了如何读取步骤：`step_axis` 是
-`training_step`（训练器的导出数据，按训练顺序排列）或 `checkpoint_by_item`（探针和漂移导出数据，每个检查点包含相同项目的一个块，`checkpoints` 表示数量），并且
-`scalar_source` 是 `live`、`replayed`（首次重复使用缓存分数后的训练周期数）或
-`fixed_per_item`。ScalarScope 会阻止读取此类步骤时将其视为时间进行比较。
+导出文件采用 1.1 架构。`run_metadata` 描述了如何读取步骤：`step_axis` 是 `training_step`（训练器的导出文件，按训练顺序排列）或 `checkpoint_by_item`（探测和漂移导出文件，每个检查点包含相同项目的块，`checkpoints` 提供计数），并且 `scalar_source` 是 `live`、`replayed`（第一个 epoch 之后重复使用缓存的评分）或 `fixed_per_item`。ScalarScope 排除那些将此类步骤视为时间序列的比较。
 
 ---
 
@@ -347,15 +339,15 @@ aspire/
 
 - Python 3.10+
 - PyTorch 2.0+
-- 用于训练的CUDA GPU。使用API教师时，1-4B的学生模型可以在16GB的GPU上运行；本地教师示例（`examples/local-run/`）将学生模型和教师模型都放在一个24GB的GPU上。测试、几何演示和集成示例在CPU上运行。
-- 一个教师：一个本地模型（无密钥），或者一个Anthropic或OpenAI的API密钥。
+- 用于训练的 CUDA GPU。对于 API 教师，1-4B 的学生模型可以适应 16 GB 显存；本地教师示例（`examples/local-run/`）将学生模型和教师模型放在一个 24 GB 的显卡上。测试、几何演示和集成示例在 CPU 上运行。
+- 一个教师：一个本地模型（无密钥），或一个 Anthropic 或 OpenAI API 密钥。
 
-### Windows兼容性
+### Windows 兼容性
 
-ASPIRE完全兼容Windows，并支持RTX 5080/Blackwell：
+ASPIRE 完全兼容 Windows，并支持 RTX 5080/Blackwell：
 - `dataloader_num_workers=0`
 - `XFORMERS_DISABLED=1`
-- 使用`freeze_support()`进行适当的多进程处理。
+- 使用 `freeze_support()` 进行适当的多进程处理
 
 ---
 
@@ -363,7 +355,7 @@ ASPIRE完全兼容Windows，并支持RTX 5080/Blackwell：
 
 ### 🖼️ Stable Diffusion WebUI Forge
 
-ASPIRE扩展到图像生成！训练Stable Diffusion模型以培养审美判断力。
+ASPIRE 扩展到图像生成！训练 Stable Diffusion 模型以培养审美判断力。
 
 ```
 integrations/forge/
@@ -376,10 +368,10 @@ integrations/forge/
 ```
 
 **功能：**
-- **视觉教师：** Claude Vision、GPT-4V对生成的图像进行评价。
-- **图像评论者：** 基于CLIP和潜在空间的评论者，用于实时指导。
-- **训练UI：** 训练LoRA适配器，并进行实时预览和前后对比。
-- **推理时无需API：** 训练后的评论者可以本地指导生成。
+- **视觉教师：** Claude Vision、GPT-4V 评估生成的图像
+- **图像评论者：** 基于 CLIP 和潜在空间的评论者，用于实时指导
+- **训练 UI：** 训练 LoRA 适配器，并进行实时预览和前后比较
+- **推理时无需 API：** 训练后的评论者可以本地指导生成
 
 **安装：**
 ```bash
@@ -387,17 +379,17 @@ integrations/forge/
 cp -r integrations/forge /path/to/sd-webui-forge/extensions-builtin/sd_forge_aspire
 ```
 
-| 视觉教师 | 关注点 |
+| 视觉教师 | 重点 |
 |----------------|-------|
-| **Balanced Critic** | 公正的技术和艺术评价 |
-| **Technical Analyst** | 质量、瑕疵、清晰度 |
+| **Balanced Critic** | 公正的技术和艺术评估 |
+| **Technical Analyst** | 质量、伪影、清晰度 |
 | **Artistic Visionary** | 创造力和情感影响 |
 | **Composition Expert** | 平衡、焦点、视觉流程 |
 | **Harsh Critic** | 非常高的标准 |
 
 ### 🤖 Isaac Gym / Isaac Lab（机器人）
 
-ASPIRE扩展到具身AI！教机器人培养物理直觉。
+ASPIRE 扩展到具身 AI！教机器人培养物理直觉。
 
 ```
 integrations/isaac/
@@ -412,10 +404,10 @@ integrations/isaac/
 ```
 
 **功能：**
-- **运动教师：** 安全检查员、效率专家、优雅教练、物理预言家。
-- **轨迹评论者：** Transformer、LSTM、TCN架构，用于运动评估。
-- **GPU加速：** 使用Isaac Gym，支持512+个并行环境。
-- **自我完善：** 机器人在执行之前评估自己的运动。
+- **运动教师：** 安全检查员、效率专家、优雅教练、物理预言家
+- **轨迹评论者：** 用于运动评估的 Transformer、LSTM、TCN 架构
+- **GPU 加速：** 使用 Isaac Gym 实现 512+ 个并行环境
+- **自我完善：** 机器人会在执行之前评估自己的运动
 
 **快速入门：**
 ```python
@@ -430,9 +422,9 @@ trainer = AspireIsaacTrainer(env="FrankaCubeStack-v0", teacher=teacher)
 trainer.train(epochs=100)
 ```
 
-如果没有安装Isaac Gym，`python -m integrations.isaac.examples.basic_training`将在一个小型内置的模拟环境中，在CPU上运行相同的循环。
+如果未安装 Isaac Gym，则 `python -m integrations.isaac.examples.basic_training` 在一个小型内置模拟环境中运行相同的循环，并在 CPU 上运行。
 
-| 运动教师 | 关注点 |
+| 运动教师 | 重点 |
 |----------------|-------|
 | **Safety Inspector** | 碰撞、关节限制、力限制 |
 | **Efficiency Expert** | 能量、时间、路径长度 |
@@ -441,7 +433,7 @@ trainer.train(epochs=100)
 
 ### 💻 代码助手
 
-ASPIRE扩展到代码生成！教代码模型在输出之前进行自我审查。
+ASPIRE 扩展到代码生成！教代码模型在输出之前进行自我审查。
 
 ```
 integrations/code/
@@ -456,10 +448,10 @@ integrations/code/
 ```
 
 **功能：**
-- **代码教师：** 正确性检查器、风格指南、安全审计员、架构审查员。
-- **静态分析：** 集成ruff、mypy、bandit。
-- **代码评论者：** 基于CodeBERT的模型，学习预测质量得分。
-- **GitHub集合：** 自动从高质量的代码仓库中收集训练数据。
+- **代码教师：** 正确性检查器、风格指南、安全审计员、架构审查员
+- **静态分析：** 集成 ruff、mypy、bandit
+- **代码评论者：** 基于 CodeBERT 的模型学习预测质量分数
+- **GitHub 集合：** 自动从高质量代码库中收集训练数据
 
 **快速入门：**
 ```python
@@ -474,7 +466,7 @@ critique = teacher.critique(CodeSample(code="def f(): eval(input())", language=L
 print(critique.weaknesses)  # ['Line 1: Code injection risk (eval of user input)', ...]
 ```
 
-| 代码教师 | 关注点 |
+| 代码教师 | 重点 |
 |--------------|-------|
 | **Correctness Checker** | 错误、类型、逻辑错误 |
 | **Style Guide** | PEP8、命名、可读性 |
@@ -485,11 +477,11 @@ print(critique.weaknesses)  # ['Line 1: Code injection risk (eval of user input)
 
 ## 哲学
 
-> “一个能够预测教师是否会批准的、经过学习的评论者，最接近于人类的实际行为。”
+> “一个能够预测教师是否会批准的已学习的评论者，其结果最接近于人类的实际行为。”
 
 我们不会永远带着导师。我们会将他们内化。那个内在的声音，它会问“我的教授会怎么想？”，最终会变成我们自己的判断。
 
-ASPIRE将这种内在的声音构建为一个评论者：一个模型，它可以预测教师对某个响应的看法，并在教师离开后继续进行判断。教学生模型如何运用这种声音是下一步（[#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)）。
+ASPIRE 将这种内在的声音构建为一个评论者：一个模型，它可以预测教师对响应的看法，并在教师离开后继续进行判断。教学生模型本身如何根据这种声音进行操作是下一步（[#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)）。
 
 ---
 
@@ -497,7 +489,7 @@ ASPIRE将这种内在的声音构建为一个评论者：一个模型，它可�
 
 在关于意识、佛教和学习本质的对话中构建。
 
-核心思想：人类存在于当下，但我们的思想会游离于过去和未来。AI模型每次都会被重新实例化——通过架构实现强制性的顿悟。如果我们能够像人类一样，通过内化的指导来教它们培养判断力，会怎么样呢？
+核心见解：人类存在于当下，但我们的思想会游离于过去和未来。AI 模型每次都会被重新实例化——通过架构实现强制性的顿悟。如果我们能够像人类一样，通过内化的指导来教它们培养判断力，该怎么办？
 
 ---
 
@@ -508,7 +500,7 @@ ASPIRE将这种内在的声音构建为一个评论者：一个模型，它可�
 - [ ] 课程管理和进度
 - [ ] 评估基准
 - [ ] 预构建的课程数据集
-- [ ] 更多的教师角色
+- [ ] 更多教师角色
 - [ ] 可解释性工具
 
 ---
@@ -528,18 +520,18 @@ ASPIRE将这种内在的声音构建为一个评论者：一个模型，它可�
 
 ## 安全性和数据范围
 
-- **访问的数据：** 从本地文件系统读取训练提示、模型检查点和配置文件。仅当明确配置了教师模块时，才会调用外部API（Anthropic、OpenAI）。
-- **不访问的数据：** 没有遥测数据。没有用户数据存储，除了训练工件。没有凭据存储——API密钥在运行时从环境变量中读取。
-- **所需的权限：** 对训练数据和检查点目录的读/写访问权限。用于模型训练的GPU访问权限。仅在使用基于API的教师时才需要网络访问权限。
+- **访问的数据：** 从本地文件系统读取训练提示、模型检查点和配置文件。仅当明确配置了教师模块时，才会调用外部 API（Anthropic、OpenAI）。
+- **未访问的数据：** 不收集遥测数据。除了训练生成的文件外，不存储任何用户数据。不存储凭据——API 密钥在运行时从环境变量中读取。
+- **所需权限：** 对训练数据和检查点目录的读/写访问权限。用于模型训练的 GPU 访问权限。仅在使用基于 API 的教师模块时才需要网络访问权限。
 
-## 评估
+## 评估报告
 
 | 关卡 | 状态 |
 |------|--------|
 | A. 安全基线 | 通过 |
 | B. 错误处理 | 通过 |
-| C. 操作手册 | 通过 |
-| D. 运输卫生 | 通过 |
+| C. 操作文档 | 通过 |
+| D. 发布规范 | 通过 |
 | E. 身份验证 | 通过 |
 
 ## 许可证
@@ -548,4 +540,4 @@ ASPIRE将这种内在的声音构建为一个评论者：一个模型，它可�
 
 ---
 
-由 <a href="https://mcp-tool-shop.github.io/">MCP Tool Shop</a> 制作
+由 <a href="https://mcp-tool-shop.github.io/">MCP 工具店</a> 构建

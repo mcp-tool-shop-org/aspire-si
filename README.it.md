@@ -15,11 +15,11 @@
 </p>
 
 <p align="center">
-  <a href="#the-idea">The Idea</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#teacher-personas">Teachers</a> •
-  <a href="#how-it-works">How It Works</a> •
-  <a href="#integrations">Integrations</a> •
+  <a href="#lidea">The Idea</a> •
+  <a href="#guida-rapida">Quick Start</a> •
+  <a href="#personalità-dellinsegnante">Teachers</a> •
+  <a href="#come-funziona">How It Works</a> •
+  <a href="#integrazioni">Integrations</a> •
   <a href="https://mcp-tool-shop-org.github.io/aspire-si/handbook/">Handbook</a>
 </p>
 
@@ -39,7 +39,7 @@
 
 **ASPIRE:** *"Ecco una mente saggia. Impara a pensare come fa lei."*
 
-Quando si impara da un grande mentore, non ci si limita a memorizzare le sue risposte. Si interiorizza il suo modo di vedere. La sua voce diventa parte del proprio dialogo interiore. Si inizia ad anticipare ciò che direbbe, e alla fine questa anticipazione diventa la propria capacità di discernimento.
+Quando si impara da un grande mentore, non ci si limita a memorizzare le sue risposte. Si interiorizza il suo modo di vedere. La sua voce diventa parte del proprio dialogo interiore. Si inizia ad anticipare ciò che direbbe, e alla fine quell'anticipazione diventa la propria capacità di discernimento.
 
 ASPIRE offre all'IA la stessa esperienza.
 
@@ -64,7 +64,7 @@ ASPIRE offre all'IA la stessa esperienza.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Il **critico** impara a prevedere cosa penserebbe l'insegnante di una risposta. Dopo l'addestramento, valuta le risposte dello studente in modo autonomo — **non è necessario l'intervento dell'insegnante durante la fase di inferenza** — quindi è possibile scegliere tra diverse risposte o creare un ciclo di perfezionamento.
+Il **critico** impara a prevedere cosa penserebbe l'insegnante di una risposta. Dopo l'addestramento, valuta le risposte dello studente in modo autonomo — **non è necessario l'intervento dell'insegnante durante la fase di inferenza** — quindi è possibile scegliere tra diverse risposte o creare un ciclo di miglioramento.
 
 ---
 
@@ -80,7 +80,7 @@ pip install -e .
 
 ### Imposta la tua chiave API
 
-Solo per gli insegnanti Claude o OpenAI; un insegnante locale non ne ha bisogno (vedi di seguito).
+Solo per gli insegnanti Claude o OpenAI; un insegnante locale non ne ha bisogno (vedi sotto).
 
 ```bash
 # Windows
@@ -157,7 +157,7 @@ teacher = CompositeTeacher(
 
 ### 1. Dialogo antagonista
 
-Lo studente genera una risposta. L'insegnante la mette in discussione. Un avanti e indietro, alla ricerca di debolezze, richiedendo chiarezza, spingendo più a fondo.
+Lo studente genera una risposta. L'insegnante la mette in discussione. Un avanti e indietro, alla ricerca di debolezze, chiedendo chiarezza, spingendo più a fondo.
 
 ```
 Student: "Recursion works by calling itself."
@@ -183,11 +183,11 @@ critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score
 
 ### 3. Cosa impara lo studente
 
-Il critico è un modulo sugli stati nascosti dello studente e la sua perdita viene reindirizzata all'adattatore LoRA dello studente. Quindi, oggi, lo studente impara **rappresentazioni che aiutano il critico a prevedere il punteggio dell'insegnante**. Non è ancora addestrato a fornire risposte migliori: i termini di ricompensa, contrastivi e di traiettoria in `aspire.losses` esistono, ma l'addestratore non li utilizza, quindi non hanno alcun effetto. L'addestramento dello studente sul giudizio del critico è previsto per la versione 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
+Il critico è una "testa" sugli stati nascosti dello studente e la sua perdita viene reindirizzata all'adattatore LoRA dello studente. Quindi, oggi, lo studente impara **rappresentazioni che aiutano il critico a prevedere il punteggio dell'insegnante**. Non è ancora addestrato a fornire risposte migliori: i termini di ricompensa, contrasto e traiettoria in `aspire.losses` esistono, ma l'addestratore non li utilizza, quindi non hanno alcun effetto. L'addestramento dello studente sul giudizio del critico è previsto per la versione 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
 ### 4. Giudizio senza l'insegnante
 
-Dopo l'addestramento, il critico valuta una risposta dello studente basandosi esclusivamente sui suoi stati nascosti, quindi non è necessario chiamare l'insegnante per valutarla. È possibile creare un ciclo di perfezionamento; ASPIRE fornisce il critico addestrato e `aspire.judge`, non il ciclo:
+Dopo l'addestramento, il critico valuta una risposta dagli stati nascosti dello studente, quindi non è necessario chiamare l'insegnante per valutarla. È possibile creare un ciclo di miglioramento; ASPIRE fornisce il critico addestrato e `aspire.judge`, non il ciclo:
 
 ```python
 from aspire.judge import Judge
@@ -267,32 +267,33 @@ Codici di uscita: `0` successo, `1` qualcosa che puoi correggere (una chiave man
 
 ---
 
-## Monitoraggio di un'esecuzione in ScalarScope
+## Osservare un'esecuzione in ScalarScope
 
-`aspire train --geometry` (o `training.geometry_export: true` nella configurazione) scrive `geometry.json` accanto ai checkpoint: la dinamica dell'addestramento dell'esecuzione nel formato che [ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) legge. Apri due di questi affiancati per confrontare le esecuzioni.
+`aspire train --geometry` (o `training.geometry_export: true` nella configurazione) scrive `geometry.json` accanto ai checkpoint: la dinamica dell'addestramento dell'esecuzione nel formato [ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) letture. Apri due di questi file affiancati per confrontare le esecuzioni.
 
 | Campo | Cosa contiene |
 |-------|---------------|
-| Traiettoria | L'ultimo livello nascosto dello studente, raggruppato sui token e sul batch, proiettato sulle sue prime due componenti principali. Velocità, curvatura con segno (angolo di svolta rispetto a pi greco, smorzata quando l'esecuzione si muove a malapena) e dimensione effettiva (rapporto di partecipazione in una finestra). |
-| Scalari | Ogni dimensione di valutazione per cui gli insegnanti hanno dato un punteggio, da 0 a 1. |
+| Traiettoria | L'ultimo livello nascosto dello studente, raggruppato sui token e sul batch, proiettato sulle sue prime due componenti principali. Velocità, curvatura con segno (angolo di svolta rispetto a pi greco, attenuata quando l'esecuzione si muove a malapena) e dimensione effettiva (rapporto di partecipazione in una finestra). |
+| Scalari | Ogni dimensione di valutazione per cui gli insegnanti hanno assegnato un punteggio, da 0 a 1. |
 | Autovalori | Per ogni passaggio, lo spettro di come le dimensioni dei punteggi variano insieme in una finestra, come frazioni. Un valore iniziale elevato significa che una direzione spiega i giudizi degli insegnanti. |
 | Professori | Una freccia per ogni insegnante: la direzione nello spazio degli stati lungo la quale il suo punteggio aumenta. Un insegnante composito fornisce una freccia per ogni membro. |
 | Errori | Passaggi in cui una dimensione diminuisce di almeno 0,1 rispetto alla sua mediana recente. |
 
 Nessun modello o chiave API? `python examples/geometry_demo.py` simula due esecuzioni e scrive entrambi i file di esportazione, che è il modo più rapido per visualizzare i risultati.
 
-Il registratore (`aspire.geometry.GeometryRecorder`) mantiene in memoria un vettore raggruppato per ogni passaggio. Per le esecuzioni lunghe, imposta `training.geometry_every` per calcolare la media di più batch in un unico passaggio. L'esportazione viene scritta dopo ogni epoca, nonché alla fine, quindi un'esecuzione interrotta prematuramente conserva ciò che ha registrato.
+Il registratore (`aspire.geometry.GeometryRecorder`) mantiene in memoria un vettore raggruppato per ogni passaggio. Per le esecuzioni lunghe, imposta `training.geometry_every` per calcolare la media di più batch in un singolo passaggio. L'esportazione viene scritta dopo ogni epoca, nonché alla fine, quindi un'esecuzione interrotta prematuramente conserva ciò che ha registrato.
 
-**Esecuzione di un ciclo di addestramento reale.** Nel primo ciclo di addestramento con un modello reale (1,5 miliardi di parametri per lo studente, 32 miliardi per gli insegnanti, 3 epoche;
-[report del ciclo](docs/runs/2026-10-06-pod-run.md)), lo stato nascosto di ogni passaggio rifletteva principalmente *quale prompt* è stato utilizzato per l'addestramento in quel passaggio: due prompt sono distanziati di circa 10.000 volte più di quanto lo siano tre epoche di
-addestramento, che hanno influenzato lo studente. Gli scalari si ripetono in ogni epoca, perché le epoche successive alla prima riutilizzano i
-punteggi degli insegnanti memorizzati nella cache. Per vedere cosa ha modificato l'addestramento, `examples/pod-run/probe.py` e `drift.py` inviano
-le stesse sequenze di dati fisse al modello studente di base e a ogni checkpoint di epoca, e creano un file di esportazione *drift* con l'identità del prompt rimossa. Gli esempi reali di ScalarScope sono di entrambi i tipi e coprono tutte e tre le epoche.
+**Analisi di un ciclo di esecuzione reale.** Nel primo ciclo di esecuzione con il modello completo (1,5 miliardi di parametri per lo studente, 32 miliardi per gli insegnanti, 3 epoche;
+[report dell'esecuzione](docs/runs/2026-10-06-pod-run.md)), lo stato nascosto di ogni passaggio rifletteva principalmente *quale prompt* è stato utilizzato in quel passaggio per l'addestramento: due prompt sono distanti circa 10.000 volte più di quanto le tre epoche di
+addestramento abbiano spostato lo studente. Gli scalari si ripetono in ogni epoca, perché le epoche successive alla prima riutilizzano i
+punteggi dell'insegnante memorizzati nella cache. Per vedere cosa ha modificato l'addestramento, `examples/pod-run/probe.py` e `drift.py` inviano
+le stesse sequenze di input fisse attraverso il modello studente di base e in ogni checkpoint di epoca, e creano un file di esportazione *drift* con l'identità del prompt rimossa. I dati reali di ScalarScope sono di entrambi i tipi e coprono tutte e tre le epoche. Le letture per ogni passaggio variano tra le diverse inizializzazioni (seed) della stessa condizione, perché ogni
+inizializzazione campiona nuovi dialoghi e quindi nuovi punteggi dell'insegnante; confrontare le condizioni nei file di esportazione drift.
 
-Le esportazioni utilizzano lo schema 1.1. `run_metadata` indica come leggere le fasi: `step_axis` è
-`training_step` (l’esportazione del modello, nell’ordine di addestramento) oppure `checkpoint_by_item` (esportazioni di dati di prova e di verifica, un blocco degli stessi elementi per ogni punto di controllo, con `checkpoints` che indica il numero), e
-`scalar_source` è `live`, `replayed` (numero di epoche dopo il primo riutilizzo dei punteggi memorizzati nella cache) oppure
-`fixed_per_item`. ScalarScope omette i confronti che interpreterebbero tali fasi come dati temporali.
+I file di esportazione utilizzano lo schema 1.1. `run_metadata` spiega come leggere i passaggi: `step_axis` è
+`training_step` (il file di esportazione del trainer, in ordine di addestramento) o `checkpoint_by_item` (file di esportazione per il probe e il drift, un blocco degli stessi elementi per ogni checkpoint, con `checkpoints` che indica il conteggio), e
+`scalar_source` è `live`, `replayed` (epoche successive al primo riutilizzo dei punteggi memorizzati nella cache) o
+`fixed_per_item`. ScalarScope omette i confronti che interpreterebbero tali passaggi come dati temporali.
 
 ---
 
@@ -346,9 +347,9 @@ aspire/
 
 - Python 3.10+
 - PyTorch 2.0+
-- Una GPU CUDA per l'addestramento. Con un insegnante basato su API, uno studente da 1-4 miliardi di parametri si adatta a 16 GB; l'esempio con insegnante locale (`examples/local-run/`) contiene sia lo studente che l'insegnante su una singola scheda da 24 GB. I test, la
+- Una GPU CUDA per l'addestramento. Con un insegnante basato su API, uno studente da 1 a 4 miliardi di parametri può essere eseguito su una GPU con 16 GB di memoria; l'esempio con insegnante locale (`examples/local-run/`) utilizza sia lo studente che l'insegnante su una singola scheda con 24 GB di memoria. I test, la
 demo sulla geometria e gli esempi di integrazione vengono eseguiti sulla CPU.
-- Un insegnante: un modello locale (senza chiave) o una chiave API Anthropic o OpenAI
+- Un insegnante: un modello locale (senza chiave) o una chiave API di Anthropic o OpenAI.
 
 ### Compatibilità con Windows
 
@@ -363,7 +364,7 @@ ASPIRE è completamente compatibile con Windows e supporta RTX 5080/Blackwell:
 
 ### 🖼️ Stable Diffusion WebUI Forge
 
-ASPIRE si estende alla generazione di immagini! Addestra i modelli Stable Diffusion per sviluppare il senso estetico.
+ASPIRE si estende alla generazione di immagini! Addestra modelli Stable Diffusion per sviluppare il senso estetico.
 
 ```
 integrations/forge/
@@ -376,10 +377,10 @@ integrations/forge/
 ```
 
 **Funzionalità:**
-- **Insegnanti per la visione:** Claude Vision, GPT-4V valutano le immagini generate
-- **Critici per le immagini:** Critici basati su CLIP e nello spazio latente per una guida in tempo reale
-- **Interfaccia utente per l'addestramento:** Addestra gli adattatori LoRA con anteprima in tempo reale e confronto prima/dopo
-- **Nessuna API durante l'inferenza:** Il critico addestrato guida la generazione localmente
+- **Insegnanti per la visione:** Claude Vision, GPT-4V, valutano le immagini generate.
+- **Critici di immagini:** Critici basati su CLIP e nello spazio latente per una guida in tempo reale.
+- **Interfaccia utente per l'addestramento:** Addestra adattatori LoRA con anteprima in tempo reale e confronto prima/dopo.
+- **Nessuna API durante l'inferenza:** Il critico addestrato guida la generazione localmente.
 
 **Installazione:**
 ```bash
@@ -413,7 +414,7 @@ integrations/isaac/
 
 **Funzionalità:**
 - **Insegnanti per il movimento:** Safety Inspector, Efficiency Expert, Grace Coach, Physics Oracle
-- **Critici per le traiettorie:** Architetture Transformer, LSTM, TCN per la valutazione del movimento
+- **Critici di traiettoria:** Architetture Transformer, LSTM, TCN per la valutazione del movimento
 - **Accelerazione GPU:** 512+ ambienti paralleli con Isaac Gym
 - **Auto-miglioramento:** Il robot valuta i propri movimenti prima dell'esecuzione
 
@@ -431,7 +432,7 @@ trainer.train(epochs=100)
 ```
 
 Senza Isaac Gym installato, `python -m integrations.isaac.examples.basic_training` esegue lo stesso
-ciclo su un piccolo ambiente di prova integrato, sulla CPU.
+ciclo su un piccolo ambiente di test integrato, sulla CPU.
 
 | Insegnante per il movimento | Focus |
 |----------------|-------|
@@ -442,7 +443,7 @@ ciclo su un piccolo ambiente di prova integrato, sulla CPU.
 
 ### 💻 Assistenti per il codice
 
-ASPIRE si estende alla generazione di codice! Insegna ai modelli di codice a eseguire l'auto-revisione prima di fornire l'output.
+ASPIRE si estende alla generazione di codice! Insegna ai modelli di codice a eseguire l'auto-revisione prima di generare l'output.
 
 ```
 integrations/code/
@@ -459,8 +460,8 @@ integrations/code/
 **Funzionalità:**
 - **Insegnanti per il codice:** Correctness Checker, Style Guide, Security Auditor, Architecture Reviewer
 - **Analisi statica:** Si integra con ruff, mypy, bandit
-- **Critico per il codice:** Il modello basato su CodeBERT impara a prevedere i punteggi di qualità
-- **Raccolta GitHub:** Raccoglie automaticamente i dati di addestramento da repository di alta qualità
+- **Critico del codice:** Modello basato su CodeBERT che impara a prevedere i punteggi di qualità
+- **Raccolta GitHub:** Raccolta automatica dei dati di addestramento da repository di alta qualità
 
 **Avvio rapido:**
 ```python
@@ -498,7 +499,7 @@ ASPIRE costruisce quella voce interiore come un critico: un modello che prevede 
 
 Creato durante una conversazione sulla coscienza, il buddismo e la natura dell'apprendimento.
 
-L'intuizione: gli esseri umani esistono nel momento presente, ma le nostre menti vagano nel passato e nel futuro. I modelli di intelligenza artificiale vengono istanziati ogni volta, un'illuminazione forzata attraverso l'architettura. E se potessimo insegnare loro a sviluppare il giudizio nello stesso modo in cui lo fanno gli esseri umani, attraverso un tutoraggio interiorizzato?
+L'intuizione: gli esseri umani esistono nel momento presente, ma le nostre menti vagano nel passato e nel futuro. I modelli di intelligenza artificiale vengono istanziati ogni volta, una sorta di illuminazione forzata attraverso l'architettura. E se potessimo insegnare loro a sviluppare il giudizio nello stesso modo in cui lo fanno gli esseri umani, attraverso un tutoraggio interiorizzato?
 
 ---
 
@@ -529,19 +530,19 @@ Questo è un codice di ricerca in fase iniziale. I contributi sono benvenuti:
 
 ## Sicurezza e ambito dei dati
 
-- **Dati a cui si accede:** Legge i prompt di addestramento, i checkpoint del modello e i file di configurazione dal file system locale. Chiama le API esterne (Anthropic, OpenAI) solo quando i moduli insegnante sono esplicitamente configurati.
-- **Dati a cui NON si accede:** Nessun telemetria. Nessun archivio di dati utente oltre agli artefatti di addestramento. Nessun archivio di credenziali: le chiavi API vengono lette dalle variabili d'ambiente in fase di esecuzione.
-- **Autorizzazioni richieste:** Accesso in lettura/scrittura alle directory dei dati di addestramento e dei checkpoint. Accesso alla GPU per l'addestramento del modello. Accesso alla rete solo quando si utilizzano insegnanti basati su API.
+- **Dati a cui si accede:** legge i prompt di addestramento, i checkpoint del modello e i file di configurazione dal file system locale. Richiama le API esterne (Anthropic, OpenAI) solo quando i moduli di "teacher" sono esplicitamente configurati.
+- **Dati a cui NON si accede:** nessun dato di telemetria. Nessun archivio di dati utente oltre agli artefatti di addestramento. Nessun archivio di credenziali: le chiavi API vengono lette dalle variabili d'ambiente in fase di esecuzione.
+- **Autorizzazioni richieste:** accesso in lettura/scrittura ai dati di addestramento e alle directory dei checkpoint. Accesso alla GPU per l'addestramento del modello. Accesso alla rete solo quando si utilizzano "teacher" basati su API.
 
-## Scheda dei risultati
+## Scheda di valutazione
 
-| Porta | Stato |
+| Gateway | Stato |
 |------|--------|
-| A. Baseline di sicurezza | PASS |
-| B. Gestione degli errori | PASS |
-| C. Documentazione per gli operatori | PASS |
-| D. Norme igieniche per la spedizione | PASS |
-| E. Identità | PASS |
+| A. Standard di sicurezza | SUPERATO |
+| B. Gestione degli errori | SUPERATO |
+| C. Documentazione per l'operatore | SUPERATO |
+| D. Procedure di rilascio | SUPERATO |
+| E. Identità | SUPERATO |
 
 ## Licenza
 
