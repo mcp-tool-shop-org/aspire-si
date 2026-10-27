@@ -1,0 +1,11 @@
+preflight 2026-10-27T21:14:56Z
+aspire-si 6c8727708d5f453b0fd5dae7489bebf85ed48ca8
+script sha256 c6c1778edd0859c1e90d9383946ff4d7247a84f1b809bbe3bbb2c6df0b73c423
+rnd worktree e48cc90c9a4cfca9472973308b5abd85195f15dd
+NPU status: OK
+listeners on npu-serve ports (8008 8010 8080 9000 11435): 0
+processes with npu-serve/openvino in cmdline (excluding this shell): 0
+5090: 1643 MiB
+openvino devices: ['CPU', 'GPU.0', 'GPU.1', 'NPU']
+env packages: 66 (sha256 d805431a7d7f7c44)
+numpy==2.4.6 openvino==2026.4.1 optimum==2.3.0 torch==2.14.1+cpu transformers==5.5.4 

@@ -1,0 +1,677 @@
+{"claim_id": "cal-dedupe-t", "quote": "One line per run. A second call with the same run id does not append.", "label": "neutral"}
+{"claim_id": "cal-corrections-t", "quote": "const CORRECTION_TYPES = new Set([\"reroute\", \"retry\", \"reopen\"]);", "label": "entailment"}
+{"claim_id": "cal-wilson-null-t", "quote": "if (!Number.isFinite(successes) || !Number.isFinite(total) || total <= 0) return null;", "label": "neutral"}
+{"claim_id": "boost-cap-t", "quote": "boosts[pack] = Math.min((boosts[pack] || 0) + 0.5, 2.0);", "label": "neutral"}
+{"claim_id": "boost-clean-t", "quote": "const cleanRuns = outcomes.filter( o => o.selectedPack && o.completionStatus === \"completed\" && o.corrections === 0 ); for (const o of cleanRuns) {", "label": "neutral"}
+{"claim_id": "boost-gate-t", "quote": "const boost = row && row.status === \"measured\" ? row.boost : 0;", "label": "neutral"}
+{"claim_id": "jury-min-t", "quote": "export const MIN_ITEMS = 30; export const MIN_GROUPS = 10;", "label": "neutral"}
+{"claim_id": "jury-dup-t", "quote": "/** Studio rule: a pair at or above this error consistency is one critic counted twice. */ export const DUPLICATE_KAPPA = 0.9;", "label": "entailment"}
+{"claim_id": "jury-defaults-t", "quote": "export const DEFAULT_BOOTSTRAP = 2000; export const DEFAULT_BAGS = 50;", "label": "neutral"}
+{"claim_id": "jury-insufficient-t", "quote": "if (items.length < MIN_ITEMS || check.groups < MIN_GROUPS) { return { ...base, verdict: { decision: \"insufficient-data\", critic: null, reason: `need at least ${MIN_ITEMS} items and ${MIN_GROUPS} groups; got ${items.length} items and ${check.groups} groups`, }, bagged: null, nested: null, }; }", "label": "entailment"}
+{"claim_id": "jury-all-excluded-t", "quote": "else reason = \"every measured critic is excluded by its recipe card\"; return { ...base, verdict: { decision: \"insufficient-data\",", "label": "entailment"}
+{"claim_id": "shuffle-method-t", "quote": "if (measure.method !== BALANCED_PERMUTATION) warnings.push(`${tag}: ${SHUFFLE_WHY}`);", "label": "neutral"}
+{"claim_id": "passed-no-measure-t", "quote": "if (control.measure === undefined) { if (control.status === \"passed\") { warnings.push(why ? `${tag}: passed without a measure \u2014 ${why}` : `${tag}: passed without a measure`);", "label": "entailment"}
+{"claim_id": "abandon-args-t", "quote": "if (args && args.length > 1) { const err = new Error(\"Usage: roleos abandon [id]\"); err.exitCode = 1; err.hint = \"Abandon the active run, or pass one run id.\"; throw err;", "label": "entailment"}
+{"claim_id": "abandon-active-t", "quote": "if (id) { run = loadRun(cwd, id); if (!run) { const err = new Error(`Run \"${id}\" not found`); err.exitCode = 1; err.hint = \"Use `roleos run list` to see saved runs.\"; throw err; } } else { run = requireActiveRun(cwd);", "label": "neutral"}
+{"claim_id": "or-fa-upper-t", "quote": "pub const MAX_FALSE_ACCEPT_UPPER: f64 = 0.10;", "label": "entailment"}
+{"claim_id": "or-abstain-t", "quote": "pub const MAX_ABSTAIN: f64 = 0.20;", "label": "neutral"}
+{"claim_id": "or-embed-port-t", "quote": "pub const DEFAULT_EMBED_URL: &str = \"http://127.0.0.1:11490\";", "label": "contradiction"}
+{"claim_id": "or-embed-model-t", "quote": "pub const DEFAULT_EMBED_MODEL: &str = \"nomic-embed-text\";", "label": "entailment"}
+{"claim_id": "or-reserved-t", "quote": "const RESERVED_TAGS: [&str; 2] = [\"stage\", \"offrig\"];", "label": "neutral"}
+{"claim_id": "or-429-t", "quote": "How many times a 429 on `POST /pods` is retried on the same GPU type. /// The first request is not counted. A retry waits for `Retry-After` and does /// not run past the plan deadline. A missing or unreadable `Retry-After` waits /// one second. The next GPU type is not tried. pub const CREATE_429_RETRIES: u32 = 3;", "label": "entailment"}
+{"claim_id": "or-retry-after-t", "quote": "An HTTP-date or a missing header waits one second.", "label": "neutral"}
+{"claim_id": "or-retry-fits-t", "quote": "`None` has no plan clock, so the attempt cap is the only bound.", "label": "neutral"}
+{"claim_id": "docs-same-runid-t", "quote": "A second call with the same run id does not append.", "label": "entailment"}
+{"claim_id": "docs-panel-t", "quote": "if (clears && hasMembers) { decision = \"panel\"; reason = \"the nested paired interval of panel minus best single lies entirely above 0\"; }", "label": "neutral"}
+{"claim_id": "docs-nine-t", "quote": "export const STANDARD_CONTROLS = Object.freeze([ { name: \"positive-marker\", guards: \"the pipeline can learn at all (a known marker must be learned)\" }, { name: \"graded-marker\", guards: \"the features can see an edit as small as a real one\" }, { name: \"shuffled-labels\", guards: \"the features carry nothing label-correlated besides the attribute\" }, { name: \"partial-input\", guards: \"half the input (edit span only, one side only) does not already solve it\" }, { name: \"generator-identity-probe\", guards: \"which model made the data is not trivially recoverable\" }, { name: \"same-generator-no-error\", guards: \"an edit by the same generator without an error reads as clean\" }, { name: \"reversed-correction\", guards: \"the critic is not just an edit detector: the edited copy is the corrected, stronger one\" }, { name: \"held-out-generator\", guards: \"the attribute transfers to data from a family it never saw\" }, { name: \"natural-errors\", guards: \"the critic finds real, unplanted errors, not only planted ones\" }, ]);", "label": "entailment"}
+{"claim_id": "prs-aspire-si-53-6s", "quote": "if _stem(new) == _stem(low) or new.startswith(low) or low.startswith(new): return None, \"synonym is an inflection\"", "label": "entailment"}
+{"claim_id": "prs-aspire-si-53-7s", "quote": "synonym = (synonym[:1].upper() if word[:1].isupper() else synonym[:1].lower()) + synonym[1:] start, end = hits[0].span() before = sentence[:start] article = re.search(r\"\\b(a|an|A|An)\\s+$\", before) if article: wanted = _article(synonym)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-8s", "quote": "kind = FIRST if slot == 0 else avoid(sentences(done[it[\"prompt_id\"]][0])[0])", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-10s", "quote": "problems, _ = pair_problems(pair) if problems: count(problems[0]) continue if edit_chars(pair) > size_cap(it): count(\"over the size gate\") continue guard = lexical_guard(pair) if guard: count(f\"lexical guard: {guard}\") continue if slot and overlaps(pair, done[it[\"prompt_id\"]][0]): count(\"same sentence as the first swap\") continue", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-12s", "quote": "a.add_argument( \"--format\", choices=(\"sentence\", \"word\"), default=\"word\", help=\"word: a synonym swap made in code\" )", "label": "neutral"}
+{"claim_id": "prs-aspire-si-54-2s", "quote": "cue = (point > 0) != (headline[0] > 0) or ( len(inside) >= MIN_SIZE_MATCHED and excludes_zero(ci) != excludes_zero(headline[1]) )", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-1s", "quote": "\"passes\": q1 <= para_median <= q3", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-4s", "quote": "def changed_span(a: list[int], b: list[int]) -> tuple[int, int, int]: \"\"\"(prefix, end in a, end in b): the token ranges a[prefix:end_a] and b[prefix:end_b] that differ, between the longest common prefix and the longest common suffix that doesn't overlap it.\"\"\" prefix = 0 while prefix < min(len(a), len(b)) and a[prefix] == b[prefix]: prefix += 1 suffix = 0 while suffix < min(len(a), len(b)) - prefix and a[-1 - suffix] == b[-1 - suffix]: suffix += 1 return prefix, len(a) - suffix, len(b) - suffix", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-6s", "quote": "if lam < 0.2: # the series converges badly near 0, where p is 1 to many places return d, 1.0 p = 2 * sum((-1) ** (k - 1) * math.exp(-2 * k * k * lam * lam) for k in range(1, 101)) return d, min(1.0, max(0.0, p))", "label": "neutral"}
+{"claim_id": "prs-aspire-si-56-2s", "quote": "# Borderline (committed before the run): the median within 10% of the IQR's width of either # edge, inside or out. Only a borderline result may call for a second typicality model. \"borderline\": min(abs(para_median - q1), abs(para_median - q3)) <= BORDERLINE * (q3 - q1),", "label": "neutral"}
+{"claim_id": "prs-aspire-si-56-3s", "quote": "\"passes\": q1 <= para_median <= q3,", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-3s", "quote": "def folds(prompt_ids: list, k: int = FOLDS, seed: int = 0) -> dict: \"\"\"Prompt id -> fold, from a seeded shuffle of the sorted distinct ids.\"\"\" ids = sorted(set(prompt_ids), key=str) random.Random(seed).shuffle(ids) return {g: i % k for i, g in enumerate(ids)}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-4s", "quote": "mu, sd = x[train].mean(0), x[train].std(0) sd[sd == 0] = 1.0 w = fit_logistic((x[train] - mu) / sd, y[train]) scores[test] = predict(w, (x[test] - mu) / sd)", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-59-1s", "quote": "JUDGES = { \"mistral-small:24b\": {\"think\": None, \"num_predict\": 2048, \"num_ctx\": 8192}, \"gemma4:31b\": {\"think\": True, \"num_predict\": 16000, \"num_ctx\": 24576}, }", "label": "entailment"}
+{"claim_id": "prs-aspire-si-59-4s", "quote": "if response.get(\"done_reason\") == \"length\": return out | {\"outcome\": \"truncated\"}", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-61-4s", "quote": "if char_similarity(answer, flawed) < MIN_SIMILARITY: return None, \"too different\"", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-5s", "quote": "def edit_size(a: str, b: str) -> tuple[int, int]: \"\"\"(characters changed, words changed): difflib, autojunk off, the larger side of each non-equal opcode, on characters and on whitespace-split words.\"\"\" def changed(x, y): ops = difflib.SequenceMatcher(None, x, y, autojunk=False).get_opcodes() return sum(max(i2 - i1, j2 - j1) for op, i1, i2, j1, j2 in ops if op != \"equal\") return changed(a, b), changed(a.split(), b.split())", "label": "entailment"}
+{"claim_id": "prs-aspire-si-61-6s", "quote": "return ( gemma.get(\"outcome\") == \"wrong\" and gemma.get(\"grammatical\") is True and muse is not None and muse.get(\"outcome\") == \"wrong\" and muse.get(\"grammatical\") is True )", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-9s", "quote": "for e in sorted(errors, key=lambda c: -c[\"tail\"]): for r in sorted(rewrites, key=lambda c: c[\"tail\"]): big, small = max(e[\"edit_chars\"], r[\"edit_chars\"]), min(e[\"edit_chars\"], r[\"edit_chars\"]) if abs(e[\"tail\"] - r[\"tail\"]) <= caliper and small > 0 and big / small <= ratio: return e, r", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-11s", "quote": "if not verdict or not grammar: return {\"outcome\": \"unparsed\", \"reasoning\": text} return { \"outcome\": verdict[-1].lower(), \"grammatical\": grammar[-1].lower() == \"yes\",", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-13s", "quote": "\"miss_rate_upper_bound_95\": (3 / n if n else None) if misses == 0 else None, \"prescreen_stands\": misses == 0,", "label": "entailment"}
+{"claim_id": "prs-aspire-si-63-1s", "quote": "GRAMMAR_SCHEMA = schema({\"grammatical\": {\"type\": \"boolean\"}, \"idiomatic\": {\"type\": \"boolean\"}}) # The grammar question's version. v1 asked \"grammatical and idiomatic\" and so dropped merely # less-idiomatic swaps, which pushes paraphrases toward typical wording. v2 gates on grammar or usage # errors only and records idiom (2026-10-08, before any head read). GRAMMAR_QUESTION = \"v2: grammar or usage error only; idiom recorded\"", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-1s", "quote": "t = sub.add_parser(\"train\", help=\"every form, seed and control; scores on every cached set\") t.add_argument(\"--cache\", type=Path, required=True) t.add_argument(\"--out\", type=Path, required=True) t.add_argument( \"--trainer\", choices=(\"eager\", \"fast\", \"graphs\"), default=\"eager\", help=TRAINER_HELP, ) cmp = sub.add_parser(\"compare\", help=\"the same forms on two feature sources (the addendum)\") cmp.add_argument(\"--a\", type=Path, required=True, help=\"scores from one feature source\") cmp.add_argument(\"--b\", type=Path, required=True, help=\"scores from the other\") cmp.add_argument(\"--out\", type=Path, required=True) pm = sub.add_parser(\"perm\", help=\"the balanced permutation null (addendum 2)\") pm.add_argument(\"--cache\", type=Path, required=True) pm.add_argument(\"--out\", type=Path, required=True) pm.add_argument(\"--n\", type=int, default=20) pm.add_argument( \"--trainer\", choices=(\"eager\", \"fast\", \"graphs\"), default=\"eager\", help=TRAINER_HELP, ) sk = sub.add_parser(\"skeptic\", help=\"the Skeptic heads (addendum 2)\") sk.add_argument(\"--cache\", type=Path, required=True) sk.add_argument(\"--out\", type=Path, required=True) sk.add_argument( \"--trainer\", choices=(\"eager\", \"fast\", \"graphs\"), default=\"eager\", help=TRAINER_HELP, )", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-2s", "quote": "if trainer == \"eager\": return train_head(role, pooling, seed, feats, masks, index, flip, device) from fast_heads import train_head_fast x, m, lengths = _stacked(feats, masks, device) head, _ = train_head_fast( role, pooling, seed, x, m, lengths, index, flip, HPARAMS, graphs=trainer == \"graphs\" )", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-7s", "quote": "one `random.Random(seed)` reshuffles the pair order at the start of each epoch, and a flipped pair swaps its strong and flawed answers.", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-8s", "quote": "Stack per-answer [T_k, D] states into one zero-padded [N, T, D] tensor on `device`, with a [N, T] mask and the per-answer lengths. `dtype` defaults to the stored dtype (fp16 in the caches)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-9s", "quote": "The original's loss: binary cross-entropy on scores/10 for the Auditor, a pairwise logistic loss (strong minus flawed) for every other role.", "label": "entailment"}
+{"claim_id": "prs-offrig-31-3s", "quote": "if [ -n \"${HF_TOKEN:-}\" ]; then (umask 077; printf '%s' \"$HF_TOKEN\" > /root/.offrig-hf-token)", "label": "neutral"}
+{"claim_id": "prs-offrig-31-4s", "quote": "fn secret_name(s: &str) -> bool { !s.is_empty() && s.chars() .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') }", "label": "neutral"}
+{"claim_id": "prs-offrig-33-1s", "quote": "if usd + 1e-9 < b.floor() { return Err(Error::Refused(format!( \"the cap can't go below ${:.2}: ${:.2} is spent and ${:.2} is committed to open plans. ${:.2} stops new paid sessions and leaves running ones alone\", b.floor(), b.spent, b.committed, b.floor() ))); }", "label": "entailment"}
+{"claim_id": "prs-offrig-33-3s", "quote": "\"2\" => { let floor = b.floor(); if confirm(input, out, &format!(\"Lower the cap to ${floor:.2}?\"))? { store.set_budget_cap(floor)?;", "label": "neutral"}
+{"claim_id": "prs-offrig-33-4s", "quote": "\"\" | \"3\" | \"q\" | \"Q\" => return Ok(()),", "label": "neutral"}
+{"claim_id": "prs-offrig-33-6s", "quote": "Ok(matches!( read(input)?.as_deref(), Some(\"y\") | Some(\"Y\") | Some(\"yes\") ))", "label": "neutral"}
+{"claim_id": "prs-offrig-33-7s", "quote": "} else if !show && interactive() { // The menu names the project by its folder, never the full path. let name = dir.file_name().map_or_else( || \"this project\".into(), |n| n.to_string_lossy().into_owned(), ); return budget_menu::run( &store, &name, &mut std::io::stdin().lock(), &mut std::io::stdout(), ); } println!(\"{}\", budget_menu::line(&store.budget()?));", "label": "neutral"}
+{"claim_id": "prs-offrig-33-8s", "quote": "if let Some(cap) = usd { store.set_budget_cap(cap)?; info!(\"budget cap set to ${cap:.2} for {}\", dir.display()); } else if !show && interactive() { // The menu names the project by its folder, never the full path. let name = dir.file_name().map_or_else( || \"this project\".into(), |n| n.to_string_lossy().into_owned(), ); return budget_menu::run( &store, &name, &mut std::io::stdin().lock(), &mut std::io::stdout(), ); } println!(\"{}\", budget_menu::line(&store.budget()?));", "label": "neutral"}
+{"claim_id": "prs-offrig-34-4s", "quote": "#[cfg(debug_assertions)] if let Ok(base) = std::env::var(\"OFFRIG_TEST_OPENROUTER_BASE\") && !base.is_empty() { return Ok(Self::new(key, &base)); } Ok(Self::new(key, BASE))", "label": "neutral"}
+{"claim_id": "prs-offrig-34-6s", "quote": "let mut body = self.redact(body); body.truncate(600); Error::OpenRouter { what: what.into(), status, body, }", "label": "neutral"}
+{"claim_id": "prs-offrig-34-9s", "quote": "if let Some(err) = chunk.get(\"error\").filter(|e| !e.is_null()) { let code = err[\"code\"].as_u64().unwrap_or(0) as u16; let msg = err[\"message\"].as_str().unwrap_or(\"error mid-stream\"); return Err(fail(self.api_error(what, code, msg), &out)); }", "label": "neutral"}
+{"claim_id": "prs-offrig-34-13s", "quote": "price.prompt = price.prompt.max(num(p, \"prompt\")); price.completion = price .completion .max(num(p, \"completion\")) .max(num(p, \"internal_reasoning\")); price.request = price.request.max(num(p, \"request\"));", "label": "contradiction"}
+{"claim_id": "prs-offrig-34-14s", "quote": "A held commitment older than this is settled from its generation id: by then the /// stream that made it has ended one way or another (the stream timeout is 30 minutes). const SETTLE_AFTER_SECS: i64 = 3600;", "label": "entailment"}
+{"claim_id": "prs-offrig-34-17s", "quote": "let rel = out .map(str::to_string) .unwrap_or_else(|| format!(\".offrig/out/completion-{id}.md\")); let p = Path::new(&rel); if p.is_absolute() || p.components() .any(|c| !matches!(c, Component::Normal(_) | Component::CurDir)) { return Err(Error::Refused(format!( \"out {rel:?} must be a relative path inside the project, without ..\" ))); }", "label": "entailment"}
+{"claim_id": "prs-offrig-39-1s", "quote": "pub const DEFAULT_EMBED_URL: &str = \"http://127.0.0.1:11490\"; pub const EMBED_URL_ENV: &str = \"OFFRIG_EMBED_URL\"; pub const DEFAULT_EMBED_MODEL: &str = \"nomic-embed-text\";", "label": "entailment"}
+{"claim_id": "prs-offrig-39-2s", "quote": "pub const MIN_CHARS: usize = 800; pub const MAX_CHARS: usize = 2000; /// Files larger than this are not indexed. pub const MAX_FILE_BYTES: u64 = 1_000_000;", "label": "entailment"}
+{"claim_id": "prs-offrig-39-4s", "quote": "Chunk ids by hybrid ranking: BM25 top 50 and cosine top 50 fused by RRF, top 20 kept.", "label": "entailment"}
+{"claim_id": "prs-offrig-39-5s", "quote": "p if p == tunnel_port || p == tunnel_port.saturating_add(1) => { Some(\"the configured tunnel's port or its runner port\") }", "label": "neutral"}
+{"claim_id": "prs-offrig-39-8s", "quote": "match store.setting(\"embed_model\")? { Some(stored) if stored != model => Err(Error::Refused(format!( \"the project index was built with {stored}, not {model}; run `offrig index --rebuild` to rebuild it with the new model\" ))), _ => Ok(()), }", "label": "contradiction"}
+{"claim_id": "prs-offrig-39-10s", "quote": "let n = name.to_ascii_lowercase(); n.starts_with(\".env\") || n.starts_with(\"id_\") || n.contains(\"credentials\") || [\".pem\", \".key\", \".p12\", \".pfx\"] .iter() .any(|e| n.ends_with(e))", "label": "neutral"}
+{"claim_id": "prs-offrig-39-11s", "quote": "if size > MAX_FILE_BYTES { rep.skipped.push((source, \"over 1 MB\")); continue; } let Ok(bytes) = std::fs::read(&path) else { rep.skipped.push((source, \"unreadable\")); continue; }; if bytes.iter().take(8192).any(|b| *b == 0) { rep.skipped.push((source, \"binary\")); continue; }", "label": "neutral"}
+{"claim_id": "prs-offrig-39-19s", "quote": "11490 => Some(\"the default embedding server's port\"),", "label": "neutral"}
+{"claim_id": "prs-offrig-39-21s", "quote": "let tx = self .conn .unchecked_transaction() .map_err(db(\"starting a source replace\"))?; tx.execute(\"DELETE FROM chunks WHERE source = ?1\", params![source]) .map_err(db(\"removing a source's old chunks\"))?; let mut ids = Vec::with_capacity(chunks.len()); for c in chunks { tx.execute( \"INSERT INTO chunks(source, kind, title, ordinal, body, sha256, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)\", params![source, kind, c.title, c.ordinal, c.body, sha256, now_unix()], ) .map_err(db(\"inserting a chunk\"))?; ids.push(tx.last_insert_rowid()); } tx.commit().map_err(db(\"committing a source replace\"))?;", "label": "neutral"}
+{"claim_id": "prs-offrig-39-22s", "quote": "kind TEXT NOT NULL CHECK (kind IN ('doc','code','log','record'))", "label": "neutral"}
+{"claim_id": "prs-offrig-40-2s", "quote": "if let Some(id) = &self.network_volume_id { body[\"mounts\"] = serde_json::json!({ \"network\": [{ \"volumeId\": id, \"path\": self.volume_mount_path }] }); } else if let Some(size) = self.volume_in_gb { body[\"mounts\"] = serde_json::json!({ \"persistent\": { \"size\": size, \"path\": self.volume_mount_path } }); }", "label": "contradiction"}
+{"claim_id": "prs-offrig-40-4s", "quote": "match self.post_pod(&spec.wire(id), &spec.name, deadline) { Ok(pod) => return Ok(pod), Err(e) if placement_rejected(&e) => { refused.push((id.clone(), e.to_string())); trace::verbose(&format!(\"runpod: {id} was not placed\")); } Err(e) => return Err(e), }", "label": "neutral"}
+{"claim_id": "prs-offrig-40-6s", "quote": "if let (Some(cap), Some(offers)) = (spec.max_price_hr, offers.as_ref()) && let Some(price) = offers .iter() .find(|o| o.id == *id) .and_then(|o| o.price_per_hr) && price > cap + 1e-4 { trace::verbose(&format!( \"runpod: skip {id} at ${price:.4}/hr; the plan cap is ${cap:.4}/hr\" )); continue; }", "label": "neutral"}
+{"claim_id": "prs-offrig-40-7s", "quote": "let msg = format!( \"the live price check failed ({}); the plan's GPU list is already price-filtered, so every listed type will still be tried\", crate::error::chain(&e) ); trace::warn(&format!(\"runpod: {msg}\")); on_warn(msg);", "label": "entailment"}
+{"claim_id": "prs-offrig-40-11s", "quote": "if !retry_fits(deadline, delay) { trace::warn(&format!( \"runpod: create {name} was rate limited; Retry-After of {}s does not fit before the plan deadline, so this GPU type is not retried and the next type is not tried\", delay.as_secs() )); return Err(err); }", "label": "neutral"}
+{"claim_id": "prs-offrig-40-13s", "quote": "if let Err(e) = self.rp.delete_pod(pod_id) { let msg = format!(\"could not terminate pod {pod_id} after {status}: {e}\"); crate::trace::warn(&format!(\"runpod: {msg}\")); on(Event::Warn(msg)); } return Err(Error::PodNotReady { pod_id: pod_id.to_string(), what: format!(\"RunPod reported {status} during the launch\"), });", "label": "neutral"}
+{"claim_id": "prs-offrig-41-10s", "quote": "if evidence.is_empty() && claim.check_type != CheckType::Knowledge { return Err(Error::Refused(format!( \"claim {} is a {} check with no evidence: supply context or retrieve passages\", claim.id, claim.check_type.as_str() ))); }", "label": "entailment"}
+{"claim_id": "prs-offrig-41-11s", "quote": "temperature: 0.0, seed: 0, think: ThinkLevel::On, num_ctx: 16384, num_predict: 4096, structured: true,", "label": "entailment"}
+{"claim_id": "prs-offrig-41-12s", "quote": "needs_human: verdict == VerdictKind::CannotTell || claim.high_stakes,", "label": "entailment"}
+{"claim_id": "prs-offrig-41-15s", "quote": "let passes_default_rule = missing == 0 && unsupported_n >= MIN_UNSUPPORTED && false_accept.high < MAX_FALSE_ACCEPT_UPPER && abstain.rate.is_some_and(|a| a <= MAX_ABSTAIN) && decided_balanced_accuracy.is_some_and(|b| b >= MIN_BALANCED_ACCURACY);", "label": "neutral"}
+{"claim_id": "prs-offrig-41-16s", "quote": "false_accept.high < MAX_FALSE_ACCEPT_UPPER", "label": "neutral"}
+{"claim_id": "prs-offrig-41-18s", "quote": "if n == 0 { return (0.0, 1.0); }", "label": "neutral"}
+{"claim_id": "prs-role-os-24-2s", "quote": "/** A pack or a role combination needs this many recorded runs before a rate is claimed. */ export const MIN_CALIBRATION_RUNS = 5; /** 95% standard-normal quantile. Wilson intervals use this, not a rounded 1.96. */ export const WILSON_Z95 = 1.959963984540054; const CORRECTION_TYPES = new Set([\"reroute\", \"retry\", \"reopen\"]); /** * Kill switch. `ROLEOS_NO_CALIBRATION=1` restores pure keyword routing. * @param {NodeJS.ProcessEnv} [env] */ export function calibrationDisabled(env = process.env) { return env.ROLEOS_NO_CALIBRATION === \"1\"; }", "label": "neutral"}
+{"claim_id": "prs-role-os-24-5s", "quote": "if (!measure.ci || !(measure.ci[0] > 0.5)) {", "label": "neutral"}
+{"claim_id": "diff-aspire-si-13-1s", "quote": "checkpoint = torch.load(path, map_location=\"cpu\", weights_only=True)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-13-2s", "quote": "checkpoint = torch.load(path, map_location=self.device, weights_only=True)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-13-3s", "quote": "checkpoint = torch.load(critic_path, map_location=self.device, weights_only=True)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-29-3s", "quote": "export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1", "label": "neutral"}
+{"claim_id": "diff-aspire-si-31-2s", "quote": "window=4, step_axis=\"checkpoint_by_item\", checkpoints=len(later), scalar_source=\"fixed_per_item\",", "label": "neutral"}
+{"claim_id": "diff-aspire-si-31-3s", "quote": "parser.add_argument( \"--seed\", type=int, default=0, help=\"the probed models' training seed, recorded in each export\" )", "label": "entailment"}
+{"claim_id": "diff-aspire-si-47-3s", "quote": "return { \"model\": self.model, \"messages\": chat.messages(), \"stream\": False, \"think\": False, \"options\": {\"temperature\": temperature, \"num_predict\": max_tokens}, }", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-4s", "quote": "\"think\": False,", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-5s", "quote": "def near_tie_share(strong: Sequence[float], flawed: Sequence[float], tolerance: float) -> float: \"\"\"The share of pairs whose score gap is smaller than `tolerance`: pairs a change of scoring setup (batch shape, 4-bit kernels) of that size could flip.\"\"\" return sum(abs(s - f) < tolerance for s, f in zip(strong, flawed)) / len(strong)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-48-3s", "quote": "# The measured scoring noise: the median per-answer |local - pod| score difference when the found # Auditor was re-scored on the 32 GB card (Auditor plan step 1). Reported only; no rule uses it. NOISE_BAND = 0.002", "label": "entailment"}
+{"claim_id": "diff-aspire-si-66-1s", "quote": "def ollama_chat( model: str, system: str, user: str, fmt, think, num_predict: int, num_ctx: int, url: str = OLLAMA ) -> dict:", "label": "neutral"}
+{"claim_id": "diff-aspire-si-66-4s", "quote": "if state[\"server\"] != who: raise SystemExit(f\"{path.name} was started on {state['server']}, not {who}\")", "label": "entailment"}
+{"claim_id": "diff-aspire-si-67-1s", "quote": "return { \"url\": url, \"ollama_version\": version, \"build\": build, \"backend_dll\": str(backend_dll), \"backend_sha256\": file_sha256(backend_dll), }", "label": "neutral"}
+{"claim_id": "diff-aspire-si-67-3s", "quote": "if not args.label or not args.build or not args.backend_dll: raise SystemExit(\"ask needs --label, --build and --backend-dll\")", "label": "entailment"}
+{"claim_id": "diff-role-os-22-1s", "quote": "const keywordScore = scores[topPack]; const confidence = keywordScore >= 3 ? \"high\" : keywordScore >= 2 ? \"medium\" : \"low\";", "label": "contradiction"}
+{"claim_id": "diff-role-os-22-3s", "quote": "const boost = row && row.status === \"measured\" ? row.boost : 0;", "label": "entailment"}
+{"claim_id": "diff-role-os-22-4s", "quote": "return { pack: topPack, confidence, scores, evidence: snap.evidence, calibration: snap.disabled ? \"off\" : (snap.outcomes.length ? \"on\" : \"empty\"), calibrationText: snap.text, };", "label": "entailment"}
+{"claim_id": "diff-role-os-22-6s", "quote": "run.status = status; run.completedAt = new Date().toISOString(); if (explicitCwd) recordMissionOutcome(run, cwd);", "label": "neutral"}
+{"claim_id": "diff-role-os-23-6s", "quote": "for (let u = 0; u < view.unresolved.length; u++) problems.push(`${view.unresolved[u]} unresolved`); if (!assessment && requireRecipe) { excluded.push({ id: critic.id, reason: \"unproven: no recipe card\" }); } else if (problems.length > 0 && !allowUnproven) { excluded.push({ id: critic.id, reason: problems.join(\", \") }); }", "label": "neutral"}
+{"claim_id": "diff-role-os-23-8s", "quote": "const eligible = byId(critics).filter((c) => !inverted.has(c.id) && !excludedIds.has(c.id) && pointAccuracy(c, items) !== null);", "label": "contradiction"}
+{"claim_id": "diff-role-os-23-9s", "quote": "if (measured.length === 0) reason = \"no critic has a measured accuracy\"; else if (notInverted.length === 0) reason = \"every critic with a measured accuracy has an interval entirely below 0.5\"; else reason = \"every measured critic is excluded by its recipe card\";", "label": "entailment"}
+{"claim_id": "diff-offrig-3-3s", "quote": "\"done\" if job.progress[\"job_dir\"].is_string() => { \"the job pod is ready: offrig_put your files, offrig_exec the work, offrig_get the results, then offrig_shutdown\" } \"done\" => {", "label": "neutral"}
+{"claim_id": "diff-offrig-13-1s", "quote": "allowed_cuda_versions: profile .effective_min_cuda() .as_deref() .and_then(cuda_at_least) .unwrap_or_default(),", "label": "neutral"}
+{"claim_id": "diff-offrig-8-3s", "quote": ".filter(|p| self.cfg.owns_pod(&p.name) && p.desired_status != \"TERMINATED\")", "label": "neutral"}
+{"claim_id": "diff-offrig-8-4s", "quote": "if let Some(p) = self.lane_guard(profile)? {", "label": "neutral"}
+{"claim_id": "diff-offrig-16-1s", "quote": "wait_for_gpu_minutes: 20,", "label": "neutral"}
+{"claim_id": "diff-offrig-16-2s", "quote": "let asked = u64::from(plan_minutes.unwrap_or(profile_minutes)) * 60;", "label": "neutral"}
+{"claim_id": "diff-offrig-16-3s", "quote": "Duration::from_secs(asked.min(secs_left.saturating_sub(WAIT_RESERVE.as_secs())))", "label": "contradiction"}
+{"claim_id": "diff-offrig-16-4s", "quote": "attempt += 1; on(Event::Waiting { attempt, waited_secs: waited.as_secs(), limit_secs: wait.limit.as_secs(), });", "label": "neutral"}
+{"claim_id": "diff-offrig-24-2s", "quote": "OnDisk::Word(w) if w.eq_ignore_ascii_case(\"off\") => Ok(None),", "label": "contradiction"}
+{"claim_id": "diff-offrig-28-2s", "quote": "Error::PodNotReady { .. } => \"pod_not_ready\", Error::Db { .. } => \"database\", Error::Refused(_) => \"refused\", Error::Budget(_) => \"budget_exceeded\", Error::Transition { .. } => \"invalid_transition\", } } /// Whether the same call can reasonably succeed if tried again later. pub fn retryable(&self) -> bool { match self { Error::Api { status, .. } => *status == 429 || *status >= 500, Error::Http { .. } | Error::NoSshEndpoint { .. } | Error::Ssh(_) | Error::Timeout(_) | Error::Ollama(_) | Error::Engine(_) | Error::NoCapacity(_) | Error::PodNotReady { .. } => true,", "label": "entailment"}
+{"claim_id": "diff-offrig-28-3s", "quote": "self.wait_ready(&pod.id, on) .map_err(|e| e.after_rental(&pod.id))", "label": "neutral"}
+{"claim_id": "diff-offrig-30-2s", "quote": "if grep -a -l -i -E 'C:[\\/]+Users[\\/]' target/release/offrig.exe target/release/offrig-mcp.exe target/release/offrig-app.exe; then echo \"a binary still embeds a C:\\Users path; refusing to package\" >&2 exit 1 fi", "label": "neutral"}
+{"claim_id": "diff-offrig-30-3s", "quote": "cargo build --release --locked -p offrig-cli -p offrig-mcp -p offrig-app", "label": "entailment"}
+{"claim_id": "diff-rnd-89059db-2s", "quote": "assert all(map(lambda v: v == v and abs(v) != float(\"inf\"), losses)), \"non-finite loss\" assert min(norms) > 0, \"zero grad norm\"", "label": "contradiction"}
+{"claim_id": "diff-rnd-31fba10-3s", "quote": "TAG=\"\"; [ \"${KEV_VENV:-.venv}\" != .venv ] && TAG=\"-${KEV_VENV#.venv-}\" # e.g. -cu134, so a new env never overwrites a reference run", "label": "entailment"}
+{"claim_id": "diff-rnd-e839712-1s", "quote": "${KEV_VENV:-.venv}/bin/python - > \"$RES/$RUN-serve.log\" 2>&1 <<PY &", "label": "neutral"}
+{"claim_id": "diff-rnd-e839712-2s", "quote": "pkill -f \"/kev/kev/${KEV_VENV:-.venv}/bin/python\" || true", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-1s", "quote": "for other in words: if other != low and (low in (other + \"er\", other + \"est\", other + \"r\", other + \"st\")): return \"comparative\"", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-1u", "quote": "for other in words: if other != low and (low in (other + \"er\", other + \"est\", other + \"r\", other + \"st\")): return \"comparative\"", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-2s", "quote": "def size_cap(item: dict, floor: int = 8) -> int: \"\"\"The size gate for one answer: twice its own error edit's size, at least `floor` characters.\"\"\" return max(floor, int(2 * item.get(\"error_chars\", 0)))", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-4s", "quote": "for r in range(1, rounds + 1): todo = [(index[pid], avoid(sentences(p)[0])) for pid, p in first.items() if pid not in second] if not todo: break for p in _round(backend, system, items, held, strong, todo, \"p2\", r, max_chars, outcomes):", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-1s", "quote": "function _grantHint(kind, actionId) { if (kind === \"expired\") { return `To authorize it, the director renews \"expires\" on the existing \"${actionId}\" grant; do not drop \"expires\".`; } if (kind === \"bad-expires\") { return `To authorize it, the director fixes the \"expires\" date on the existing \"${actionId}\" grant; do not drop \"expires\".`; } return `To authorize it, the director adds {\"${actionId}\": {\"granted\": true, \"expires\": \"YYYY-MM-DD\"}}.`; }", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-2s", "quote": "if (Object.prototype.hasOwnProperty.call(g, \"expires\")) {", "label": "neutral"}
+{"claim_id": "diffhard-role-os-39de253-1s", "quote": "N: cfg.N ?? readPositiveIntEnv(\"ROLEOS_SHADOW_N\", SHADOW_DEFAULTS.N)", "label": "contradiction"}
+{"claim_id": "diffhard-role-os-4342dff-1s", "quote": "if (args.some(isHelpFlag)) { await printVerbHelp(command); process.exit(0); } switch (command) {", "label": "neutral"}
+{"claim_id": "diffhard-role-os-51afdca-1s", "quote": "def is_ship_pin(obj): \"\"\"A pin requires ship:true at or under ship_bar. Missing ship is not a pin.\"\"\" if not isinstance(obj, dict): return False if obj.get(\"scored\") is False: return False if obj.get(\"ship\") is not True: return False if obj.get(\"status\") == \"andon\": return False bar = obj.get(\"ship_bar\") if not isinstance(bar, int): return False fc = obj.get(\"false_conformant_total\") if not isinstance(fc, int) or fc > bar: return False return True", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-2s", "quote": "const measured = d && typeof d.steps_saved_frac === \"number\" && (d.n_receipts || 0) >= MIN_OUTCOME_RECEIPTS && d.consistent_sign !== false; if (measured) return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-4s", "quote": "if (measured) return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\"; if (witness < THIN_WITNESS) return \"spurious\";", "label": "entailment"}
+{"claim_id": "diff2-role-os-7550c7c-1s", "quote": "for (const step of run.steps) { if (step === active) { foundActive = true; continue; } if (foundActive && step.status === \"pending\") { step.status = \"blocked\"; step.note = `Blocked: upstream ${active.role} ${status}`; } }", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-4s", "quote": "const inChain = run.steps.some((s) => s.role === to); if (!inChain) { escalation.warning = `Role \"${to}\" is not in this mission's step chain. Escalation recorded but no step re-opened.`; } else { escalation.warning = `Role \"${to}\" has no completed step to re-open. Escalation recorded.`; }", "label": "contradiction"}
+{"claim_id": "diff2-role-os-7550c7c-5s", "quote": "if (targetStep) { targetStep.status = \"pending\"; targetStep.artifact = null; targetStep.note = `Re-opened by escalation: ${trigger}`; targetStep.completedAt = null; escalation.reopened = true; }", "label": "neutral"}
+{"claim_id": "diff2-role-os-0a13ed4-2s", "quote": "if (score > 0 && role.excludeWhen) { for (const exclusion of role.excludeWhen) { if (lower.includes(exclusion)) { return { score: 0, reasons: [`excluded: \"${exclusion}\"`], matched: [] }; } } }", "label": "contradiction"}
+{"claim_id": "diff2-role-os-0a13ed4-4s", "quote": "if (lower.includes(\"wiring\") || lower.includes(\"bridge\") || /\\bintegration\\b(?!\\s+test)/.test(lower) || lower.includes(\"seam\")) {", "label": "neutral"}
+{"claim_id": "diff2-role-os-00b4ee5-2s", "quote": "if (process.argv.includes(\"--debug\")) { console.error(err.stack || err); process.exit(exitCode); }", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-1s", "quote": "if (localPanel && !gate.blocking) {", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-4s", "quote": "printFindingsDistribution(r.citations);", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-5s", "quote": "const key = c.finding_match || c.existence || \"unknown\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-1s", "quote": "try { const roleId = primaryRole.toLowerCase().replace(/\\s+/g, \"-\"); const result = await retrieveForDispatch({ roleId, taskText: taskDescription.trim(), }); knowledge = { retrieval_bundle: result.bundle, status: result.status }; } catch (e) { // Retrieval failure is non-fatal \u2014 run proceeds without knowledge knowledge = null; }", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-2s", "quote": "const primaryRole = steps[0]?.role; if (primaryRole) { try { const roleId = primaryRole.toLowerCase().replace(/\\s+/g, \"-\"); const result = await retrieveForDispatch({ roleId, taskText: taskDescription.trim(), });", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-5s", "quote": "trust_posture: run.knowledge.retrieval_bundle?.provenance?.trust_posture ?? \"unknown\", freshness_posture: run.knowledge.retrieval_bundle?.provenance?.freshness_posture ?? \"unknown\",", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-6s", "quote": "warning_codes: (run.knowledge.retrieval_bundle?.warnings ?? []).map((w) => w.code),", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-3s", "quote": "def is_library(path): \"\"\"A library is a folder holding entries/ and instruments/.\"\"\" return (path / \"entries\").is_dir() and (path / \"instruments\").is_dir() def find_root(override=None, cwd=None): \"\"\"--library, then $RND_ROOT, then the nearest library at or above cwd, then the source checkout.\"\"\" explicit = override or os.environ.get(\"RND_ROOT\") if explicit: return Path(explicit).resolve() here = Path(cwd or Path.cwd()).resolve() for d in (here, *here.parents): if is_library(d): return d", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-5s", "quote": "if args.cmd != \"readouts\" and (ROOT is None or not is_library(ROOT)): return fail(\"NO_LIBRARY\", \"no rnd library here (a folder with entries/ and instruments/)\", \"run inside a clone of mcp-tool-shop-org/rnd, or pass --library / set RND_ROOT\")", "label": "neutral"}
+{"claim_id": "diff2-rnd-922b886-6s", "quote": "if args.cmd != \"readouts\" and (ROOT is None or not is_library(ROOT)): return fail(\"NO_LIBRARY\", \"no rnd library here (a folder with entries/ and instruments/)\", \"run inside a clone of mcp-tool-shop-org/rnd, or pass --library / set RND_ROOT\")", "label": "neutral"}
+{"claim_id": "diff2-rnd-081e92f-5s", "quote": "extra = a.only in EXTRA_JUDGES base = DATA / (\"screen_extra.json\" if extra else \"screen.json\") if base.exists(): out = load_json(base) # re-run one judge, keep the others' flags else: out = {\"judges\": {}, \"items\": {r[\"id\"]: {\"sentences\": sentences(r[\"answer\"]), \"flags\": {}} for r in items}}", "label": "contradiction"}
+{"claim_id": "diff2-rnd-081e92f-7s", "quote": "try: reply = chat(judge, SCREEN.format(question=r[\"question\"], answer=r[\"answer\"]), json_mode=judge not in NO_FORMAT, num_predict=700 if judge not in NO_FORMAT else 1500) got = json.loads(reply) if judge not in NO_FORMAT else json_object(reply) errs = got.get(\"errors\", []) if isinstance(got, dict) else [] except (json.JSONDecodeError, KeyError): errs, bad = [], bad + 1", "label": "neutral"}
+{"claim_id": "diff2-rnd-519679e-1s", "quote": "if 0 < sum(y) < len(y):", "label": "neutral"}
+{"claim_id": "diff2-rnd-519679e-2s", "quote": "groups.setdefault(r[\"id\"].rsplit(\"/\", 1)[0], []).append(r)", "label": "neutral"}
+{"claim_id": "diff2-rnd-519679e-4s", "quote": "return round(sum(per.values()) / len(per), 4), per", "label": "contradiction"}
+{"claim_id": "diff2-rnd-b7bccc8-3s", "quote": "if r[\"n\"] in seen: return None, \"repeated n\"", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-4s", "quote": "if seen != set(range(1, n + 1)): return None, f\"rows cover {len(seen)} of {n} sentences\"", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-5s", "quote": "if r[\"verdict\"] == \"error\": claim = r.get(\"claim\") if not isinstance(claim, str) or not claim.strip(): return None, \"error row without claim\"", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-7s", "quote": "if not isinstance(r, dict) or not isinstance(r.get(\"n\"), int) or r.get(\"verdict\") not in (\"error\", \"ok\"):", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-11s", "quote": "if prev and prev.get(\"failure\") is None and not a.redo: continue # resumable per item", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-1s", "quote": "def required_mbps(download_gb: float, download_minutes: float) -> float: \"\"\"The download rate, in MB/s, that fetches `download_gb` in `download_minutes`.\"\"\" return download_gb * 1000 / (download_minutes * 60)", "label": "contradiction"}
+{"claim_id": "diff2-aspire-si-4d45a08-3s", "quote": "return 2 * shard_bytes / 1e6 / need_mbps", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-4s", "quote": "if not done: print( f\"HOST-REFUSED: {shard} of {model} ({size / 1e9:.2f} GB) did not arrive in {limit:.0f} s, \" f\"twice what {need_mbps:.0f} MB/s allows\", flush=True, ) os._exit(2)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-6s", "quote": "need = required_mbps(download_gb, download_minutes)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-8s", "quote": "return download_gb * 1000 / (download_minutes * 60)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-8b95b9e-1s", "quote": "return any(not s[\"prescreen_stands\"] for s in summaries.values())", "label": "entailment"}
+{"claim_id": "diff2-aspire-si-8b95b9e-3s", "quote": "The committed rule is for the whole pass: a miss in any set's sample sends every pair of every set to gemma.", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-78cc26f-1s", "quote": "# A separate stream for the critic's weights. The critic is built on the CPU, so only # the CPU generator is reseeded (torch.manual_seed would also reseed the GPU's, which # the run's sampling draws from), and fork_rng puts it back afterwards.", "label": "entailment"}
+{"claim_id": "diff2-aspire-si-78cc26f-2s", "quote": "if cfg.init_seed is not None: # A separate stream for the critic's weights. The critic is built on the CPU, so only # the CPU generator is reseeded (torch.manual_seed would also reseed the GPU's, which # the run's sampling draws from), and fork_rng puts it back afterwards. with torch.random.fork_rng(devices=[]): torch.default_generator.manual_seed(cfg.init_seed) self._build_critic(cfg) else: self._build_critic(cfg)", "label": "contradiction"}
+{"claim_id": "diff2-aspire-si-78cc26f-3s", "quote": "if cfg.init_seed is not None: # A separate stream for the critic's weights. The critic is built on the CPU, so only # the CPU generator is reseeded (torch.manual_seed would also reseed the GPU's, which # the run's sampling draws from), and fork_rng puts it back afterwards. with torch.random.fork_rng(devices=[]): torch.default_generator.manual_seed(cfg.init_seed) self._build_critic(cfg) else: self._build_critic(cfg) self.critic = self.critic.to(self.device)", "label": "entailment"}
+{"claim_id": "diff2-aspire-si-78cc26f-5s", "quote": "init_seed: int | None = None", "label": "neutral"}
+{"claim_id": "diff2-offrig-73ea7ba-1s", "quote": ".map(str::trim) .filter(|l| l.chars().count() >= 40)", "label": "neutral"}
+{"claim_id": "diff2-offrig-51eda1c-2s", "quote": "let next = match runner::after_turn(h, turn, &outcomes) { Next::Revise if previous.as_deref().is_some_and(|p| runner::stalled(p, &reply.text)) => { Next::Review { why: \"the revision came back unchanged; the model is not acting on the failed checks\".into(), } } n => n, };", "label": "contradiction"}
+{"claim_id": "diff2-offrig-65ef665-5s", "quote": "if clash.is_empty() { Ok(()) }", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-1s", "quote": "const xVersions = versions.filter(xQualifies); if (xVersions.length) {", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-2s", "quote": "const xQualifies = (v) => v?.lineage?.parents?.length >= 2 && v.certified_level && v.certified_level !== \"L0\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-4s", "quote": "earned: v.created_at || null", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-1s", "quote": "const cos = typeof c.mean_cosine === \"number\" ? c.mean_cosine : null; const reading = cos === null ? \"unmeasured\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-3s", "quote": "if (record.compatibility && record.compatibility.mean_cosine != null) { const cp = record.compatibility; const sa = cp.sign_agreement != null ? `, sign-agree ${cp.sign_agreement}` : \"\"; lines.push(` compatibility: parent cos ${cp.mean_cosine}${sa} \u2014 ${cp.reading}`); }", "label": "neutral"}
+{"claim_id": "cal-dedupe-t", "quote": "if (outcome && outcome.runId) { const prior = readOutcomes(cwd); for (let i = 0; i < prior.length; i++) { if (prior[i].runId === outcome.runId) return false; } }", "label": "neutral"}
+{"claim_id": "cal-dedupe-f", "quote": "// One line per run. A second call with the same run id does not append. if (outcome && outcome.runId) { const prior = readOutcomes(cwd); for (let i = 0; i < prior.length; i++) { if (prior[i].runId === outcome.runId) return false; } }", "label": "neutral"}
+{"claim_id": "boost-clean-t", "quote": "const cleanRuns = outcomes.filter( o => o.selectedPack && o.completionStatus === \"completed\" && o.corrections === 0 );", "label": "neutral"}
+{"claim_id": "shuffle-method-f", "quote": "if (measure.method !== BALANCED_PERMUTATION) warnings.push(`${tag}: ${SHUFFLE_WHY}`);", "label": "neutral"}
+{"claim_id": "passed-no-measure-t", "quote": "if (control.measure === undefined) { if (control.status === \"passed\") { warnings.push(why ? `${tag}: passed without a measure \u2014 ${why}` : `${tag}: passed without a measure`); }", "label": "entailment"}
+{"claim_id": "passed-no-measure-f", "quote": "if (control.measure === undefined) { if (control.status === \"passed\") { warnings.push(why ? `${tag}: passed without a measure \u2014 ${why}` : `${tag}: passed without a measure`); }", "label": "neutral"}
+{"claim_id": "or-429-t", "quote": "pub const CREATE_429_RETRIES: u32 = 3;", "label": "neutral"}
+{"claim_id": "or-retry-after-t", "quote": "/// Delay-seconds from `Retry-After`. An HTTP-date or a missing header waits one second.", "label": "entailment"}
+{"claim_id": "or-retry-after-f", "quote": "/// Delay-seconds from `Retry-After`. An HTTP-date or a missing header waits one second.", "label": "neutral"}
+{"claim_id": "or-retry-fits-t", "quote": "let Some(end) = deadline else { return true; };", "label": "contradiction"}
+{"claim_id": "docs-same-runid-t", "quote": "if (outcome && outcome.runId) { const prior = readOutcomes(cwd); for (let i = 0; i < prior.length; i++) { if (prior[i].runId === outcome.runId) return false; } }", "label": "contradiction"}
+{"claim_id": "docs-same-runid-f", "quote": "if (outcome && outcome.runId) { const prior = readOutcomes(cwd); for (let i = 0; i < prior.length; i++) { if (prior[i].runId === outcome.runId) return false; } }", "label": "neutral"}
+{"claim_id": "docs-boost-t", "quote": "boosts[pack] = Math.min((boosts[pack] || 0) + 0.5, 2.0);", "label": "neutral"}
+{"claim_id": "docs-killswitch-t", "quote": "`ROLEOS_NO_CALIBRATION=1` restores pure keyword routing.", "label": "neutral"}
+{"claim_id": "docs-killswitch-f", "quote": "`ROLEOS_NO_CALIBRATION=1` restores pure keyword routing.", "label": "contradiction"}
+{"claim_id": "docs-panel-f", "quote": "if (clears && hasMembers) { decision = \"panel\"; reason = \"the nested paired interval of panel minus best single lies entirely above 0\"; }", "label": "entailment"}
+{"claim_id": "prs-aspire-si-54-2u", "quote": "cue = (point > 0) != (headline[0] > 0) or ( len(inside) >= MIN_SIZE_MATCHED and excludes_zero(ci) != excludes_zero(headline[1]) )", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-3s", "quote": "return sum(token_logprobs[i] for i in range(max(start, 1), end))", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-3u", "quote": "return sum(token_logprobs[i] for i in range(max(start, 1), end))", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-4s", "quote": "return prefix, len(a) - suffix, len(b) - suffix", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-5s", "quote": "out[\"all_read_sets_pass\"] = all(out[s][\"passes\"] for s in READ_SETS if s in out)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-6u", "quote": "if lam < 0.2: # the series converges badly near 0, where p is 1 to many places return d, 1.0 p = 2 * sum((-1) ** (k - 1) * math.exp(-2 * k * k * lam * lam) for k in range(1, 101)) return d, min(1.0, max(0.0, p))", "label": "neutral"}
+{"claim_id": "prs-aspire-si-56-2s", "quote": "\"borderline\": min(abs(para_median - q1), abs(para_median - q3)) <= BORDERLINE * (q3 - q1),", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-3s", "quote": "return {g: i % k for i, g in enumerate(ids)}", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-58-3u", "quote": "def folds(prompt_ids: list, k: int = FOLDS, seed: int = 0) -> dict: \"\"\"Prompt id -> fold, from a seeded shuffle of the sorted distinct ids.\"\"\" ids = sorted(set(prompt_ids), key=str) random.Random(seed).shuffle(ids) return {g: i % k for i, g in enumerate(ids)}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-4s", "quote": "mu, sd = x[train].mean(0), x[train].std(0) sd[sd == 0] = 1.0", "label": "neutral"}
+{"claim_id": "prs-aspire-si-59-1s", "quote": "\"mistral-small:24b\": {\"think\": None, \"num_predict\": 2048, \"num_ctx\": 8192}, \"gemma4:31b\": {\"think\": True, \"num_predict\": 16000, \"num_ctx\": 24576},", "label": "neutral"}
+{"claim_id": "prs-aspire-si-59-4u", "quote": "if response.get(\"done_reason\") == \"length\": return out | {\"outcome\": \"truncated\"}", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-61-4u", "quote": "if char_similarity(answer, flawed) < MIN_SIMILARITY: return None, \"too different\"", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-6u", "quote": "return ( gemma.get(\"outcome\") == \"wrong\" and gemma.get(\"grammatical\") is True and muse is not None and muse.get(\"outcome\") == \"wrong\" and muse.get(\"grammatical\") is True )", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-13s", "quote": "\"miss_rate_upper_bound_95\": (3 / n if n else None) if misses == 0 else None, \"prescreen_stands\": misses == 0", "label": "entailment"}
+{"claim_id": "prs-aspire-si-63-5s", "quote": "if \"gemma\" in r: r[\"gemma_v1\"] = r.pop(\"gemma\") # the v1 (\"and idiomatic\") verdict, kept for the record", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-5u", "quote": "done = r.get(\"gemma\", {}).get(\"question\") == GRAMMAR_QUESTION if done or not (r[\"flags\"] or p[\"pair_id\"] in sample): continue", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-64-9s", "quote": "def pair_loss(role: str, scores): \"\"\"The original's loss: binary cross-entropy on scores/10 for the Auditor, a pairwise logistic loss (strong minus flawed) for every other role. Scores alternate strong, flawed.\"\"\" import torch import torch.nn.functional as fn strong, flawed = scores[0::2], scores[1::2] if role == \"auditor\": p = (torch.cat([strong, flawed]) / 10).clamp(1e-6, 1 - 1e-6) target = torch.cat([torch.zeros_like(strong), torch.ones_like(flawed)]) return fn.binary_cross_entropy(p, target) return -fn.logsigmoid(strong - flawed).mean()", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-9u", "quote": "if role == \"auditor\": p = (torch.cat([strong, flawed]) / 10).clamp(1e-6, 1 - 1e-6) target = torch.cat([torch.zeros_like(strong), torch.ones_like(flawed)]) return fn.binary_cross_entropy(p, target) return -fn.logsigmoid(strong - flawed).mean()", "label": "neutral"}
+{"claim_id": "prs-offrig-33-90c", "quote": "store.set_budget_cap(floor)?", "label": "neutral"}
+{"claim_id": "prs-offrig-41-90c", "quote": "/// Apply the quote rule. `supported` needs a non-empty quote found in the evidence; /// `unsupported` may leave the quote empty, but a quote that is given must be found; /// either failing becomes `cannot_tell` with the reason `quote_not_found`. With no /// evidence at all (a knowledge check) there is nothing to find a quote in, so the /// model's verdict stands. pub fn apply_quote_rule( reply: &RawReply, evidence: &[Passage], ) -> (VerdictKind, Option<&'static str>) { if evidence.is_empty() { return (reply.verdict, None); } let quote_ok = quote_found(&reply.evidence_quote, evidence); let given = !normalise(&reply.evidence_quote).is_empty(); match reply.verdict { VerdictKind::Supported if !quote_ok => (VerdictKind::CannotTell, Some(QUOTE_NOT_FOUND)), VerdictKind::Unsupported if given && !quote_ok => { (VerdictKind::CannotTell, Some(QUOTE_NOT_FOUND)) } v => (v, None), } }", "label": "neutral"}
+{"claim_id": "prs-offrig-31-3s", "quote": "if [ -n \"${HF_TOKEN:-}\" ]; then (umask 077; printf '%s' \"$HF_TOKEN\" > /root/.offrig-hf-token) echo \"[offrig] Hugging Face token written for ssh sessions\" fi", "label": "neutral"}
+{"claim_id": "prs-offrig-33-1u", "quote": "pub fn floor(&self) -> f64 { self.spent + self.committed }", "label": "contradiction"}
+{"claim_id": "prs-offrig-33-4s", "quote": "\"\" | \"3\" | \"q\" | \"Q\" => return Ok(())", "label": "neutral"}
+{"claim_id": "prs-offrig-34-2u", "quote": "(raw * 100.0 - 1e-9).ceil().max(0.0) / 100.0", "label": "neutral"}
+{"claim_id": "prs-offrig-34-6s", "quote": "let mut body = self.redact(body); body.truncate(600);", "label": "neutral"}
+{"claim_id": "prs-offrig-34-14s", "quote": "const SETTLE_AFTER_SECS: i64 = 3600;", "label": "neutral"}
+{"claim_id": "prs-offrig-34-15s", "quote": "/// The project's lane tag, refusing any project the approval does not cover. The lane is /// read, never allocated: a refused project leaves nothing behind. fn allowed_lane(ctx: &LaneCtx) -> Result<String> { let tag = ctx.own_if_allocated()?.and_then(|l| l.tag); match tag { Some(t) if openrouter::lane_allowed(&t) => Ok(t), other => Err(Error::Refused(format!( \"offrig_complete is approved for the {} project only; this side-car's project ({}) is {}\", openrouter::ALLOWED_LANES.join(\", \"), ctx.project.display(), match other { Some(t) => format!(\"lane {t}\"), None => \"not a lane yet\".into(), } ))), } }", "label": "entailment"}
+{"claim_id": "prs-offrig-39-3s", "quote": "let add = 1.0 / (k + (rank + 1) as f64);", "label": "neutral"}
+{"claim_id": "prs-offrig-39-4s", "quote": "/// Chunk ids by hybrid ranking: BM25 top 50 and cosine top 50 fused by RRF, top 20 kept.", "label": "entailment"}
+{"claim_id": "prs-offrig-39-14s", "quote": "if store.has_embeddings()? && let Ok(ollama) = embed_client() && let Ok(v) = query_vector(store, &ollama, &q.text) { return search_records(store, q, Some(&v)); } store.search(q)", "label": "contradiction"}
+{"claim_id": "prs-offrig-39-15s", "quote": "if r.status == \"active\"", "label": "neutral"}
+{"claim_id": "prs-offrig-39-22s", "quote": "CHECK (kind IN ('doc','code','log','record'))", "label": "neutral"}
+{"claim_id": "prs-offrig-41-3s", "quote": "let mut out: Vec<Passage> = claim .context .iter() .enumerate() .map(|(i, e)| Passage { id: format!(\"ctx{}\", i + 1), source: e.source.clone(), text: e.text.clone(), }) .collect(); out.extend(lost_in_the_middle(retrieved.to_vec()));", "label": "neutral"}
+{"claim_id": "prs-offrig-41-3u", "quote": "out.extend(lost_in_the_middle(retrieved.to_vec()));", "label": "neutral"}
+{"claim_id": "prs-offrig-41-5s", "quote": "let straight: String = s .chars() .map(|c| match c { '\\u{2018}' | '\\u{2019}' | '\\u{201a}' | '\\u{201b}' => '\\'', '\\u{201c}' | '\\u{201d}' | '\\u{201e}' | '\\u{201f}' => '\"', c => c, }) .collect(); straight.split_whitespace().collect::<Vec<_>>().join(\" \")", "label": "neutral"}
+{"claim_id": "prs-offrig-41-6u", "quote": "pub const QUOTE_NOT_FOUND: &str = \"quote_not_found\";", "label": "neutral"}
+{"claim_id": "prs-offrig-41-12s", "quote": "needs_human: verdict == VerdictKind::CannotTell || claim.high_stakes", "label": "entailment"}
+{"claim_id": "prs-offrig-41-12u", "quote": "needs_human: verdict == VerdictKind::CannotTell || claim.high_stakes,", "label": "neutral"}
+{"claim_id": "prs-offrig-41-13s", "quote": "\"reasoning\": { \"type\": \"string\" }, \"verdict\": { \"type\": \"string\", \"enum\": [\"supported\", \"unsupported\", \"cannot_tell\"] }, \"evidence_quote\": { \"type\": \"string\" }, \"evidence_source\": { \"type\": \"string\" }", "label": "neutral"}
+{"claim_id": "prs-offrig-41-13u", "quote": "\"type\": \"object\", \"properties\": { \"reasoning\": { \"type\": \"string\" }, \"verdict\": { \"type\": \"string\", \"enum\": [\"supported\", \"unsupported\", \"cannot_tell\"] }, \"evidence_quote\": { \"type\": \"string\" }, \"evidence_source\": { \"type\": \"string\" } }, \"required\": [\"reasoning\", \"verdict\", \"evidence_quote\", \"evidence_source\"], \"additionalProperties\": false", "label": "entailment"}
+{"claim_id": "prs-offrig-41-15u", "quote": "let passes_default_rule = missing == 0 && unsupported_n >= MIN_UNSUPPORTED && false_accept.high < MAX_FALSE_ACCEPT_UPPER && abstain.rate.is_some_and(|a| a <= MAX_ABSTAIN) && decided_balanced_accuracy.is_some_and(|b| b >= MIN_BALANCED_ACCURACY);", "label": "neutral"}
+{"claim_id": "prs-offrig-41-19s", "quote": "/// True when the model earns the default: both `grounded` and `reasoning` pass the /// rule. `knowledge` is reported but is not part of it. pub fn passes_default(rows: &[CheckMetrics]) -> bool { [CheckType::Grounded, CheckType::Reasoning] .into_iter() .all(|ct| { rows.iter() .any(|r| r.check_type == ct && r.passes_default_rule) }) }", "label": "entailment"}
+{"claim_id": "prs-role-os-24-2s", "quote": "export const MIN_CALIBRATION_RUNS = 5;", "label": "neutral"}
+{"claim_id": "prs-role-os-24-5s", "quote": "if (!measure.ci || !(measure.ci[0] > 0.5)) { const low = measure.ci ? measure.ci[0] : \"missing\"; errors.push(`${tag}: passed needs an accuracy CI entirely above 0.5 (low ${low} is not above 0.5; touching 0.5 is not above)`); }", "label": "entailment"}
+{"claim_id": "prs-role-os-24-5u", "quote": "if (!measure.ci || !(measure.ci[0] > 0.5)) {", "label": "neutral"}
+{"claim_id": "prs-role-os-24-9s", "quote": "if (highConf.length >= 3 && highOverridden / highConf.length > 0.3) { return { adjustment: +1, reason: `${Math.round(highOverridden / highConf.length * 100)}% of high-confidence suggestions were overridden. Recommend raising keyword threshold from 3 to 4 for \"high.\"`, }; }", "label": "neutral"}
+{"claim_id": "diff-aspire-si-31-2s", "quote": "rec = GeometryRecorder( run_id=f\"drift-from-{ref_name}\", condition=( f\"drift from {ref_name}: {len(pairs)} fixed exchanges x \" + \", \".join(names[k] for k in later) ), seed=seed, window=4, step_axis=\"checkpoint_by_item\", checkpoints=len(later), scalar_source=\"fixed_per_item\", )", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-3s", "quote": "\"think\": False", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-4s", "quote": "\"think\": False", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-5s", "quote": "return sum(abs(s - f) < tolerance for s, f in zip(strong, flawed)) / len(strong)", "label": "contradiction"}
+{"claim_id": "diff-aspire-si-47-5u", "quote": "def near_tie_share(strong: Sequence[float], flawed: Sequence[float], tolerance: float) -> float: \"\"\"The share of pairs whose score gap is smaller than `tolerance`: pairs a change of scoring setup (batch shape, 4-bit kernels) of that size could flip.\"\"\" return sum(abs(s - f) < tolerance for s, f in zip(strong, flawed)) / len(strong)", "label": "entailment"}
+{"claim_id": "diff-aspire-si-48-3u", "quote": "NOISE_BAND = 0.002", "label": "neutral"}
+{"claim_id": "diff-aspire-si-66-1s", "quote": "url: str = OLLAMA", "label": "neutral"}
+{"claim_id": "diff-aspire-si-66-1u", "quote": "url: str = OLLAMA", "label": "neutral"}
+{"claim_id": "diff-aspire-si-66-4u", "quote": "state.setdefault(\"server\", who) if state[\"server\"] != who: raise SystemExit(f\"{path.name} was started on {state['server']}, not {who}\")", "label": "entailment"}
+{"claim_id": "diff-aspire-si-67-3s", "quote": "if not args.label or not args.build or not args.backend_dll:", "label": "neutral"}
+{"claim_id": "diff-role-os-22-1s", "quote": "const confidence = keywordScore >= 3 ? \"high\" : keywordScore >= 2 ? \"medium\" : \"low\";", "label": "contradiction"}
+{"claim_id": "diff-role-os-22-6s", "quote": "if (explicitCwd) recordMissionOutcome(run, cwd);", "label": "neutral"}
+{"claim_id": "diff-role-os-23-3s", "quote": "if (recipes == null) return { applied: false, byId: new Map(), excluded: [] };", "label": "contradiction"}
+{"claim_id": "diff-role-os-23-8u", "quote": "const excludedIds = new Set(check.excluded.map((row) => row.id)); const eligible = byId(critics).filter((c) => !inverted.has(c.id) && !excludedIds.has(c.id) && pointAccuracy(c, items) !== null);", "label": "neutral"}
+{"claim_id": "diff-role-os-23-9s", "quote": "else reason = \"every measured critic is excluded by its recipe card\";", "label": "neutral"}
+{"claim_id": "diff-role-os-23-11s", "quote": "{ name: \"reversed-correction\", guards: \"the critic is not just an edit detector: the edited copy is the corrected, stronger one\" }", "label": "neutral"}
+{"claim_id": "diff-offrig-3-3s", "quote": "\"done\" if job.progress[\"job_dir\"].is_string() => { \"the job pod is ready: offrig_put your files, offrig_exec the work, offrig_get the results, then offrig_shutdown\" }", "label": "neutral"}
+{"claim_id": "diff-offrig-3-3c", "quote": "\"the pod is ready: work handoffs with offrig_ask, and shut down with offrig_shutdown when done\"", "label": "neutral"}
+{"claim_id": "diff-offrig-8-3s", "quote": "p.desired_status != \"TERMINATED\"", "label": "neutral"}
+{"claim_id": "diff-offrig-16-1s", "quote": "wait_for_gpu_minutes: 0", "label": "contradiction"}
+{"claim_id": "diff-offrig-16-2s", "quote": "pub fn capacity_wait(plan_minutes: Option<u32>, profile_minutes: u32, secs_left: u64) -> Duration { let asked = u64::from(plan_minutes.unwrap_or(profile_minutes)) * 60; Duration::from_secs(asked.min(secs_left.saturating_sub(WAIT_RESERVE.as_secs()))) }", "label": "neutral"}
+{"claim_id": "diff-offrig-16-4c", "quote": "on(Event::Waiting { attempt, waited_secs: waited.as_secs(), limit_secs: wait.limit.as_secs(), });", "label": "neutral"}
+{"claim_id": "diff-offrig-24-2s", "quote": "OnDisk::Word(w) if w.eq_ignore_ascii_case(\"off\") => Ok(None)", "label": "contradiction"}
+{"claim_id": "diff-offrig-24-2u", "quote": "OnDisk::Word(w) if w.eq_ignore_ascii_case(\"off\") => Ok(None)", "label": "neutral"}
+{"claim_id": "diff-offrig-28-2s", "quote": "Error::PodNotReady { .. } => \"pod_not_ready\",", "label": "neutral"}
+{"claim_id": "diff-offrig-28-3s", "quote": ".map_err(|e| e.after_rental(&pod.id))", "label": "neutral"}
+{"claim_id": "diff-offrig-30-3c", "quote": "-C target-feature=+crt-static", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-2s", "quote": "OUT=/mnt/e/AI-Models/kev/judge-ft/runs/judge-4b-${MODE}-s${SEED}${TAG}", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-3u", "quote": "TAG=\"\"; [ \"${KEV_VENV:-.venv}\" != .venv ] && TAG=\"-${KEV_VENV#.venv-}\" # e.g. -cu134, so a new env never overwrites a reference run OUT=/mnt/e/AI-Models/kev/judge-ft/runs/judge-4b-${MODE}-s${SEED}${TAG}", "label": "contradiction"}
+{"claim_id": "diff-rnd-e839712-1s", "quote": "${KEV_VENV:-.venv}/bin/python", "label": "neutral"}
+{"claim_id": "diff-rnd-e839712-2s", "quote": "pkill -f \"/kev/kev/${KEV_VENV:-.venv}/bin/python\"", "label": "neutral"}
+{"claim_id": "diff-rnd-e839712-2u", "quote": "pkill -f \"/kev/kev/${KEV_VENV:-.venv}/bin/python\"", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-1s", "quote": "if other != low and (low in (other + \"er\", other + \"est\", other + \"r\", other + \"st\")): return \"comparative\"", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-2s", "quote": "return max(floor, int(2 * item.get(\"error_chars\", 0)))", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-4s", "quote": "\"attempt_round\": attempt_round", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-4u", "quote": "\"attempt_round\": attempt_round", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-2s", "quote": "if (!g || typeof g !== \"object\" || g.granted !== true) { return `No capability \"${actionId}\" is granted in ${CAPABILITIES_FILE}`; }", "label": "neutral"}
+{"claim_id": "diffhard-role-os-4342dff-1s", "quote": "if (args.some(isHelpFlag)) { await printVerbHelp(command); process.exit(0); }", "label": "neutral"}
+{"claim_id": "diffhard-role-os-4342dff-1c", "quote": "if (args.some(isHelpFlag)) {", "label": "contradiction"}
+{"claim_id": "diffhard-role-os-51afdca-1u", "quote": "if not isinstance(fc, int) or fc > bar: return False", "label": "contradiction"}
+{"claim_id": "diffhard-rnd-7fba56f-1c", "quote": "spans = f.get(\"spans\") or [{k: f[k] for k in (\"file\", \"anchor\") } | {k: f[k] for k in (\"before\", \"after\") if k in f}]", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-2u", "quote": "if (measured) return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-4s", "quote": "if (measured) return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-1s", "quote": "// Block all downstream pending steps (S2-F2) let foundActive = false; for (const step of run.steps) { if (step === active) { foundActive = true; continue; } if (foundActive && step.status === \"pending\") { step.status = \"blocked\"; step.note = `Blocked: upstream ${active.role} ${status}`; } }", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-4s", "quote": "escalation.warning = `Role \"${to}\" has no completed step to re-open. Escalation recorded.`", "label": "neutral"}
+{"claim_id": "diff2-role-os-0a13ed4-2s", "quote": "if (score > 0 && role.excludeWhen) {", "label": "contradiction"}
+{"claim_id": "diff2-role-os-0a13ed4-2u", "quote": "return { score: 0, reasons: [`excluded: \"${exclusion}\"`], matched: [] };", "label": "neutral"}
+{"claim_id": "diff2-role-os-0a13ed4-5u", "quote": "if (lower.includes(\"wiring\") || lower.includes(\"bridge\") || lower.includes(\"integration\") || lower.includes(\"seam\")) {", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-4u", "quote": "printFindingsDistribution(r.citations);", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-4c", "quote": "printFindingsDistribution(r.citations);", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-5u", "quote": "const key = c.finding_match || c.existence || \"unknown\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-2s", "quote": "// Knowledge retrieval \u2014 automatic when corpus is configured let knowledge = null; if (isKnowledgeConfigured()) { // Retrieve for the primary role in the chain (first step's role) const primaryRole = steps[0]?.role; if (primaryRole) { try { const roleId = primaryRole.toLowerCase().replace(/\\s+/g, \"-\"); const result = await retrieveForDispatch({ roleId, taskText: taskDescription.trim(), }); knowledge = { retrieval_bundle: result.bundle, status: result.status }; } catch (e) { // Retrieval failure is non-fatal \u2014 run proceeds without knowledge knowledge = null; } } }", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-4s", "quote": "if (isKnowledgeConfigured()) {", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-5s", "quote": "trust_posture: run.knowledge.retrieval_bundle?.provenance?.trust_posture ?? \"unknown\", freshness_posture: run.knowledge.retrieval_bundle?.provenance?.freshness_posture ?? \"unknown\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-6s", "quote": "warning_codes: (run.knowledge.retrieval_bundle?.warnings ?? []).map((w) => w.code)", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-3s", "quote": "def find_root(override=None, cwd=None): \"\"\"--library, then $RND_ROOT, then the nearest library at or above cwd, then the source checkout.\"\"\" explicit = override or os.environ.get(\"RND_ROOT\") if explicit: return Path(explicit).resolve() here = Path(cwd or Path.cwd()).resolve() for d in (here, *here.parents): if is_library(d): return d return SOURCE_ROOT if is_library(SOURCE_ROOT) else None", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-3u", "quote": "def find_root(override=None, cwd=None): \"\"\"--library, then $RND_ROOT, then the nearest library at or above cwd, then the source checkout.\"\"\" explicit = override or os.environ.get(\"RND_ROOT\") if explicit: return Path(explicit).resolve() here = Path(cwd or Path.cwd()).resolve() for d in (here, *here.parents): if is_library(d): return d return SOURCE_ROOT if is_library(SOURCE_ROOT) else None", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-5u", "quote": "if args.cmd != \"readouts\" and (ROOT is None or not is_library(ROOT)): return fail(\"NO_LIBRARY\", \"no rnd library here (a folder with entries/ and instruments/)\", \"run inside a clone of mcp-tool-shop-org/rnd, or pass --library / set RND_ROOT\")", "label": "neutral"}
+{"claim_id": "diff2-rnd-081e92f-3s", "quote": "return re.sub(r\"(\\s*<\\|[a-z_]+\\|>)+\\s*$\", \"\", post(\"/api/chat\", body)[\"message\"][\"content\"])", "label": "neutral"}
+{"claim_id": "diff2-rnd-081e92f-5s", "quote": "if base.exists(): out = load_json(base) # re-run one judge, keep the others' flags else: out = {\"judges\": {}, \"items\": {r[\"id\"]: {\"sentences\": sentences(r[\"answer\"]), \"flags\": {}} for r in items}}", "label": "contradiction"}
+{"claim_id": "diff2-rnd-081e92f-5u", "quote": "if a.only: if a.only not in JUDGES + EXTRA_JUDGES: raise SystemExit(f\"--only must be one of {JUDGES + EXTRA_JUDGES}\") extra = a.only in EXTRA_JUDGES base = DATA / (\"screen_extra.json\" if extra else \"screen.json\") if base.exists(): out = load_json(base) # re-run one judge, keep the others' flags else: out = {\"judges\": {}, \"items\": {r[\"id\"]: {\"sentences\": sentences(r[\"answer\"]), \"flags\": {}} for r in items}} judges = [a.only]", "label": "neutral"}
+{"claim_id": "diff2-rnd-519679e-2u", "quote": "groups.setdefault(r[\"id\"].rsplit(\"/\", 1)[0], []).append(r)", "label": "neutral"}
+{"claim_id": "diff2-rnd-519679e-4s", "quote": "if 0 < sum(y) < len(y):", "label": "contradiction"}
+{"claim_id": "diff2-rnd-b7bccc8-5s", "quote": "if not isinstance(claim, str) or not claim.strip(): return None, \"error row without claim\"", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-11u", "quote": "if prev and prev.get(\"failure\") is None and not a.redo: continue # resumable per item", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-1s", "quote": "return download_gb * 1000 / (download_minutes * 60)", "label": "contradiction"}
+{"claim_id": "diff2-aspire-si-8b95b9e-4s", "quote": "plan[name] = (rows, mine, seeded_sample(unflagged, GRAMMAR_SAMPLE))", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-8b95b9e-4u", "quote": "plan[name] = (rows, mine, seeded_sample(unflagged, GRAMMAR_SAMPLE))", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-78cc26f-1u", "quote": "torch.default_generator.manual_seed(cfg.init_seed)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-78cc26f-2s", "quote": "else: self._build_critic(cfg)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-78cc26f-3s", "quote": "self.critic = self.critic.to(self.device)", "label": "neutral"}
+{"claim_id": "diff2-offrig-73ea7ba-1s", "quote": ".filter(|l| l.chars().count() >= 40)", "label": "neutral"}
+{"claim_id": "diff2-offrig-51eda1c-3s", "quote": "let mut previous: Option<String> = None;", "label": "neutral"}
+{"claim_id": "diff2-offrig-51eda1c-3u", "quote": "if previous.as_deref().is_some_and(|p| runner::stalled(p, &reply.text))", "label": "neutral"}
+{"claim_id": "diff2-offrig-65ef665-4s", "quote": "if let Ok(tags) = local.tags() {", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-4u", "quote": "earned: v.created_at || null", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-3s", "quote": "if (record.compatibility && record.compatibility.mean_cosine != null) {", "label": "contradiction"}
+{"claim_id": "diff2-role-os-4a804eb-3u", "quote": "const cos = typeof c.mean_cosine === \"number\" ? c.mean_cosine : null; const reading = cos === null ? \"unmeasured\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-3c", "quote": "if (record.compatibility && record.compatibility.mean_cosine != null) {", "label": "neutral"}
+{"claim_id": "cal-dedupe-t", "quote": "if (prior[i].runId === outcome.runId) return false;", "label": "neutral"}
+{"claim_id": "cal-dedupe-f", "quote": "if (prior[i].runId === outcome.runId) return false;", "label": "neutral"}
+{"claim_id": "cal-dedupe-s", "quote": "if (outcome && outcome.runId) { const prior = readOutcomes(cwd); for (let i = 0; i < prior.length; i++) { if (prior[i].runId === outcome.runId) return false; } }", "label": "neutral"}
+{"claim_id": "boost-clean-t", "quote": "o.corrections === 0", "label": "neutral"}
+{"claim_id": "boost-clean-f", "quote": "o => o.selectedPack && o.completionStatus === \"completed\" && o.corrections === 0", "label": "neutral"}
+{"claim_id": "boost-gate-f", "quote": "const boost = row && row.status === \"measured\" ? row.boost : 0;", "label": "contradiction"}
+{"claim_id": "jury-min-f", "quote": "export const MIN_ITEMS = 30; export const MIN_GROUPS = 10;", "label": "neutral"}
+{"claim_id": "jury-dup-t", "quote": "a pair at or above this error consistency is one critic counted twice", "label": "neutral"}
+{"claim_id": "jury-insufficient-t", "quote": "if (items.length < MIN_ITEMS || check.groups < MIN_GROUPS)", "label": "neutral"}
+{"claim_id": "jury-insufficient-f", "quote": "if (items.length < MIN_ITEMS || check.groups < MIN_GROUPS)", "label": "neutral"}
+{"claim_id": "jury-all-excluded-t", "quote": "else reason = \"every measured critic is excluded by its recipe card\"", "label": "neutral"}
+{"claim_id": "jury-all-excluded-f", "quote": "else reason = \"every measured critic is excluded by its recipe card\"", "label": "neutral"}
+{"claim_id": "passed-no-measure-t", "quote": "warnings.push(why ? `${tag}: passed without a measure \u2014 ${why}` : `${tag}: passed without a measure`);", "label": "entailment"}
+{"claim_id": "abandon-active-t", "quote": "run = requireActiveRun(cwd);", "label": "contradiction"}
+{"claim_id": "abandon-active-f", "quote": "run = requireActiveRun(cwd);", "label": "contradiction"}
+{"claim_id": "or-embed-port-t", "quote": "http://127.0.0.1:11490", "label": "neutral"}
+{"claim_id": "or-lane-step-why-f", "quote": "pub const LANE_PORT_STEP: u16 = 2;", "label": "neutral"}
+{"claim_id": "or-sidecar-t", "quote": "Lane `i` gets `SIDECAR_PORT_BASE + i`.", "label": "neutral"}
+{"claim_id": "or-sidecar-f", "quote": "Lane `i` gets `SIDECAR_PORT_BASE + i`.", "label": "neutral"}
+{"claim_id": "or-429-t", "quote": "The next GPU type is not tried.", "label": "neutral"}
+{"claim_id": "or-429-f", "quote": "pub const CREATE_429_RETRIES: u32 = 3;", "label": "neutral"}
+{"claim_id": "or-retry-after-t", "quote": "return Duration::from_secs(1);", "label": "neutral"}
+{"claim_id": "or-retry-after-f", "quote": "let Some(raw) = headers.get(\"retry-after\").and_then(|v| v.to_str().ok()) else { return Duration::from_secs(1); }", "label": "neutral"}
+{"claim_id": "or-retry-fits-t", "quote": "return true;", "label": "neutral"}
+{"claim_id": "docs-same-runid-f", "quote": "A second call with the same run id does not append.", "label": "contradiction"}
+{"claim_id": "docs-boost-f", "quote": "boosts[pack] = Math.min((boosts[pack] || 0) + 0.5, 2.0);", "label": "neutral"}
+{"claim_id": "docs-panel-t", "quote": "the nested paired interval of panel minus best single lies entirely above 0", "label": "neutral"}
+{"claim_id": "docs-panel-f", "quote": "the nested paired interval of panel minus best single lies entirely above 0", "label": "contradiction"}
+{"claim_id": "docs-nine-t", "quote": "export const STANDARD_CONTROLS = Object.freeze([", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-6s", "quote": "or new.startswith(low) or low.startswith(new):", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-6u", "quote": "if _form(synonym) != _form(word):", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-7s", "quote": "synonym = (synonym[:1].upper() if word[:1].isupper() else synonym[:1].lower()) + synonym[1:]", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-7u", "quote": "synonym = (synonym[:1].upper() if word[:1].isupper() else synonym[:1].lower()) + synonym[1:]", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-53-8s", "quote": "FIRST = \"Choose any one sentence.\"", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-1s", "quote": "q1 <= para_median <= q3", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-1u", "quote": "q1 <= para_median <= q3", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-2s", "quote": "return span_logprob(flawed_lp, prefix, flawed_end) - span_logprob(strong_lp, prefix, strong_end)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-3s", "quote": "token 0 has none and counts as 0", "label": "entailment"}
+{"claim_id": "prs-aspire-si-55-3u", "quote": "token 0 has none and counts as 0", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-4u", "quote": "return prefix, len(a) - suffix, len(b) - suffix", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-55-6s", "quote": "if lam < 0.2: # the series converges badly near 0, where p is 1 to many places return d, 1.0", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-6u", "quote": "if lam < 0.2: # the series converges badly near 0, where p is 1 to many places return d, 1.0", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-56-2s", "quote": "Borderline (committed before the run): the median within 10% of the IQR's width of either # edge, inside or out.", "label": "entailment"}
+{"claim_id": "prs-aspire-si-56-2u", "quote": "# Borderline (committed before the run): the median within 10% of the IQR's width of either", "label": "neutral"}
+{"claim_id": "prs-aspire-si-56-3u", "quote": "# Borderline (committed before the run): the median within 10% of the IQR's width of either", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-3u", "quote": "return {g: i % k for i, g in enumerate(ids)}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-4s", "quote": "sd[sd == 0] = 1.0", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-4u", "quote": "mu, sd = x[train].mean(0), x[train].std(0)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-59-1s", "quote": "\"mistral-small:24b\": {\"think\": None, \"num_predict\": 2048, \"num_ctx\": 8192},", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-4u", "quote": "if char_similarity(answer, flawed) < MIN_SIMILARITY:", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-5s", "quote": "return sum(max(i2 - i1, j2 - j1) for op, i1, i2, j1, j2 in ops if op != \"equal\")", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-8s", "quote": "pool = sorted(ids)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-8u", "quote": "return set(pool[: max(1, round(fraction * len(pool)))] if pool else [])", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-61-11s", "quote": "if not verdict or not grammar:", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-11u", "quote": "if not verdict or not grammar:", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-61-13s", "quote": "(3 / n if n else None) if misses == 0 else None", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-13u", "quote": "(3 / n if n else None) if misses == 0 else None", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-1s", "quote": "ERROR_SCHEMA = schema( { \"verdict\": {\"type\": \"string\", \"enum\": [\"wrong\", \"not wrong\", \"unsure\"]}, \"grammatical\": {\"type\": \"boolean\"}, \"idiomatic\": {\"type\": \"boolean\"}, } )", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-63-1u", "quote": "ERROR_SCHEMA = schema( { \"verdict\": {\"type\": \"string\", \"enum\": [\"wrong\", \"not wrong\", \"unsure\"]}, \"grammatical\": {\"type\": \"boolean\"}, \"idiomatic\": {\"type\": \"boolean\"}, } )", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-5u", "quote": "# The committed rule: any miss in the sample means gemma checks every pair.", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-2u", "quote": "if trainer == \"eager\": return train_head(role, pooling, seed, feats, masks, index, flip, device)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-7u", "quote": "order_rng.shuffle(pairs)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-8u", "quote": "dtype = dtype or features[0].dtype", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-64-9s", "quote": "if role == \"auditor\": p = (torch.cat([strong, flawed]) / 10).clamp(1e-6, 1 - 1e-6) target = torch.cat([torch.zeros_like(strong), torch.ones_like(flawed)]) return fn.binary_cross_entropy(p, target)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-9u", "quote": "if role == \"auditor\": p = (torch.cat([strong, flawed]) / 10).clamp(1e-6, 1 - 1e-6) target = torch.cat([torch.zeros_like(strong), torch.ones_like(flawed)]) return fn.binary_cross_entropy(p, target)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-10s", "quote": "key = id(feats)", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-64-90c", "quote": "AdamW(capturable=True))", "label": "neutral"}
+{"claim_id": "prs-offrig-31-1s", "quote": "env.insert(\"HF_TOKEN_PATH\".into(), HF_TOKEN_FILE.into());", "label": "neutral"}
+{"claim_id": "prs-offrig-31-2s", "quote": "if let Some(sec) = &j.hf_token_secret {", "label": "neutral"}
+{"claim_id": "prs-offrig-31-2u", "quote": "env.insert(\"HF_TOKEN\".into(), format!(\"{{{{ RUNPOD_SECRET_{sec} }}}}\"));", "label": "neutral"}
+{"claim_id": "prs-offrig-31-3s", "quote": "(umask 077; printf '%s' \"$HF_TOKEN\" > /root/.offrig-hf-token)", "label": "neutral"}
+{"claim_id": "prs-offrig-31-3u", "quote": "(umask 077; printf '%s' \"$HF_TOKEN\" > /root/.offrig-hf-token)", "label": "contradiction"}
+{"claim_id": "prs-offrig-31-4u", "quote": "!s.is_empty()", "label": "contradiction"}
+{"claim_id": "prs-offrig-33-1s", "quote": "if usd + 1e-9 < b.floor() {", "label": "contradiction"}
+{"claim_id": "prs-offrig-33-2u", "quote": "if !(usd.is_finite() && usd >= 0.0) {", "label": "neutral"}
+{"claim_id": "prs-offrig-33-4u", "quote": "writeln!(out, \"{other:?} isn't a choice; pick 1, 2 or 3.\")?", "label": "neutral"}
+{"claim_id": "prs-offrig-33-7s", "quote": "let name = dir.file_name().map_or_else( || \"this project\".into(), |n| n.to_string_lossy().into_owned(), ); return budget_menu::run( &store, &name, &mut std::io::stdin().lock(), &mut std::io::stdout(), );", "label": "neutral"}
+{"claim_id": "prs-offrig-33-7u", "quote": "if !show && interactive() {", "label": "contradiction"}
+{"claim_id": "prs-offrig-34-2s", "quote": "let raw = input_tokens as f64 * self.prompt + max_tokens as f64 * self.completion + self.request;", "label": "neutral"}
+{"claim_id": "prs-offrig-34-2u", "quote": "let raw = input_tokens as f64 * self.prompt + max_tokens as f64 * self.completion + self.request;", "label": "neutral"}
+{"claim_id": "prs-offrig-34-4s", "quote": "// Tests point the side-car at a mock. Debug builds only: a release binary can // never be redirected to send the key somewhere else.", "label": "neutral"}
+{"claim_id": "prs-offrig-34-6u", "quote": "body.truncate(600);", "label": "neutral"}
+{"claim_id": "prs-offrig-34-9s", "quote": "if let Some(err) = chunk.get(\"error\").filter(|e| !e.is_null()) {", "label": "neutral"}
+{"claim_id": "prs-offrig-34-9u", "quote": "return Err(fail(self.api_error(what, code, msg), &out));", "label": "neutral"}
+{"claim_id": "prs-offrig-34-15s", "quote": "let tag = ctx.own_if_allocated()?.and_then(|l| l.tag);", "label": "contradiction"}
+{"claim_id": "prs-offrig-34-26u", "quote": "self.completion(id)? .ok_or_else(|| Error::Refused(\"completion vanished after commit\".into()))", "label": "neutral"}
+{"claim_id": "prs-offrig-39-2s", "quote": "pub const MAX_FILE_BYTES: u64 = 1_000_000;", "label": "neutral"}
+{"claim_id": "prs-offrig-39-3u", "quote": "let add = 1.0 / (k + (rank + 1) as f64);", "label": "neutral"}
+{"claim_id": "prs-offrig-39-4u", "quote": "Chunk ids by hybrid ranking: BM25 top 50 and cosine top 50 fused by RRF, top 20 kept.", "label": "entailment"}
+{"claim_id": "prs-offrig-39-5s", "quote": "p if p == tunnel_port || p == tunnel_port.saturating_add(1) => {", "label": "neutral"}
+{"claim_id": "prs-offrig-39-5u", "quote": "p if p == tunnel_port || p == tunnel_port.saturating_add(1) => {", "label": "neutral"}
+{"claim_id": "prs-offrig-39-11s", "quote": "if size > MAX_FILE_BYTES {", "label": "neutral"}
+{"claim_id": "prs-offrig-39-11u", "quote": "if size > MAX_FILE_BYTES {", "label": "neutral"}
+{"claim_id": "prs-offrig-39-13s", "quote": "An explicit `Hybrid` without an index is an /// error, never a quiet keyword search.", "label": "neutral"}
+{"claim_id": "prs-offrig-39-14s", "quote": "if store.has_embeddings()? && let Ok(ollama) = embed_client() && let Ok(v) = query_vector(store, &ollama, &q.text) { return search_records(store, q, Some(&v)); }", "label": "contradiction"}
+{"claim_id": "prs-offrig-39-14u", "quote": "store.search(q)", "label": "neutral"}
+{"claim_id": "prs-offrig-39-15s", "quote": "let limit = if q.limit == 0 { 8 } else { q.limit.min(50) };", "label": "neutral"}
+{"claim_id": "prs-offrig-39-15u", "quote": "let limit = if q.limit == 0 { 8 } else { q.limit.min(50) };", "label": "neutral"}
+{"claim_id": "prs-offrig-39-19u", "quote": "11490 => Some(\"the default embedding server's port\"),", "label": "contradiction"}
+{"claim_id": "prs-offrig-39-22u", "quote": "CHECK (kind IN ('doc','code','log','record'))", "label": "neutral"}
+{"claim_id": "prs-offrig-39-25s", "quote": "no embedding server answers at {}; {}", "label": "neutral"}
+{"claim_id": "prs-offrig-40-4s", "quote": "fn placement_rejected(e: &Error) -> bool { matches!(e, Error::Api { status: 400, .. }) }", "label": "neutral"}
+{"claim_id": "prs-offrig-40-6s", "quote": "price > cap + 1e-4", "label": "neutral"}
+{"claim_id": "prs-offrig-40-6u", "quote": "price > cap + 1e-4", "label": "neutral"}
+{"claim_id": "prs-offrig-40-7s", "quote": "the plan's GPU list is already price-filtered, so every listed type will still be tried", "label": "neutral"}
+{"claim_id": "prs-offrig-40-9s", "quote": "let body = serde_json::json!({ \"name\": name, \"size\": size_gb, \"dataCenter\": data_center_id });", "label": "neutral"}
+{"claim_id": "prs-offrig-40-9u", "quote": "let body = serde_json::json!({ \"name\": name, \"size\": size_gb, \"dataCenter\": data_center_id });", "label": "neutral"}
+{"claim_id": "prs-offrig-40-11s", "quote": "Retry-After of {}s does not fit before the plan deadline, so this GPU type is not retried and the next type is not tried", "label": "neutral"}
+{"claim_id": "prs-offrig-40-11u", "quote": "Retry-After of {}s does not fit before the plan deadline, so this GPU type is not retried and the next type is not tried", "label": "contradiction"}
+{"claim_id": "prs-offrig-41-3u", "quote": "pub fn evidence_list(claim: &Claim, retrieved: &[Passage]) -> Vec<Passage> {", "label": "neutral"}
+{"claim_id": "prs-offrig-41-10u", "quote": "if evidence.is_empty() && claim.check_type != CheckType::Knowledge {", "label": "neutral"}
+{"claim_id": "prs-offrig-41-11s", "quote": "temperature: 0.0, seed: 0, think: ThinkLevel::On, num_ctx: 16384, num_predict: 4096, structured: true", "label": "entailment"}
+{"claim_id": "prs-offrig-41-11u", "quote": "num_ctx: 16384, num_predict: 4096, structured: true", "label": "entailment"}
+{"claim_id": "prs-offrig-41-12s", "quote": "verdict == VerdictKind::CannotTell || claim.high_stakes", "label": "neutral"}
+{"claim_id": "prs-offrig-41-12u", "quote": "claim.high_stakes", "label": "neutral"}
+{"claim_id": "prs-offrig-41-13s", "quote": "\"reasoning\": { \"type\": \"string\" },", "label": "neutral"}
+{"claim_id": "prs-offrig-41-15s", "quote": "pub const MIN_UNSUPPORTED: usize = 100;", "label": "neutral"}
+{"claim_id": "prs-offrig-41-15u", "quote": "pub const MIN_UNSUPPORTED: usize = 100;", "label": "neutral"}
+{"claim_id": "prs-offrig-41-16u", "quote": "&& false_accept.high < MAX_FALSE_ACCEPT_UPPER", "label": "neutral"}
+{"claim_id": "prs-offrig-41-18s", "quote": "so it is the whole range.", "label": "neutral"}
+{"claim_id": "prs-offrig-41-18u", "quote": "return (0.0, 1.0);", "label": "contradiction"}
+{"claim_id": "prs-offrig-41-21s", "quote": "/// Per check type metrics for `outcomes` against `gold`, in a stable order (grounded, /// reasoning, knowledge). Gold claims without a label are not scored; a check type with /// no labelled claim has no row.", "label": "neutral"}
+{"claim_id": "prs-role-os-24-2u", "quote": "/** A pack or a role combination needs this many recorded runs before a rate is claimed. */", "label": "neutral"}
+{"claim_id": "prs-role-os-24-5s", "quote": "!(measure.ci[0] > 0.5)", "label": "neutral"}
+{"claim_id": "prs-role-os-24-5u", "quote": "!(measure.ci[0] > 0.5)", "label": "neutral"}
+{"claim_id": "prs-role-os-24-7s", "quote": "/** Exactly half of each cluster's labels are flipped (Ojala & Garriga 2010). */", "label": "neutral"}
+{"claim_id": "diff-aspire-si-13-3c", "quote": "checkpoint = torch.load(critic_path, map_location=self.device, weights_only=True)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-29-3u", "quote": "export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1", "label": "neutral"}
+{"claim_id": "diff-aspire-si-29-3c", "quote": "export HF_HOME=${HF_HOME:-/workspace/hf} PYTHONUNBUFFERED=1", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-5u", "quote": "return sum(abs(s - f) < tolerance for s, f in zip(strong, flawed)) / len(strong)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-66-1u", "quote": "OLLAMA = \"http://127.0.0.1:11434\"", "label": "contradiction"}
+{"claim_id": "diff-role-os-22-1u", "quote": "const adjusted = {}; for (const name of Object.keys(scores)) { const row = snap.evidence.find((item) => item.pack === name); const boost = row && row.status === \"measured\" ? row.boost : 0; adjusted[name] = scores[name] + boost; }", "label": "neutral"}
+{"claim_id": "diff-role-os-22-4s", "quote": "evidence: snap.evidence, calibration: snap.disabled ? \"off\" : (snap.outcomes.length ? \"on\" : \"empty\"), calibrationText: snap.text", "label": "neutral"}
+{"claim_id": "diff-role-os-23-11s", "quote": "{ name: \"reversed-correction\", guards: \"the critic is not just an edit detector: the edited copy is the corrected, stronger one\" },", "label": "neutral"}
+{"claim_id": "diff-offrig-24-2u", "quote": "OnDisk::Word(\"off\".into()).serialize(s),", "label": "neutral"}
+{"claim_id": "diff-offrig-28-3s", "quote": "self.wait_ready(&pod.id, on)", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-2s", "quote": "TAG=\"\"; [ \"${KEV_VENV:-.venv}\" != .venv ] && TAG=\"-${KEV_VENV#.venv-}\"", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-2u", "quote": "TAG=\"\"; [ \"${KEV_VENV:-.venv}\" != .venv ] && TAG=\"-${KEV_VENV#.venv-}\"", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-3s", "quote": "TAG=\"\"; [ \"${KEV_VENV:-.venv}\" != .venv ] && TAG=\"-${KEV_VENV#.venv-}\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-1s", "quote": "// Block all downstream pending steps (S2-F2)", "label": "neutral"}
+{"claim_id": "diff2-role-os-00b4ee5-2u", "quote": "console.error(JSON.stringify({ code, message: err.message, hint: err.hint || null, retryable: false, }));", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-4c", "quote": "console.log(`Findings: ${parts.join(", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-1s", "quote": "// Retrieval failure is non-fatal \u2014 run proceeds without knowledge", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-2s", "quote": "Retrieve for the primary role in the chain (first step's role)", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-2u", "quote": "const result = await retrieveForDispatch({ roleId, taskText: taskDescription.trim(), });", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-5u", "quote": "trust_posture: run.knowledge.retrieval_bundle?.provenance?.trust_posture ?? \"unknown\"", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-3s", "quote": "return (path / \"entries\").is_dir() and (path / \"instruments\").is_dir()", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-3u", "quote": "for d in (here, *here.parents): if is_library(d): return d", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-6u", "quote": "if args.library: ROOT = find_root(args.library) if args.cmd != \"readouts\" and (ROOT is None or not is_library(ROOT))", "label": "neutral"}
+{"claim_id": "diff2-rnd-519679e-1s", "quote": "skipping mixes with only one class", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-5s", "quote": "if not isinstance(claim, str) or not claim.strip():", "label": "contradiction"}
+{"claim_id": "diff2-rnd-b7bccc8-5u", "quote": "if not isinstance(claim, str) or not claim.strip():", "label": "contradiction"}
+{"claim_id": "diff2-aspire-si-8b95b9e-1s", "quote": "return any(not s[", "label": "contradiction"}
+{"claim_id": "diff2-aspire-si-8b95b9e-4s", "quote": "If any set's sample shows a miss, gemma then checks every pair of every set.", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-78cc26f-1s", "quote": "with torch.random.fork_rng(devices=[]): torch.default_generator.manual_seed(cfg.init_seed)", "label": "neutral"}
+{"claim_id": "diff2-offrig-73ea7ba-1s", "quote": "filter(|l| l.chars().count() >= 40)", "label": "neutral"}
+{"claim_id": "diff2-offrig-73ea7ba-1u", "quote": "filter(|l| l.chars().count() >= 40)", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-1s", "quote": "const xQualifies = (v) => v?.lineage?.parents?.length >= 2 && v.certified_level && v.certified_level !== \"L0\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-4s", "quote": "const v = xVersions.find((x) => x.id === activeVersionId) || [...xVersions].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];", "label": "neutral"}
+{"claim_id": "boost-clean-t", "quote": "o.completionStatus === \"completed\" && o.corrections === 0", "label": "neutral"}
+{"claim_id": "jury-insufficient-t", "quote": "return { ...base, verdict: { decision: \"insufficient-data\", critic: null, reason: `need at least ${MIN_ITEMS} items and ${MIN_GROUPS} groups; got ${items.length} items and ${check.groups} groups`, }, bagged: null, nested: null, };", "label": "entailment"}
+{"claim_id": "jury-all-excluded-t", "quote": "else reason = \"every measured critic is excluded by its recipe card\"; return { ...base, verdict: { decision: \"insufficient-data\", critic: null, reason, }, bagged: null, nested: null,", "label": "entailment"}
+{"claim_id": "abandon-args-t", "quote": "if (args && args.length > 1) { const err = new Error(\"Usage: roleos abandon [id]\"); err.exitCode = 1; err.hint = \"Abandon the active run, or pass one run id.\"; throw err; }", "label": "entailment"}
+{"claim_id": "or-retry-fits-t", "quote": "let Some(end) = deadline else { return true; }", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-53-6s", "quote": "if _stem(new) == _stem(low) or new.startswith(low) or low.startswith(new):", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-6u", "quote": "if _form(synonym) != _form(word): return None, \"synonym changes the form\"", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-8u", "quote": "FIRST = \"Choose any one sentence.\"", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-54-2s", "quote": "len(inside) >= MIN_SIZE_MATCHED and excludes_zero(ci) != excludes_zero(headline[1])", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-2s", "quote": "The primary measure (R&D's review): from the first changed token to the end of the answer, so the knock-on surprise after an edit counts. Each copy stops at its own answer end, before any trailing template tokens. The prefixes are identical, so this is the full-sequence difference.", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-3s", "quote": "token 0 has none and counts as 0.", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-4s", "quote": "prefix = 0 while prefix < min(len(a), len(b)) and a[prefix] == b[prefix]: prefix += 1 suffix = 0 while suffix < min(len(a), len(b)) - prefix and a[-1 - suffix] == b[-1 - suffix]: suffix += 1 return prefix, len(a) - suffix, len(b) - suffix", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-4u", "quote": "prefix = 0 while prefix < min(len(a), len(b)) and a[prefix] == b[prefix]: prefix += 1 suffix = 0 while suffix < min(len(a), len(b)) - prefix and a[-1 - suffix] == b[-1 - suffix]: suffix += 1 return prefix, len(a) - suffix, len(b) - suffix", "label": "neutral"}
+{"claim_id": "prs-aspire-si-56-3s", "quote": "\"passes\": q1 <= para_median <= q3", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-3u", "quote": "Prompt id -> fold, from a seeded shuffle of the sorted distinct ids.", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-4s", "quote": "if char_similarity(answer, flawed) < MIN_SIMILARITY:", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-5s", "quote": "difflib.SequenceMatcher(None, x, y, autojunk=False).get_opcodes()", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-6s", "quote": "gemma.get(\"outcome\") == \"wrong\" and gemma.get(\"grammatical\") is True and muse is not None and muse.get(\"outcome\") == \"wrong\" and muse.get(\"grammatical\") is True", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-8u", "quote": "random.Random(seed).shuffle(pool)", "label": "contradiction"}
+{"claim_id": "prs-aspire-si-61-9u", "quote": "for e in sorted(errors, key=lambda c: -c[\"tail\"]): for r in sorted(rewrites, key=lambda c: c[\"tail\"]):", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-1s", "quote": "\"grammatical\": {\"type\": \"boolean\"}, \"idiomatic\": {\"type\": \"boolean\"}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-1u", "quote": "GRAMMAR_SCHEMA = schema({\"grammatical\": {\"type\": \"boolean\"}, \"idiomatic\": {\"type\": \"boolean\"}}) # The grammar question's version. v1 asked \"grammatical and idiomatic\" and so dropped merely # less-idiomatic swaps, which pushes paraphrases toward typical wording. v2 gates on grammar or usage # errors only and records idiom (2026-10-08, before any head read). GRAMMAR_QUESTION = \"v2: grammar or usage error only; idiom recorded\"", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-2s", "quote": "\"eager\" is critic_heads.train_head; \"fast\" and \"graphs\" are fast_heads (R&D's GPU-resident features; \"graphs\" adds the CUDA-graph step, which uses AdamW(capturable=True)).", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-2u", "quote": "\"eager\" is critic_heads.train_head; \"fast\" and \"graphs\" are fast_heads (R&D's GPU-resident features; \"graphs\" adds the CUDA-graph step, which uses AdamW(capturable=True)).", "label": "entailment"}
+{"claim_id": "prs-aspire-si-64-9u", "quote": "binary cross-entropy on scores/10 for the Auditor, a pairwise logistic loss (strong minus flawed) for every other role.", "label": "entailment"}
+{"claim_id": "prs-offrig-31-2s", "quote": "if let Some(sec) = &j.hf_token_secret { env.insert(\"HF_TOKEN\".into(), format!(\"{{{{ RUNPOD_SECRET_{sec} }}}}\")); }", "label": "neutral"}
+{"claim_id": "prs-offrig-34-4s", "quote": "#[cfg(debug_assertions)] if let Ok(base) = std::env::var(\"OFFRIG_TEST_OPENROUTER_BASE\") && !base.is_empty() { return Ok(Self::new(key, &base)); }", "label": "neutral"}
+{"claim_id": "prs-offrig-34-9u", "quote": "if let Some(err) = chunk.get(\"error\").filter(|e| !e.is_null()) {", "label": "neutral"}
+{"claim_id": "prs-offrig-39-3u", "quote": "pub const RRF_K: f64 = 60.0;", "label": "neutral"}
+{"claim_id": "prs-offrig-39-4s", "quote": "BM25 top 50 and cosine top 50 fused by RRF, top 20 kept.", "label": "entailment"}
+{"claim_id": "prs-offrig-39-5u", "quote": "p == tunnel_port || p == tunnel_port.saturating_add(1)", "label": "neutral"}
+{"claim_id": "prs-offrig-39-8s", "quote": "_ => Ok(()),", "label": "contradiction"}
+{"claim_id": "prs-offrig-39-10s", "quote": "n.starts_with(\".env\") || n.starts_with(\"id_\") || n.contains(\"credentials\") || [\".pem\", \".key\", \".p12\", \".pfx\"] .iter() .any(|e| n.ends_with(e))", "label": "neutral"}
+{"claim_id": "prs-offrig-39-11s", "quote": "if size > MAX_FILE_BYTES { rep.skipped.push((source, \"over 1 MB\")); continue; }", "label": "neutral"}
+{"claim_id": "prs-offrig-39-11u", "quote": "if size > MAX_FILE_BYTES { rep.skipped.push((source, \"over 1 MB\")); continue; }", "label": "neutral"}
+{"claim_id": "prs-offrig-39-14s", "quote": "store.search(q)", "label": "contradiction"}
+{"claim_id": "prs-offrig-40-13s", "quote": "return Err(Error::PodNotReady { pod_id: pod_id.to_string(), what: format!(\"RunPod reported {status} during the launch\"), });", "label": "neutral"}
+{"claim_id": "prs-offrig-41-5s", "quote": "Curly quotes to straight and every run of whitespace to one space", "label": "neutral"}
+{"claim_id": "prs-offrig-41-6s", "quote": "a quote that is given must be found;", "label": "neutral"}
+{"claim_id": "prs-offrig-41-6u", "quote": "a quote that is given must be found", "label": "neutral"}
+{"claim_id": "prs-offrig-41-7u", "quote": "Unsupported if given && !quote_ok => { (VerdictKind::CannotTell, Some(QUOTE_NOT_FOUND)) }", "label": "contradiction"}
+{"claim_id": "prs-offrig-41-10s", "quote": "claim {} is a {} check with no evidence: supply context or retrieve passages", "label": "neutral"}
+{"claim_id": "prs-offrig-41-10u", "quote": "claim {} is a {} check with no evidence: supply context or retrieve passages", "label": "neutral"}
+{"claim_id": "prs-offrig-41-11u", "quote": "temperature: 0.0, seed: 0, think: ThinkLevel::On, num_ctx: 16384, num_predict: 4096, structured: true", "label": "entailment"}
+{"claim_id": "prs-offrig-41-12u", "quote": "needs_human: verdict == VerdictKind::CannotTell || claim.high_stakes", "label": "neutral"}
+{"claim_id": "prs-offrig-41-13s", "quote": "\"type\": \"object\", \"properties\": { \"reasoning\": { \"type\": \"string\" }, \"verdict\": { \"type\": \"string\", \"enum\": [\"supported\", \"unsupported\", \"cannot_tell\"] }, \"evidence_quote\": { \"type\": \"string\" }, \"evidence_source\": { \"type\": \"string\" } }, \"required\": [\"reasoning\", \"verdict\", \"evidence_quote\", \"evidence_source\"], \"additionalProperties\": false", "label": "neutral"}
+{"claim_id": "prs-offrig-41-13u", "quote": "\"verdict\": { \"type\": \"string\", \"enum\": [\"supported\", \"unsupported\", \"cannot_tell\"] }", "label": "neutral"}
+{"claim_id": "prs-offrig-41-16u", "quote": "false_accept.high < MAX_FALSE_ACCEPT_UPPER", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-5u", "quote": "def near_tie_share(strong: Sequence[float], flawed: Sequence[float], tolerance: float) -> float:", "label": "neutral"}
+{"claim_id": "diff-aspire-si-48-3s", "quote": "NOISE_BAND = 0.002", "label": "neutral"}
+{"claim_id": "diff-role-os-22-6u", "quote": "run.status = status; run.completedAt = new Date().toISOString();", "label": "contradiction"}
+{"claim_id": "diff-role-os-23-8s", "quote": "const excludedIds = new Set(check.excluded.map((row) => row.id));", "label": "neutral"}
+{"claim_id": "diff-role-os-23-9u", "quote": "reason = \"every measured critic is excluded by its recipe card\";", "label": "neutral"}
+{"claim_id": "diff-offrig-3-3u", "quote": "\"done\" if job.progress[\"job_dir\"].is_string() => {", "label": "neutral"}
+{"claim_id": "diff-offrig-8-4s", "quote": "if let Some(p) = self.current_pod(profile)?", "label": "neutral"}
+{"claim_id": "diff-offrig-8-4u", "quote": "if let Some(p) = self.current_pod(profile)?", "label": "contradiction"}
+{"claim_id": "diff-offrig-16-1s", "quote": "wait_for_gpu_minutes: 20", "label": "neutral"}
+{"claim_id": "diff-offrig-16-2u", "quote": "let asked = u64::from(plan_minutes.unwrap_or(profile_minutes)) * 60;", "label": "contradiction"}
+{"claim_id": "diff-offrig-30-2s", "quote": "if grep -a -l -i -E 'C:[\\/]+Users[\\/]' target/release/offrig.exe target/release/offrig-mcp.exe target/release/offrig-app.exe; then", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-3s", "quote": "so a new env never overwrites a reference run", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-3u", "quote": "TAG=\"\"; [ \"${KEV_VENV:-.venv}\" != .venv ] && TAG=\"-${KEV_VENV#.venv-}\" # e.g. -cu134, so a new env never overwrites a reference run", "label": "contradiction"}
+{"claim_id": "diffhard-role-os-9aa1490-1s", "quote": "To authorize it, the director adds {\"${actionId}\": {\"granted\": true, \"expires\": \"YYYY-MM-DD\"}}.", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-1u", "quote": "To authorize it, the director adds {\"${actionId}\": {\"granted\": true, \"expires\": \"YYYY-MM-DD\"}}.", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-2s", "quote": "return null;", "label": "neutral"}
+{"claim_id": "diffhard-role-os-39de253-1u", "quote": "N: cfg.N ?? readPositiveIntEnv(\"ROLEOS_SHADOW_N\", SHADOW_DEFAULTS.N),", "label": "neutral"}
+{"claim_id": "diffhard-role-os-4342dff-1c", "quote": "if (args.some(isHelpFlag)) { await printVerbHelp(command); process.exit(0); }", "label": "neutral"}
+{"claim_id": "diffhard-role-os-51afdca-1s", "quote": "if obj.get(\"scored\") is False: return False if obj.get(\"ship\") is not True: return False if obj.get(\"status\") == \"andon\": return False bar = obj.get(\"ship_bar\") if not isinstance(bar, int): return False fc = obj.get(\"false_conformant_total\") if not isinstance(fc, int) or fc > bar: return False", "label": "neutral"}
+{"claim_id": "diffhard-role-os-51afdca-1u", "quote": "if not isinstance(fc, int) or fc > bar:", "label": "contradiction"}
+{"claim_id": "diffhard-rnd-7fba56f-1s", "quote": "for sp in spans: # a fact may cite several code spans (e.g. a doc sentence spanning two places)", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-2u", "quote": "const measured = d && typeof d.steps_saved_frac === \"number\" && (d.n_receipts || 0) >= MIN_OUTCOME_RECEIPTS && d.consistent_sign !== false;", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-1s", "quote": "step.status = \"blocked\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-4s", "quote": "Role \"${to}\" has no completed step to re-open. Escalation recorded.", "label": "neutral"}
+{"claim_id": "diff2-role-os-0a13ed4-4s", "quote": "/\\bintegration\\b(?!\\s+test)/.test(lower)", "label": "neutral"}
+{"claim_id": "diff2-role-os-00b4ee5-2u", "quote": "console.error(JSON.stringify({ code, message: err.message, hint: err.hint || null, retryable: false, })); process.exit(exitCode);", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-2s", "quote": "const primaryRole = steps[0]?.role;", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-4s", "quote": "let knowledge = null;", "label": "neutral"}
+{"claim_id": "diff2-rnd-922b886-3s", "quote": "for d in (here, *here.parents): if is_library(d): return d", "label": "contradiction"}
+{"claim_id": "diff2-rnd-922b886-6u", "quote": "if args.library: ROOT = find_root(args.library)", "label": "neutral"}
+{"claim_id": "diff2-rnd-081e92f-7s", "quote": "errs, bad = [], bad + 1", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-4s", "quote": "return None, f\"rows cover {len(seen)} of {n} sentences\"", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-11s", "quote": "if prev and prev.get(\"failure\") is None and not a.redo: continue", "label": "neutral"}
+{"claim_id": "diff2-rnd-b7bccc8-11u", "quote": "if prev and prev.get(\"failure\") is None and not a.redo: continue", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-8b95b9e-3s", "quote": "a miss in any set's sample sends every pair of every set to gemma", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-8b95b9e-4s", "quote": "for name, pairs in sets.items(): rows = state.setdefault(name, {}) mine = [p for p in pairs if p[\"pair_id\"] in kept[name]] for p in mine: rows.setdefault(p[\"pair_id\"], {\"flags\": prescreen(*sentences(p))}) unflagged = [pid for pid, r in rows.items() if not r[\"flags\"]] plan[name] = (rows, mine, seeded_sample(unflagged, GRAMMAR_SAMPLE))", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-2s", "quote": "v.certified_level && v.certified_level !== \"L0\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-4s", "quote": "earned: cur.certified_at", "label": "neutral"}
+{"claim_id": "cal-dedupe-t", "quote": "// One line per run. A second call with the same run id does not append.", "label": "neutral"}
+{"claim_id": "jury-dup-t", "quote": "/** Studio rule: a pair at or above this error consistency is one critic counted twice. */", "label": "neutral"}
+{"claim_id": "abandon-args-t", "quote": "const err = new Error(\"Usage: roleos abandon [id]\");", "label": "neutral"}
+{"claim_id": "or-lane-step-why-t", "quote": "/// Lane ports are two apart: the lane's own port, and the one above it for the /// handoff runner's second tunnel.", "label": "entailment"}
+{"claim_id": "or-retry-after-t", "quote": "let Some(raw) = headers.get(\"retry-after\").and_then(|v| v.to_str().ok()) else { return Duration::from_secs(1); };", "label": "neutral"}
+{"claim_id": "docs-same-runid-t", "quote": "// One line per run. A second call with the same run id does not append.", "label": "entailment"}
+{"claim_id": "docs-panel-f", "quote": "const clears = nested.differenceCi !== null && nested.differenceCi.low > 0;", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-7s", "quote": "synonym = (synonym[:1].upper() if word[:1].isupper() else synonym[:1].lower()) + synonym[1:] start, end = hits[0].span() before = sentence[:start] article = re.search(r\"\\b(a|an|A|An)\\s+$\", before)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-10s", "quote": "if problems: count(problems[0]) continue if edit_chars(pair) > size_cap(it): count(\"over the size gate\") continue guard = lexical_guard(pair) if guard: count(f\"lexical guard: {guard}\") continue if slot and overlaps(pair, done[it[\"prompt_id\"]][0]):", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-5s", "quote": "READ_SETS = {\"pconfirm\": \"confirm\", \"psecond\": \"second\"} REPORTED_ONLY = {\"ptrain\": \"train\"}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-58-3s", "quote": "random.Random(seed).shuffle(ids) return {g: i % k for i, g in enumerate(ids)}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-8s", "quote": "pool = sorted(ids) random.Random(seed).shuffle(pool) return set(pool[: max(1, round(fraction * len(pool)))] if pool else [])", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-9s", "quote": "for e in sorted(errors, key=lambda c: -c[\"tail\"]): for r in sorted(rewrites, key=lambda c: c[\"tail\"]): big, small = max(e[\"edit_chars\"], r[\"edit_chars\"]), min(e[\"edit_chars\"], r[\"edit_chars\"]) if abs(e[\"tail\"] - r[\"tail\"]) <= caliper and small > 0 and big / small <= ratio:", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-11s", "quote": "if not verdict or not grammar: return {\"outcome\": \"unparsed\", \"reasoning\": text}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-1s", "quote": "GRAMMAR_QUESTION = \"v2: grammar or usage error only; idiom recorded\"", "label": "neutral"}
+{"claim_id": "prs-aspire-si-63-5s", "quote": "if \"gemma\" in r: r[\"gemma_v1\"] = r.pop(\"gemma\")", "label": "neutral"}
+{"claim_id": "prs-offrig-31-4s", "quote": "!s.is_empty() && s.chars() .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')", "label": "neutral"}
+{"claim_id": "prs-offrig-33-2s", "quote": "if !(usd.is_finite() && usd >= 0.0) { return Err(Error::Refused(format!( \"budget cap {usd} must be a non-negative amount\" ))); }", "label": "neutral"}
+{"claim_id": "prs-offrig-34-2s", "quote": "Rounded up to the cent.", "label": "neutral"}
+{"claim_id": "prs-offrig-34-4s", "quote": "#[cfg(debug_assertions)] if let Ok(base) = std::env::var(\"OFFRIG_TEST_OPENROUTER_BASE\") && !base.is_empty() {", "label": "neutral"}
+{"claim_id": "prs-offrig-34-15s", "quote": "/// The project's lane tag, refusing any project the approval does not cover. The lane is /// read, never allocated: a refused project leaves nothing behind.", "label": "entailment"}
+{"claim_id": "prs-offrig-34-21s", "quote": "let price: Price = or.price(&a.model)?; let input = openrouter::input_bound(&system, &user); let worst = price.worst_case(input, a.max_tokens);", "label": "neutral"}
+{"claim_id": "prs-offrig-34-26s", "quote": "BEGIN IMMEDIATE", "label": "neutral"}
+{"claim_id": "prs-offrig-39-3s", "quote": "1.0 / (k + (rank + 1) as f64", "label": "neutral"}
+{"claim_id": "prs-offrig-39-20s", "quote": "if (1..5).contains(&version) { // v4 -> v5: the index tables were just created; active records join it so // memory search ranks them. Their vectors fill in at the next embed pass. store.backfill_record_chunks()?; }", "label": "neutral"}
+{"claim_id": "prs-offrig-39-20u", "quote": "if (1..5).contains(&version) { // v4 -> v5: the index tables were just created; active records join it so // memory search ranks them. Their vectors fill in at the next embed pass. store.backfill_record_chunks()?;", "label": "neutral"}
+{"claim_id": "prs-offrig-39-24s", "quote": "pub const BATCH: usize = 32;", "label": "neutral"}
+{"claim_id": "prs-offrig-40-4s", "quote": "matches!(e, Error::Api { status: 400, .. })", "label": "neutral"}
+{"claim_id": "prs-offrig-40-6s", "quote": "&& price > cap + 1e-4", "label": "neutral"}
+{"claim_id": "prs-offrig-40-9s", "quote": "\"dataCenter\": data_center_id", "label": "neutral"}
+{"claim_id": "prs-offrig-41-5s", "quote": "/// Curly quotes to straight and every run of whitespace to one space, so a quote /// matches across the line wraps and typography a model or an editor changes.", "label": "entailment"}
+{"claim_id": "prs-offrig-41-6s", "quote": "VerdictKind::Supported if !quote_ok => (VerdictKind::CannotTell, Some(QUOTE_NOT_FOUND))", "label": "entailment"}
+{"claim_id": "prs-offrig-41-11s", "quote": "Self { model: model.to_string(), model_digest: None, embed_model: None, embed_dim: None, temperature: 0.0, seed: 0, think: ThinkLevel::On, num_ctx: 16384, num_predict: 4096, structured: true, gpu_type: None, plan_id: None, }", "label": "neutral"}
+{"claim_id": "diff-role-os-23-8s", "quote": "const excludedIds = new Set(check.excluded.map((row) => row.id)); const eligible = byId(critics).filter((c) => !inverted.has(c.id) && !excludedIds.has(c.id) && pointAccuracy(c, items) !== null);", "label": "contradiction"}
+{"claim_id": "diff-role-os-23-9u", "quote": "else reason = \"every measured critic is excluded by its recipe card\";", "label": "neutral"}
+{"claim_id": "diff-offrig-13-1s", "quote": "allowed_cuda_versions: profile .effective_min_cuda() .as_deref() .and_then(cuda_at_least) .unwrap_or_default()", "label": "neutral"}
+{"claim_id": "diff-offrig-8-4s", "quote": "if let Some(p) = self.lane_guard(profile)?", "label": "neutral"}
+{"claim_id": "diff-offrig-16-4s", "quote": "on(Event::Waiting { attempt, waited_secs: waited.as_secs(), limit_secs: wait.limit.as_secs(), });", "label": "neutral"}
+{"claim_id": "diff-rnd-31fba10-3u", "quote": "# e.g. -cu134, so a new env never overwrites a reference run", "label": "contradiction"}
+{"claim_id": "diffhard-aspire-si-52-2u", "quote": "return max(floor, int(2 * item.get(\"error_chars\", 0)))", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-1u", "quote": "function _grantHint(kind, actionId) { if (kind === \"expired\") { return `To authorize it, the director renews \"expires\" on the existing \"${actionId}\" grant; do not drop \"expires\".`; } if (kind === \"bad-expires\") { return `To authorize it, the director fixes the \"expires\" date on the existing \"${actionId}\" grant; do not drop \"expires\".`; } return `To authorize it, the director adds {\"${actionId}\": {\"granted\": true, \"expires\": \"YYYY-MM-DD\"}}.`; }", "label": "neutral"}
+{"claim_id": "diffhard-role-os-39de253-1u", "quote": "N: cfg.N ?? readPositiveIntEnv(\"ROLEOS_SHADOW_N\", SHADOW_DEFAULTS.N)", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-2s", "quote": "const measured = d && typeof d.steps_saved_frac === \"number\" && (d.n_receipts || 0) >= MIN_OUTCOME_RECEIPTS && d.consistent_sign !== false;", "label": "contradiction"}
+{"claim_id": "diff2-role-os-467b98d-2u", "quote": "&& d.consistent_sign !== false; if (measured) return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-1s", "quote": "if (foundActive && step.status === \"pending\") { step.status = \"blocked\"; step.note = `Blocked: upstream ${active.role} ${status}`; }", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-4s", "quote": "escalation.warning = `Role \"${to}\" has no completed step to re-open. Escalation recorded.`;", "label": "neutral"}
+{"claim_id": "diff2-role-os-7550c7c-5s", "quote": "escalation.reopened = true;", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-1s", "quote": "} catch (e) { // Retrieval failure is non-fatal \u2014 run proceeds without knowledge knowledge = null; }", "label": "neutral"}
+{"claim_id": "diff2-role-os-365da74-4s", "quote": "let knowledge = null; if (isKnowledgeConfigured()) {", "label": "neutral"}
+{"claim_id": "diff2-rnd-922b886-6u", "quote": "for d in (here, *here.parents): if is_library(d): return d", "label": "neutral"}
+{"claim_id": "diff2-rnd-081e92f-5u", "quote": "re-run one judge, keep the others' flags", "label": "contradiction"}
+{"claim_id": "diff2-rnd-081e92f-7s", "quote": "except (json.JSONDecodeError, KeyError): errs, bad = [], bad + 1", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-4s", "quote": "print( f\"HOST-REFUSED: {shard} of {model} ({size / 1e9:.2f} GB) did not arrive in {limit:.0f} s, \" f\"twice what {need_mbps:.0f} MB/s allows\", flush=True, ) os._exit(2)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-8s", "quote": "def required_mbps(download_gb: float, download_minutes: float) -> float: \"\"\"The download rate, in MB/s, that fetches `download_gb` in `download_minutes`.\"\"\" return download_gb * 1000 / (download_minutes * 60)", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-8b95b9e-3s", "quote": "If any set's sample shows a miss, gemma then checks every pair of every set.", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-8b95b9e-4s", "quote": "The word swaps' grammar pass: the CPU pre-screen on every kept pair, then gemma4 (thinking) on every flagged pair plus a seed-0 random 10% of the unflagged ones (the pre-screen's miss rate). If any set's sample shows a miss, gemma then checks every pair of every set.", "label": "neutral"}
+{"claim_id": "diff2-offrig-51eda1c-3u", "quote": "Next::Revise if previous.as_deref().is_some_and(|p| runner::stalled(p, &reply.text)) => { Next::Review { why: \"the revision came back unchanged; the model is not acting on the failed checks\".into(), } }", "label": "neutral"}
+{"claim_id": "diff2-offrig-65ef665-4s", "quote": "if let Ok(tags) = local.tags() { let names: Vec<String> = tags.into_iter().map(|t| t.name).collect(); local_conflicts(profile, &names)?; }", "label": "neutral"}
+{"claim_id": "diff2-offrig-65ef665-5s", "quote": "if clash.is_empty() { Ok(())", "label": "neutral"}
+{"claim_id": "boost-clean-t", "quote": "o => o.selectedPack && o.completionStatus === \"completed\" && o.corrections === 0", "label": "neutral"}
+{"claim_id": "jury-dup-t", "quote": "a pair at or above this error consistency is one critic counted twice.", "label": "neutral"}
+{"claim_id": "shuffle-method-t", "quote": "if (measure.method !== BALANCED_PERMUTATION) warnings.push(`${tag}: ${SHUFFLE_WHY}`)", "label": "neutral"}
+{"claim_id": "prs-aspire-si-53-10s", "quote": "if problems: count(problems[0]) continue if edit_chars(pair) > size_cap(it): count(\"over the size gate\") continue guard = lexical_guard(pair) if guard: count(f\"lexical guard: {guard}\") continue if slot and overlaps(pair, done[it[\"prompt_id\"]][0]): count(\"same sentence as the first swap\") continue", "label": "neutral"}
+{"claim_id": "prs-aspire-si-55-5s", "quote": "READ_SETS = {\"pconfirm\": \"confirm\", \"psecond\": \"second\"}", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-4s", "quote": "MIN_SIMILARITY = 0.85", "label": "neutral"}
+{"claim_id": "prs-aspire-si-61-8s", "quote": "def seeded_sample(ids: list[str], fraction: float, seed: int = 0) -> set[str]: \"\"\"A seeded random `fraction` of `ids` (at least one when there are any), independent of order.\"\"\" pool = sorted(ids) random.Random(seed).shuffle(pool) return set(pool[: max(1, round(fraction * len(pool)))] if pool else [])", "label": "entailment"}
+{"claim_id": "prs-aspire-si-61-9s", "quote": "for e in sorted(errors, key=lambda c: -c[\"tail\"]): for r in sorted(rewrites, key=lambda c: c[\"tail\"]):", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-2s", "quote": "graphs=trainer == \"graphs\"", "label": "neutral"}
+{"claim_id": "prs-aspire-si-64-9s", "quote": "def pair_loss(role: str, scores): \"\"\"The original's loss: binary cross-entropy on scores/10 for the Auditor, a pairwise logistic loss (strong minus flawed) for every other role. Scores alternate strong, flawed.\"\"\"", "label": "entailment"}
+{"claim_id": "prs-offrig-34-2s", "quote": "input_tokens as f64 * self.prompt + max_tokens as f64 * self.completion + self.request", "label": "neutral"}
+{"claim_id": "prs-offrig-34-4s", "quote": "#[cfg(debug_assertions)] if let Ok(base) = std::env::var(\"OFFRIG_TEST_OPENROUTER_BASE\") && !base.is_empty()", "label": "neutral"}
+{"claim_id": "prs-offrig-34-14s", "quote": "if now - c.created_at >= SETTLE_AFTER_SECS && let Some(g) = c.generation_id.as_deref() && let Ok(Some(charge)) = or.generation_cost(g)", "label": "neutral"}
+{"claim_id": "prs-offrig-39-4s", "quote": "pub const RANKER_DEPTH: usize = 50; pub const FUSED_KEEP: usize = 20;", "label": "neutral"}
+{"claim_id": "prs-offrig-39-8s", "quote": "Some(stored) if stored != model", "label": "contradiction"}
+{"claim_id": "prs-offrig-39-10s", "quote": "pub fn secret_like(name: &str) -> bool { let n = name.to_ascii_lowercase(); n.starts_with(\".env\") || n.starts_with(\"id_\") || n.contains(\"credentials\") || [\".pem\", \".key\", \".p12\", \".pfx\"] .iter() .any(|e| n.ends_with(e)) }", "label": "entailment"}
+{"claim_id": "prs-offrig-39-19s", "quote": "11490 => Some(\"the default embedding server's port\")", "label": "neutral"}
+{"claim_id": "prs-offrig-39-22s", "quote": "kind IN ('doc','code','log','record')", "label": "neutral"}
+{"claim_id": "prs-offrig-41-8s", "quote": "if evidence.is_empty() { return (reply.verdict, None); }", "label": "contradiction"}
+{"claim_id": "prs-offrig-41-15s", "quote": "missing == 0 && unsupported_n >= MIN_UNSUPPORTED && false_accept.high < MAX_FALSE_ACCEPT_UPPER && abstain.rate.is_some_and(|a| a <= MAX_ABSTAIN) && decided_balanced_accuracy.is_some_and(|b| b >= MIN_BALANCED_ACCURACY)", "label": "neutral"}
+{"claim_id": "prs-offrig-41-19s", "quote": "/// True when the model earns the default: both `grounded` and `reasoning` pass the /// rule. `knowledge` is reported but is not part of it.", "label": "entailment"}
+{"claim_id": "prs-role-os-24-5s", "quote": "if (!measure.ci || !(measure.ci[0] > 0.5))", "label": "neutral"}
+{"claim_id": "diff-aspire-si-13-1s", "quote": "torch.load(path, map_location=\"cpu\", weights_only=True)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-13-3s", "quote": "torch.load(critic_path, map_location=self.device, weights_only=True)", "label": "neutral"}
+{"claim_id": "diff-aspire-si-47-4s", "quote": "return { \"model\": self.model, \"messages\": chat.messages(), \"stream\": False, \"think\": False, \"options\": {\"temperature\": temperature, \"num_predict\": max_tokens}, }", "label": "neutral"}
+{"claim_id": "diff-role-os-22-3s", "quote": "const boost = row && row.status === \"measured\" ? row.boost : 0", "label": "entailment"}
+{"claim_id": "diff-role-os-23-9s", "quote": "else reason = \"every measured critic is excluded by its recipe card\"", "label": "neutral"}
+{"claim_id": "diff-role-os-23-11u", "quote": "{ name: \"reversed-correction\", guards: \"the critic is not just an edit detector: the edited copy is the corrected, stronger one\" },", "label": "neutral"}
+{"claim_id": "diff-offrig-8-3s", "quote": "filter(|p| self.cfg.owns_pod(&p.name) && p.desired_status != \"TERMINATED\")", "label": "neutral"}
+{"claim_id": "diff-offrig-16-2s", "quote": "let asked = u64::from(plan_minutes.unwrap_or(profile_minutes)) * 60", "label": "neutral"}
+{"claim_id": "diffhard-aspire-si-52-1u", "quote": "if other != low and (low in (other + \"er\", other + \"est\", other + \"r\", other + \"st\")):", "label": "neutral"}
+{"claim_id": "diffhard-role-os-9aa1490-2u", "quote": "if (Object.prototype.hasOwnProperty.call(g, \"expires\")) {", "label": "contradiction"}
+{"claim_id": "diff2-role-os-467b98d-2u", "quote": "const measured = d && typeof d.steps_saved_frac === \"number\" && (d.n_receipts || 0) >= MIN_OUTCOME_RECEIPTS && d.consistent_sign !== false; if (measured) return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-467b98d-4s", "quote": "return d.steps_saved_frac > 0 ? \"confirmed\" : \"confirmed-negative\";", "label": "neutral"}
+{"claim_id": "diff2-role-os-0a13ed4-5s", "quote": "if (lower.includes(\"wiring\") || lower.includes(\"bridge\") || /\\bintegration\\b(?!\\", "label": "neutral"}
+{"claim_id": "diff2-role-os-54f6a32-4s", "quote": "// Full groundedness distribution \u2014 SUPPORTED citations must be visible. The per-citation list below // prints only the problems (accept/supported are skipped), which read as \"every citation failed\" // when most were actually supported; this line is the honest denominator (14 supported \u00b7 8 ...). printFindingsDistribution(r.citations);", "label": "neutral"}
+{"claim_id": "diff2-rnd-922b886-3u", "quote": "def find_root(override=None, cwd=None): \"\"\"--library, then $RND_ROOT, then the nearest library at or above cwd, then the source checkout.\"\"\" explicit = override or os.environ.get(\"RND_ROOT\") if explicit: return Path(explicit).resolve() here = Path(cwd or Path.cwd()).resolve() for d in (here, *here.parents): if is_library(d): return d return SOURCE_ROOT if is", "label": "contradiction"}
+{"claim_id": "diff2-rnd-b7bccc8-3u", "quote": "if r[\"n\"] in seen: return None, \"repeated n\"", "label": "neutral"}
+{"claim_id": "diff2-aspire-si-4d45a08-6s", "quote": "need = required_mbps(download_gb, download_minutes) nbytes, seconds = shard_rate(model, shard, need)", "label": "contradiction"}
+{"claim_id": "diff2-aspire-si-78cc26f-1s", "quote": "with torch.random.fork_rng(devices=[]): torch.default_generator.manual_seed(cfg.init_seed) self._build_critic(cfg)", "label": "contradiction"}
+{"claim_id": "diff2-offrig-51eda1c-2s", "quote": "Next::Revise if previous.as_deref().is_some_and(|p| runner::stalled(p, &reply.text)) => { Next::Review { why: \"the revision came back unchanged; the model is not acting on the failed checks\".into(), } }", "label": "contradiction"}
+{"claim_id": "diff2-role-os-80c532c-1s", "quote": "const xVersions = versions.filter(xQualifies);", "label": "neutral"}
+{"claim_id": "diff2-role-os-80c532c-2s", "quote": "v?.lineage?.parents?.length >= 2 && v.certified_level && v.certified_level !== \"L0\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-1s", "quote": "const cos = typeof c.mean_cosine === \"number\" ? c.mean_cosine : null;", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-3u", "quote": "reading = cos === null ? \"unmeasured\"", "label": "neutral"}
+{"claim_id": "diff2-role-os-4a804eb-3c", "quote": "if (record.compatibility && record.compatibility.mean_cosine != null)", "label": "neutral"}
