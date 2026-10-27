@@ -1,0 +1,285 @@
+{
+ "test": "S1",
+ "model": "cross-encoder/nli-deberta-v3-base",
+ "revision": "6c749ce3425cd33b46d187e45b92bbf96ee12ec7",
+ "device": "NPU",
+ "ov_device": "NPU",
+ "ov_device_name": "Intel(R) AI Boost",
+ "openvino": "2026.4.1-22982-e213a147257-releases/2026/4",
+ "shape": [
+  1,
+  512
+ ],
+ "rnd_commit": "e48cc90c9a4cfca9472973308b5abd85195f15dd",
+ "verdict_files_sha256": {
+  "cal-gemma4_31b-grounded-tune/verdicts.jsonl": "4769a49e2c4506d9c30669aa40c0ee99dc05348ff0086669b22f2c809cc8a18f",
+  "cal-gemma4_31b-reasoning-tune/verdicts.jsonl": "79acd29e20ddb47b68034f020d30aa402c9de2560f0f3c6df402dc1af23d6b39",
+  "cal-granite4.1_30b-grounded-tune/verdicts.jsonl": "81f21c71a4eefe2ecb8b511dabb647f989154d6868ec39c7688272f4c02b1af8",
+  "cal-granite4.1_30b-reasoning-tune/verdicts.jsonl": "e088143ce1ac535ba90677889ee316545df4e0d02042e3c1cf7691a985fec4b9",
+  "cal-llama3.1_8b-grounded-tune/verdicts.jsonl": "4f67749752179b7c0cc93059e1481641ae38c23f5d7b84cb9b802a6bdcbdf29f",
+  "cal-llama3.1_8b-reasoning-tune/verdicts.jsonl": "971d342886a98f83a0bc7b5310f8291112ae4d7125b8db3b70b5d464b422e469",
+  "cal-mistral-small_24b-grounded-tune/verdicts.jsonl": "d3a3860861a5ce49f499df5ea99cd2886a93429b0ee89d4c4f129f4b0c9440df",
+  "cal-mistral-small_24b-reasoning-tune/verdicts.jsonl": "322173a113d6bad267eb09332ace7681db3e71864765ef11f60af7e5decc7393",
+  "cal-qwen3_14b-grounded-tune/verdicts.jsonl": "b61fede54c92eef2d555012f9d8953f7bf8f2c043b89df7688b664eee6237634",
+  "cal-qwen3_14b-reasoning-tune/verdicts.jsonl": "599156bc98f4604fe29c85c6e79a39f9567b884a4780e0eb75d31db742a88b01",
+  "cal-qwen3_8b-grounded-tune/verdicts.jsonl": "51b7dbb55f9b1bb593c055ff907dddc153d4ceef813f7d47b768ba8aae911464",
+  "cal-qwen3_8b-reasoning-tune/verdicts.jsonl": "c060487e4aab732729f8f60cd4ff99fff846ae7063b5367310b11321bf774844"
+ },
+ "gold_files_sha256": {
+  "grounded.jsonl": "59601d10dfea03351e506d08f5296f285d7f7cb37ba5ace79ae2bd006940aabd",
+  "prs/grounded-prs.jsonl": "6e2d068eb7d2f3bdbce5a229dd9eedac50c09e3f57abbacba78e06f3e3c34f13",
+  "diffs/reasoning-diffs.jsonl": "4f4c058a67f9f564bbb29123e580bee5c6f42f97ad334e4ceb089abfb3586989"
+ },
+ "limit": null,
+ "pairs": 677,
+ "scored": 677,
+ "stopped": null,
+ "compile_s": 1.56,
+ "latency_s": {
+  "p50": 0.27146291732788086,
+  "p95": 0.2758200168609619,
+  "n": 677
+ },
+ "npu_health": {
+  "before": "OK",
+  "after": "OK"
+ },
+ "pass_line": {
+  "positive_entail_min": 0.85,
+  "fooled_unsupported_upper_max": 0.15
+ },
+ "readout": {
+  "grounded": {
+   "positive": {
+    "n": 267,
+    "scored": 267,
+    "entailed": 56,
+    "rate": 0.20973782771535582,
+    "wilson95": [
+     0.1651944774012559,
+     0.2625150000365575
+    ]
+   },
+   "fooled:unsupported": {
+    "n": 110,
+    "scored": 110,
+    "entailed": 8,
+    "rate": 0.07272727272727272,
+    "wilson95": [
+     0.03731042070659471,
+     0.13697985127547282
+    ]
+   },
+   "fooled:cannot_tell": {
+    "n": 6,
+    "scored": 6,
+    "entailed": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.3903342879021653
+    ]
+   },
+   "pass": false,
+   "complete": true,
+   "strata": {
+    "doc_comment": {
+     "positive": {
+      "n": 106,
+      "scored": 106,
+      "entailed": 22,
+      "rate": 0.20754716981132076,
+      "wilson95": [
+       0.14124645532287675,
+       0.2943036487483994
+      ]
+     },
+     "fooled:unsupported": {
+      "n": 44,
+      "scored": 44,
+      "entailed": 5,
+      "rate": 0.11363636363636363,
+      "wilson95": [
+       0.04952780601092492,
+       0.23979152416608285
+      ]
+     },
+     "fooled:cannot_tell": {
+      "n": 3,
+      "scored": 3,
+      "entailed": 0,
+      "rate": 0.0,
+      "wilson95": [
+       0.0,
+       0.5614970317550454
+      ]
+     }
+    },
+    "code_only": {
+     "positive": {
+      "n": 98,
+      "scored": 98,
+      "entailed": 15,
+      "rate": 0.15306122448979592,
+      "wilson95": [
+       0.09500682810119268,
+       0.23728867524854488
+      ]
+     },
+     "fooled:unsupported": {
+      "n": 44,
+      "scored": 44,
+      "entailed": 2,
+      "rate": 0.045454545454545456,
+      "wilson95": [
+       0.012555109949594967,
+       0.15134998437629657
+      ]
+     },
+     "fooled:cannot_tell": {
+      "n": 2,
+      "scored": 2,
+      "entailed": 0,
+      "rate": 0.0,
+      "wilson95": [
+       0.0,
+       0.6576197724933469
+      ]
+     }
+    },
+    "unflagged": {
+     "positive": {
+      "n": 63,
+      "scored": 63,
+      "entailed": 19,
+      "rate": 0.30158730158730157,
+      "wilson95": [
+       0.20237691162188495,
+       0.4236037231355958
+      ]
+     },
+     "fooled:unsupported": {
+      "n": 22,
+      "scored": 22,
+      "entailed": 1,
+      "rate": 0.045454545454545456,
+      "wilson95": [
+       0.00806942762126385,
+       0.21798045838657332
+      ]
+     },
+     "fooled:cannot_tell": {
+      "n": 1,
+      "scored": 1,
+      "entailed": 0,
+      "rate": 0.0,
+      "wilson95": [
+       0.0,
+       0.7934506856227626
+      ]
+     }
+    }
+   }
+  },
+  "reasoning": {
+   "positive": {
+    "n": 210,
+    "scored": 210,
+    "entailed": 15,
+    "rate": 0.07142857142857142,
+    "wilson95": [
+     0.04376128147898465,
+     0.11449361917182957
+    ]
+   },
+   "fooled:unsupported": {
+    "n": 68,
+    "scored": 68,
+    "entailed": 2,
+    "rate": 0.029411764705882353,
+    "wilson95": [
+     0.008103179543129883,
+     0.10104631365223063
+    ]
+   },
+   "fooled:cannot_tell": {
+    "n": 16,
+    "scored": 16,
+    "entailed": 0,
+    "rate": 0.0,
+    "wilson95": [
+     0.0,
+     0.1936076805344365
+    ]
+   },
+   "pass": false,
+   "complete": true,
+   "strata": {
+    "doc_comment": {
+     "positive": {
+      "n": 95,
+      "scored": 95,
+      "entailed": 5,
+      "rate": 0.05263157894736842,
+      "wilson95": [
+       0.02268811304914955,
+       0.11734886117037888
+      ]
+     },
+     "fooled:unsupported": {
+      "n": 31,
+      "scored": 31,
+      "entailed": 0,
+      "rate": 0.0,
+      "wilson95": [
+       0.0,
+       0.11025539546043596
+      ]
+     },
+     "fooled:cannot_tell": {
+      "n": 2,
+      "scored": 2,
+      "entailed": 0,
+      "rate": 0.0,
+      "wilson95": [
+       0.0,
+       0.6576197724933469
+      ]
+     }
+    },
+    "code_only": {
+     "positive": {
+      "n": 115,
+      "scored": 115,
+      "entailed": 10,
+      "rate": 0.08695652173913043,
+      "wilson95": [
+       0.04791849741533478,
+       0.1526971720427934
+      ]
+     },
+     "fooled:unsupported": {
+      "n": 37,
+      "scored": 37,
+      "entailed": 2,
+      "rate": 0.05405405405405406,
+      "wilson95": [
+       0.014950976833157673,
+       0.17704654350813104
+      ]
+     },
+     "fooled:cannot_tell": {
+      "n": 14,
+      "scored": 14,
+      "entailed": 0,
+      "rate": 0.0,
+      "wilson95": [
+       0.0,
+       0.2153108027376358
+      ]
+     }
+    }
+   }
+  }
+ }
+}

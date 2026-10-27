@@ -82,3 +82,19 @@ The script ran end to end on the CPU: 0.25 s a pair at 1×512, the NPU healthy b
 - `s1-<device>-labels.jsonl`.
 
 They're committed byte for byte under `docs/runs/receipts/2026-10-10-smoke/` after the run, identity-scanned.
+
+## Results (run 2026-10-27, aspire-si 6c87277, rnd e48cc90c)
+
+**FAIL on the pass line, both devices, both check types.** Read the gold caveat above first: the gold is
+provisional, and this result says nothing about the keys.
+
+| check type | positives entail (n) | fooled-unsupported entail (n) | Wilson upper | pass |
+|---|---|---|---|---|
+| grounded | 0.210 (267) | 0.073 (110) | 0.137 | no |
+| reasoning | 0.071 (210) | 0.029 (68) | 0.101 | no |
+
+The fooled-unsupported half holds; the positives half fails by a wide margin. The model labels most real supporting
+code lines "neutral". Strata don't rescue it (grounded code_only 0.153, doc_comment 0.208; reasoning 0.087, 0.053).
+NPU and iGPU agree on 636 of 637 distinct labels; the iGPU is 3× faster (p50 0.089 s against 0.271 s). Both runs
+whole and healthy: 677 scored, no stop, no limit, NPU OK before and after. Receipts and the full run note:
+`docs/runs/receipts/2026-10-10-smoke/`.
