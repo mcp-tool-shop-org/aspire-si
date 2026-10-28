@@ -95,6 +95,7 @@ provisional, and this result says nothing about the keys.
 
 The fooled-unsupported half holds; the positives half fails by a wide margin. The model labels most real supporting
 code lines "neutral". Strata don't rescue it (grounded code_only 0.153, doc_comment 0.208; reasoning 0.087, 0.053).
-NPU and iGPU agree on 636 of 637 distinct labels; the iGPU is 3× faster (p50 0.089 s against 0.271 s). Both runs
-whole and healthy: 677 scored, no stop, no limit, NPU OK before and after. Receipts and the full run note:
+NPU and iGPU agree on 676 of 677 labels (corrected 2026-10-28; see the run note); the iGPU is 3× faster (p50
+0.089 s against 0.271 s). Both runs whole and healthy: 677 scored, no stop, no limit, NPU OK before and after.
+Receipts and the full run note:
 `docs/runs/receipts/2026-10-10-smoke/`.

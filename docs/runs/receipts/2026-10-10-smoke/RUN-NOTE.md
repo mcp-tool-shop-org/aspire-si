@@ -16,7 +16,7 @@ the NPU run.
 | reasoning | **0.071** (210) | 0.029 (68) | 0.101 | 0.000 (16) | no |
 
 The fooled-unsupported half of the line holds on both check types. The positives half fails by a wide margin: the
-model labels most real supporting code lines "neutral" (473 of 637 distinct labels on the NPU). That is the
+model labels most real supporting code lines "neutral" (498 of the 677 pairs on the NPU). That is the
 prose-versus-code gap the pre-registration named, and the 5-pair rehearsal had already shown it (2 of 5 neutral).
 
 **Strata (reported, never gated):** doc-comment pairs did not rescue the positives. Grounded: doc_comment 0.208,
@@ -28,7 +28,7 @@ prose comments; it is general.
 | device | p50 / p95 per pair | labels agreeing with the NPU |
 |---|---|---|
 | NPU (Intel AI Boost) | 0.271 s / 0.276 s | — |
-| Intel iGPU | 0.089 s / 0.094 s | 636 of 637 distinct (claim, quote) keys, 99.8% |
+| Intel iGPU | 0.089 s / 0.094 s | 676 of 677 pairs, 99.9% |
 
 Both runs: 677 pairs scored, nothing stopped, no `--limit`, NPU health OK before and after, exit 0, stdout `S1-OK`
 (the script's "whole, healthy run" marker; it is not the pass line). The iGPU is the faster agreeing device. Whether a
@@ -53,3 +53,14 @@ critic's device matters is moot for this model, since it fails the line on both.
 - It does not validate or invalidate the gold keys, and it says nothing about cannot_tell or removed-fact traps.
 - It does not test S2 or S3, which are separate pre-registrations and separate requests.
 - Nothing here is a critic score, and nothing is fed to any reward.
+
+## Correction (2026-10-28)
+
+The first version of this note gave two counts on the wrong key: "473 of 637 distinct labels" (NPU neutral) and
+"636 of 637 distinct (claim, quote) keys" (NPU-iGPU agreement). Both were counted on (claim, first 80 characters of
+the quote), which merges pairs whose quotes share an opening. On the full (claim, quote) key, both labels files hold
+677 distinct pairs: the NPU labels 498 of them neutral (the iGPU 499), and the two devices agree on 676 of 677. The
+figures above are corrected. Nothing else changes: the readout (positives 56 of 267 and fooled 8 of 110 grounded, the
+reasoning rows, FAIL on both devices) comes from the script's own output and never used that key. The mismatch was
+found in a review of a newsletter draft, when 637 could not be reconciled with the 677 rows in the labels files, and
+confirmed by recounting the labels files at this commit.
