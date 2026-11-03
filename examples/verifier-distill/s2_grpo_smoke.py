@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import argparse
 import csv
-import ctypes
 import fnmatch
+import gc
 import hashlib
 import importlib.metadata as metadata
 import json
@@ -250,6 +250,7 @@ def readout(
     dry: bool,
     series: Sequence[int] = (),
     flags: dict | None = None,
+    phase_logger: PhaseLogger | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -264,15 +265,23 @@ def readout(
     rollout_s = sum(s["rollout_s"] for s in steps)
     fits = peak_mib is not None and peak_mib < VRAM_LINE_MIB
     complete = completed == steps_requested and stopped is None and not oom
+    if phase_logger is not None and phase_logger.max_memory_allocated is not None:
+        peak_alloc_torch = phase_logger.peak_alloc_mib()
+    else:
+        peak_alloc_torch = max((s.get("peak_alloc_mib") or 0 for s in steps), default=None) if steps else None
+    if phase_logger is not None and phase_logger.max_memory_reserved is not None:
+        peak_reserved_torch = phase_logger.peak_reserved_mib()
+    else:
+        reserved_vals = [s["peak_reserved_mib"] for s in steps if s.get("peak_reserved_mib") is not None]
+        peak_reserved_torch = max(reserved_vals) if reserved_vals else None
     out = {
         "steps_requested": steps_requested,
         "steps_completed": completed,
         "peak_vram_mib_sampler": peak_mib,
         "sampler_samples": len(series),
         "vram_mib_sampler_series": list(series),
-        "peak_vram_mib_torch": max((s.get("peak_alloc_mib") or 0 for s in steps), default=None)
-        if steps
-        else None,
+        "peak_vram_mib_torch": peak_alloc_torch,
+        "peak_reserved_mib_torch": peak_reserved_torch,
         "fits": fits,
         "oom": oom,
         "rollout_tok_s": round(tokens / rollout_s, 2) if rollout_s > 0 else None,
@@ -749,51 +758,50 @@ class VramSampler:
 
 # -- torch, imported only where it is used -------------------------------------------------------------------
 _ALLOC_CONF: str | None = None
+_ALLOC_CONF_VERIFIED_TORCH: object | None = None
 
 
 def configure_alloc_conf(mode: str | None) -> None:
     """Configure PYTORCH_CUDA_ALLOC_CONF to be applied before torch is imported in ``require_torch``."""
-    global _ALLOC_CONF
+    global _ALLOC_CONF, _ALLOC_CONF_VERIFIED_TORCH
     if mode is not None and mode != "expandable":
         raise SystemExit(f"refusing to start: unknown --alloc-conf {mode!r}")
     _ALLOC_CONF = mode
+    _ALLOC_CONF_VERIFIED_TORCH = None
 
 
 def expandable_segments_supported(torch_mod) -> bool:
-    """Whether the loaded torch build supports ``expandable_segments:True`` on this platform.
-
-    In torch 2.14.1 (`torch/include/c10/cuda/CUDAAllocatorConfig.h:35-47`), ``expandable_segments()`` returns
-    ``false`` with a warning when built without ``PYTORCH_C10_DRIVER_API_SUPPORTED`` (and not ROCm >= 7.0).
-    When ``c10_cuda.dll`` is present on Windows, we query its exported
-    ``?expandable_segments@CUDAAllocatorConfig@CUDACachingAllocator@cuda@c10@@SA_NXZ`` after applying the
-    allocator setting; a build or fake module can also set ``_expandable_segments_supported``.
-    """
-    override = getattr(torch_mod, "_expandable_segments_supported", None)
-    if isinstance(override, bool):
-        return override
-    mod_file = getattr(torch_mod, "__file__", None)
-    if sys.platform == "win32" and mod_file:
-        dll_path = Path(mod_file).parent / "lib" / "c10_cuda.dll"
-        if dll_path.exists():
-            try:
-                c_ext = getattr(torch_mod, "_C", None)
-                setter = getattr(c_ext, "_accelerator_setAllocatorSettings", None)
-                if callable(setter):
-                    setter("expandable_segments:True")
-                dll = ctypes.WinDLL(str(dll_path))
-                fn = getattr(
-                    dll,
-                    "?expandable_segments@CUDAAllocatorConfig@CUDACachingAllocator@cuda@c10@@SA_NXZ",
-                )
-                fn.restype = ctypes.c_bool
-                return bool(fn())
-            except (OSError, AttributeError):
-                return False
+    """Verify ``expandable_segments:True`` via a 1 MiB CUDA allocation and allocator settings readback."""
+    try:
+        cuda = getattr(torch_mod, "cuda", None)
+        is_avail = getattr(cuda, "is_available", None)
+        if not callable(is_avail) or not is_avail():
+            raise SystemExit("refusing to start: expandable segments check failed: CUDA is not available")
+        probe = torch_mod.empty(
+            1024 * 1024,
+            dtype=getattr(torch_mod, "uint8", None),
+            device="cuda",
+        )
+        del probe
+        empty_cache = getattr(cuda, "empty_cache", None)
+        if callable(empty_cache):
+            empty_cache()
+        settings = torch_mod._C._accelerator_getAllocatorSettings()
+    except SystemExit:
+        raise
+    except Exception as exc:
+        raise SystemExit(f"refusing to start: expandable segments check failed: {exc}") from exc
+    if not isinstance(settings, str) or "expandable_segments:true" not in settings.lower():
+        raise SystemExit(
+            "refusing to start: expandable segments check failed: "
+            f"allocator settings {settings!r} do not enable expandable_segments"
+        )
     return True
 
 
 def require_torch():
     """Import torch. Absent: a clear refusal. Present but broken (a DLL, an ABI clash): the real error."""
+    global _ALLOC_CONF_VERIFIED_TORCH
     if _ALLOC_CONF == "expandable":
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     try:
@@ -804,11 +812,9 @@ def require_torch():
                 "torch is not installed in this Python; install it, or run the pure parts only"
             ) from exc
         raise
-    if _ALLOC_CONF == "expandable" and not expandable_segments_supported(torch):
-        raise SystemExit(
-            "refusing to start: expandable_segments_unsupported: "
-            "expandable_segments is not supported by this torch build on this platform"
-        )
+    if _ALLOC_CONF == "expandable" and _ALLOC_CONF_VERIFIED_TORCH is not torch:
+        expandable_segments_supported(torch)
+        _ALLOC_CONF_VERIFIED_TORCH = torch
     return torch
 
 
@@ -1009,10 +1015,18 @@ class PhaseLogger:
         self.cuda = cuda
         self.now = now
         self.fsync = fsync
+        self.max_memory_allocated: int | None = None
+        self.max_memory_reserved: int | None = None
         self._fh = None
         if self.enabled and self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._fh = self.path.open("w", encoding="utf-8", newline="\n")
+
+    def peak_alloc_mib(self) -> int | None:
+        return int(self.max_memory_allocated / 2**20) if self.max_memory_allocated is not None else None
+
+    def peak_reserved_mib(self) -> int | None:
+        return int(self.max_memory_reserved / 2**20) if self.max_memory_reserved is not None else None
 
     def record(
         self,
@@ -1029,6 +1043,12 @@ class PhaseLogger:
         reserved = int(self.cuda.memory_reserved())
         max_alloc = int(self.cuda.max_memory_allocated())
         max_reserved = int(self.cuda.max_memory_reserved())
+        self.max_memory_allocated = (
+            max_alloc if self.max_memory_allocated is None else max(self.max_memory_allocated, max_alloc)
+        )
+        self.max_memory_reserved = (
+            max_reserved if self.max_memory_reserved is None else max(self.max_memory_reserved, max_reserved)
+        )
         self.cuda.reset_peak_memory_stats()
         lengths = list(completion_lengths)
         comp = {
@@ -1386,7 +1406,11 @@ def run_steps(
                 "step_s": round(time.time() - started, 4),
                 "mean_reward": round(statistics.fmean(rewards_all), 4),
                 "loss": round(float(loss.detach()) * GROUPS_PER_STEP, 6),
-                "peak_alloc_mib": peak_alloc_mib(),
+                "peak_alloc_mib": (
+                    phase_logger.peak_alloc_mib()
+                    if phase_logger is not None and phase_logger.max_memory_allocated is not None
+                    else peak_alloc_mib()
+                ),
                 "grad_ckpt": ckpt_train,
                 "grad_ckpt_rollout": ckpt_rollout,
             }
@@ -1815,24 +1839,32 @@ def run_probe_memory(
 
         seqs = gen_out.sequences if hasattr(gen_out, "sequences") else gen_out
         if kv_key_dtype is None:
-            keys, _ = cache_kv_tensors(getattr(gen_out, "past_key_values", None))
+            keys, values = cache_kv_tensors(getattr(gen_out, "past_key_values", None))
             if keys:
                 kv_key_dtype = str(keys[0].dtype).removeprefix("torch.")
+            del keys, values
         if kv_key_dtype is None:
             with torch.no_grad():
                 probe_out = model(input_ids=seqs[:1], use_cache=True)
-            keys, _ = cache_kv_tensors(getattr(probe_out, "past_key_values", None))
+            keys, values = cache_kv_tensors(getattr(probe_out, "past_key_values", None))
             if keys:
                 kv_key_dtype = str(keys[0].dtype).removeprefix("torch.")
+            del keys, values, probe_out
 
         att_full = torch.ones_like(seqs)
         with torch.no_grad(), ref_adapter_off():
             if microbatch is not None:
-                _ = completion_logprobs_microbatch(model, seqs, att_full, prompt_len, microbatch)
+                ref_logp = completion_logprobs_microbatch(model, seqs, att_full, prompt_len, microbatch)
             else:
-                _ = completion_logprobs(model, seqs, att_full, prompt_len)
+                ref_logp = completion_logprobs(model, seqs, att_full, prompt_len)
         sync()
         after_ref = _cuda_snapshot(cuda)
+
+        del gen_out, seqs, att_full, ref_logp, repeated, gen_kwargs
+        gc.collect()
+        if cuda is not None and callable(getattr(cuda, "empty_cache", None)):
+            cuda.empty_cache()
+        after_release = _cuda_snapshot(cuda)
 
         alloc_delta_mib = (after_gen["memory_allocated"] - before_gen["memory_allocated"]) / 2**20
         slope_mib_per_tok = round(alloc_delta_mib / max(1, t_len), 6)
@@ -1845,6 +1877,7 @@ def run_probe_memory(
                     "after_generate": after_gen,
                     "after_ref_forward": after_ref,
                 },
+                "allocated_after_release": after_release["memory_allocated"],
                 "shared_gpu_memory": {
                     "before_generate": shared_before,
                     "after_generate": shared_after,
@@ -1858,6 +1891,7 @@ def run_probe_memory(
                 "T": t_len,
                 "alloc_mib_per_token": slope_mib_per_tok,
                 "reserved_minus_allocated_mib": res_minus_alloc_mib,
+                "allocated_after_release": after_release["memory_allocated"],
             }
         )
 
@@ -2053,6 +2087,7 @@ def execute(
             dry=a.dry,
             series=sampler.series if sampler is not None else (),
             flags=flags_in_use or None,
+            phase_logger=phase_logger,
         )
         line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry)
         env = environment(

@@ -1945,16 +1945,44 @@ class TestLogprobMicrobatch:
 
 # -- 3. --alloc-conf expandable and --empty-cache-phases ---------------------------------------------------------------------
 class TestAllocConfAndEmptyCache:
-    def test_alloc_conf_expandable_sets_env_before_first_torch_import(self, monkeypatch):
+    def test_alloc_conf_expandable_passes_after_1mib_cuda_alloc_and_settings_check(self, monkeypatch):
         import builtins
 
         monkeypatch.delenv("PYTORCH_CUDA_ALLOC_CONF", raising=False)
         s2.configure_alloc_conf("expandable")
         real_import = builtins.__import__
         env_at_torch_import: list[str | None] = []
+        events: list[str] = []
+
+        class _ProbeTensor:
+            def __del__(self):
+                events.append("freed")
+
+        class _FakeCudaMod:
+            @staticmethod
+            def is_available() -> bool:
+                events.append("is_available")
+                return True
+
+            @staticmethod
+            def empty_cache() -> None:
+                events.append("empty_cache")
+
+        class _FakeC:
+            @staticmethod
+            def _accelerator_getAllocatorSettings() -> str:
+                events.append("get_settings")
+                return "expandable_segments:True"
 
         class _FakeTorch:
-            _expandable_segments_supported = True
+            uint8 = "uint8"
+            cuda = _FakeCudaMod
+            _C = _FakeC
+
+            @staticmethod
+            def empty(size, *, dtype=None, device=None):
+                events.append(f"empty:{size}:{device}")
+                return _ProbeTensor()
 
         def fake_import(name, *args, **kwargs):
             if name == "torch":
@@ -1967,28 +1995,117 @@ class TestAllocConfAndEmptyCache:
             mod = s2.require_torch()
             assert mod is _FakeTorch
             assert env_at_torch_import == ["expandable_segments:True"]
+            assert f"empty:{1024 * 1024}:cuda" in events
+            assert "freed" in events
+            assert "get_settings" in events
+            assert events.index(f"empty:{1024 * 1024}:cuda") < events.index("get_settings")
         finally:
             s2.configure_alloc_conf(None)
 
-    def test_alloc_conf_expandable_refuses_by_name_when_unsupported(self, monkeypatch):
+    def test_alloc_conf_expandable_refuses_on_settings_mismatch(self, monkeypatch):
         import builtins
 
         monkeypatch.delenv("PYTORCH_CUDA_ALLOC_CONF", raising=False)
         s2.configure_alloc_conf("expandable")
         real_import = builtins.__import__
 
-        class _UnsupportedTorch:
-            _expandable_segments_supported = False
+        class _FakeCudaMod:
+            @staticmethod
+            def is_available() -> bool:
+                return True
+
+        class _FakeC:
+            @staticmethod
+            def _accelerator_getAllocatorSettings() -> str:
+                return "expandable_segments:False"
+
+        class _MismatchTorch:
+            uint8 = "uint8"
+            cuda = _FakeCudaMod
+            _C = _FakeC
+
+            @staticmethod
+            def empty(size, *, dtype=None, device=None):
+                return object()
 
         def fake_import(name, *args, **kwargs):
             if name == "torch":
-                return _UnsupportedTorch
+                return _MismatchTorch
             return real_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", fake_import)
         try:
-            with pytest.raises(SystemExit, match="expandable_segments_unsupported"):
+            with pytest.raises(SystemExit) as exc_info:
                 s2.require_torch()
+            msg = str(exc_info.value)
+            assert "expandable segments check failed:" in msg
+            assert "unsupported" not in msg.lower()
+        finally:
+            s2.configure_alloc_conf(None)
+
+    def test_alloc_conf_expandable_refuses_on_exception(self, monkeypatch):
+        import builtins
+
+        monkeypatch.delenv("PYTORCH_CUDA_ALLOC_CONF", raising=False)
+        s2.configure_alloc_conf("expandable")
+        real_import = builtins.__import__
+
+        class _FakeCudaMod:
+            @staticmethod
+            def is_available() -> bool:
+                return True
+
+        class _ExceptionTorch:
+            uint8 = "uint8"
+            cuda = _FakeCudaMod
+
+            @staticmethod
+            def empty(size, *, dtype=None, device=None):
+                raise RuntimeError("driver alloc boom")
+
+        def fake_import(name, *args, **kwargs):
+            if name == "torch":
+                return _ExceptionTorch
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        try:
+            with pytest.raises(SystemExit) as exc_info:
+                s2.require_torch()
+            msg = str(exc_info.value)
+            assert "expandable segments check failed:" in msg
+            assert "driver alloc boom" in msg
+            assert "unsupported" not in msg.lower()
+        finally:
+            s2.configure_alloc_conf(None)
+
+    def test_alloc_conf_expandable_refuses_when_cuda_unavailable(self, monkeypatch):
+        import builtins
+
+        monkeypatch.delenv("PYTORCH_CUDA_ALLOC_CONF", raising=False)
+        s2.configure_alloc_conf("expandable")
+        real_import = builtins.__import__
+
+        class _NoCudaMod:
+            @staticmethod
+            def is_available() -> bool:
+                return False
+
+        class _NoCudaTorch:
+            cuda = _NoCudaMod
+
+        def fake_import(name, *args, **kwargs):
+            if name == "torch":
+                return _NoCudaTorch
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        try:
+            with pytest.raises(SystemExit) as exc_info:
+                s2.require_torch()
+            msg = str(exc_info.value)
+            assert "expandable segments check failed:" in msg
+            assert "unsupported" not in msg.lower()
         finally:
             s2.configure_alloc_conf(None)
 
@@ -2198,6 +2315,38 @@ class TestPhaseAllocatorLogging:
         parsed = [json.loads(line) for line in raw.splitlines()]
         assert [r["phase"] for r in parsed] == ["pre_rollout", "post_rollout"]
 
+    def test_phase_logger_keeps_run_max_across_resets_and_writes_to_readout(self, tmp_path):
+        fake_cuda = _FakeCuda()
+        a = _args(tmp_path, _gold(tmp_path), steps=1, g=2, max_new=8)
+        rig = _FakeRig(a)
+
+        def build_spike(args):
+            bundle = s2.dry_bundle(args)
+            bundle["cuda"] = fake_cuda
+            bundle["peak_alloc_mib"] = lambda: int(fake_cuda.max_memory_allocated() / 2**20)
+            orig_rollout = bundle["rollout"]
+
+            def spike_rollout(*r_args, **r_kwargs):
+                res = orig_rollout(*r_args, **r_kwargs)
+                # True peak occurs inside group 0's rollout (between pre_rollout and post_rollout resets)
+                if fake_cuda.max_alloc < 18000 * 2**20:
+                    fake_cuda.max_alloc = 18500 * 2**20
+                    fake_cuda.max_reserved = 20100 * 2**20
+                return res
+
+            bundle["rollout"] = spike_rollout
+            return bundle
+
+        assert s2.execute(a, build=build_spike, rig=rig) == 1  # cut run (steps=1): S2-LIMITED
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["readout"]["peak_vram_mib_torch"] == 18500
+        assert receipt["readout"]["peak_reserved_mib_torch"] == 20100
+        doc = (Path(__file__).parent.parent / "docs" / "runs" / "2026-10-10-smoke-s2-prereg.md").read_text(
+            encoding="utf-8"
+        )
+        assert "a run without flags behaves identically" not in doc
+        assert "changes how the torch peak is measured, and nothing else" in doc
+
 
 # -- 6. Probe mode (--probe-memory) and --prompt-lengths ---------------------------------------------------------------------
 class TestProbeMemoryAndPromptLengths:
@@ -2314,6 +2463,78 @@ class TestProbeMemoryAndPromptLengths:
         stdout = capsys.readouterr().out
         assert "alloc_mib_per_token" in stdout and "reserved_minus_allocated_mib" in stdout
 
+    @needs_torch
+    def test_probe_memory_releases_carry_over_between_lengths_and_records_allocated_after_release(
+        self, tmp_path
+    ):
+        a = _args(
+            tmp_path,
+            _gold(tmp_path),
+            probe_memory=True,
+            probe_lengths="6,12,24",
+            bf16_restore=True,
+            logprob_microbatch=2,
+            g=2,
+        )
+        fake_cuda = _FakeCuda()
+        baseline_alloc = fake_cuda.alloc
+        rig = _FakeRig(a)
+
+        class _OwnedGenOutput:
+            def __init__(self, sequences, past_key_values, bytes_held: int):
+                self.sequences = sequences
+                self.past_key_values = past_key_values
+                self._bytes_held = bytes_held
+                self._released = False
+                fake_cuda.alloc += bytes_held
+                fake_cuda.max_alloc = max(fake_cuda.max_alloc, fake_cuda.alloc)
+
+            def __del__(self):
+                if not self._released:
+                    fake_cuda.alloc -= self._bytes_held
+                    self._released = True
+
+        def build_probe(args):
+            bundle = _fake_probe_bundle(args, fake_cuda)
+            orig_gen = bundle["model"].generate
+
+            def releasing_gen(*g_args, **g_kwargs):
+                out = orig_gen(*g_args, **g_kwargs)
+                t_len = int(g_kwargs["max_new_tokens"])
+                seqs = out.sequences.clone() if hasattr(out, "sequences") else out.clone()
+                cache = getattr(out, "past_key_values", None)
+                return _OwnedGenOutput(seqs, cache, t_len * 2**20)
+
+            bundle["model"].generate = releasing_gen
+            return bundle
+
+        rc = s2.execute(
+            a,
+            build=build_probe,
+            rig=rig,
+            counter_runner=lambda: (
+                '"(PDH-CSV 4.0)",'
+                '"\\\\H\\GPU Adapter Memory(luid_0)\\Shared Usage",'
+                '"\\\\H\\GPU Adapter Memory(luid_0)\\Dedicated Usage"\n'
+                '"t","1024","2048"\n'
+            ),
+        )
+        assert rc == 0
+        probe = json.loads((a.out / "s2-hf-probe.json").read_text(encoding="utf-8"))
+        lengths = probe["lengths"]
+        assert [item["length"] for item in lengths] == [6, 12, 24]
+        first_before = lengths[0]["phases"]["before_generate"]["memory_allocated"]
+        assert first_before == baseline_alloc
+        assert [item["phases"]["before_generate"]["memory_allocated"] for item in lengths] == [
+            first_before
+        ] * len(lengths)
+        for item in lengths:
+            assert (
+                item["phases"]["after_generate"]["memory_allocated"] == first_before + item["length"] * 2**20
+            )
+            assert item["allocated_after_release"] == first_before
+        assert "empty_cache" in fake_cuda.calls
+
 
 # -- 7. Stress prefix (--stress-prefix) and prereg amendment -----------------------------------------------------------------
 @needs_torch
@@ -2374,3 +2595,18 @@ class TestStressPrefix:
         ):
             assert needle in text
         assert "(A)" in text and "(B)" in text and "chosen" in text.lower()
+
+    def test_prereg_doc_has_2026_11_03_v3_run_record_with_no_exe_names_or_paths(self, tmp_path):
+        doc = Path(__file__).parent.parent / "docs" / "runs" / "2026-10-10-smoke-s2-prereg.md"
+        text = doc.read_text(encoding="utf-8")
+        heading = "## 2026-11-03 run record: path (a) v3"
+        assert heading in text
+        section = text[text.index(heading) :]
+        assert "Verdict: S2-OK." in section
+        assert re.findall(r"[A-Za-z0-9._-]+\.exe\b", section, re.IGNORECASE) == []
+        assert re.findall(r"[A-Za-z]:[\\/]", section) == []
+        assert "\\" not in section
+        assert re.findall(r"(?<!tokens)/(?![\s)])[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", section) == []
+        sec_file = tmp_path / "v3_section.md"
+        sec_file.write_text(section, encoding="utf-8")
+        assert _scan([sec_file]) == []

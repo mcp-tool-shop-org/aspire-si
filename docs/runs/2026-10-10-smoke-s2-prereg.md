@@ -134,7 +134,7 @@ S2 path (a) passed the 31,200 MiB watchdog line during step 0's first rollout (r
 1. `peft.prepare_model_for_kbit_training` upcasts every non-4-bit floating-point parameter (`embed_tokens`, `lm_head`, and layer norms) to `float32`, and `bitsandbytes` `Linear4bit.forward` returns the input activation's dtype, causing all activations and the generation KV cache to run in `float32` instead of `bfloat16` (accounting for roughly 15 to 17 GB of the 32 GB).
 2. `completion_logprobs` materializes full `(B, T, V)` `float32` logits and a full `log_softmax` tensor over the entire sequence in both the reference and training passes (roughly 14.5 GB at `T` around 3,000).
 
-Every fix below is added behind a CLI flag that defaults **off**, so a run without flags behaves identically to the original registration, and each flag in use is recorded in the receipt and readout:
+Every fix below is added behind a CLI flag that defaults **off**; the phase logger (always on for GPU runs) changes how the torch peak is measured, and nothing else, and each flag in use is recorded in the receipt and readout:
 
 - **`--bf16-restore` (a change to the registered setup when enabled):** after `prepare_model_for_kbit_training` and `get_peft_model`, casts every non-trainable floating-point parameter (`embed_tokens`, `lm_head`, and every norm weight) back to `bfloat16`, leaving trainable LoRA parameters in `float32` and `Params4bit` weights untouched, and records a parameter dtype census in the receipt. **Effect on what the test can say:** the forward activations, KV cache, and loss run in `bfloat16` activations rather than `float32`, while LoRA weights and optimizer states stay `float32`.
 - **`--logprob-microbatch M`:** runs the adapter-off reference pass and the training forward/backward pass over the `G` sequences in micro-batches of `M` with gradients accumulated, passes `logits_to_keep` so `lm_head` runs only on completion positions, and computes token log-probabilities via `gather(logits, labels) - logsumexp(logits)` without allocating a full `log_softmax` tensor, preserving the completion, loss, and KL masks.
@@ -153,4 +153,17 @@ Every fix below is added behind a CLI flag that defaults **off**, so a run witho
 - **(B)**: no prefix; natural lengths only.
 
 **No change to G, the completion cap, the step count or the pass line.**
+
+## 2026-11-03 run record: path (a) v3
+
+Path (a) ran at commit `d9201024` with `--bf16-restore --logprob-microbatch 2 --attention-mask --alloc-conf expandable --empty-cache-phases --stress-prefix 2`. These flags are part of the measured setup. Shape as registered: 20 steps, 32 prompts, G 8, max-new 2,048.
+
+- **Verdict: S2-OK.** 20 of 20 steps; no OOM; no stop.
+- **Memory:** nvidia-smi sampler peak 22,484 MiB (line 31,200). The torch run maximum, taken from the phase log: allocated 18.07 GiB and reserved 19.62 GiB. The peak phase is the training forward. The stress prefix (2 steps, 853-token prompt, forced 2,048 tokens) was the worst case.
+- **Speed:** rollout 66.82 tokens/s; step p50 89.2 s, max 203.6 s.
+- **Zero-variance groups: 10 of 40** (all 8 completions given the same reward). An open question for the training plan.
+- **Probe (same day, measurement only):** at T 256 on the longest prompt, `--bf16-restore` cut the card peak from 18,189 to 12,858 MiB and the static weights by 2.3 GiB. Without it, peak allocation grew about 2.5 times the KV cache rate, consistent with the cache's per-token concatenation.
+- **Not tested:** behaviour when the card is full (shared-memory spill); `--alloc-conf expandable` on its own.
+- **Path (b)** (llama.cpp) was not run: no allowed build exists. Path (a) now has a measured, passing fit and speed. The rollout-path choice is open.
+- Receipts stay local. Public copies carry counts and rule outcomes only.
 
