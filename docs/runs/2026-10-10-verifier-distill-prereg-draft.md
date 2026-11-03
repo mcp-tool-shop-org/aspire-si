@@ -489,6 +489,36 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 
   Any of these stops the run, and the stop is reported.
 
+### Zero-variance groups and the loss (decided 2026-11-03, from smoke test S2)
+
+**The measurement.** In S2 path (a) (20 steps, 32 tune prompts, G = 8), 10 of 40 prompt groups (25%; 95% interval about 13–41%) gave all 8 completions the same reward, so they produced no policy gradient. 8 of the 10 steps that held such a group had a mean reward of +0.89 to +1.04, so most were likely prompts the model already answered correctly every time. Over repeated epochs of a fixed set the rate is expected to rise as easy prompts are mastered.
+
+**What the smoke script did with them** (read from `examples/verifier-distill/s2_grpo_smoke.py`):
+- zero-variance groups were counted but still entered the loss, so the KL term kept pulling the adapter toward the reference on prompts already mastered;
+- the advantage was divided by the group standard deviation, which turns small secondary adjustments into full-size updates whenever every verdict in the group agrees.
+
+**Decided (replaces "Group-normalised advantage" above):**
+1. **Zero-variance groups are left out of the whole loss,** the KL term included. The loss is normalised by the number of active groups.
+2. **Advantages are group-mean centred and not divided by the group standard deviation** (Dr. GRPO; Liu et al. 2025, arXiv:2503.20783). We chose this over a standard-deviation floor because our rewards are mostly discrete, with large gaps (about −3, −1, −0.3 and +1). Without the division, each update stays proportional to the real score difference, and there is no floor constant to choose without data.
+3. **Gradient accumulation: 4 prompt groups per optimizer update,** processed 2 at a time, so peak memory stays at the measured S2 setup.
+4. **Truncated completions are detected explicitly and left out of the loss,** not scored −1.0 (DAPO overlong filtering; Yu et al. 2025, arXiv:2503.14476):
+   - a completion that reaches the completion cap without an end-of-sequence token is truncated;
+   - no verdict is parsed from a completion whose thinking block never closed;
+   - the 8,192-thinking-token gate is removed, because it cannot be reached under a 2,048-token cap.
+5. **Logged per group, every step:**
+   - the prompt id and its token count;
+   - the number of completions with the gold verdict (k of 8);
+   - the standard deviation of the full reward and of the verdict term alone;
+   - truncations;
+   - mean thinking tokens;
+   - for each zero-variance group, one of four labels: all correct with full credit; all correct without quote credit; all wrong; all truncated or malformed.
+6. **The zero-variance rate is reported per epoch.** If it passes 50% mid-run, capped re-sampling (at most 2 extra attempts per group, DAPO dynamic sampling) starts. This fallback is declared here, before the run.
+7. **Not used:** dropping prompts the base model always answers correctly, a larger group, and reward shaping meant to create variance.
+
+**Why:** these changes cost no extra memory, keep the training data as drawn, and keep the reward meaning what it says. The stronger options bias training toward hard or mislabelled items, or add time to a plan already projected at 74–97 hours of card time. The quote-matching rule (what normalisation applies, what counts as found, what a miss costs) is set separately, before SFT data is built, with false accepts and false rejects logged separately.
+
+**How much data settles it:** a paired comparison over the same 80–100 prompts (across epochs or settings) detects a 10–12 point change in the zero-variance rate.
+
 ## Evaluation, by stage
 
 Each stage is scored mechanically and reported on its own:
