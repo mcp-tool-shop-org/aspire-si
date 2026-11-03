@@ -953,3 +953,238 @@ class TestReviewJoOnTheDryBundle:
         env = body["environment"]
         assert env["python_executable"] == sys.executable and env["gpu_name"] == "NVIDIA GeForce RTX 5090"
         assert env["cuda"] == "13.0" and set(env) == set(s2.ENVIRONMENT_FIELDS)
+
+
+# -- the exclusive-GPU guard: rules (a) and (b), fail closed -----------------------------------------------------------------
+def _xml(procs):
+    """nvidia-smi -q -x output with the given (type, process_name) pairs; memory is N/A, as under WDDM."""
+    infos = "".join(
+        f"<process_info><pid>{100 + i}</pid><type>{t}</type><process_name>{n}</process_name>"
+        f"<used_memory>N/A</used_memory></process_info>"
+        for i, (t, n) in enumerate(procs)
+    )
+    return f"<nvidia_smi_log><gpu><processes>{infos}</processes></gpu></nvidia_smi_log>"
+
+
+def _smi(procs=(), used="2400", xml=None):
+    def run(args):
+        if list(args) == ["-q", "-x"]:
+            return xml if xml is not None else _xml(procs)
+        assert list(args)[0] == "--query-gpu=memory.used", args
+        return used
+
+    return run
+
+
+_DESKTOP_IMAGES = (
+    "Antigravity.exe ApplicationFrameHost.exe chrome.exe claude.exe CrossDeviceResume.exe explorer.exe "
+    "IntelGraphicsSoftware.exe msedgewebview2.exe Notepad.exe OmenCommandCenterBackground.exe SearchHost.exe "
+    "ShellExperienceHost.exe ShellHost.exe SnippingTool.exe StartMenuExperienceHost.exe steamwebhelper.exe "
+    "SystemSettings.exe TextInputHost.exe WidgetBoard.exe WindowsTerminal.exe "
+    "chrome.exe chrome.exe chrome.exe msedgewebview2.exe msedgewebview2.exe msedgewebview2.exe"
+).split()  # the rig's 20 desktop images (measured 2026-11-03) and 6 repeats: 26 processes of type "C+G"
+DESKTOP = [("C+G", rf"C:\Windows\{n}") for n in _DESKTOP_IMAGES]
+
+
+def _refusal(smi):
+    with pytest.raises(SystemExit) as caught:
+        s2.check_exclusive(smi)
+    return str(caught.value)
+
+
+class TestExclusiveGuard:
+    def test_the_rigs_desktop_with_na_memory_and_idle_memory_passes(self):
+        assert len(DESKTOP) == 26
+        rec = s2.check_exclusive(_smi(DESKTOP, used="2400"))
+        assert rec["result"] == "passed" and rec["memory_used_mib"] == 2400
+        assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
+
+    def test_a_python_process_fails_rule_a_whatever_its_case_or_suffix(self):
+        for name in (
+            "python.exe",
+            "PYTHON.EXE",
+            "pythonw.exe",
+            "python3.12",
+            r"C:\envs\gpu-py312\python.exe",
+        ):
+            msg = _refusal(_smi([*DESKTOP, ("C+G", name)]))
+            assert "rule (a)" in msg and "python" in msg.lower(), name
+
+    def test_an_ollama_or_llama_server_process_fails_rule_a(self):
+        for name in ("ollama.exe", "ollama_llama_server.exe", "llama-server.exe", "Ollama app.exe"):
+            msg = _refusal(_smi([*DESKTOP, ("C", name)]))
+            assert "rule (a)" in msg, name
+        assert "ollama_llama_server.exe" in _refusal(_smi([*DESKTOP, ("C+G", "ollama_llama_server.exe")]))
+
+    def test_a_compute_only_process_with_an_unlisted_name_fails_rule_a(self):
+        msg = _refusal(_smi([*DESKTOP, ("C", "mystery.exe")]))
+        assert "rule (a)" in msg and "mystery.exe (type C)" in msg
+
+    def test_a_desktop_type_with_an_unlisted_name_passes(self):
+        assert s2.check_exclusive(_smi([("G", "whatever.exe"), ("C+G", "Xorg")]))["result"] == "passed"
+
+    def test_a_listed_name_with_a_desktop_type_still_refuses(self):
+        assert "rule (a)" in _refusal(_smi([("C+G", "pythonista_notes.exe")]))
+
+    def test_memory_just_over_the_baseline_fails_rule_b(self):
+        msg = _refusal(_smi(DESKTOP, used="4097"))
+        assert "rule (b)" in msg and "4097 MiB" in msg and "4096 MiB baseline" in msg
+
+    def test_memory_exactly_at_the_baseline_passes(self):
+        assert s2.check_exclusive(_smi(DESKTOP, used="4096"))["result"] == "passed"
+        assert s2.EXCLUSIVE_BASELINE_MIB == 4096
+
+    def test_both_rules_firing_are_both_named(self):
+        msg = _refusal(_smi([("C", "python.exe")], used="9000"))
+        assert "rule (a)" in msg and "rule (b)" in msg
+
+    def test_memory_is_summed_over_the_gpus_lines(self):
+        assert "rule (b)" in _refusal(_smi(DESKTOP, used="2000\n2200\n"))
+
+    def test_nvidia_smi_missing_failing_slow_or_unreadable_each_refuses_with_a_named_reason(self):
+        import subprocess
+
+        def raises(exc):
+            def run(args):
+                raise exc
+
+            return run
+
+        cases = [
+            (raises(FileNotFoundError("nvidia-smi")), "nvidia_smi_missing"),
+            (raises(subprocess.CalledProcessError(9, "nvidia-smi")), "nvidia_smi_failed"),
+            (raises(subprocess.CalledProcessError(9, "nvidia-smi")), "exited 9"),
+            (raises(subprocess.TimeoutExpired("nvidia-smi", 10)), "nvidia_smi_timeout"),
+            (raises(PermissionError("denied")), "nvidia_smi_unavailable"),
+            (_smi(xml="this is not xml"), "nvidia_smi_garbage"),
+            (_smi(xml="<other_root/>"), "unexpected root element"),
+            (_smi(xml=_xml([("Z", "x.exe")])), "unknown process type"),
+            (_smi(DESKTOP, used="lots"), "nvidia_smi_garbage"),
+            (_smi(DESKTOP, used=""), "no memory.used reading"),
+        ]
+        for smi, reason in cases:
+            assert reason in _refusal(smi), reason
+
+    def test_a_failure_in_the_second_call_also_refuses(self):
+        def run(args):
+            if list(args) == ["-q", "-x"]:
+                return _xml(DESKTOP)
+            raise FileNotFoundError("nvidia-smi")
+
+        assert "nvidia_smi_missing" in _refusal(run)
+
+    def test_the_receipt_carries_image_names_only_the_reading_the_baseline_and_the_rule_results(self):
+        procs = [*DESKTOP, ("G", "/usr/lib/xorg/Xorg"), ("C+G", "N/A"), ("G", r"D:\a b\c d.exe")]
+        rec = s2.check_exclusive(_smi(procs, used="2572"))
+        assert all("\\" not in n and "/" not in n for n in rec["processes"])
+        assert (
+            "Xorg" in rec["processes"] and "c d.exe" in rec["processes"] and "<unnamed>" in rec["processes"]
+        )
+        assert len(rec["processes"]) == len(procs)
+        assert rec["memory_used_mib"] == 2572 and rec["baseline_mib"] == 4096
+        assert rec["runner_patterns"] == ["python*", "ollama*", "llama-server*"]
+        assert rec["process_types"] == ["C+G", "G"]
+        assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
+        assert rec["result"] == "passed" and rec["source"] == "nvidia-smi"
+        json.dumps(rec)
+
+    def test_no_processes_at_all_is_a_pass_not_a_parse_failure(self):
+        assert (
+            s2.check_exclusive(_smi(xml="<nvidia_smi_log><gpu><processes/></gpu></nvidia_smi_log>"))[
+                "processes"
+            ]
+            == []
+        )
+
+    def test_the_old_plain_rule_is_unchanged(self):
+        s2.require_exclusive([])
+        with pytest.raises(SystemExit, match="hold the GPU"):
+            s2.require_exclusive(["1"])
+
+
+class TestRigPreflight:
+    def _rig(self, tmp_path, smi):
+        beat = tmp_path / "beat"
+        beat.write_text("x", encoding="utf-8")
+        return s2.Rig(Namespace(heartbeat=beat), smi=smi)
+
+    def _smi(self, gpus, procs, used="2400"):
+        inner = _smi(procs, used)
+
+        def run(args):
+            if list(args)[0] == "--query-gpu=name,driver_version":
+                return gpus
+            return inner(args)
+
+        return run
+
+    def test_a_real_preflight_on_the_rigs_desktop_passes_and_returns_the_guard_record(self, tmp_path):
+        rig = self._rig(tmp_path, self._smi("NVIDIA GeForce RTX 5090, 590.1\n", DESKTOP))
+        got = rig.preflight()
+        assert got["name"] == "NVIDIA GeForce RTX 5090" and got["driver"] == "590.1"
+        assert got["guard"]["result"] == "passed" and got["guard"]["source"] == "nvidia-smi"
+
+    def test_a_runner_on_the_card_refuses_the_preflight(self, tmp_path):
+        rig = self._rig(
+            tmp_path, self._smi("NVIDIA GeForce RTX 5090, 590.1\n", [*DESKTOP, ("C", "python.exe")])
+        )
+        with pytest.raises(SystemExit, match="rule .a."):
+            rig.preflight()
+
+    def test_two_gpus_a_non_nvidia_gpu_and_a_garbled_gpu_line_still_refuse(self, tmp_path):
+        for gpus, why in (
+            ("NVIDIA A, 1\nNVIDIA B, 1\n", "2 GPUs"),
+            ("AMD Radeon, 1\n", "not an NVIDIA GPU"),
+            ("NVIDIA A\n", "nvidia_smi_garbage"),
+        ):
+            with pytest.raises(SystemExit, match=why):
+                self._rig(tmp_path, self._smi(gpus, DESKTOP)).preflight()
+
+    def test_a_missing_heartbeat_still_refuses_first(self, tmp_path):
+        rig = s2.Rig(Namespace(heartbeat=tmp_path / "nope"), smi=self._smi("NVIDIA A, 1\n", DESKTOP))
+        with pytest.raises(SystemExit, match="heartbeat"):
+            rig.preflight()
+
+    @needs_torch
+    def test_a_run_carries_the_guard_record_into_the_receipt(self, tmp_path):
+        class Rig:
+            def preflight(self):
+                return {"name": "NVIDIA GeForce RTX 5090", "driver": "590.1", "guard": {"result": "passed"}}
+
+            def vram_query(self):
+                return 12345
+
+            def cuda_version(self):
+                return "13.0"
+
+        a = _args(tmp_path, _gold(tmp_path), steps=1, g=2, max_new=24)
+        assert s2.execute(a, build=s2.dry_bundle, rig=Rig()) == 1
+        body = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert body["environment"]["exclusive_guard"] == {"result": "passed"}
+        assert body["environment"]["gpu_exclusive"] is True
+
+
+@needs_torch
+class TestDryUsesTheRealGuard:
+    def test_the_dry_receipt_records_the_guards_result_without_running_nvidia_smi(
+        self, tmp_path, monkeypatch
+    ):
+        import subprocess
+
+        def forbidden(*args, **kw):
+            raise AssertionError("the real nvidia-smi was started")
+
+        monkeypatch.setattr(subprocess, "run", forbidden)
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True))
+        assert s2.execute(a, build=s2.dry_bundle) == 0
+        body = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        guard = body["environment"]["exclusive_guard"]
+        assert guard["result"] == "passed" and guard["source"].startswith("dry:")
+        assert guard["memory_used_mib"] == s2.DRY_IDLE_MIB and len(guard["processes"]) == 26
+        assert body["environment"]["gpu_exclusive"] is None
+
+    def test_a_dry_run_whose_canned_card_is_not_the_desktop_would_refuse(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(s2, "DRY_IDLE_MIB", 5000)
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True))
+        with pytest.raises(SystemExit, match="rule .b."):
+            s2.execute(a, build=s2.dry_bundle)

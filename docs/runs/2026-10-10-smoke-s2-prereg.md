@@ -101,6 +101,7 @@ which is why its Python differs. No older Python was pinned as a workaround.
   under 60 s old, or the run refuses to start.
 - **The single NVIDIA GPU only,** chosen by name. Two GPUs, or a non-NVIDIA one, refuse. The run refuses to start
   if any other process holds the 5090. `--dry` runs on the CPU and never calls CUDA.
+- **2026-11-03, the exclusivity guard is loosened** from "no other process holds the card" to two rules, because under Windows WDDM the compute-apps list always holds the desktop (about 26 "C+G" processes with memory "N/A"), so the old rule refused every run. The run refuses to start (a) on a listed process whose image name matches `python*`, `ollama*` or `llama-server*`, or whose type is "C" alone, or (b) when the total `memory.used` is above **4,096 MiB**. The measured idle range with only the desktop was 2,238 to 2,572 MiB, so the baseline is that maximum plus about 1.5 GB. A missing, failing, slow or unreadable `nvidia-smi` refuses; the receipt records the image names (no paths), the reading, the baseline and the rule results. `--dry` runs the same guard on a canned desktop `nvidia-smi` output.
 - **Duration:** about 45 minutes in all, as the plan says.
 
 ## What S2 cannot show
