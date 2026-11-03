@@ -210,7 +210,7 @@
         <compute_instance_id>N/A</compute_instance_id>
         <pid>1024</pid>
         <type>C+G</type>
-        <process_name>SnippingTool.exe</process_name>
+        <process_name>TextInputHost.exe</process_name>
         <used_memory>N/A</used_memory>
       </process_info>
       <process_info>

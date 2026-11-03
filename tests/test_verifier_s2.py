@@ -12,6 +12,7 @@ import importlib.util
 import itertools
 import json
 import os
+import re
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -976,13 +977,7 @@ def _smi(procs=(), used="2400", xml=None):
     return run
 
 
-_DESKTOP_IMAGES = (
-    "Antigravity.exe ApplicationFrameHost.exe chrome.exe claude.exe CrossDeviceResume.exe explorer.exe "
-    "IntelGraphicsSoftware.exe msedgewebview2.exe Notepad.exe OmenCommandCenterBackground.exe SearchHost.exe "
-    "ShellExperienceHost.exe ShellHost.exe SnippingTool.exe StartMenuExperienceHost.exe steamwebhelper.exe "
-    "SystemSettings.exe TextInputHost.exe WidgetBoard.exe WindowsTerminal.exe "
-    "chrome.exe chrome.exe chrome.exe msedgewebview2.exe msedgewebview2.exe msedgewebview2.exe"
-).split()  # the rig's 20 desktop images (measured 2026-11-03) and 6 repeats: 26 processes of type "C+G"
+_DESKTOP_IMAGES = s2.DRY_DESKTOP_IMAGES  # one OS-only source, shared with the --dry canned output
 DESKTOP = [("C+G", rf"C:\Windows\{n}") for n in _DESKTOP_IMAGES]
 
 
@@ -1132,11 +1127,11 @@ class TestExclusiveGuard:
         sep = chr(92)  # built at runtime: no drive letter or user name is written out
         for folder in ("python", "ollama", "llama-server"):
             for path in (
-                sep.join(["D:", folder, "notepad.exe"]),
-                "/".join(["", "opt", folder, "notepad.exe"]),
+                sep.join(["D:", folder, "explorer.exe"]),
+                "/".join(["", "opt", folder, "explorer.exe"]),
             ):
                 rec = s2.check_exclusive(_smi([("C+G", path)]))
-                assert rec["processes"] == ["notepad.exe"] and rec["result"] == "passed", path
+                assert rec["processes"] == ["explorer.exe"] and rec["result"] == "passed", path
 
     def test_the_old_plain_rule_is_unchanged(self):
         s2.require_exclusive([])
@@ -1495,3 +1490,71 @@ class TestTheRealNvidiaSmiShape:
         xml = self.FIXTURE.read_text(encoding="utf-8")
         with pytest.raises(SystemExit, match="rule .b."):
             s2.check_exclusive(self._runner(xml, used="4097"))
+
+
+# -- no personal desktop names in a public file ------------------------------------------------------------------------------
+def _personal_patterns():
+    """Built at runtime from split literals, so this file does not match its own patterns."""
+    parts = [
+        ("anti", "gravity"),
+        ("claude", r"\.exe"),
+        ("chrome", r"\.exe"),
+        (r"\bst", "eam"),
+        (r"\bom", "en"),
+        ("intel", " ?graphics"),
+        ("snipping", "tool"),
+        ("note", "pad"),
+        ("grok", r"\.exe"),
+    ]
+    return [re.compile("".join(p), re.IGNORECASE) for p in parts]
+
+
+def _scan(files):
+    """Where a personal name sits, as ``file:line (pattern n)``; the matched text is never echoed."""
+    hits = []
+    patterns = _personal_patterns()
+    for path in files:
+        for no, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+            hits += [f"{path.name}:{no} (pattern {i})" for i, pat in enumerate(patterns) if pat.search(line)]
+    return hits
+
+
+class TestNoPersonalNamesInPublicFiles:
+    ROOT = Path(__file__).parent.parent
+
+    def _public_files(self):
+        files = [self.ROOT / "examples" / "verifier-distill" / "s2_grpo_smoke.py", Path(__file__)]
+        for folder in (self.ROOT / "docs", self.ROOT / "tests" / "fixtures"):
+            files += sorted(p for p in folder.rglob("*") if p.is_file())
+        return files
+
+    def test_the_module_the_tests_the_docs_and_the_fixtures_hold_no_personal_desktop_names(self):
+        assert _scan(self._public_files()) == []
+
+    def test_the_scan_finds_a_planted_name_and_does_not_echo_it(self, tmp_path):
+        planted = tmp_path / "planted.txt"
+        planted.write_text(
+            "ok line\n" + "Anti" + "gravity.exe is here\n" + "Note" + "pad.exe too\n", encoding="utf-8"
+        )
+        assert _scan([planted]) == ["planted.txt:2 (pattern 0)", "planted.txt:3 (pattern 7)"]
+
+    def test_ordinary_words_are_not_flagged(self, tmp_path):
+        ok = tmp_path / "ok.txt"
+        ok.write_text("a moment, momentum, mainstream, the steps of a lawnmower, chromatic, antigen\n")
+        assert _scan([ok]) == []
+
+    def test_the_dry_canned_desktop_and_the_public_fixture_are_the_same_os_only_set(self):
+        fixture = self.ROOT / "tests" / "fixtures" / "nvidia-smi-q-x-fixture-public-2026-11-03.xml"
+        names = re.findall(r"<process_name>([^<]*)</process_name>", fixture.read_text(encoding="utf-8"))
+        assert len(names) == 26 and sorted(names) == sorted(s2.DRY_DESKTOP_IMAGES)
+        assert _scan([fixture]) == []
+
+    @needs_torch
+    def test_the_dry_receipt_holds_only_the_os_only_names(self, tmp_path):
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True))
+        assert s2.execute(a, build=s2.dry_bundle) == 0
+        receipt = a.out / "s2-hf.json"
+        body = json.loads(receipt.read_text(encoding="utf-8"))
+        processes = body["environment"]["exclusive_guard"]["processes"]
+        assert sorted(processes) == sorted(s2.DRY_DESKTOP_IMAGES)
+        assert _scan([receipt]) == []
