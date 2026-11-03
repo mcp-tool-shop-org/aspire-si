@@ -1493,29 +1493,46 @@ class TestTheRealNvidiaSmiShape:
 
 
 # -- no personal desktop names in a public file ------------------------------------------------------------------------------
-def _personal_patterns():
-    """Built at runtime from split literals, so this file does not match its own patterns."""
-    parts = [
-        ("anti", "gravity"),
-        ("claude", r"\.exe"),
-        ("chrome", r"\.exe"),
-        (r"\bst", "eam"),
-        (r"\bom", "en"),
-        ("intel", " ?graphics"),
-        ("snipping", "tool"),
-        ("note", "pad"),
-        ("grok", r"\.exe"),
-    ]
-    return [re.compile("".join(p), re.IGNORECASE) for p in parts]
+_DENIED_SHA256 = frozenset(
+    {
+        "01b8d4f932aad0f172b98b20f92b51540de4852d58dbb8f7785e74a280b3d0d1",
+        "11b496da7187c8892b2f8513c8380c59e4bd2b9dd951455b592d3fbfc7085b85",
+        "39b4e46bc88704567baed958805a49910dbf165cbd0d2cf13177d14429e22dba",
+        "3f1f29444c093e2890d2163174cce5d5db40386b84168e015ec9da46cff1a6f9",
+        "5fc6ebae246b6dfea7b1bf8b1a5ce3df9c4aa3b6b5dcf716dc203876669a8077",
+        "8462663f5bf0fb4bbabebf3aa7a04aa34a7fe6433587544a7b5a262b8086cc0e",
+        "aa55de0728673d0e50853396ed87a303cd089d164800ad97872f90744358ffed",
+        "ac0a3dfd6dddb20962cecff6ee5fe65e19d3923be20e52c5ab52ff877f7e4c32",
+        "b7b479e0123d49074fac95b0d264ab37897447a8c3b0ce7cf7ac655c0dc5a2c7",
+        "b7e12ae231da3d56982ba5291dd62f0eca40cb050e3639c20b3c67a8bda368bc",
+        "babe90b8d3d59ebb6be72807c7c89d8606c9dccec48b9251d51d1886a0524312",
+        "cb9c3b54d7e3f3d8d854d314a6e77b8bd5ce4a9e3bccc6b68f525645e6344f64",
+        "d9e579df77e2827be5ceb25a24b5346e8ae24a4e743b7f7ebdfc001e1bc6a232",
+        "e2f26e98726bde0e9a893dda21a7cede7fe27f9221922aab442feae55af04d0b",
+    }
+)
+_TOKEN_RE = re.compile(r"[A-Za-z0-9._-]+")
 
 
-def _scan(files):
-    """Where a personal name sits, as ``file:line (pattern n)``; the matched text is never echoed."""
+def _scan(files, *, denied=None):
+    """Where a denied token sits, as ``file:line (hash n)``; the matched text is never echoed."""
+    import hashlib
+
+    active = _DENIED_SHA256 if denied is None else frozenset(denied)
+    ordered = sorted(active)
+    index_of = {h: idx for idx, h in enumerate(ordered)}
     hits = []
-    patterns = _personal_patterns()
     for path in files:
         for no, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
-            hits += [f"{path.name}:{no} (pattern {i})" for i, pat in enumerate(patterns) if pat.search(line)]
+            seen_on_line = set()
+            for raw in _TOKEN_RE.findall(line):
+                tok = raw.lower()
+                candidates = (tok, tok[:-4]) if tok.endswith(".exe") and len(tok) > 4 else (tok,)
+                for cand in candidates:
+                    digest = hashlib.sha256(cand.encode("utf-8")).hexdigest()
+                    if digest in index_of and index_of[digest] not in seen_on_line:
+                        seen_on_line.add(index_of[digest])
+                        hits.append(f"{path.name}:{no} (hash {index_of[digest]})")
     return hits
 
 
@@ -1532,11 +1549,19 @@ class TestNoPersonalNamesInPublicFiles:
         assert _scan(self._public_files()) == []
 
     def test_the_scan_finds_a_planted_name_and_does_not_echo_it(self, tmp_path):
+        import hashlib
+
+        first = "".join(("planted", "_", "alpha"))
+        second = "".join(("planted", "_", "beta"))
+        h1 = hashlib.sha256(first.encode("utf-8")).hexdigest()
+        h2 = hashlib.sha256(second.encode("utf-8")).hexdigest()
+        ordered = sorted((h1, h2))
         planted = tmp_path / "planted.txt"
-        planted.write_text(
-            "ok line\n" + "Anti" + "gravity.exe is here\n" + "Note" + "pad.exe too\n", encoding="utf-8"
-        )
-        assert _scan([planted]) == ["planted.txt:2 (pattern 0)", "planted.txt:3 (pattern 7)"]
+        planted.write_text(f"ok line\n{first.upper()}.exe is here\n{second} too\n", encoding="utf-8")
+        assert _scan([planted], denied=frozenset({h1, h2})) == [
+            f"planted.txt:2 (hash {ordered.index(h1)})",
+            f"planted.txt:3 (hash {ordered.index(h2)})",
+        ]
 
     def test_ordinary_words_are_not_flagged(self, tmp_path):
         ok = tmp_path / "ok.txt"
@@ -1558,3 +1583,794 @@ class TestNoPersonalNamesInPublicFiles:
         processes = body["environment"]["exclusive_guard"]["processes"]
         assert sorted(processes) == sorted(s2.DRY_DESKTOP_IMAGES)
         assert _scan([receipt]) == []
+
+    def test_planted_token_built_from_split_literals_is_caught_by_hash_scan(self, tmp_path):
+        import hashlib
+
+        token = "".join(("planted", "_", "denied", "_", "marker"))
+        token_hash = hashlib.sha256(token.lower().encode("utf-8")).hexdigest()
+        planted = tmp_path / "planted_hash.txt"
+        planted.write_text(f"clean line\nrun {token.upper()}.EXE now\nand {token} bare\n", encoding="utf-8")
+        hits = _scan([planted], denied=frozenset({token_hash}))
+        assert hits == ["planted_hash.txt:2 (hash 0)", "planted_hash.txt:3 (hash 0)"]
+        assert token not in " ".join(hits)
+        assert len(_DENIED_SHA256) == 14
+        assert not hasattr(sys.modules[__name__], "_personal_patterns")
+
+    def test_diff_added_lines_contain_no_denied_hashes_and_no_exe_in_new_log_fields(self, tmp_path):
+        import subprocess
+
+        assert hasattr(s2, "PhaseLogger") and hasattr(s2, "run_probe_memory")
+        phase_path = tmp_path / "s2-hf-phases.jsonl"
+        fake_cuda = _FakeCuda()
+        logger = s2.PhaseLogger(phase_path, enabled=True, cuda=fake_cuda)
+        logger.record(step=0, group=0, phase="pre_rollout", prompt_tokens=12, completion_lengths=[])
+        logger.record(step=0, group=0, phase="step_end", prompt_tokens=12, completion_lengths=[4, 6])
+        logger.close()
+        phase_text = phase_path.read_text(encoding="utf-8")
+        assert re.findall(r"[A-Za-z0-9._-]+\.exe\b", phase_text, re.IGNORECASE) == []
+        assert _scan([phase_path]) == []
+
+        a = _args(
+            tmp_path,
+            _gold(tmp_path),
+            probe_memory=True,
+            probe_lengths="4,8",
+        )
+        rig = _FakeRig(a)
+        assert (
+            s2.execute(
+                a,
+                build=lambda args: _fake_probe_bundle(args, fake_cuda),
+                rig=rig,
+                counter_runner=lambda: (
+                    '"\\\\HOST\\GPU Adapter Memory(luid_0x0_0x1_phys_0)\\Shared Usage",'
+                    '"\\\\HOST\\GPU Adapter Memory(luid_0x0_0x1_phys_0)\\Dedicated Usage"\n'
+                    '"1048576","2097152"\n'
+                ),
+            )
+            == 0
+        )
+        probe_path = a.out / "s2-hf-probe.json"
+        probe_text = probe_path.read_text(encoding="utf-8")
+        assert re.findall(r"[A-Za-z0-9._-]+\.exe\b", probe_text, re.IGNORECASE) == []
+        assert _scan([probe_path]) == []
+
+        base_sha = "9837195bb763c5d0ff220246d28b65057749676f"
+        check = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{base_sha}^{{commit}}"],
+            cwd=self.ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode == 0:
+            diff_all = subprocess.run(
+                [
+                    "git",
+                    "diff",
+                    base_sha,
+                    "--",
+                    "examples/verifier-distill/s2_grpo_smoke.py",
+                    "tests/test_verifier_s2.py",
+                    "docs/runs/2026-10-10-smoke-s2-prereg.md",
+                ],
+                cwd=self.ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+            added_lines = [
+                line[1:]
+                for line in diff_all.splitlines()
+                if line.startswith("+") and not line.startswith("+++")
+            ]
+            assert added_lines, "expected non-empty diff against base sha"
+            diff_file = tmp_path / "diff_added.txt"
+            diff_file.write_text("\n".join(added_lines) + "\n", encoding="utf-8")
+            assert _scan([diff_file]) == []
+
+
+# -- helpers for memory-fix, phase-logger and probe tests --------------------------------------------------------------------
+class _FakeCuda:
+    def __init__(self):
+        self.calls: list[str] = []
+        self.alloc = 100 * 2**20
+        self.reserved = 128 * 2**20
+        self.max_alloc = 110 * 2**20
+        self.max_reserved = 140 * 2**20
+
+    def is_available(self) -> bool:
+        return True
+
+    def memory_allocated(self) -> int:
+        self.calls.append("memory_allocated")
+        return self.alloc
+
+    def memory_reserved(self) -> int:
+        self.calls.append("memory_reserved")
+        return self.reserved
+
+    def max_memory_allocated(self) -> int:
+        self.calls.append("max_memory_allocated")
+        return self.max_alloc
+
+    def max_memory_reserved(self) -> int:
+        self.calls.append("max_memory_reserved")
+        return self.max_reserved
+
+    def reset_peak_memory_stats(self) -> None:
+        self.calls.append("reset_peak_memory_stats")
+        self.max_alloc = self.alloc
+        self.max_reserved = self.reserved
+
+    def empty_cache(self) -> None:
+        self.calls.append("empty_cache")
+
+
+class _FakeRig:
+    def __init__(self, a):
+        self.a = a
+        self.preflight_called = 0
+
+    def preflight(self) -> dict:
+        self.preflight_called += 1
+        return {
+            "name": "NVIDIA GeForce RTX 5090",
+            "driver": "595.71",
+            "guard": s2.check_exclusive(s2.dry_smi, source="fake preflight"),
+        }
+
+    def vram_query(self) -> int | None:
+        return 2500
+
+    def cuda_version(self) -> str | None:
+        return "13.0"
+
+
+def _tiny_qwen3(dtype=None):
+    import torch
+    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from transformers import Qwen3Config, Qwen3ForCausalLM
+
+    torch.manual_seed(0)
+    target_dtype = torch.bfloat16 if dtype is None else dtype
+    cfg = Qwen3Config(
+        vocab_size=64,
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        num_key_value_heads=2,
+        head_dim=16,
+        max_position_embeddings=256,
+        pad_token_id=0,
+        eos_token_id=1,
+        torch_dtype=target_dtype,
+    )
+    base = Qwen3ForCausalLM(cfg).to(target_dtype)
+    base = prepare_model_for_kbit_training(base, use_gradient_checkpointing=True)
+    model = get_peft_model(
+        base,
+        LoraConfig(r=4, lora_alpha=8, target_modules=list(s2.LORA_TARGETS), lora_dropout=0.0),
+    )
+    return model
+
+
+def _fake_probe_bundle(a, fake_cuda: _FakeCuda):
+    bundle = s2.dry_bundle(a)
+    if getattr(a, "bf16_restore", False):
+        s2.restore_bf16(bundle["model"])
+    bundle["cuda"] = fake_cuda
+    return bundle
+
+
+# -- 1. --bf16-restore -------------------------------------------------------------------------------------------------------
+@needs_torch
+class TestBf16Restore:
+    def test_without_bf16_restore_prepare_upcasts_to_fp32_and_cache_is_fp32(self):
+        import torch
+
+        model = _tiny_qwen3(torch.bfloat16)
+        non_trainable = [p for p in model.parameters() if not p.requires_grad and p.is_floating_point()]
+        assert non_trainable and all(p.dtype == torch.float32 for p in non_trainable)
+        model.eval()
+        model.get_base_model().gradient_checkpointing_disable()
+        model.get_base_model().config.use_cache = True
+        with torch.no_grad():
+            out = model(input_ids=torch.tensor([[2, 3, 4, 5]]), use_cache=True)
+        cache = out.past_key_values
+        keys = [layer.keys for layer in cache.layers]
+        values = [layer.values for layer in cache.layers]
+        assert keys and all(k.dtype == torch.float32 for k in keys)
+        assert values and all(v.dtype == torch.float32 for v in values)
+
+    def test_bf16_restore_casts_non_trainable_float_params_to_bf16_keeps_lora_fp32_and_skips_params4bit(self):
+        import torch
+
+        class Params4bit(torch.nn.Parameter):
+            pass
+
+        model = _tiny_qwen3(torch.bfloat16)
+        fake_4bit = Params4bit(torch.ones(4, dtype=torch.float32), requires_grad=False)
+        model.get_base_model().register_parameter("fake_4bit", fake_4bit)
+
+        census = s2.restore_bf16(model)
+        for name, param in model.named_parameters():
+            if name.endswith("fake_4bit"):
+                assert param.dtype == torch.float32
+            elif param.requires_grad:
+                assert "lora_" in name
+                assert param.dtype == torch.float32
+            elif param.is_floating_point():
+                assert param.dtype == torch.bfloat16, f"{name} remained {param.dtype}"
+        inner = model.get_base_model().model
+        assert inner.embed_tokens.weight.dtype == torch.bfloat16
+        assert model.get_base_model().lm_head.weight.dtype == torch.bfloat16
+        assert inner.norm.weight.dtype == torch.bfloat16
+        assert census["trainable"]["float32"] > 0
+        assert census["non_trainable"]["bfloat16"] > 0
+
+    def test_bf16_restore_forward_with_use_cache_produces_bf16_kv_cache(self):
+        import torch
+
+        model = _tiny_qwen3(torch.bfloat16)
+        s2.restore_bf16(model)
+        model.eval()
+        model.get_base_model().gradient_checkpointing_disable()
+        model.get_base_model().config.use_cache = True
+        with torch.no_grad():
+            out = model(input_ids=torch.tensor([[2, 3, 4, 5]]), use_cache=True)
+        keys, values = s2.cache_kv_tensors(out.past_key_values)
+        assert keys and all(k.dtype == torch.bfloat16 for k in keys)
+        assert values and all(v.dtype == torch.bfloat16 for v in values)
+
+    def test_bf16_restore_recorded_in_receipt_and_readout(self, tmp_path):
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True, bf16_restore=True))
+        assert s2.execute(a, build=s2.dry_bundle) == 0
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["run"]["bf16_restore"] is True
+        assert receipt["readout"]["flags"]["bf16_restore"] is True
+        assert receipt["dtype_census"]["non_trainable"]["bfloat16"] > 0
+        assert receipt["dtype_census"]["trainable"]["float32"] > 0
+
+
+# -- 2. --logprob-microbatch M -----------------------------------------------------------------------------------------------
+@needs_torch
+class TestLogprobMicrobatch:
+    def test_logprob_microbatch_matches_old_path_logprobs_loss_and_lora_grads_for_m_1_2_g(self):
+        import torch
+
+        model = _tiny_qwen3(torch.float32)
+        model.eval()
+        model.get_base_model().gradient_checkpointing_disable()
+        torch.manual_seed(42)
+        for name, param in model.named_parameters():
+            if param.requires_grad and "lora_B" in name:
+                param.data.normal_(0.0, 0.05)
+
+        prompt_ids = [2, 3, 4, 5, 6, 7]
+        comps = [
+            [8, 9, 10],
+            [11, 12, 13, 14, 15, 16, 17],
+            [18],
+            [19, 20, 21, 22, 23],
+        ]
+        g = len(comps)
+        width = max(len(c) for c in comps)
+        pad = 0
+        ids = torch.tensor([prompt_ids + c + [pad] * (width - len(c)) for c in comps], dtype=torch.long)
+        att = torch.tensor(
+            [[1] * (len(prompt_ids) + len(c)) + [0] * (width - len(c)) for c in comps], dtype=torch.long
+        )
+        mask = torch.tensor([[1.0] * len(c) + [0.0] * (width - len(c)) for c in comps], dtype=torch.float32)
+        adv = torch.tensor([0.75, -1.25, 0.5, 0.0], dtype=torch.float32)
+        prompt_len = len(prompt_ids)
+
+        model.zero_grad(set_to_none=True)
+        with torch.no_grad():
+            old_full = s2.completion_logprobs(model, ids, att, prompt_len)
+            with model.disable_adapter():
+                ref_full = s2.completion_logprobs(model, ids, att, prompt_len)
+        logp_full = s2.completion_logprobs(model, ids, att, prompt_len)
+        loss_full = s2.grpo_loss(logp_full, old_full, ref_full, adv, mask)
+        loss_full.backward()
+        grads_full = {
+            name: param.grad.detach().clone()
+            for name, param in model.named_parameters()
+            if param.requires_grad
+        }
+        assert all(torch.any(g_tensor != 0) for g_tensor in grads_full.values())
+
+        for m in (1, 2, g):
+            model.zero_grad(set_to_none=True)
+            with torch.no_grad():
+                old_mb = s2.completion_logprobs_microbatch(model, ids, att, prompt_len, m)
+                with model.disable_adapter():
+                    ref_mb = s2.completion_logprobs_microbatch(model, ids, att, prompt_len, m)
+            assert torch.allclose(old_mb * mask, old_full * mask, atol=1e-5, rtol=0.0)
+            assert torch.allclose(ref_mb * mask, ref_full * mask, atol=1e-5, rtol=0.0)
+            assert float((old_mb - old_full).abs().max()) <= 1e-5
+            assert float((ref_mb - ref_full).abs().max()) <= 1e-5
+
+            loss_mb = s2.grpo_microbatch_backward(
+                model,
+                ids,
+                att,
+                prompt_len,
+                old_mb,
+                ref_mb,
+                adv,
+                mask,
+                microbatch=m,
+                scale=1.0,
+            )
+            assert abs(float(loss_mb) - float(loss_full.detach())) <= 1e-6
+            for name, param in model.named_parameters():
+                if param.requires_grad:
+                    diff = float((param.grad.detach() - grads_full[name]).abs().max())
+                    assert diff <= 1e-5, f"M={m} {name} grad diff {diff}"
+
+    def test_logprob_microbatch_passes_logits_to_keep_and_never_calls_log_softmax(self, monkeypatch):
+        import torch
+
+        model = _tiny_qwen3(torch.float32)
+        model.eval()
+        seen_kwargs: list[dict] = []
+        orig_forward = model.get_base_model().forward
+
+        def spy_forward(*args, **kwargs):
+            seen_kwargs.append(dict(kwargs))
+            return orig_forward(*args, **kwargs)
+
+        monkeypatch.setattr(model.get_base_model(), "forward", spy_forward)
+        monkeypatch.setattr(
+            torch,
+            "log_softmax",
+            lambda *a, **k: (_ for _ in ()).throw(AssertionError("log_softmax must not be called")),
+        )
+        monkeypatch.setattr(
+            torch.nn.functional,
+            "log_softmax",
+            lambda *a, **k: (_ for _ in ()).throw(AssertionError("F.log_softmax must not be called")),
+        )
+
+        ids = torch.tensor([[2, 3, 4, 8, 9, 0], [2, 3, 4, 10, 11, 12]], dtype=torch.long)
+        att = torch.tensor([[1, 1, 1, 1, 1, 0], [1, 1, 1, 1, 1, 1]], dtype=torch.long)
+        with torch.no_grad():
+            lp = s2.completion_logprobs_microbatch(model, ids, att, prompt_len=3, microbatch=1)
+        assert lp.shape == (2, 3)
+        assert len(seen_kwargs) == 2
+        assert all(k.get("logits_to_keep") == 4 for k in seen_kwargs)
+
+
+# -- 3. --alloc-conf expandable and --empty-cache-phases ---------------------------------------------------------------------
+class TestAllocConfAndEmptyCache:
+    def test_alloc_conf_expandable_sets_env_before_first_torch_import(self, monkeypatch):
+        import builtins
+
+        monkeypatch.delenv("PYTORCH_CUDA_ALLOC_CONF", raising=False)
+        s2.configure_alloc_conf("expandable")
+        real_import = builtins.__import__
+        env_at_torch_import: list[str | None] = []
+
+        class _FakeTorch:
+            _expandable_segments_supported = True
+
+        def fake_import(name, *args, **kwargs):
+            if name == "torch":
+                env_at_torch_import.append(os.environ.get("PYTORCH_CUDA_ALLOC_CONF"))
+                return _FakeTorch
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        try:
+            mod = s2.require_torch()
+            assert mod is _FakeTorch
+            assert env_at_torch_import == ["expandable_segments:True"]
+        finally:
+            s2.configure_alloc_conf(None)
+
+    def test_alloc_conf_expandable_refuses_by_name_when_unsupported(self, monkeypatch):
+        import builtins
+
+        monkeypatch.delenv("PYTORCH_CUDA_ALLOC_CONF", raising=False)
+        s2.configure_alloc_conf("expandable")
+        real_import = builtins.__import__
+
+        class _UnsupportedTorch:
+            _expandable_segments_supported = False
+
+        def fake_import(name, *args, **kwargs):
+            if name == "torch":
+                return _UnsupportedTorch
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        try:
+            with pytest.raises(SystemExit, match="expandable_segments_unsupported"):
+                s2.require_torch()
+        finally:
+            s2.configure_alloc_conf(None)
+
+    @needs_torch
+    def test_empty_cache_phases_calls_empty_cache_after_rollout_and_after_ref(self, tmp_path):
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True, steps=1, g=2))
+        bundle = s2.dry_bundle(a)
+        rows, _ = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, a.prompts)
+        events: list[str] = []
+        orig_rollout = bundle["rollout"]
+        orig_ref = bundle["ref_adapter_off"]
+
+        def tracked_rollout(*args, **kwargs):
+            res = orig_rollout(*args, **kwargs)
+            events.append("rollout")
+            return res
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def tracked_ref():
+            with orig_ref():
+                yield
+            events.append("ref")
+
+        s2.run_steps(
+            model=bundle["model"],
+            ref_adapter_off=tracked_ref,
+            tok=bundle["tok"],
+            optimiser=bundle["optimiser"],
+            prompts=prompts,
+            rollout=tracked_rollout,
+            steps=1,
+            g=2,
+            max_new=8,
+            reward_fn=bundle["reward_fn"],
+            device_sync=bundle["sync"],
+            peak_alloc_mib=bundle["peak_alloc_mib"],
+            mode=bundle["mode"],
+            state=bundle["state"],
+            empty_cache_phases=True,
+            empty_cache=lambda: events.append("empty_cache"),
+        )
+        assert events == [
+            "rollout",
+            "empty_cache",
+            "ref",
+            "empty_cache",
+            "rollout",
+            "empty_cache",
+            "ref",
+            "empty_cache",
+        ]
+
+
+# -- 4. --attention-mask -----------------------------------------------------------------------------------------------------
+@needs_torch
+class TestAttentionMaskFlag:
+    def test_attention_mask_flag_passes_explicit_all_ones_mask_to_generate(self):
+        import torch
+
+        tok = s2.DryTokenizer()
+        recorded: list[dict] = []
+
+        class _FakeGenModel:
+            device = torch.device("cpu")
+
+            def generate(self, input_ids, **kwargs):
+                recorded.append({"input_ids": input_ids, **kwargs})
+                extra = torch.full((input_ids.shape[0], 3), 5, dtype=torch.long)
+                return torch.cat([input_ids, extra], dim=1)
+
+        fake_model = _FakeGenModel()
+        s2.hf_rollout(fake_model, tok, "abc", g=3, max_new=4, temperature=0.7, pass_attention_mask=False)
+        assert "attention_mask" not in recorded[-1]
+
+        s2.hf_rollout(fake_model, tok, "abc", g=3, max_new=4, temperature=0.7, pass_attention_mask=True)
+        assert "attention_mask" in recorded[-1]
+        mask = recorded[-1]["attention_mask"]
+        assert mask.shape == recorded[-1]["input_ids"].shape
+        assert torch.all(mask == 1)
+
+
+# -- 5. Phase allocator logging ----------------------------------------------------------------------------------------------
+@needs_torch
+class TestPhaseAllocatorLogging:
+    def test_phase_logger_records_call_order_and_resets_peak_stats_after_each_boundary(self, tmp_path):
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True, steps=1, g=2))
+        bundle = s2.dry_bundle(a)
+        rows, _ = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, a.prompts)
+        fake_cuda = _FakeCuda()
+        phase_file = tmp_path / "s2-hf-phases.jsonl"
+        fsync_count = 0
+
+        def fake_fsync(fd: int) -> None:
+            nonlocal fsync_count
+            fsync_count += 1
+
+        logger = s2.PhaseLogger(phase_file, enabled=True, cuda=fake_cuda, fsync=fake_fsync)
+        try:
+            s2.run_steps(
+                model=bundle["model"],
+                ref_adapter_off=bundle["ref_adapter_off"],
+                tok=bundle["tok"],
+                optimiser=bundle["optimiser"],
+                prompts=prompts,
+                rollout=bundle["rollout"],
+                steps=1,
+                g=2,
+                max_new=8,
+                reward_fn=bundle["reward_fn"],
+                device_sync=bundle["sync"],
+                peak_alloc_mib=bundle["peak_alloc_mib"],
+                mode=bundle["mode"],
+                state=bundle["state"],
+                phase_logger=logger,
+            )
+        finally:
+            logger.close()
+
+        lines = [json.loads(line) for line in phase_file.read_text(encoding="utf-8").splitlines()]
+        expected_phases = [
+            (0, "pre_rollout"),
+            (0, "post_rollout"),
+            (0, "post_ref"),
+            (0, "post_train_forward"),
+            (0, "post_train_backward"),
+            (1, "pre_rollout"),
+            (1, "post_rollout"),
+            (1, "post_ref"),
+            (1, "post_train_forward"),
+            (1, "post_train_backward"),
+            (1, "step_end"),
+        ]
+        assert [(r["group"], r["phase"]) for r in lines] == expected_phases
+        assert fsync_count == len(expected_phases)
+        unit = [
+            "memory_allocated",
+            "memory_reserved",
+            "max_memory_allocated",
+            "max_memory_reserved",
+            "reset_peak_memory_stats",
+        ]
+        assert fake_cuda.calls == unit * len(expected_phases)
+        for rec in lines:
+            assert set(rec.keys()) == {
+                "step",
+                "group",
+                "phase",
+                "monotonic_s",
+                "prompt_tokens",
+                "completion_tokens",
+                "memory_allocated",
+                "memory_reserved",
+                "max_memory_allocated",
+                "max_memory_reserved",
+            }
+            assert set(rec["completion_tokens"].keys()) == {"min", "max", "sum"}
+
+    def test_phase_logger_simulated_kill_mid_phase_leaves_complete_lines_only(self, tmp_path):
+        class _SimulatedKill(BaseException):
+            pass
+
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True, steps=1, g=2))
+        bundle = s2.dry_bundle(a)
+        rows, _ = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, a.prompts)
+        fake_cuda = _FakeCuda()
+        phase_file = tmp_path / "s2-hf-phases.jsonl"
+        orig_ref = bundle["ref_adapter_off"]
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def kill_after_ref():
+            with orig_ref():
+                yield
+            raise _SimulatedKill("killed right after reference forward")
+
+        logger = s2.PhaseLogger(phase_file, enabled=True, cuda=fake_cuda)
+        with pytest.raises(_SimulatedKill):
+            try:
+                s2.run_steps(
+                    model=bundle["model"],
+                    ref_adapter_off=kill_after_ref,
+                    tok=bundle["tok"],
+                    optimiser=bundle["optimiser"],
+                    prompts=prompts,
+                    rollout=bundle["rollout"],
+                    steps=1,
+                    g=2,
+                    max_new=8,
+                    reward_fn=bundle["reward_fn"],
+                    device_sync=bundle["sync"],
+                    peak_alloc_mib=bundle["peak_alloc_mib"],
+                    mode=bundle["mode"],
+                    state=bundle["state"],
+                    phase_logger=logger,
+                )
+            finally:
+                logger.close()
+
+        raw = phase_file.read_text(encoding="utf-8")
+        assert raw.endswith("\n")
+        parsed = [json.loads(line) for line in raw.splitlines()]
+        assert [r["phase"] for r in parsed] == ["pre_rollout", "post_rollout"]
+
+
+# -- 6. Probe mode (--probe-memory) and --prompt-lengths ---------------------------------------------------------------------
+class TestProbeMemoryAndPromptLengths:
+    def test_prompt_lengths_cpu_only_writes_stats_without_model_or_gpu(self, tmp_path):
+        a = _args(tmp_path, _gold(tmp_path), prompt_lengths=True, dry=True)
+        assert (
+            s2.execute(
+                a,
+                build=lambda _: (_ for _ in ()).throw(AssertionError("model build must not run")),
+                rig=None,
+            )
+            == 0
+        )
+        out_file = a.out / "s2-hf-prompt-lengths.json"
+        data = json.loads(out_file.read_text(encoding="utf-8"))
+        assert data["count"] == 32
+        assert data["min"] <= data["median"] <= data["p90"] <= data["max"]
+
+    def test_windows_gpu_adapter_counter_sums_bytes_strips_instance_names_and_handles_failure(self):
+        sample_csv = (
+            '"(PDH-CSV 4.0) (Eastern Standard Time)(300)",'
+            '"\\\\MACHINE\\GPU Adapter Memory(luid_0x00000000_0x00012345_phys_0)\\Shared Usage",'
+            '"\\\\MACHINE\\GPU Adapter Memory(luid_0x00000000_0x00067890_phys_0)\\Shared Usage",'
+            '"\\\\MACHINE\\GPU Adapter Memory(luid_0x00000000_0x00012345_phys_0)\\Dedicated Usage",'
+            '"\\\\MACHINE\\GPU Adapter Memory(luid_0x00000000_0x00067890_phys_0)\\Dedicated Usage"\n'
+            '"11/03/2026 11:00:00.000","1000.000000","2500.000000","4000.000000","6000.000000"\n'
+        )
+        res = s2.read_gpu_adapter_memory(runner=lambda: sample_csv)
+        assert res == {
+            "shared_usage_bytes": 3500,
+            "dedicated_usage_bytes": 10000,
+            "error": None,
+        }
+        serialized = json.dumps(res)
+        assert "MACHINE" not in serialized and "luid_" not in serialized
+
+        failed = s2.read_gpu_adapter_memory(
+            runner=lambda: (_ for _ in ()).throw(OSError("counter unavailable"))
+        )
+        assert failed["shared_usage_bytes"] is None
+        assert failed["dedicated_usage_bytes"] is None
+        assert "counter unavailable" in failed["error"]
+
+    @needs_torch
+    def test_probe_memory_on_fake_bundle_forces_lengths_and_records_phases_in_order(self, tmp_path, capsys):
+        rows_by_file = {
+            "grounded.jsonl": [
+                _row(f"g{i:02d}", text="short" if i < 19 else "longest_evidence " * 30) for i in range(20)
+            ],
+            "prs/grounded-prs.jsonl": [_row(f"p{i:02d}") for i in range(20)],
+            "diffs/reasoning-diffs.jsonl": [_row(f"r{i:02d}", label="unsupported") for i in range(20)],
+        }
+        gold_dir = _gold(tmp_path, rows_by_file)
+        a = _args(
+            tmp_path,
+            gold_dir,
+            probe_memory=True,
+            probe_lengths="6,12",
+            bf16_restore=True,
+            logprob_microbatch=2,
+            g=4,
+        )
+        fake_cuda = _FakeCuda()
+        rig = _FakeRig(a)
+        seen_gen_kwargs: list[dict] = []
+
+        def build_probe(args):
+            bundle = _fake_probe_bundle(args, fake_cuda)
+            orig_gen = bundle["model"].generate
+
+            def spy_gen(*g_args, **g_kwargs):
+                seen_gen_kwargs.append(dict(g_kwargs))
+                fake_cuda.alloc += 4 * 2**20
+                fake_cuda.max_alloc = max(fake_cuda.max_alloc, fake_cuda.alloc)
+                return orig_gen(*g_args, **g_kwargs)
+
+            bundle["model"].generate = spy_gen
+            return bundle
+
+        rc = s2.execute(
+            a,
+            build=build_probe,
+            rig=rig,
+            counter_runner=lambda: (
+                '"(PDH-CSV 4.0)",'
+                '"\\\\H\\GPU Adapter Memory(luid_0)\\Shared Usage",'
+                '"\\\\H\\GPU Adapter Memory(luid_0)\\Dedicated Usage"\n'
+                '"t","1024","2048"\n'
+            ),
+        )
+        assert rc == 0
+        assert rig.preflight_called == 1
+        probe_file = a.out / "s2-hf-probe.json"
+        probe = json.loads(probe_file.read_text(encoding="utf-8"))
+        assert probe["prompt_id"] == "g19"
+        assert probe["g"] == 4
+        assert probe["model_info"]["embed_tokens_dtype"] == "bfloat16"
+        assert probe["model_info"]["lm_head_dtype"] == "bfloat16"
+        assert probe["model_info"]["kv_cache_key_dtype"] == "bfloat16"
+        assert isinstance(probe["model_info"]["use_cache"], bool)
+        assert probe["model_info"]["attn_implementation"] is not None
+        assert [item["length"] for item in probe["lengths"]] == [6, 12]
+        assert [kw["min_new_tokens"] for kw in seen_gen_kwargs] == [6, 12]
+        assert [kw["max_new_tokens"] for kw in seen_gen_kwargs] == [6, 12]
+        assert all(kw.get("return_dict_in_generate") is True for kw in seen_gen_kwargs)
+        for item in probe["lengths"]:
+            assert list(item["phases"].keys()) == [
+                "before_generate",
+                "after_generate",
+                "after_ref_forward",
+            ]
+            assert item["shared_gpu_memory"]["before_generate"]["shared_usage_bytes"] == 1024
+            assert item["shared_gpu_memory"]["after_generate"]["dedicated_usage_bytes"] == 2048
+        stdout = capsys.readouterr().out
+        assert "alloc_mib_per_token" in stdout and "reserved_minus_allocated_mib" in stdout
+
+
+# -- 7. Stress prefix (--stress-prefix) and prereg amendment -----------------------------------------------------------------
+@needs_torch
+class TestStressPrefix:
+    def test_stress_prefix_runs_before_registered_steps_and_is_excluded_from_readout(self, tmp_path):
+        rows_by_file = {
+            "grounded.jsonl": [
+                _row(f"g{i:02d}", text="short" if i < 19 else "longest_prompt_text " * 25) for i in range(20)
+            ],
+            "prs/grounded-prs.jsonl": [_row(f"p{i:02d}") for i in range(20)],
+            "diffs/reasoning-diffs.jsonl": [_row(f"r{i:02d}", label="unsupported") for i in range(20)],
+        }
+        gold_dir = _gold(tmp_path, rows_by_file)
+        a = s2.apply_dry_defaults(
+            _args(tmp_path, gold_dir, dry=True, steps=2, g=2, max_new=10, stress_prefix=2)
+        )
+        opt_steps = 0
+
+        def build_tracked(args):
+            bundle = s2.dry_bundle(args)
+            orig_step = bundle["optimiser"].step
+
+            def counted_step(*s_args, **s_kwargs):
+                nonlocal opt_steps
+                opt_steps += 1
+                return orig_step(*s_args, **s_kwargs)
+
+            bundle["optimiser"].step = counted_step
+            return bundle
+
+        assert s2.execute(a, build=build_tracked) == 0
+        assert opt_steps == 4  # 2 stress prefix steps + 2 registered steps
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        step_lines = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(step_lines) == 2
+        assert [s["step"] for s in step_lines] == [0, 1]
+        assert receipt["readout"]["steps_completed"] == 2
+        assert receipt["readout"]["steps_requested"] == 2
+        assert receipt["run"]["stress_prefix"] == 2
+        assert receipt["readout"]["flags"]["stress_prefix"] == 2
+
+    def test_prereg_doc_has_2026_11_03_amendment_and_marks_stress_prefix_option_a_chosen(self):
+        doc = Path(__file__).parent.parent / "docs" / "runs" / "2026-10-10-smoke-s2-prereg.md"
+        text = doc.read_text(encoding="utf-8")
+        assert "## 2026-11-03" in text
+        for needle in (
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "--alloc-conf expandable",
+            "--empty-cache-phases",
+            "--attention-mask",
+            "--probe-memory",
+            "--prompt-lengths",
+            "--stress-prefix 2",
+        ):
+            assert needle in text
+        assert "(A)" in text and "(B)" in text and "chosen" in text.lower()

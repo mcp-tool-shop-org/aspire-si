@@ -17,11 +17,14 @@ functions that need them, so the pass line, the prompt rule, the reward and the 
 from __future__ import annotations
 
 import argparse
+import csv
+import ctypes
 import fnmatch
 import hashlib
 import importlib.metadata as metadata
 import json
 import math
+import os
 import platform
 import re
 import statistics
@@ -246,6 +249,7 @@ def readout(
     cut: bool,
     dry: bool,
     series: Sequence[int] = (),
+    flags: dict | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -260,7 +264,7 @@ def readout(
     rollout_s = sum(s["rollout_s"] for s in steps)
     fits = peak_mib is not None and peak_mib < VRAM_LINE_MIB
     complete = completed == steps_requested and stopped is None and not oom
-    return {
+    out = {
         "steps_requested": steps_requested,
         "steps_completed": completed,
         "peak_vram_mib_sampler": peak_mib,
@@ -279,6 +283,9 @@ def readout(
         "complete": complete and whole,
         "pass": bool(complete and whole and fits),
     }
+    if flags:
+        out["flags"] = dict(flags)
+    return out
 
 
 def verdict_line(result: dict, *, stopped: dict | None, cut: bool, dry: bool) -> str:
@@ -668,8 +675,9 @@ def build_receipt(
     result: dict,
     stopped: dict | None,
     verdict: str,
+    dtype_census_record: dict | None = None,
 ) -> dict:
-    return {
+    out = {
         "test": "S2",
         "path": path,
         "dry": dry,
@@ -700,6 +708,9 @@ def build_receipt(
         "readout": result,
         "verdict": verdict,
     }
+    if dtype_census_record is not None:
+        out["dtype_census"] = dtype_census_record
+    return out
 
 
 # -- the VRAM sampler (nvidia-smi, once a second) ------------------------------------------------------------
@@ -737,8 +748,54 @@ class VramSampler:
 
 
 # -- torch, imported only where it is used -------------------------------------------------------------------
+_ALLOC_CONF: str | None = None
+
+
+def configure_alloc_conf(mode: str | None) -> None:
+    """Configure PYTORCH_CUDA_ALLOC_CONF to be applied before torch is imported in ``require_torch``."""
+    global _ALLOC_CONF
+    if mode is not None and mode != "expandable":
+        raise SystemExit(f"refusing to start: unknown --alloc-conf {mode!r}")
+    _ALLOC_CONF = mode
+
+
+def expandable_segments_supported(torch_mod) -> bool:
+    """Whether the loaded torch build supports ``expandable_segments:True`` on this platform.
+
+    In torch 2.14.1 (`torch/include/c10/cuda/CUDAAllocatorConfig.h:35-47`), ``expandable_segments()`` returns
+    ``false`` with a warning when built without ``PYTORCH_C10_DRIVER_API_SUPPORTED`` (and not ROCm >= 7.0).
+    When ``c10_cuda.dll`` is present on Windows, we query its exported
+    ``?expandable_segments@CUDAAllocatorConfig@CUDACachingAllocator@cuda@c10@@SA_NXZ`` after applying the
+    allocator setting; a build or fake module can also set ``_expandable_segments_supported``.
+    """
+    override = getattr(torch_mod, "_expandable_segments_supported", None)
+    if isinstance(override, bool):
+        return override
+    mod_file = getattr(torch_mod, "__file__", None)
+    if sys.platform == "win32" and mod_file:
+        dll_path = Path(mod_file).parent / "lib" / "c10_cuda.dll"
+        if dll_path.exists():
+            try:
+                c_ext = getattr(torch_mod, "_C", None)
+                setter = getattr(c_ext, "_accelerator_setAllocatorSettings", None)
+                if callable(setter):
+                    setter("expandable_segments:True")
+                dll = ctypes.WinDLL(str(dll_path))
+                fn = getattr(
+                    dll,
+                    "?expandable_segments@CUDAAllocatorConfig@CUDACachingAllocator@cuda@c10@@SA_NXZ",
+                )
+                fn.restype = ctypes.c_bool
+                return bool(fn())
+            except (OSError, AttributeError):
+                return False
+    return True
+
+
 def require_torch():
     """Import torch. Absent: a clear refusal. Present but broken (a DLL, an ABI clash): the real error."""
+    if _ALLOC_CONF == "expandable":
+        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     try:
         import torch
     except ModuleNotFoundError as exc:
@@ -747,7 +804,47 @@ def require_torch():
                 "torch is not installed in this Python; install it, or run the pure parts only"
             ) from exc
         raise
+    if _ALLOC_CONF == "expandable" and not expandable_segments_supported(torch):
+        raise SystemExit(
+            "refusing to start: expandable_segments_unsupported: "
+            "expandable_segments is not supported by this torch build on this platform"
+        )
     return torch
+
+
+def dtype_census(model) -> dict:
+    """Count parameters by dtype, split into trainable and non_trainable."""
+    trainable: dict[str, int] = {}
+    non_trainable: dict[str, int] = {}
+    for _, param in model.named_parameters():
+        key = str(param.dtype).removeprefix("torch.")
+        bucket = trainable if param.requires_grad else non_trainable
+        bucket[key] = bucket.get(key, 0) + 1
+    return {"trainable": trainable, "non_trainable": non_trainable}
+
+
+def restore_bf16(model) -> dict:
+    """Cast non-trainable floating-point parameters (except Params4bit) back to bfloat16; keep LoRA fp32."""
+    torch = require_torch()
+    for _, param in model.named_parameters():
+        if not param.requires_grad and param.is_floating_point() and param.__class__.__name__ != "Params4bit":
+            param.data = param.data.to(torch.bfloat16)
+    return dtype_census(model)
+
+
+def cache_kv_tensors(cache) -> tuple[list, list]:
+    """Extract (keys, values) tensor lists from a Hugging Face cache object."""
+    if cache is None:
+        return [], []
+    if hasattr(cache, "layers"):
+        keys = [layer.keys for layer in cache.layers if getattr(layer, "keys", None) is not None]
+        values = [layer.values for layer in cache.layers if getattr(layer, "values", None) is not None]
+        return keys, values
+    if hasattr(cache, "key_cache") and hasattr(cache, "value_cache"):
+        return list(cache.key_cache), list(cache.value_cache)
+    if isinstance(cache, Sequence):
+        return [pair[0] for pair in cache], [pair[1] for pair in cache]
+    return [], []
 
 
 def completion_logprobs(model, input_ids, attention_mask, prompt_len: int):
@@ -756,6 +853,28 @@ def completion_logprobs(model, input_ids, attention_mask, prompt_len: int):
     logits = model(input_ids=input_ids, attention_mask=attention_mask).logits[:, :-1, :].float()
     logp = torch.log_softmax(logits, dim=-1).gather(-1, input_ids[:, 1:].unsqueeze(-1)).squeeze(-1)
     return logp[:, prompt_len - 1 :]
+
+
+def completion_logprobs_microbatch(model, input_ids, attention_mask, prompt_len: int, microbatch: int):
+    """Completion token log-probs in micro-batches of ``microbatch`` using ``logits_to_keep`` and
+    ``gather - logsumexp`` (never a full ``log_softmax`` tensor)."""
+    if microbatch < 1:
+        raise SystemExit(f"--logprob-microbatch must be >= 1, got {microbatch}")
+    torch = require_torch()
+    batch, seq_len = input_ids.shape
+    comp_len = seq_len - prompt_len
+    keep = comp_len + 1
+    chunks = []
+    for start in range(0, batch, microbatch):
+        end = min(start + microbatch, batch)
+        mb_ids = input_ids[start:end]
+        mb_att = attention_mask[start:end]
+        out = model(input_ids=mb_ids, attention_mask=mb_att, logits_to_keep=keep)
+        logits = out.logits[:, -keep:-1, :].float()
+        labels = mb_ids[:, prompt_len:]
+        token_logp = logits.gather(-1, labels.unsqueeze(-1)).squeeze(-1) - torch.logsumexp(logits, dim=-1)
+        chunks.append(token_logp)
+    return torch.cat(chunks, dim=0)
 
 
 def grpo_loss(logp, old_logp, ref_logp, adv, mask, *, beta: float = BETA, eps: float = EPSILON):
@@ -769,19 +888,84 @@ def grpo_loss(logp, old_logp, ref_logp, adv, mask, *, beta: float = BETA, eps: f
     return ((policy + beta * kl) * mask).sum() / mask.sum().clamp(min=1)
 
 
-def hf_rollout(model, tok, prompt_text: str, g: int, max_new: int, temperature: float):
+def grpo_microbatch_backward(
+    model,
+    input_ids,
+    attention_mask,
+    prompt_len: int,
+    old_logp,
+    ref_logp,
+    adv,
+    mask,
+    *,
+    microbatch: int,
+    scale: float = 1.0,
+    beta: float = BETA,
+    eps: float = EPSILON,
+    after_forward: Callable[[], None] | None = None,
+):
+    """Run training forward and backward over ``G`` sequences in micro-batches of ``microbatch`` with
+    gradients accumulated, using ``logits_to_keep`` and ``gather - logsumexp``."""
+    if microbatch < 1:
+        raise SystemExit(f"--logprob-microbatch must be >= 1, got {microbatch}")
+    torch = require_torch()
+    batch, seq_len = input_ids.shape
+    comp_len = seq_len - prompt_len
+    keep = comp_len + 1
+    denom = mask.sum().clamp(min=1)
+    total_loss = torch.zeros((), dtype=torch.float32, device=input_ids.device)
+    for start in range(0, batch, microbatch):
+        end = min(start + microbatch, batch)
+        mb_ids = input_ids[start:end]
+        mb_att = attention_mask[start:end]
+        out = model(input_ids=mb_ids, attention_mask=mb_att, logits_to_keep=keep)
+        logits = out.logits[:, -keep:-1, :].float()
+        labels = mb_ids[:, prompt_len:]
+        mb_logp = logits.gather(-1, labels.unsqueeze(-1)).squeeze(-1) - torch.logsumexp(logits, dim=-1)
+        mb_old = old_logp[start:end]
+        mb_ref = ref_logp[start:end]
+        mb_adv = adv[start:end].unsqueeze(-1)
+        mb_mask = mask[start:end]
+        ratio = torch.exp(mb_logp - mb_old)
+        policy = -torch.min(ratio * mb_adv, torch.clamp(ratio, 1 - eps, 1 + eps) * mb_adv)
+        delta = mb_ref - mb_logp
+        kl = torch.exp(delta) - delta - 1
+        mb_loss = ((policy + beta * kl) * mb_mask).sum() / denom
+        if end == batch and after_forward is not None:
+            after_forward()
+        (mb_loss * scale).backward()
+        total_loss = total_loss + mb_loss.detach()
+    return total_loss * scale
+
+
+def hf_rollout(
+    model,
+    tok,
+    prompt_text: str,
+    g: int,
+    max_new: int,
+    temperature: float,
+    *,
+    pass_attention_mask: bool = False,
+    min_new: int | None = None,
+):
     """Path (a): Hugging Face generate, G samples of one prompt from the model that is being trained."""
     torch = require_torch()
     enc = tok(prompt_text, return_tensors="pt")
     prompt_ids = enc["input_ids"].to(model.device)
+    repeated = prompt_ids.repeat(g, 1)
+    gen_kwargs: dict = {
+        "do_sample": True,
+        "temperature": temperature,
+        "max_new_tokens": max_new,
+        "pad_token_id": tok.pad_token_id,
+    }
+    if min_new is not None:
+        gen_kwargs["min_new_tokens"] = min_new
+    if pass_attention_mask:
+        gen_kwargs["attention_mask"] = torch.ones_like(repeated)
     with torch.no_grad():
-        out = model.generate(
-            prompt_ids.repeat(g, 1),
-            do_sample=True,
-            temperature=temperature,
-            max_new_tokens=max_new,
-            pad_token_id=tok.pad_token_id,
-        )
+        out = model.generate(repeated, **gen_kwargs)
     comps = []
     for row in out[:, prompt_ids.shape[1] :]:
         ids = row.tolist()
@@ -789,6 +973,89 @@ def hf_rollout(model, tok, prompt_text: str, g: int, max_new: int, temperature: 
             ids.pop()
         comps.append(ids)
     return prompt_ids[0].tolist(), comps
+
+
+PHASE_BOUNDARIES = (
+    "pre_rollout",
+    "post_rollout",
+    "post_ref",
+    "post_train_forward",
+    "post_train_backward",
+    "step_end",
+)
+
+
+class PhaseLogger:
+    """Phase-boundary CUDA allocator logger (always on for GPU runs; a no-op on CPU and dry runs).
+
+    Each boundary records allocator bytes, resets peak stats, and flushes + fsyncs the JSONL line so a kill
+    mid-phase leaves the last completed boundary on disk. Never records process names, app names or paths.
+    """
+
+    def __init__(
+        self,
+        path: Path | None,
+        *,
+        enabled: bool,
+        cuda=None,
+        now: Callable[[], float] = time.monotonic,
+        fsync: Callable[[int], None] = os.fsync,
+    ) -> None:
+        self.path = path
+        cuda_ready = (
+            cuda is not None and callable(getattr(cuda, "is_available", None)) and bool(cuda.is_available())
+        )
+        self.enabled = bool(enabled and path is not None and cuda_ready)
+        self.cuda = cuda
+        self.now = now
+        self.fsync = fsync
+        self._fh = None
+        if self.enabled and self.path is not None:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._fh = self.path.open("w", encoding="utf-8", newline="\n")
+
+    def record(
+        self,
+        *,
+        step: int,
+        group: int,
+        phase: str,
+        prompt_tokens: int,
+        completion_lengths: Sequence[int],
+    ) -> None:
+        if not self.enabled or self._fh is None or self.cuda is None:
+            return
+        alloc = int(self.cuda.memory_allocated())
+        reserved = int(self.cuda.memory_reserved())
+        max_alloc = int(self.cuda.max_memory_allocated())
+        max_reserved = int(self.cuda.max_memory_reserved())
+        self.cuda.reset_peak_memory_stats()
+        lengths = list(completion_lengths)
+        comp = {
+            "min": min(lengths) if lengths else 0,
+            "max": max(lengths) if lengths else 0,
+            "sum": sum(lengths),
+        }
+        line = {
+            "step": step,
+            "group": group,
+            "phase": phase,
+            "monotonic_s": round(self.now(), 6),
+            "prompt_tokens": int(prompt_tokens),
+            "completion_tokens": comp,
+            "memory_allocated": alloc,
+            "memory_reserved": reserved,
+            "max_memory_allocated": max_alloc,
+            "max_memory_reserved": max_reserved,
+        }
+        self._fh.write(json.dumps(line) + "\n")
+        self._fh.flush()
+        self.fsync(self._fh.fileno())
+
+    def close(self) -> None:
+        if self._fh is not None:
+            self._fh.close()
+            self._fh = None
 
 
 def http_json(base_url: str, path: str, payload, timeout_s: float, *, urlopen=urllib.request.urlopen):
@@ -942,6 +1209,10 @@ def run_steps(
     before_step: Callable[[int], None] | None = None,
     mode: Callable[[bool], None] | None = None,
     state: Callable[[], dict] | None = None,
+    logprob_microbatch: int | None = None,
+    empty_cache_phases: bool = False,
+    empty_cache: Callable[[], None] | None = None,
+    phase_logger: PhaseLogger | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -954,6 +1225,9 @@ def run_steps(
     """
 
     torch = require_torch()
+    if empty_cache is None:
+        cuda_mod = getattr(torch, "cuda", None)
+        empty_cache = getattr(cuda_mod, "empty_cache", lambda: None)
     rows: list[dict] = []
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     for step in range(steps):
@@ -965,16 +1239,40 @@ def run_steps(
             tokens = zero_var = 0
             rewards_all: list[float] = []
             optimiser.zero_grad(set_to_none=True)
+            last_prompt_tokens = 0
+            last_comp_lens: list[int] = []
             for k in range(GROUPS_PER_STEP):
                 row = prompts[(step * GROUPS_PER_STEP + k) % len(prompts)]
+                prompt_text = build_prompt(row)
                 if mode:
                     mode(False)
                 ckpt_rollout = state()["grad_ckpt"] if state else None
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=step,
+                        group=k,
+                        phase="pre_rollout",
+                        prompt_tokens=len(tok.encode(prompt_text)),
+                        completion_lengths=(),
+                    )
                 t0 = time.time()
-                prompt_ids, comps = rollout(build_prompt(row), g, max_new, TEMPERATURE)
+                prompt_ids, comps = rollout(prompt_text, g, max_new, TEMPERATURE)
                 device_sync()
                 roll_s += time.time() - t0
-                tokens += sum(len(c) for c in comps)
+                comp_lens = [len(c) for c in comps]
+                last_prompt_tokens = len(prompt_ids)
+                last_comp_lens = comp_lens
+                if empty_cache_phases and empty_cache is not None:
+                    empty_cache()
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=step,
+                        group=k,
+                        phase="post_rollout",
+                        prompt_tokens=len(prompt_ids),
+                        completion_lengths=comp_lens,
+                    )
+                tokens += sum(comp_lens)
                 rewards = []
                 for c in comps:
                     text = tok.decode(c, skip_special_tokens=True)
@@ -987,24 +1285,94 @@ def run_steps(
                 if mode:
                     mode(True)
                 ckpt_train = state()["grad_ckpt"] if state else None
-                width = max(len(c) for c in comps) or 1
+                width = max(comp_lens) or 1
                 pad = tok.pad_token_id
                 ids = torch.tensor([prompt_ids + c + [pad] * (width - len(c)) for c in comps])
                 att = torch.tensor([[1] * (len(prompt_ids) + len(c)) + [0] * (width - len(c)) for c in comps])
                 mask = torch.tensor([[1.0] * len(c) + [0.0] * (width - len(c)) for c in comps])
                 ids, att, mask, adv = (x.to(model.device) for x in (ids, att, mask, adv))
                 with torch.no_grad():
-                    old = completion_logprobs(model, ids, att, len(prompt_ids))
-                    with ref_adapter_off():
-                        ref = completion_logprobs(model, ids, att, len(prompt_ids))
-                logp = completion_logprobs(model, ids, att, len(prompt_ids))
-                loss = grpo_loss(logp, old, ref, adv, mask) / GROUPS_PER_STEP
-                loss.backward()
+                    if logprob_microbatch is not None:
+                        old = completion_logprobs_microbatch(
+                            model, ids, att, len(prompt_ids), logprob_microbatch
+                        )
+                        with ref_adapter_off():
+                            ref = completion_logprobs_microbatch(
+                                model, ids, att, len(prompt_ids), logprob_microbatch
+                            )
+                    else:
+                        old = completion_logprobs(model, ids, att, len(prompt_ids))
+                        with ref_adapter_off():
+                            ref = completion_logprobs(model, ids, att, len(prompt_ids))
+                if empty_cache_phases and empty_cache is not None:
+                    empty_cache()
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=step,
+                        group=k,
+                        phase="post_ref",
+                        prompt_tokens=len(prompt_ids),
+                        completion_lengths=comp_lens,
+                    )
+                if logprob_microbatch is not None:
+                    loss = grpo_microbatch_backward(
+                        model,
+                        ids,
+                        att,
+                        len(prompt_ids),
+                        old,
+                        ref,
+                        adv,
+                        mask,
+                        microbatch=logprob_microbatch,
+                        scale=1.0 / GROUPS_PER_STEP,
+                        after_forward=(
+                            (
+                                lambda s=step, grp=k, pt=len(prompt_ids), cl=comp_lens: phase_logger.record(
+                                    step=s,
+                                    group=grp,
+                                    phase="post_train_forward",
+                                    prompt_tokens=pt,
+                                    completion_lengths=cl,
+                                )
+                            )
+                            if phase_logger is not None
+                            else None
+                        ),
+                    )
+                else:
+                    logp = completion_logprobs(model, ids, att, len(prompt_ids))
+                    loss = grpo_loss(logp, old, ref, adv, mask) / GROUPS_PER_STEP
+                    if phase_logger is not None:
+                        phase_logger.record(
+                            step=step,
+                            group=k,
+                            phase="post_train_forward",
+                            prompt_tokens=len(prompt_ids),
+                            completion_lengths=comp_lens,
+                        )
+                    loss.backward()
                 device_sync()
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=step,
+                        group=k,
+                        phase="post_train_backward",
+                        prompt_tokens=len(prompt_ids),
+                        completion_lengths=comp_lens,
+                    )
                 train_s += time.time() - t1
             t2 = time.time()
             optimiser.step()
             device_sync()
+            if phase_logger is not None:
+                phase_logger.record(
+                    step=step,
+                    group=GROUPS_PER_STEP - 1,
+                    phase="step_end",
+                    prompt_tokens=last_prompt_tokens,
+                    completion_lengths=last_comp_lens,
+                )
             train_s += time.time() - t2
             if not math.isfinite(float(loss.detach())):
                 return rows, {"step": step, "error": "non-finite loss"}, False
@@ -1100,8 +1468,10 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         LlamaForCausalLM(cfg),
         LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0),
     )
+    census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     params = [p for p in model.parameters() if p.requires_grad]
     mode, state = make_mode(model)
+    pass_att = bool(getattr(a, "attention_mask", False))
     return {
         "model": model,
         "tok": tok,
@@ -1109,12 +1479,15 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         "state": state,
         "optimiser": torch.optim.AdamW(params, lr=LEARNING_RATE),
         "ref_adapter_off": model.disable_adapter,
-        "rollout": lambda text, g, max_new, temp: hf_rollout(model, tok, text, g, max_new, temp),
+        "rollout": lambda text, g, max_new, temp: hf_rollout(
+            model, tok, text, g, max_new, temp, pass_attention_mask=pass_att
+        ),
         "reward_fn": dry_reward,
         "sync": lambda: None,
         "peak_alloc_mib": lambda: None,
         "revision": None,
         "llama": None,
+        "dtype_census": census,
     }
 
 
@@ -1140,8 +1513,6 @@ class Rig:
         self.smi = smi
 
     def preflight(self) -> dict:
-        import os
-
         beat = self.a.heartbeat or (
             Path(os.environ[HEARTBEAT_ENV]) if os.environ.get(HEARTBEAT_ENV) else None
         )
@@ -1188,6 +1559,7 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
     model = get_peft_model(
         base, LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0)
     )
+    census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     model.print_trainable_parameters()
     torch.cuda.reset_peak_memory_stats()
     optimiser = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=LEARNING_RATE)
@@ -1201,9 +1573,11 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         )
 
     mode, state = make_mode(model)
+    pass_att = bool(getattr(a, "attention_mask", False))
     bundle = {
         "model": model,
         "tok": tok,
+        "render": render,
         "mode": mode,
         "state": state,
         "optimiser": optimiser,
@@ -1213,12 +1587,13 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         "peak_alloc_mib": lambda: int(torch.cuda.max_memory_allocated() / 2**20),
         "revision": revision,
         "llama": None,
+        "dtype_census": census,
     }
     if a.path == "hf":
         # generation runs with checkpointing off and the cache on, and training with it on: run_steps switches
         # the mode around every rollout and every training pass
         bundle["rollout"] = lambda text, g, max_new, temp: hf_rollout(
-            model, tok, render(text), g, max_new, temp
+            model, tok, render(text), g, max_new, temp, pass_attention_mask=pass_att
         )
         return bundle
     if not (a.llama_server and a.gguf and a.convert_script):
@@ -1248,17 +1623,322 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
     return bundle
 
 
+# -- probe mode and prompt-lengths ---------------------------------------------------------------------------
+def run_typeperf_gpu_memory() -> str:  # pragma: no cover - reads Windows PDH counters on the rig
+    done = subprocess.run(
+        [
+            "typeperf",
+            r"\GPU Adapter Memory(*)\Shared Usage",
+            r"\GPU Adapter Memory(*)\Dedicated Usage",
+            "-sc",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+        stdin=subprocess.DEVNULL,
+    )
+    return done.stdout
+
+
+def read_gpu_adapter_memory(runner: Callable[[], str] = run_typeperf_gpu_memory) -> dict:
+    """Read Windows ``\\GPU Adapter Memory(*)\\Shared Usage`` and ``\\Dedicated Usage`` summed bytes.
+
+    Instance names and host names are stripped and never recorded. If the counter cannot be read or parsed,
+    returns ``null`` values with the error reason and never raises.
+    """
+    try:
+        raw = runner()
+        rows = [row for row in csv.reader(raw.splitlines()) if any(cell.strip() for cell in row)]
+        if len(rows) < 2:
+            raise ValueError("typeperf output had fewer than 2 CSV rows")
+        header, values = rows[0], rows[1]
+        if len(values) < len(header):
+            raise ValueError("typeperf value row shorter than header")
+        shared_total = 0.0
+        dedicated_total = 0.0
+        found_shared = found_dedicated = False
+        for col_name, raw_val in zip(header[1:], values[1:]):
+            name_low = col_name.strip().lower()
+            val_str = raw_val.strip()
+            if not val_str:
+                continue
+            if name_low.endswith("\\shared usage"):
+                shared_total += float(val_str)
+                found_shared = True
+            elif name_low.endswith("\\dedicated usage"):
+                dedicated_total += float(val_str)
+                found_dedicated = True
+        if not (found_shared and found_dedicated):
+            raise ValueError("missing Shared Usage or Dedicated Usage columns")
+        return {
+            "shared_usage_bytes": int(round(shared_total)),
+            "dedicated_usage_bytes": int(round(dedicated_total)),
+            "error": None,
+        }
+    except Exception as exc:
+        return {
+            "shared_usage_bytes": None,
+            "dedicated_usage_bytes": None,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+
+def compute_prompt_lengths(prompts: Sequence[dict], tok) -> dict:
+    """Tokenize the selected prompts (CPU only, no model, no GPU) and return count, min, median, p90, max."""
+    lengths = sorted(len(tok.encode(build_prompt(r))) for r in prompts)
+    if not lengths:
+        return {"count": 0, "min": 0, "median": 0, "p90": 0, "max": 0}
+    p90_idx = min(len(lengths) - 1, max(0, math.ceil(0.9 * len(lengths)) - 1))
+    return {
+        "count": len(lengths),
+        "min": lengths[0],
+        "median": statistics.median(lengths),
+        "p90": lengths[p90_idx],
+        "max": lengths[-1],
+    }
+
+
+def parse_probe_lengths(spec: str | Sequence[int]) -> list[int]:
+    if isinstance(spec, str):
+        items = [int(x.strip()) for x in spec.split(",") if x.strip()]
+    else:
+        items = [int(x) for x in spec]
+    if not items or any(t < 1 for t in items):
+        raise SystemExit(f"--probe-lengths must be comma-separated positive integers, got {spec!r}")
+    return items
+
+
+def _cuda_snapshot(cuda) -> dict:
+    if cuda is None or (callable(getattr(cuda, "is_available", None)) and not cuda.is_available()):
+        return {
+            "memory_allocated": 0,
+            "memory_reserved": 0,
+            "max_memory_allocated": 0,
+            "max_memory_reserved": 0,
+        }
+    return {
+        "memory_allocated": int(cuda.memory_allocated()),
+        "memory_reserved": int(cuda.memory_reserved()),
+        "max_memory_allocated": int(cuda.max_memory_allocated()),
+        "max_memory_reserved": int(cuda.max_memory_reserved()),
+    }
+
+
+def _model_static_info(model, kv_key_dtype: str | None) -> dict:
+    base_lm = model.get_base_model() if hasattr(model, "get_base_model") else model
+    inner = getattr(base_lm, "model", base_lm)
+    in_emb = (
+        base_lm.get_input_embeddings()
+        if hasattr(base_lm, "get_input_embeddings")
+        else getattr(inner, "embed_tokens", None)
+    )
+    out_emb = (
+        base_lm.get_output_embeddings()
+        if hasattr(base_lm, "get_output_embeddings")
+        else getattr(base_lm, "lm_head", None)
+    )
+    embed_dtype = str(in_emb.weight.dtype).removeprefix("torch.") if in_emb is not None else None
+    lm_head_dtype = str(out_emb.weight.dtype).removeprefix("torch.") if out_emb is not None else None
+    cfg = getattr(base_lm, "config", None)
+    use_cache = bool(getattr(cfg, "use_cache", False)) if cfg is not None else None
+    attn_impl = getattr(cfg, "_attn_implementation", None) if cfg is not None else None
+    if attn_impl is None and cfg is not None:
+        attn_impl = "eager"
+    return {
+        "embed_tokens_dtype": embed_dtype,
+        "lm_head_dtype": lm_head_dtype,
+        "kv_cache_key_dtype": kv_key_dtype,
+        "use_cache": use_cache,
+        "attn_implementation": attn_impl,
+    }
+
+
+def run_probe_memory(
+    a: argparse.Namespace,
+    *,
+    bundle: dict,
+    prompts: list[dict],
+    gpu: dict | None,
+    guard: dict | None,
+    counter_runner: Callable[[], str] = run_typeperf_gpu_memory,
+) -> int:
+    """Probe mode (``--probe-memory``): measures allocator and adapter memory across forced lengths."""
+    torch = require_torch()
+    model = bundle["model"]
+    tok = bundle["tok"]
+    mode = bundle.get("mode")
+    sync = bundle["sync"]
+    ref_adapter_off = bundle["ref_adapter_off"]
+    cuda = bundle.get("cuda") or getattr(torch, "cuda", None)
+    lengths = parse_probe_lengths(getattr(a, "probe_lengths", "16,64,256"))
+    longest_row = max(prompts, key=lambda r: (len(tok.encode(build_prompt(r))), r["id"]))
+    prompt_text = build_prompt(longest_row)
+    enc = tok(prompt_text, return_tensors="pt")
+    prompt_ids = enc["input_ids"].to(model.device)
+    prompt_len = int(prompt_ids.shape[1])
+    pass_att = bool(getattr(a, "attention_mask", False))
+    microbatch = getattr(a, "logprob_microbatch", None)
+
+    if mode:
+        mode(False)
+    kv_key_dtype: str | None = None
+    length_records = []
+    summary_per_t = []
+    for t_len in lengths:
+        if (
+            cuda is not None
+            and hasattr(cuda, "reset_peak_memory_stats")
+            and (not callable(getattr(cuda, "is_available", None)) or cuda.is_available())
+        ):
+            cuda.reset_peak_memory_stats()
+        before_gen = _cuda_snapshot(cuda)
+        shared_before = read_gpu_adapter_memory(counter_runner)
+        repeated = prompt_ids.repeat(a.g, 1)
+        gen_kwargs: dict = {
+            "do_sample": True,
+            "temperature": TEMPERATURE,
+            "min_new_tokens": t_len,
+            "max_new_tokens": t_len,
+            "pad_token_id": tok.pad_token_id,
+            "return_dict_in_generate": True,
+            "use_cache": True,
+        }
+        if pass_att:
+            gen_kwargs["attention_mask"] = torch.ones_like(repeated)
+        with torch.no_grad():
+            gen_out = model.generate(repeated, **gen_kwargs)
+        sync()
+        after_gen = _cuda_snapshot(cuda)
+        shared_after = read_gpu_adapter_memory(counter_runner)
+
+        seqs = gen_out.sequences if hasattr(gen_out, "sequences") else gen_out
+        if kv_key_dtype is None:
+            keys, _ = cache_kv_tensors(getattr(gen_out, "past_key_values", None))
+            if keys:
+                kv_key_dtype = str(keys[0].dtype).removeprefix("torch.")
+        if kv_key_dtype is None:
+            with torch.no_grad():
+                probe_out = model(input_ids=seqs[:1], use_cache=True)
+            keys, _ = cache_kv_tensors(getattr(probe_out, "past_key_values", None))
+            if keys:
+                kv_key_dtype = str(keys[0].dtype).removeprefix("torch.")
+
+        att_full = torch.ones_like(seqs)
+        with torch.no_grad(), ref_adapter_off():
+            if microbatch is not None:
+                _ = completion_logprobs_microbatch(model, seqs, att_full, prompt_len, microbatch)
+            else:
+                _ = completion_logprobs(model, seqs, att_full, prompt_len)
+        sync()
+        after_ref = _cuda_snapshot(cuda)
+
+        alloc_delta_mib = (after_gen["memory_allocated"] - before_gen["memory_allocated"]) / 2**20
+        slope_mib_per_tok = round(alloc_delta_mib / max(1, t_len), 6)
+        res_minus_alloc_mib = round((after_gen["memory_reserved"] - after_gen["memory_allocated"]) / 2**20, 4)
+        length_records.append(
+            {
+                "length": t_len,
+                "phases": {
+                    "before_generate": before_gen,
+                    "after_generate": after_gen,
+                    "after_ref_forward": after_ref,
+                },
+                "shared_gpu_memory": {
+                    "before_generate": shared_before,
+                    "after_generate": shared_after,
+                },
+                "alloc_mib_per_token": slope_mib_per_tok,
+                "reserved_minus_allocated_mib": res_minus_alloc_mib,
+            }
+        )
+        summary_per_t.append(
+            {
+                "T": t_len,
+                "alloc_mib_per_token": slope_mib_per_tok,
+                "reserved_minus_allocated_mib": res_minus_alloc_mib,
+            }
+        )
+
+    probe_doc = {
+        "test": "S2-probe",
+        "path": a.path,
+        "prompt_id": longest_row["id"],
+        "prompt_tokens": prompt_len,
+        "g": a.g,
+        "flags": active_flags(a),
+        "model_info": _model_static_info(model, kv_key_dtype),
+        "dtype_census": bundle.get("dtype_census"),
+        "gpu": {"name": gpu.get("name"), "driver": gpu.get("driver")} if isinstance(gpu, dict) else None,
+        "exclusive_guard_result": guard.get("result") if isinstance(guard, dict) else None,
+        "lengths": length_records,
+    }
+    a.out.mkdir(parents=True, exist_ok=True)
+    (a.out / f"s2-{a.path}-probe.json").write_text(
+        json.dumps(probe_doc, indent=1), encoding="utf-8", newline="\n"
+    )
+    print(json.dumps({"path": a.path, "mode": "probe_memory", "summary": summary_per_t}))
+    return 0
+
+
 # -- the run -------------------------------------------------------------------------------------------------
+def active_flags(a: argparse.Namespace) -> dict:
+    """Return a dict of memory/probe/stress flags that are enabled on ``a``."""
+    flags: dict = {}
+    if getattr(a, "bf16_restore", False):
+        flags["bf16_restore"] = True
+    if getattr(a, "logprob_microbatch", None) is not None:
+        flags["logprob_microbatch"] = int(a.logprob_microbatch)
+    if getattr(a, "alloc_conf", None) is not None:
+        flags["alloc_conf"] = a.alloc_conf
+    if getattr(a, "empty_cache_phases", False):
+        flags["empty_cache_phases"] = True
+    if getattr(a, "attention_mask", False):
+        flags["attention_mask"] = True
+    if getattr(a, "stress_prefix", 0):
+        flags["stress_prefix"] = int(a.stress_prefix)
+    return flags
+
+
 def is_cut(a: argparse.Namespace) -> bool:
     """Whether the run is not the registered shape: --steps, --prompts, --g or --max-new changed."""
     return a.steps != STEPS or a.prompts != PROMPTS or a.g != G or a.max_new != MAX_NEW_TOKENS
 
 
-def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict], rig=None) -> int:
+def execute(
+    a: argparse.Namespace,
+    *,
+    build: Callable[[argparse.Namespace], dict],
+    rig=None,
+    counter_runner: Callable[[], str] = run_typeperf_gpu_memory,
+) -> int:
     """One S2 run: guards, prompts, steps, readout, receipt. ``build`` makes the model bundle; ``rig`` is the
     machine's side (the GPU query, the heartbeat, the sampler), None for a dry rehearsal."""
+    if getattr(a, "alloc_conf", None) is not None:
+        configure_alloc_conf(a.alloc_conf)
+    if getattr(a, "logprob_microbatch", None) is not None and a.logprob_microbatch < 1:
+        raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
+    if getattr(a, "stress_prefix", 0) < 0:
+        raise SystemExit(f"--stress-prefix must be >= 0, got {a.stress_prefix}")
+
     rows, gold_hashes = read_gold(a.gold)
     prompts = select_prompts(rows, a.prompts)
+    if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
+        if a.dry:
+            tok = DryTokenizer()
+        else:  # pragma: no cover - tokenizer load without dry
+            from transformers import AutoTokenizer
+
+            tok = AutoTokenizer.from_pretrained(STUDENT, revision=a.revision)
+        stats = compute_prompt_lengths(prompts, tok)
+        a.out.mkdir(parents=True, exist_ok=True)
+        (a.out / f"s2-{a.path}-prompt-lengths.json").write_text(
+            json.dumps(stats, indent=1), encoding="utf-8", newline="\n"
+        )
+        print(json.dumps({"path": a.path, "mode": "prompt_lengths", **stats}))
+        return 0
+
     cut = is_cut(a)
     gpu = None
     if a.dry:
@@ -1267,10 +1947,74 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
         gpu = rig.preflight()
         guard = gpu.get("guard")
     bundle = build(a)
+    phase_logger: PhaseLogger | None = None
     try:
+        if getattr(a, "probe_memory", False):
+            return run_probe_memory(
+                a,
+                bundle=bundle,
+                prompts=prompts,
+                gpu=gpu,
+                guard=guard,
+                counter_runner=counter_runner,
+            )
+
         sampler = VramSampler(rig.vram_query) if rig is not None and not a.dry else None
+        cuda_mod = bundle.get("cuda") or (
+            getattr(require_torch(), "cuda", None) if rig is not None and not a.dry else None
+        )
+        phase_logger = PhaseLogger(
+            a.out / f"s2-{a.path}-phases.jsonl",
+            enabled=rig is not None and not a.dry,
+            cuda=cuda_mod,
+        )
+        stress_n = int(getattr(a, "stress_prefix", 0) or 0)
+        microbatch = getattr(a, "logprob_microbatch", None)
+        empty_phases = bool(getattr(a, "empty_cache_phases", False))
+        pass_att = bool(getattr(a, "attention_mask", False))
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
+            if stress_n > 0:
+                longest = max(
+                    prompts,
+                    key=lambda r: (len(bundle["tok"].encode(build_prompt(r))), r["id"]),
+                )
+                render_fn = bundle.get("render")
+
+                def stress_rollout(text: str, g_cnt: int, max_n: int, temp: float):
+                    return hf_rollout(
+                        bundle["model"],
+                        bundle["tok"],
+                        render_fn(text) if callable(render_fn) else text,
+                        g_cnt,
+                        max_n,
+                        temp,
+                        pass_attention_mask=pass_att,
+                        min_new=max_n,
+                    )
+
+                _, stress_stopped, stress_oom = run_steps(
+                    model=bundle["model"],
+                    ref_adapter_off=bundle["ref_adapter_off"],
+                    tok=bundle["tok"],
+                    optimiser=bundle["optimiser"],
+                    prompts=[longest],
+                    rollout=stress_rollout,
+                    steps=stress_n,
+                    g=a.g,
+                    max_new=a.max_new,
+                    reward_fn=bundle["reward_fn"],
+                    device_sync=bundle["sync"],
+                    peak_alloc_mib=bundle["peak_alloc_mib"],
+                    before_step=bundle.get("before_step"),
+                    mode=bundle.get("mode"),
+                    state=bundle.get("state"),
+                    logprob_microbatch=microbatch,
+                    empty_cache_phases=empty_phases,
+                    phase_logger=phase_logger,
+                )
+                if stress_stopped is not None or stress_oom:
+                    return [], stress_stopped, stress_oom
             return run_steps(
                 model=bundle["model"],
                 ref_adapter_off=bundle["ref_adapter_off"],
@@ -1287,6 +2031,9 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
                 before_step=bundle.get("before_step"),
                 mode=bundle.get("mode"),
                 state=bundle.get("state"),
+                logprob_microbatch=microbatch,
+                empty_cache_phases=empty_phases,
+                phase_logger=phase_logger,
             )
 
         if sampler is not None:
@@ -1295,6 +2042,7 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
         else:
             steps, stopped, oom = run_it()
         peak = sampler.peak_mib if sampler is not None else None
+        flags_in_use = active_flags(a)
         result = readout(
             steps,
             peak_mib=peak,
@@ -1304,6 +2052,7 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
             cut=cut,
             dry=a.dry,
             series=sampler.series if sampler is not None else (),
+            flags=flags_in_use or None,
         )
         line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry)
         env = environment(
@@ -1314,10 +2063,18 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
             cuda=rig.cuda_version() if rig is not None and not a.dry else None,
             guard=guard,
         )
+        run_args = {
+            "steps": a.steps,
+            "prompts": a.prompts,
+            "g": a.g,
+            "max_new": a.max_new,
+            "dry": a.dry,
+            **flags_in_use,
+        }
         receipt = build_receipt(
             path=a.path,
             dry=a.dry,
-            args={"steps": a.steps, "prompts": a.prompts, "g": a.g, "max_new": a.max_new, "dry": a.dry},
+            args=run_args,
             rnd_commit=a.rnd_commit,
             gold_hashes=gold_hashes,
             prompt_ids=[r["id"] for r in prompts],
@@ -1327,6 +2084,7 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
             result=result,
             stopped=stopped,
             verdict=line,
+            dtype_census_record=bundle.get("dtype_census"),
         )
         a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}.json").write_text(
@@ -1347,6 +2105,8 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
         print(line)
         return exit_status(line)
     finally:
+        if phase_logger is not None:
+            phase_logger.close()
         close = bundle.get("close")
         if close:
             close()
@@ -1379,6 +2139,54 @@ def build_parser() -> argparse.ArgumentParser:
         "--ready-timeout", type=float, default=READY_TIMEOUT_S, help="seconds to wait for /health"
     )
     ap.add_argument("--gen-timeout", type=float, default=120.0, help="seconds per llama.cpp generation call")
+    ap.add_argument(
+        "--bf16-restore",
+        action="store_true",
+        help="cast non-trainable floating-point parameters back to bfloat16 after prepare + PEFT",
+    )
+    ap.add_argument(
+        "--logprob-microbatch",
+        type=int,
+        default=None,
+        help="micro-batch size M >= 1 for reference and training passes with logits_to_keep",
+    )
+    ap.add_argument(
+        "--alloc-conf",
+        choices=("expandable",),
+        default=None,
+        help="set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True before torch is imported",
+    )
+    ap.add_argument(
+        "--empty-cache-phases",
+        action="store_true",
+        help="call torch.cuda.empty_cache() after each rollout and after each reference pass",
+    )
+    ap.add_argument(
+        "--attention-mask",
+        action="store_true",
+        help="pass an explicit all-ones attention_mask to generate",
+    )
+    ap.add_argument(
+        "--probe-memory",
+        action="store_true",
+        help="replace the training loop with a memory probe across --probe-lengths",
+    )
+    ap.add_argument(
+        "--probe-lengths",
+        default="16,64,256",
+        help="comma-separated generation lengths T for --probe-memory",
+    )
+    ap.add_argument(
+        "--prompt-lengths",
+        action="store_true",
+        help="CPU only: tokenize the 32 selected prompts and write count, min, median, p90 and max",
+    )
+    ap.add_argument(
+        "--stress-prefix",
+        type=int,
+        default=0,
+        help="extra full steps before the registered steps on the longest prompt with min_new=max_new",
+    )
     return ap
 
 
@@ -1394,6 +2202,8 @@ def apply_dry_defaults(a: argparse.Namespace) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - the real run needs the rig
     a = build_parser().parse_args(argv)
+    if getattr(a, "alloc_conf", None) is not None:
+        configure_alloc_conf(a.alloc_conf)
     if a.dry:
         return execute(apply_dry_defaults(a), build=dry_bundle)
     return execute(a, build=real_bundle, rig=Rig(a))
