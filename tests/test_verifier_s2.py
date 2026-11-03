@@ -1188,3 +1188,38 @@ class TestDryUsesTheRealGuard:
         a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True))
         with pytest.raises(SystemExit, match="rule .b."):
             s2.execute(a, build=s2.dry_bundle)
+
+
+class TestTheRealNvidiaSmiShape:
+    """The fixture has the real ``nvidia-smi -q -x`` shape at the real process count and type mix (26 desktop
+    processes, all ``C+G``, memory ``N/A``), with OS and shell image names only. These tests assert the guard's
+    verdict on it, not the file's contents."""
+
+    FIXTURE = Path(__file__).parent / "fixtures" / "nvidia-smi-q-x-fixture-public-2026-11-03.xml"
+
+    @staticmethod
+    def _runner(xml, used="2400"):
+        def run(args):
+            return xml if list(args) == ["-q", "-x"] else used + "\n"
+
+        return run
+
+    def test_the_real_shape_passes_with_26_desktop_processes(self):
+        rec = s2.check_exclusive(self._runner(self.FIXTURE.read_text(encoding="utf-8")))
+        assert rec["result"] == "passed" and len(rec["processes"]) == 26
+        assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
+        assert all("\\" not in n and "/" not in n for n in rec["processes"])
+
+    def test_the_same_shape_refuses_when_a_runner_joins_it(self):
+        xml = self.FIXTURE.read_text(encoding="utf-8")
+        extra = (
+            "<process_info><pid>9</pid><type>C</type><process_name>python.exe</process_name>"
+            "<used_memory>N/A</used_memory></process_info></processes>"
+        )
+        with pytest.raises(SystemExit, match="rule .a.*python.exe"):
+            s2.check_exclusive(self._runner(xml.replace("</processes>", extra, 1)))
+
+    def test_the_same_shape_refuses_above_the_baseline(self):
+        xml = self.FIXTURE.read_text(encoding="utf-8")
+        with pytest.raises(SystemExit, match="rule .b."):
+            s2.check_exclusive(self._runner(xml, used="4097"))
