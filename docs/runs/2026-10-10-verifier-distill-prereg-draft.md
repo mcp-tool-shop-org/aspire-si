@@ -519,6 +519,21 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 
 **How much data settles it:** a paired comparison over the same 80–100 prompts (across epochs or settings) detects a 10–12 point change in the zero-variance rate.
 
+### The starting policy, measured, and three lines set before the run (decided 2026-11-03, from smoke test S2 v4)
+
+**The measurement.** S2 v4 ran the decided configuration: zero-variance groups out of the loss, Dr. GRPO advantages, 4 groups per update, truncated completions out of the loss, quote reward v2. It ran 10 updates × 4 groups = 40 groups of 8 on the tune split. It describes the **starting** policy, not a training result. With 40 groups, a rate near 25% has a 95% interval of about ±13 points, so these are directions.
+- 24 of 40 groups had all 8 verdicts correct. Only 6 of them were zero-variance; the quote reward still separated the other 18 by quote credit. So most of the training signal on this split concerns quoting, and verdict signal comes from the 16 mixed groups.
+- Quote misses, 56 in total: punctuation 18, no minimum length 13, fuzzy 12, unmatched 9, ellipsis split 4; rule 2, case and joined passages 0. Quote relevance 150/152.
+- P(cannot tell | gold supported) = 0, and no gold-supported group gave "cannot tell" a positive advantage. False accepts 3, false rejects 1. The "supported" prediction-to-prior ratio was 0.944.
+- No completion reached the cap (0 of 320).
+
+**Decided:**
+1. **A rollout-only pre-pass before the plan is frozen.** Over the full train split, at the plan's G and cap, with no training, count the verdicts correct (k of 8) per item. When its counts are in, the plan states two options with a recommendation: weight sampling toward items that are not all-correct, or keep the data as drawn and say plainly that the run mainly trains quoting. This choice is made from the pre-pass, not before it.
+2. **Quote rule 2 stays strict in the reward.** It is the deployed verifier's rule, and punctuation is not loosened. The punctuation-plus-fuzzy share of quote misses (30 of 56 at the start) is reported at every evaluation point as the main quote-learning measure.
+3. **The abstention credit stays as designed.** P(cannot tell | gold supported) is reported at every evaluation point. **If it exceeds 0.10 at an evaluation point, the run is held for review.** This line is provisional and pre-registered: it is written here before the run and is not tuned afterwards.
+
+**Also found:** with truncated completions out of the loss, a stress step that forces every completion to the cap trains on nothing. So it no longer measures the worst-case training memory, which is a full-width group whose other completions are still trained. The stress step is changed to run its training forward at full width before the full run, and the worst case is measured separately on the GPU.
+
 ## Evaluation, by stage
 
 Each stage is scored mechanically and reported on its own:
