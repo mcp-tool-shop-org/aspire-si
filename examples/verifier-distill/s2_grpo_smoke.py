@@ -34,6 +34,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from xml.parsers import expat
 
 # -- the pre-registered numbers (docs/runs/2026-10-10-smoke-s2-prereg.md) ------------------------------------
 STUDENT = "Qwen/Qwen3-8B"
@@ -375,19 +376,68 @@ def image_name(process_name: str) -> str:
     return re.split(r"[\\/]", text)[-1]
 
 
+DOCTYPE_SYSTEM_ID = re.compile(r"nvsmi_device_v[0-9]+\.dtd")  # the rig's driver writes v13 (2026-11-03)
+
+
+def check_report_markup(xml_text: str) -> None:
+    """Refuse markup a real ``nvidia-smi -q -x`` report never needs, and name what was seen.
+
+    Accepted: the XML declaration, comments anywhere, and **either no DOCTYPE or exactly** ``<!DOCTYPE
+    nvidia_smi_log SYSTEM "nvsmi_device_v<digits>.dtd">`` (digits only, so a driver update from v13 to v14
+    still passes) with no internal subset. Refused: a different root name in the DOCTYPE, a PUBLIC
+    identifier, a different DTD file-name pattern (``v13a``, no digits, a path such as ``../x.dtd``), an
+    internal subset (which is the only place an ENTITY declaration can sit), an entity reference, and any
+    processing instruction other than the XML declaration.
+
+    The external DTD is never opened or fetched: this uses expat (pyexpat) and ElementTree, and neither is
+    given an external-entity handler, so a SYSTEM identifier is read as text and nothing else. A test
+    proves it."""
+
+    def refuse(why: str) -> None:
+        raise SystemExit(f"refusing to start: nvidia_smi_garbage: {why}")
+
+    def doctype(name: str, system_id: str | None, public_id: str | None, has_internal_subset: int) -> None:
+        if has_internal_subset:
+            refuse("the DOCTYPE has an internal subset (an ENTITY or any other declaration)")
+        if name != "nvidia_smi_log":
+            refuse(f"the DOCTYPE names {name!r}, not nvidia_smi_log")
+        if public_id is not None:
+            refuse("the DOCTYPE has a PUBLIC identifier")
+        if system_id is None or not DOCTYPE_SYSTEM_ID.fullmatch(system_id):
+            refuse(f"the DOCTYPE's DTD is {system_id!r}, not nvsmi_device_v<digits>.dtd")
+
+    parser = expat.ParserCreate()
+    parser.StartDoctypeDeclHandler = doctype
+    parser.ProcessingInstructionHandler = lambda target, data: refuse(
+        f"a processing instruction <?{target}?>"
+    )
+    parser.SkippedEntityHandler = lambda name, is_param: refuse(f"an entity reference &{name};")
+    try:
+        parser.Parse(xml_text, True)
+    except expat.ExpatError as exc:
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: the process list is not XML ({exc})"
+        ) from exc
+
+
 def parse_gpu_processes(xml_text: str) -> list[dict]:
     """The processes from ``nvidia-smi -q -x``: ``[{"image": <file name>, "type": "C" | "G" | "C+G"}]``.
 
-    That XML carries each process's type and name (the compute-apps query has no type and, on Windows,
-    no usable memory figure). Output that is not that XML is a refusal, never an empty list.
+    That XML carries each process's type and name (the compute-apps query has no type and, on Windows, no
+    usable memory figure). Output that is not that XML is a refusal, never an empty list.
 
-    The shapes that refuse, each named in the message: not XML, a wrong root, no ``<gpu>``, more than one
-    ``<gpu>``, a ``<gpu>`` with no ``<processes>``, ``<processes>`` holding text but no ``<process_info>``
-    (for example "N/A"), and an unknown process type. Only a present, truly empty ``<processes/>`` means
-    "nothing on the card".
+    The shapes that refuse, each named in the message: not XML, markup the report never needs
+    (``check_report_markup``), a wrong or namespaced root, no ``<gpu>``, more than one ``<gpu>`` at any
+    depth, a ``<gpu>`` with no ``<processes>``, ``<processes>`` holding text but no ``<process_info>``
+    (for example "N/A"), any child of ``<processes>`` other than a plain ``<process_info>`` (a different
+    tag, or a namespaced one), and an unknown process type. Only a present, truly empty ``<processes/>``
+    (comments allowed) means "nothing on the card". A ``<process_info>`` may carry attributes and extra
+    children (the real report has pid, memory and instance ids); it is accepted when its ``<type>`` is C,
+    G or C+G, and its image name is whatever ``<process_name>`` gives.
 
     If the real rig ever returns one of the refused shapes, it is amended by a card with the real fixture,
     never by relaxing this parser."""
+    check_report_markup(xml_text)
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError as exc:
@@ -399,12 +449,19 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
     gpus = root.findall("gpu")
     if not gpus:
         raise SystemExit("refusing to start: nvidia_smi_garbage: no <gpu> element")
-    if len(gpus) > 1:
-        raise SystemExit(f"refusing to start: nvidia_smi_garbage: more than one <gpu> element ({len(gpus)})")
+    every_gpu = len(list(root.iter("gpu")))
+    if len(gpus) > 1 or every_gpu > 1:
+        raise SystemExit(f"refusing to start: nvidia_smi_garbage: more than one <gpu> element ({every_gpu})")
     listing = gpus[0].find("processes")
     if listing is None:
         raise SystemExit("refusing to start: nvidia_smi_garbage: the <gpu> has no <processes> element")
-    infos = listing.findall("process_info")
+    infos = list(listing)
+    for child in infos:
+        if child.tag != "process_info":
+            raise SystemExit(
+                f"refusing to start: nvidia_smi_garbage: <processes> holds a <{child.tag}> child,"
+                " not process_info"
+            )
     if not infos and (listing.text or "").strip():
         raise SystemExit(
             f"refusing to start: nvidia_smi_garbage: <processes> holds text {listing.text.strip()!r} "

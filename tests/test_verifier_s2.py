@@ -1137,6 +1137,146 @@ class TestExclusiveGuard:
             s2.require_exclusive(["1"])
 
 
+class TestReportMarkupAndStructure:
+    """Shapes the first guard let through as "no processes", and the markup a real report never needs."""
+
+    DOCTYPE = '<?xml version="1.0" ?>\n<!DOCTYPE nvidia_smi_log SYSTEM "nvsmi_device_v13.dtd">\n'
+
+    @staticmethod
+    def _wrap(inner, head=""):
+        return f"{head}<nvidia_smi_log><gpu>{inner}</gpu></nvidia_smi_log>"
+
+    def test_a_processes_element_with_a_foreign_child_refuses_and_names_the_tag(self):
+        msg = _refusal(_smi(xml=self._wrap("<processes><other>N/A</other></processes>")))
+        assert "nvidia_smi_garbage" in msg and "<other>" in msg
+
+    def test_a_namespaced_process_info_refuses_as_a_foreign_child(self):
+        xml = self._wrap('<processes><process_info xmlns="urn:x"><type>C+G</type></process_info></processes>')
+        assert "{urn:x}process_info" in _refusal(_smi(xml=xml))
+
+    def test_a_second_gpu_nested_inside_the_one_direct_gpu_refuses(self):
+        msg = _refusal(_smi(xml=self._wrap("<processes/><gpu><processes/></gpu>")))
+        assert "more than one <gpu> element (2)" in msg
+
+    def test_a_namespaced_root_or_gpu_refuses(self):
+        assert "unexpected root element" in _refusal(
+            _smi(xml='<nvidia_smi_log xmlns="urn:x"><gpu/></nvidia_smi_log>')
+        )
+        xml = '<nvidia_smi_log><gpu xmlns="urn:x"><processes/></gpu></nvidia_smi_log>'
+        assert "no <gpu> element" in _refusal(_smi(xml=xml))
+
+    def test_the_genuine_empty_shapes_still_pass_to_rule_b(self):
+        for inner in ("<processes/>", "<processes></processes>", "<processes><!-- nothing --></processes>"):
+            rec = s2.check_exclusive(_smi(xml=self._wrap(inner), used="2400"))
+            assert rec["processes"] == [] and rec["result"] == "passed", inner
+            assert "rule (b)" in _refusal(_smi(xml=self._wrap(inner), used="4097")), inner
+
+    def test_a_process_info_with_attributes_and_extra_children_is_accepted_when_name_and_type_parse(self):
+        info = (
+            '<process_info id="7" kind="x"><pid>1000</pid><type>C+G</type><process_name>explorer.exe</process_name>'
+            "<used_memory>N/A</used_memory><extra><deep>1</deep></extra></process_info>"
+        )
+        rec = s2.check_exclusive(_smi(xml=self._wrap(f"<processes>{info}</processes>")))
+        assert rec["processes"] == ["explorer.exe"] and rec["result"] == "passed"
+
+    def test_a_process_info_whose_type_is_missing_or_unreadable_refuses(self):
+        for typ in ("", "<type/>", "<type>X</type>", "<type>c;g</type>"):
+            info = f"<process_info>{typ}<process_name>a.exe</process_name></process_info>"
+            assert "unknown process type" in _refusal(
+                _smi(xml=self._wrap(f"<processes>{info}</processes>"))
+            ), typ
+
+    def test_a_predefined_entity_in_a_name_is_just_text(self):
+        info = "<process_info><type>G</type><process_name>a&amp;b.exe</process_name></process_info>"
+        rec = s2.check_exclusive(_smi(xml=self._wrap(f"<processes>{info}</processes>")))
+        assert rec["processes"] == ["a&b.exe"]
+
+    def test_the_drivers_declaration_doctype_and_comments_are_accepted(self):
+        xml = self.DOCTYPE + "<!-- header -->" + self._wrap("<!-- a --><processes><!-- b --></processes>")
+        assert s2.check_exclusive(_smi(xml=xml))["result"] == "passed"
+        assert (
+            s2.check_exclusive(_smi(xml=self._wrap("<processes/>")))["result"] == "passed"
+        )  # no DOCTYPE at all
+
+    def test_markup_a_real_report_never_needs_refuses_with_a_named_reason(self):
+        sys_ok = '<!DOCTYPE nvidia_smi_log SYSTEM "nvsmi_device_v13.dtd">'
+        wrap = self._wrap("<processes/>")
+        cases = [
+            ("<?foo bar?>" + wrap, "processing instruction"),
+            (wrap.replace("<gpu>", "<gpu><?foo bar?>"), "processing instruction"),
+            ('<!DOCTYPE nvidia_smi_log [<!ENTITY x "y">]>' + wrap, "an ENTITY or any other declaration"),
+            ("<!DOCTYPE nvidia_smi_log [ ]>" + wrap, "internal subset"),
+            (sys_ok + wrap.replace("<processes/>", "<processes>&xxe;</processes>"), "entity reference &xxe;"),
+            (wrap.replace("<processes/>", "<processes>&xxe;</processes>"), "not XML"),
+            ('<!DOCTYPE nvidia_smi_log PUBLIC "-//x//y" "nvsmi_device_v13.dtd">' + wrap, "PUBLIC identifier"),
+            ('<!DOCTYPE other SYSTEM "nvsmi_device_v13.dtd">' + wrap, "names 'other'"),
+            ('<!DOCTYPE nvidia_smi_log SYSTEM "http://example.invalid/x.dtd">' + wrap, "x.dtd"),
+        ]
+        for xml, why in cases:
+            assert why in _refusal(_smi(xml=xml)), why
+
+    def test_any_numbered_nvsmi_device_dtd_is_accepted_and_nothing_else_is(self):
+        wrap = self._wrap("<processes/>")
+        for dtd in (
+            "nvsmi_device_v13.dtd",
+            "nvsmi_device_v14.dtd",
+            "nvsmi_device_v99.dtd",
+            "nvsmi_device_v1.dtd",
+        ):
+            xml = f'<!DOCTYPE nvidia_smi_log SYSTEM "{dtd}">' + wrap
+            assert s2.check_exclusive(_smi(xml=xml))["result"] == "passed", dtd
+        for dtd in (
+            "nvsmi_device_v13a.dtd",
+            "nvsmi_device_v.dtd",
+            "../x.dtd",
+            "../nvsmi_device_v13.dtd",
+            "sub/nvsmi_device_v13.dtd",
+            "nvsmi_device_v13.dtd.evil",
+            "Nvsmi_device_v13.dtd",
+            "nvsmi_device_v13_.dtd",
+            "",
+        ):
+            xml = f'<!DOCTYPE nvidia_smi_log SYSTEM "{dtd}">' + wrap
+            msg = _refusal(_smi(xml=xml))
+            assert "nvidia_smi_garbage" in msg and "nvsmi_device_v<digits>.dtd" in msg, dtd
+
+    def test_the_external_dtd_is_never_opened_or_fetched(self, tmp_path, monkeypatch):
+        import builtins
+        import socket
+        import urllib.request
+
+        # a DTD sits where a naive parser would look for it; it declares &x;, so loading it would make &x; legal
+        (tmp_path / "nvsmi_device_v13.dtd").write_text('<!ENTITY x "from-the-dtd">', encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        touched = []
+        real_open = builtins.open
+
+        def spy_open(file, *a, **kw):
+            if str(file).endswith(".dtd"):
+                touched.append(str(file))
+            return real_open(file, *a, **kw)
+
+        def no_network(*a, **kw):
+            touched.append("network")
+            raise AssertionError("network access while parsing")
+
+        monkeypatch.setattr(builtins, "open", spy_open)
+        monkeypatch.setattr(socket, "create_connection", no_network)
+        monkeypatch.setattr(socket.socket, "connect", no_network)
+        monkeypatch.setattr(urllib.request, "urlopen", no_network)
+        head = '<!DOCTYPE nvidia_smi_log SYSTEM "nvsmi_device_v13.dtd">'
+        ok = head + self._wrap("<processes/>")
+        assert s2.check_exclusive(_smi(xml=ok))["result"] == "passed"
+        url = '<!DOCTYPE nvidia_smi_log SYSTEM "http://example.invalid/nvsmi_device_v13.dtd">'
+        assert "DTD is" in _refusal(_smi(xml=url + self._wrap("<processes/>")))
+        # if the DTD had been read, this reference would resolve and the report would pass
+        ref = head + self._wrap(
+            "<processes><process_info><type>G</type><process_name>&x;</process_name></process_info></processes>"
+        )
+        assert "entity reference &x;" in _refusal(_smi(xml=ref))
+        assert touched == []
+
+
 class TestRigPreflight:
     def _rig(self, tmp_path, smi):
         beat = tmp_path / "beat"
