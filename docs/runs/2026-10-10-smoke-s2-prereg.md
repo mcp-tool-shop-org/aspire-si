@@ -16,6 +16,7 @@ replaces the estimate with a measurement.
   gradients accumulated, so the peak memory is one group's. The 2 groups per step cycle through the 32 prompts,
   so every prompt is used at least once. This is a declared choice: the plan fixes 20 steps, 32 prompts and G = 8
   and leaves the prompts-per-step open.
+- **Memory settings, as the plan's table assumes:** gradient checkpointing is **on** in every training pass and **off** during every rollout (the KV cache is on for generation), switched around each rollout and each training pass, and both states are recorded in every step row.
 - **The plan's GRPO defaults,** unchanged and pre-registered as defaults: LoRA r = 16, α = 32 on q/k/v/o,
   learning rate 1e-5, β = 0.04, ε = 0.2, one update per rollout batch. A completion cap of 2,048 tokens.
 - **From the base student:** Qwen3-8B, Apache-2.0, at the plan's pinned revision `b968826d9c46…` (the plan
@@ -27,7 +28,7 @@ replaces the estimate with a measurement.
   - **(b) A llama.cpp server** (the rig's existing CUDA build; the run records the server's path and sha256)
     with the LoRA adapter exported to GGUF and reloaded every step. Control calls (health, adapter reload) have
     a **10 s** timeout; a generation call has **120 s** (2,048 tokens at the rates the plan assumes takes about
-    40 s), a declared choice. A timeout stops the run.
+    40 s), a declared choice. A timeout stops the run. The server must answer `/health` within **300 s** of start (`--ready-timeout`) or the run stops with `llama_server_not_ready`; a server that exits first stops it with `llama_server_exited`; and the server is always stopped when the run ends, however it ends.
 
 ## The prompts
 
@@ -85,7 +86,8 @@ the completion cap, prompts per step) are amendments made before the next run, n
 ## Environment, recorded in the receipt
 
 GPU name and driver, CUDA, torch, transformers, peft and bitsandbytes versions, dtype, batch, whether the GPU was
-exclusive, the Python version and the platform.
+exclusive, the Python version, the interpreter's path and the platform. The readout keeps the sampler's whole series
+(`vram_mib_sampler_series`) and its count, and the llama.cpp run records the GGUF and the convert script by sha256.
 
 **Python.** The rule is the newest stable Python (3.15). `torch` 2.14.1 (checked 2026-10-27) ships wheels for
 `cp310` to `cp314` and no `cp315` wheel. So the scripts and their pure tests run on 3.15 with torch imported
@@ -111,7 +113,7 @@ The `--dry` run ran end to end on the CPU with a 2-layer random Llama (real q/k/
 tokenizer, no network: 2 steps, G = 2, the summary line below.
 
 ```text
-{"path": "hf", "stopped": null, "steps_completed": 2, "peak_vram_mib_sampler": null, "rollout_tok_s": 1135.46, "step_s": {"p50": 0.1262, "max": 0.1374}, "zero_variance_groups": 0, "oom": false}
+{"path": "hf", "stopped": null, "steps_completed": 2, "peak_vram_mib_sampler": null, "rollout_tok_s": 329.67, "step_s": {"p50": 0.55695, "max": 0.9468}, "zero_variance_groups": 0, "oom": false}
 S2-DRY
 ```
 
