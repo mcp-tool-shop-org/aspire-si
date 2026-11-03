@@ -126,3 +126,31 @@ model's and say nothing about the 5090.
 
 `s2-hf.json`, `s2-llamacpp.json` (readout, environment, hashes, the 32 prompt ids) and the two
 `s2-<path>-steps.jsonl` files. They are committed byte for byte after the run, identity-scanned.
+
+## 2026-11-03 amendment: memory fixes behind flags, phase allocator logging, probe mode, and stress prefix
+
+S2 path (a) passed the 31,200 MiB watchdog line during step 0's first rollout (reading 32,038 to 32,087 MiB, stopped at 0 of 20 steps at commit `2485345e`). A technical consult and source check identified two memory defects and an unmeasured gap:
+
+1. `peft.prepare_model_for_kbit_training` upcasts every non-4-bit floating-point parameter (`embed_tokens`, `lm_head`, and layer norms) to `float32`, and `bitsandbytes` `Linear4bit.forward` returns the input activation's dtype, causing all activations and the generation KV cache to run in `float32` instead of `bfloat16` (accounting for roughly 15 to 17 GB of the 32 GB).
+2. `completion_logprobs` materializes full `(B, T, V)` `float32` logits and a full `log_softmax` tensor over the entire sequence in both the reference and training passes (roughly 14.5 GB at `T` around 3,000).
+
+Every fix below is added behind a CLI flag that defaults **off**, so a run without flags behaves identically to the original registration, and each flag in use is recorded in the receipt and readout:
+
+- **`--bf16-restore` (a change to the registered setup when enabled):** after `prepare_model_for_kbit_training` and `get_peft_model`, casts every non-trainable floating-point parameter (`embed_tokens`, `lm_head`, and every norm weight) back to `bfloat16`, leaving trainable LoRA parameters in `float32` and `Params4bit` weights untouched, and records a parameter dtype census in the receipt. **Effect on what the test can say:** the forward activations, KV cache, and loss run in `bfloat16` activations rather than `float32`, while LoRA weights and optimizer states stay `float32`.
+- **`--logprob-microbatch M`:** runs the adapter-off reference pass and the training forward/backward pass over the `G` sequences in micro-batches of `M` with gradients accumulated, passes `logits_to_keep` so `lm_head` runs only on completion positions, and computes token log-probabilities via `gather(logits, labels) - logsumexp(logits)` without allocating a full `log_softmax` tensor, preserving the completion, loss, and KL masks.
+- **`--alloc-conf expandable`:** sets `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before `torch` is first imported in `require_torch` (and refuses by name if the loaded `torch` build on the platform does not support expandable segments).
+- **`--empty-cache-phases`:** calls `torch.cuda.empty_cache()` immediately after each rollout and after each reference pass to release cached blocks between phases.
+- **`--attention-mask`:** passes an explicit all-ones `attention_mask` to `generate`.
+
+### Measurement-only additions
+
+- **Phase allocator logging (always on for GPU runs; a no-op on CPU and dry runs):** writes `s2-<path>-phases.jsonl` next to the readout with one flushed and fsynced line per phase boundary (`pre_rollout`, `post_rollout`, `post_ref`, `post_train_forward`, `post_train_backward`, `step_end`), recording `step`, `group`, `phase`, monotonic seconds, prompt token count, completion token counts (`min`, `max`, `sum`), and `memory_allocated`, `memory_reserved`, `max_memory_allocated`, and `max_memory_reserved` with peak stats reset after each boundary. No process names, application names, or file paths are recorded.
+- **Probe mode (`--probe-memory`, `--probe-lengths`, and `--prompt-lengths`):** measurement only. `--probe-memory` runs the same model load and preflight guards as the real path (honouring `--bf16-restore`), selects the longest of the 32 prompts by token count with `G = --g`, and for each `T` in `--probe-lengths` (default `16,64,256`) runs `generate` with `min_new_tokens = max_new_tokens = T` followed by one adapter-off `no_grad` reference forward (honouring `--logprob-microbatch`), recording allocator stats, model and KV-cache dtypes, `config.use_cache`, `_attn_implementation`, and summed bytes from Windows `\GPU Adapter Memory(*)\Shared Usage` and `\GPU Adapter Memory(*)\Dedicated Usage` (with no instance names) to `s2-<path>-probe.json`. `--prompt-lengths` is CPU-only (tokenizer only, no model, no GPU) and writes `count`, `min`, `median`, `p90`, and `max` prompt token lengths.
+
+### Stress prefix options
+
+- **(A)** (R&D recommends — **chosen**, Publisher, 2026-11-03): two extra steps **before** the 20 registered steps, on the longest prompt with `min_new_tokens = max_new_tokens = 2048`. Full rollout, reference, training and optimizer step, so step 1 runs with the optimizer states live. Their rewards and update statistics are excluded from the readout. The 20 registered steps are unchanged. Implemented behind `--stress-prefix 2` (default off; the S2 v3 request will name it).
+- **(B)**: no prefix; natural lengths only.
+
+**No change to G, the completion cap, the step count or the pass line.**
+
