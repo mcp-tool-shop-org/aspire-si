@@ -17,6 +17,7 @@ functions that need them, so the pass line, the prompt rule, the reward and the 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import importlib.metadata as metadata
 import json
@@ -30,8 +31,10 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from xml.parsers import expat
 
 # -- the pre-registered numbers (docs/runs/2026-10-10-smoke-s2-prereg.md) ------------------------------------
 STUDENT = "Qwen/Qwen3-8B"
@@ -72,6 +75,7 @@ ENVIRONMENT_FIELDS = (
     "dtype",
     "batch",
     "gpu_exclusive",
+    "exclusive_guard",
 )
 
 
@@ -308,7 +312,13 @@ def package_version(name: str) -> str | None:
 
 
 def environment(
-    *, gpu: dict | None, dtype: str, batch: int, exclusive: bool | None, cuda: str | None
+    *,
+    gpu: dict | None,
+    dtype: str,
+    batch: int,
+    exclusive: bool | None,
+    cuda: str | None,
+    guard: dict | None = None,
 ) -> dict:
     """What the receipt records about the machine. No package is imported to read a version."""
     return {
@@ -325,6 +335,7 @@ def environment(
         "dtype": dtype,
         "batch": batch,
         "gpu_exclusive": exclusive,
+        "exclusive_guard": guard,
     }
 
 
@@ -338,9 +349,297 @@ def require_single_nvidia_gpu(gpus: list[dict]) -> dict:
 
 
 def require_exclusive(apps: list[str]) -> None:
-    """No other process may hold the card."""
+    """The plain refuse-on-any rule. Superseded by ``check_exclusive`` for the real run (see the prereg):
+    under Windows WDDM the compute-apps list always holds the desktop, so this refused every time."""
     if apps:
         raise SystemExit(f"refusing to start: {len(apps)} other process(es) hold the GPU")
+
+
+# The exclusive-GPU guard (rules a and b, fail closed). Measured on the rig, 2026-11-03: idle memory.used read
+# 2,238 to 2,572 MiB (desktop only) and the compute-apps list always held about 26 desktop processes of type
+# "C+G" with memory "N/A". The baseline is the measured idle maximum plus a margin of about 1.5 GB.
+COMPUTE_RUNNER_PATTERNS = (
+    "python*",
+    "ollama*",
+    "llama-server*",
+    "llama-cli*",
+    "llama-bench*",
+    "uv*",
+)  # image names, lower case; a card adds a name
+EXCLUSIVE_BASELINE_MIB = 4096
+DESKTOP_PROCESS_TYPES = ("C+G", "G")  # type "C" (compute only) and any other type refuse
+SmiRunner = Callable[[Sequence[str]], str]
+
+
+def image_name(process_name: str) -> str:
+    """The file name only: a Windows or POSIX path is cut to its last part, so no path is ever recorded."""
+    text = (process_name or "").strip()
+    if text.upper() in ("", "N/A", "[NOT FOUND]"):
+        return ""
+    return re.split(r"[\\/]", text)[-1]
+
+
+DOCTYPE_SYSTEM_ID = re.compile(r"nvsmi_device_v[0-9]+\.dtd")  # the rig's driver writes v13 (2026-11-03)
+
+
+def check_report_markup(xml_text: str) -> None:
+    """Refuse markup a real ``nvidia-smi -q -x`` report never needs, and name what was seen.
+
+    Accepted: the XML declaration, comments anywhere, and **either no DOCTYPE or exactly** ``<!DOCTYPE
+    nvidia_smi_log SYSTEM "nvsmi_device_v<digits>.dtd">`` (digits only, so a driver update from v13 to v14
+    still passes) with no internal subset. Refused: a different root name in the DOCTYPE, a PUBLIC
+    identifier, a different DTD file-name pattern (``v13a``, no digits, a path such as ``../x.dtd``), an
+    internal subset (which is the only place an ENTITY declaration can sit), an entity reference, and any
+    processing instruction other than the XML declaration.
+
+    The external DTD is never opened or fetched: this uses expat (pyexpat) and ElementTree, and neither is
+    given an external-entity handler, so a SYSTEM identifier is read as text and nothing else. A test
+    proves it."""
+
+    def refuse(why: str) -> None:
+        raise SystemExit(f"refusing to start: nvidia_smi_garbage: {why}")
+
+    def doctype(name: str, system_id: str | None, public_id: str | None, has_internal_subset: int) -> None:
+        if has_internal_subset:
+            refuse("the DOCTYPE has an internal subset (an ENTITY or any other declaration)")
+        if name != "nvidia_smi_log":
+            refuse(f"the DOCTYPE names {name!r}, not nvidia_smi_log")
+        if public_id is not None:
+            refuse("the DOCTYPE has a PUBLIC identifier")
+        if system_id is None or not DOCTYPE_SYSTEM_ID.fullmatch(system_id):
+            refuse(f"the DOCTYPE's DTD is {system_id!r}, not nvsmi_device_v<digits>.dtd")
+
+    parser = expat.ParserCreate()
+    parser.StartDoctypeDeclHandler = doctype
+    parser.ProcessingInstructionHandler = lambda target, data: refuse(
+        f"a processing instruction <?{target}?>"
+    )
+    parser.SkippedEntityHandler = lambda name, is_param: refuse(f"an entity reference &{name};")
+    try:
+        parser.Parse(xml_text, True)
+    except expat.ExpatError as exc:
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: the process list is not XML ({exc})"
+        ) from exc
+
+
+PROCESS_INFO_FIELDS = (
+    "gpu_instance_id",
+    "compute_instance_id",
+    "pid",
+    "type",
+    "process_name",
+    "used_memory",
+)  # the elements the rig's real report carries in every <process_info> (26 of 26, 2026-11-03)
+
+
+def _blank(text: str | None) -> bool:
+    return not (text or "").strip()
+
+
+def parse_gpu_processes(xml_text: str) -> list[dict]:
+    """The processes from ``nvidia-smi -q -x``: ``[{"image": <file name>, "type": "C" | "G" | "C+G"}]``.
+
+    That XML carries each process's type and name (the compute-apps query has no type and, on Windows, no
+    usable memory figure). Output that is not that XML is a refusal, never an empty list.
+
+    The ``<processes>`` subtree is walked against an allowlist, so nothing can hide in it. Exactly one
+    ``<gpu>`` (at any depth) and exactly one ``<processes>`` (at any depth), directly under that
+    ``<gpu>``, and every ``<process_info>`` in the report sits under it. Its only children are
+    ``<process_info>``; each ``<process_info>``'s only children are the names in ``PROCESS_INFO_FIELDS``,
+    each at most once, none with element children of its own, and ``type`` exactly once. Any other
+    element, a repeat, a nested element, or non-whitespace text or tail anywhere in the subtree refuses,
+    naming what was seen. The rest of the ``<gpu>`` block (hundreds of elements) is not constrained.
+    ``type`` is read as C, G or C+G, case and padding ignored, and anything else refuses. Only a present,
+    truly empty ``<processes/>`` (comments allowed) means "nothing on the card". The markup is checked
+    first (``check_report_markup``).
+
+    If the real rig ever returns a refused shape, it is amended by a card with the real fixture, never by
+    relaxing this parser."""
+    check_report_markup(xml_text)
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as exc:
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: the process list is not XML ({exc})"
+        ) from exc
+
+    def refuse(why: str) -> None:
+        raise SystemExit(f"refusing to start: nvidia_smi_garbage: {why}")
+
+    if root.tag != "nvidia_smi_log":
+        refuse(f"unexpected root element {root.tag!r}")
+    gpus = root.findall("gpu")
+    if not gpus:
+        refuse("no <gpu> element")
+    every_gpu = len(list(root.iter("gpu")))
+    if len(gpus) > 1 or every_gpu > 1:
+        refuse(f"more than one <gpu> element ({every_gpu})")
+    every_processes = len(list(root.iter("processes")))
+    listings = gpus[0].findall("processes")
+    if not listings:
+        refuse("the <gpu> has no <processes> element")
+    if len(listings) > 1 or every_processes > 1:
+        refuse(f"more than one <processes> element ({every_processes})")
+    listing = listings[0]
+    parents = {child: parent for parent in root.iter() for child in parent}
+    for info in root.iter("process_info"):
+        if parents.get(info) is not listing:
+            where = parents[info].tag if info in parents else "the root"
+            refuse(f"a <process_info> sits under <{where}>, not under the one <processes>")
+    if not _blank(listing.text):
+        refuse(f"<processes> holds text {listing.text.strip()!r} outside any <process_info>")
+    procs = []
+    for info in listing:
+        if info.tag != "process_info":
+            refuse(f"<processes> holds a <{info.tag}> child, not process_info")
+        if not _blank(info.tail):
+            refuse(f"text {info.tail.strip()!r} after a </process_info>")
+        if not _blank(info.text):
+            refuse(f"a <process_info> holds text {info.text.strip()!r} outside its fields")
+        fields: dict[str, ET.Element] = {}
+        for field in info:
+            if field.tag not in PROCESS_INFO_FIELDS:
+                refuse(f"a <process_info> holds an unexpected <{field.tag}> element")
+            if field.tag in fields:
+                refuse(f"a <process_info> repeats <{field.tag}>")
+            if len(field):
+                refuse(f"a <process_info>'s <{field.tag}> has a nested <{field[0].tag}> element")
+            if not _blank(field.tail):
+                refuse(f"text {field.tail.strip()!r} after a <{field.tag}> in a <process_info>")
+            fields[field.tag] = field
+        if "type" not in fields:
+            refuse("a <process_info> has no <type>")
+        ptype = (fields["type"].text or "").strip().upper()
+        if ptype not in ("C", "G", "C+G"):
+            refuse(f"unknown process type {ptype!r}")
+        name = fields["process_name"].text if "process_name" in fields else ""
+        procs.append({"image": image_name(name or ""), "type": ptype})
+    return procs
+
+
+def parse_memory_used(text: str) -> int:
+    """``memory.used`` in MiB from ``--query-gpu=memory.used --format=csv,noheader,nounits``.
+
+    Exactly one line (the guard allows one GPU) of 1 to 9 ASCII digits (a bounded regex, not ``isdigit``,
+    so ``int`` never sees a long string); anything else refuses by name. Rule (b) reads only this source;
+    the XML's ``fb_memory_usage`` is not read."""
+    lines = [x.strip() for x in text.splitlines() if x.strip()]
+    if not lines:
+        raise SystemExit("refusing to start: nvidia_smi_garbage: no memory.used reading")
+    if len(lines) != 1:
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: {len(lines)} memory.used readings for one GPU"
+        )
+    if not re.fullmatch(r"[0-9]{1,9}", lines[0]):
+        raise SystemExit(
+            "refusing to start: nvidia_smi_garbage: "
+            f"memory.used is {lines[0][:40]!r}, not a MiB integer of 1 to 9 digits"
+        )
+    return int(lines[0])
+
+
+def run_smi(args: Sequence[str]) -> str:  # pragma: no cover - runs the real nvidia-smi
+    done = subprocess.run(
+        ["nvidia-smi", *args],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+        stdin=subprocess.DEVNULL,
+    )
+    return done.stdout
+
+
+def ask_smi(smi: SmiRunner, args: Sequence[str]) -> str:
+    """One nvidia-smi call, with every way it can fail turned into a named refusal."""
+    try:
+        return smi(args)
+    except FileNotFoundError as exc:
+        raise SystemExit("refusing to start: nvidia_smi_missing: nvidia-smi is not on the PATH") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise SystemExit("refusing to start: nvidia_smi_timeout: nvidia-smi did not answer in time") from exc
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(f"refusing to start: nvidia_smi_failed: nvidia-smi exited {exc.returncode}") from exc
+    except OSError as exc:
+        raise SystemExit(f"refusing to start: nvidia_smi_unavailable: {type(exc).__name__}") from exc
+
+
+def parse_gpus(text: str) -> list[dict]:
+    """``--query-gpu=name,driver_version --format=csv,noheader,nounits`` as ``[{"name", "driver"}]``."""
+    gpus = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        parts = [x.strip() for x in line.split(",")]
+        if len(parts) != 2 or not all(parts):
+            raise SystemExit(f"refusing to start: nvidia_smi_garbage: GPU line {line!r}")
+        gpus.append({"name": parts[0], "driver": parts[1]})
+    return gpus
+
+
+def check_exclusive(smi: SmiRunner, *, source: str = "nvidia-smi") -> dict:
+    """Refuse unless nobody who matters holds the card; return what was seen, for the receipt.
+
+    (a) refuse on a listed process whose image name matches a compute runner, or whose type is "C" alone;
+    (b) refuse when the total ``memory.used`` is above ``EXCLUSIVE_BASELINE_MIB``.
+    A missing, failing, slow or unreadable nvidia-smi refuses with a named reason: it never passes by default.
+    ``smi`` takes the nvidia-smi arguments and returns its stdout (injected: tests never run the real one)."""
+    procs = parse_gpu_processes(ask_smi(smi, ["-q", "-x"]))
+    used = parse_memory_used(ask_smi(smi, ["--query-gpu=memory.used", "--format=csv,noheader,nounits"]))
+    runners = sorted(
+        {
+            f"{p['image'] or '<unnamed>'} (type {p['type']})"
+            for p in procs
+            if p["type"] == "C"
+            or any(fnmatch.fnmatchcase(p["image"].lower(), pat) for pat in COMPUTE_RUNNER_PATTERNS)
+        }
+    )
+    rule_a = not runners
+    rule_b = used <= EXCLUSIVE_BASELINE_MIB
+    record = {
+        "source": source,
+        "processes": sorted(p["image"] or "<unnamed>" for p in procs),
+        "process_types": sorted({p["type"] for p in procs}),
+        "memory_used_mib": used,
+        "baseline_mib": EXCLUSIVE_BASELINE_MIB,
+        "runner_patterns": list(COMPUTE_RUNNER_PATTERNS),
+        "rules": {
+            "a_no_compute_runner": "passed" if rule_a else "FAILED",
+            "b_memory_baseline": "passed" if rule_b else "FAILED",
+        },
+        "result": "passed" if rule_a and rule_b else "refused",
+    }
+    fired = []
+    if not rule_a:
+        fired.append(f"rule (a): compute runner(s) hold the GPU: {', '.join(runners)}")
+    if not rule_b:
+        fired.append(f"rule (b): memory.used is {used} MiB, above the {EXCLUSIVE_BASELINE_MIB} MiB baseline")
+    if fired:
+        raise SystemExit("refusing to start: " + "; ".join(fired))
+    return record
+
+
+DRY_DESKTOP_IMAGES = (
+    "Antigravity.exe ApplicationFrameHost.exe chrome.exe claude.exe CrossDeviceResume.exe explorer.exe "
+    "IntelGraphicsSoftware.exe msedgewebview2.exe Notepad.exe OmenCommandCenterBackground.exe SearchHost.exe "
+    "ShellExperienceHost.exe ShellHost.exe SnippingTool.exe StartMenuExperienceHost.exe steamwebhelper.exe "
+    "SystemSettings.exe TextInputHost.exe WidgetBoard.exe WindowsTerminal.exe "
+    "chrome.exe chrome.exe chrome.exe msedgewebview2.exe msedgewebview2.exe msedgewebview2.exe"
+).split()  # the 20 desktop images the rig showed, and 6 repeats: 26 processes of type "C+G"
+DRY_IDLE_MIB = 2400
+
+
+def dry_smi(args: Sequence[str]) -> str:
+    """A canned nvidia-smi for ``--dry``: the rig's desktop case. It never starts the real nvidia-smi."""
+    if list(args) == ["-q", "-x"]:
+        infos = "".join(
+            f"<process_info><pid>{1000 + i}</pid><type>C+G</type>"
+            f"<process_name>C:\\Windows\\{name}</process_name><used_memory>N/A</used_memory></process_info>"
+            for i, name in enumerate(DRY_DESKTOP_IMAGES)
+        )
+        return f"<nvidia_smi_log><gpu><processes>{infos}</processes></gpu></nvidia_smi_log>"
+    return f"{DRY_IDLE_MIB}\n"
 
 
 def require_heartbeat(mtime: float | None, now: float, max_age_s: float = HEARTBEAT_MAX_AGE_S) -> None:
@@ -827,11 +1126,14 @@ def _smi(*query: str) -> list[list[str]]:  # pragma: no cover - needs nvidia-smi
     return [[x.strip() for x in line.split(",")] for line in out.stdout.splitlines() if line.strip()]
 
 
-class Rig:  # pragma: no cover - needs the 5090
-    """The machine's side of a real run: the guards, the VRAM query, the CUDA version."""
+class Rig:
+    """The machine's side of a real run: the guards, the VRAM query, the CUDA version.
 
-    def __init__(self, a: argparse.Namespace) -> None:
+    ``smi`` is the nvidia-smi runner (injected, so the guards are tested without the real one)."""
+
+    def __init__(self, a: argparse.Namespace, smi: SmiRunner = run_smi) -> None:
         self.a = a
+        self.smi = smi
 
     def preflight(self) -> dict:
         import os
@@ -841,25 +1143,19 @@ class Rig:  # pragma: no cover - needs the 5090
         )
         mtime = beat.stat().st_mtime if beat is not None and beat.exists() else None  # never opened
         require_heartbeat(mtime, time.time())
-        gpus = [{"name": n, "driver": d} for n, d in _smi("name", "driver_version")]
+        gpus = parse_gpus(
+            ask_smi(self.smi, ["--query-gpu=name,driver_version", "--format=csv,noheader,nounits"])
+        )
         gpu = require_single_nvidia_gpu(gpus)
-        apps = subprocess.run(
-            ["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=True,
-        ).stdout.split()
-        require_exclusive(apps)
-        return gpu
+        return {**gpu, "guard": check_exclusive(self.smi)}
 
-    def vram_query(self) -> int | None:
+    def vram_query(self) -> int | None:  # pragma: no cover - needs the 5090
         try:
             return int(_smi("memory.used")[0][0])
         except (subprocess.SubprocessError, ValueError, IndexError, OSError):
             return None
 
-    def cuda_version(self) -> str | None:
+    def cuda_version(self) -> str | None:  # pragma: no cover - needs the 5090
         return require_torch().version.cuda
 
 
@@ -961,8 +1257,11 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
     prompts = select_prompts(rows, a.prompts)
     cut = is_cut(a)
     gpu = None
-    if not a.dry:
+    if a.dry:
+        guard = check_exclusive(dry_smi, source="dry: a canned nvidia-smi output, never the real one")
+    else:
         gpu = rig.preflight()
+        guard = gpu.get("guard")
     bundle = build(a)
     try:
         sampler = VramSampler(rig.vram_query) if rig is not None and not a.dry else None
@@ -1009,6 +1308,7 @@ def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict
             batch=a.g,
             exclusive=None if a.dry else True,
             cuda=rig.cuda_version() if rig is not None and not a.dry else None,
+            guard=guard,
         )
         receipt = build_receipt(
             path=a.path,

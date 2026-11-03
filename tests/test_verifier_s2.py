@@ -953,3 +953,545 @@ class TestReviewJoOnTheDryBundle:
         env = body["environment"]
         assert env["python_executable"] == sys.executable and env["gpu_name"] == "NVIDIA GeForce RTX 5090"
         assert env["cuda"] == "13.0" and set(env) == set(s2.ENVIRONMENT_FIELDS)
+
+
+# -- the exclusive-GPU guard: rules (a) and (b), fail closed -----------------------------------------------------------------
+def _xml(procs):
+    """nvidia-smi -q -x output with the given (type, process_name) pairs; memory is N/A, as under WDDM."""
+    infos = "".join(
+        f"<process_info><pid>{100 + i}</pid><type>{t}</type><process_name>{n}</process_name>"
+        f"<used_memory>N/A</used_memory></process_info>"
+        for i, (t, n) in enumerate(procs)
+    )
+    return f"<nvidia_smi_log><gpu><processes>{infos}</processes></gpu></nvidia_smi_log>"
+
+
+def _smi(procs=(), used="2400", xml=None):
+    def run(args):
+        if list(args) == ["-q", "-x"]:
+            return xml if xml is not None else _xml(procs)
+        assert list(args)[0] == "--query-gpu=memory.used", args
+        return used
+
+    return run
+
+
+_DESKTOP_IMAGES = (
+    "Antigravity.exe ApplicationFrameHost.exe chrome.exe claude.exe CrossDeviceResume.exe explorer.exe "
+    "IntelGraphicsSoftware.exe msedgewebview2.exe Notepad.exe OmenCommandCenterBackground.exe SearchHost.exe "
+    "ShellExperienceHost.exe ShellHost.exe SnippingTool.exe StartMenuExperienceHost.exe steamwebhelper.exe "
+    "SystemSettings.exe TextInputHost.exe WidgetBoard.exe WindowsTerminal.exe "
+    "chrome.exe chrome.exe chrome.exe msedgewebview2.exe msedgewebview2.exe msedgewebview2.exe"
+).split()  # the rig's 20 desktop images (measured 2026-11-03) and 6 repeats: 26 processes of type "C+G"
+DESKTOP = [("C+G", rf"C:\Windows\{n}") for n in _DESKTOP_IMAGES]
+
+
+def _refusal(smi):
+    with pytest.raises(SystemExit) as caught:
+        s2.check_exclusive(smi)
+    return str(caught.value)
+
+
+class TestExclusiveGuard:
+    def test_the_rigs_desktop_with_na_memory_and_idle_memory_passes(self):
+        assert len(DESKTOP) == 26
+        rec = s2.check_exclusive(_smi(DESKTOP, used="2400"))
+        assert rec["result"] == "passed" and rec["memory_used_mib"] == 2400
+        assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
+
+    def test_a_python_process_fails_rule_a_whatever_its_case_or_suffix(self):
+        for name in (
+            "python.exe",
+            "PYTHON.EXE",
+            "pythonw.exe",
+            "python3.12",
+            r"C:\envs\gpu-py312\python.exe",
+        ):
+            msg = _refusal(_smi([*DESKTOP, ("C+G", name)]))
+            assert "rule (a)" in msg and "python" in msg.lower(), name
+
+    def test_an_ollama_or_llama_server_process_fails_rule_a(self):
+        for name in ("ollama.exe", "ollama_llama_server.exe", "llama-server.exe", "Ollama app.exe"):
+            msg = _refusal(_smi([*DESKTOP, ("C", name)]))
+            assert "rule (a)" in msg, name
+        assert "ollama_llama_server.exe" in _refusal(_smi([*DESKTOP, ("C+G", "ollama_llama_server.exe")]))
+
+    def test_a_compute_only_process_with_an_unlisted_name_fails_rule_a(self):
+        msg = _refusal(_smi([*DESKTOP, ("C", "mystery.exe")]))
+        assert "rule (a)" in msg and "mystery.exe (type C)" in msg
+
+    def test_a_desktop_type_with_an_unlisted_name_passes(self):
+        assert s2.check_exclusive(_smi([("G", "whatever.exe"), ("C+G", "Xorg")]))["result"] == "passed"
+
+    def test_a_listed_name_with_a_desktop_type_still_refuses(self):
+        assert "rule (a)" in _refusal(_smi([("C+G", "pythonista_notes.exe")]))
+
+    def test_memory_just_over_the_baseline_fails_rule_b(self):
+        msg = _refusal(_smi(DESKTOP, used="4097"))
+        assert "rule (b)" in msg and "4097 MiB" in msg and "4096 MiB baseline" in msg
+
+    def test_memory_exactly_at_the_baseline_passes(self):
+        assert s2.check_exclusive(_smi(DESKTOP, used="4096"))["result"] == "passed"
+        assert s2.EXCLUSIVE_BASELINE_MIB == 4096
+
+    def test_both_rules_firing_are_both_named(self):
+        msg = _refusal(_smi([("C", "python.exe")], used="9000"))
+        assert "rule (a)" in msg and "rule (b)" in msg
+
+    def test_nvidia_smi_missing_failing_slow_or_unreadable_each_refuses_with_a_named_reason(self):
+        import subprocess
+
+        def raises(exc):
+            def run(args):
+                raise exc
+
+            return run
+
+        cases = [
+            (raises(FileNotFoundError("nvidia-smi")), "nvidia_smi_missing"),
+            (raises(subprocess.CalledProcessError(9, "nvidia-smi")), "nvidia_smi_failed"),
+            (raises(subprocess.CalledProcessError(9, "nvidia-smi")), "exited 9"),
+            (raises(subprocess.TimeoutExpired("nvidia-smi", 10)), "nvidia_smi_timeout"),
+            (raises(PermissionError("denied")), "nvidia_smi_unavailable"),
+            (_smi(xml="this is not xml"), "nvidia_smi_garbage"),
+            (_smi(xml="<other_root/>"), "unexpected root element"),
+            (_smi(xml=_xml([("Z", "x.exe")])), "unknown process type"),
+            (_smi(xml="<nvidia_smi_log/>"), "no <gpu> element"),
+            (_smi(xml="<nvidia_smi_log><gpu/></nvidia_smi_log>"), "has no <processes> element"),
+            (
+                _smi(xml="<nvidia_smi_log><gpu><processes>N/A</processes></gpu></nvidia_smi_log>"),
+                "outside any <process_info>",
+            ),
+            (
+                _smi(xml="<nvidia_smi_log><gpu><processes>not available</processes></gpu></nvidia_smi_log>"),
+                "holds text",
+            ),
+            (
+                _smi(xml="<nvidia_smi_log><gpu><processes/></gpu><gpu><processes/></gpu></nvidia_smi_log>"),
+                "more than one <gpu> element",
+            ),
+            (
+                _smi(xml=_xml(DESKTOP).replace("</gpu>", "</gpu><gpu><processes/></gpu>")),
+                "more than one <gpu>",
+            ),
+            (_smi(DESKTOP, used="lots"), "not a MiB integer"),
+            (_smi(DESKTOP, used="-5"), "not a MiB integer"),
+            (_smi(DESKTOP, used="24.5"), "not a MiB integer"),
+            (_smi(DESKTOP, used="2000\n2200\n"), "2 memory.used readings for one GPU"),
+            (_smi(DESKTOP, used="\n"), "no memory.used reading"),
+        ]
+        for smi, reason in cases:
+            assert reason in _refusal(smi), reason
+
+    def test_a_failure_in_the_second_call_also_refuses(self):
+        def run(args):
+            if list(args) == ["-q", "-x"]:
+                return _xml(DESKTOP)
+            raise FileNotFoundError("nvidia-smi")
+
+        assert "nvidia_smi_missing" in _refusal(run)
+
+    def test_the_receipt_carries_image_names_only_the_reading_the_baseline_and_the_rule_results(self):
+        procs = [*DESKTOP, ("G", "/usr/lib/xorg/Xorg"), ("C+G", "N/A"), ("G", r"D:\a b\c d.exe")]
+        rec = s2.check_exclusive(_smi(procs, used="2572"))
+        assert all("\\" not in n and "/" not in n for n in rec["processes"])
+        assert (
+            "Xorg" in rec["processes"] and "c d.exe" in rec["processes"] and "<unnamed>" in rec["processes"]
+        )
+        assert len(rec["processes"]) == len(procs)
+        assert rec["memory_used_mib"] == 2572 and rec["baseline_mib"] == 4096
+        assert rec["runner_patterns"] == [
+            "python*",
+            "ollama*",
+            "llama-server*",
+            "llama-cli*",
+            "llama-bench*",
+            "uv*",
+        ]
+        assert rec["process_types"] == ["C+G", "G"]
+        assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
+        assert rec["result"] == "passed" and rec["source"] == "nvidia-smi"
+        json.dumps(rec)
+
+    def test_no_processes_at_all_is_a_pass_not_a_parse_failure(self):
+        assert (
+            s2.check_exclusive(_smi(xml="<nvidia_smi_log><gpu><processes/></gpu></nvidia_smi_log>"))[
+                "processes"
+            ]
+            == []
+        )
+
+    def test_an_empty_processes_element_is_the_real_nothing_on_the_card_shape_and_passes_to_rule_b(self):
+        for empty in ("<processes/>", "<processes></processes>", "<processes>  </processes>"):
+            xml = f"<nvidia_smi_log><gpu>{empty}</gpu></nvidia_smi_log>"
+            rec = s2.check_exclusive(_smi(xml=xml, used="2400"))
+            assert rec["processes"] == [] and rec["result"] == "passed", empty
+            assert "rule (b)" in _refusal(_smi(xml=xml, used="4097")), empty
+
+    def test_a_runner_like_directory_with_a_non_runner_file_name_passes_rule_a(self):
+        sep = chr(92)  # built at runtime: no drive letter or user name is written out
+        for folder in ("python", "ollama", "llama-server"):
+            for path in (
+                sep.join(["D:", folder, "notepad.exe"]),
+                "/".join(["", "opt", folder, "notepad.exe"]),
+            ):
+                rec = s2.check_exclusive(_smi([("C+G", path)]))
+                assert rec["processes"] == ["notepad.exe"] and rec["result"] == "passed", path
+
+    def test_the_old_plain_rule_is_unchanged(self):
+        s2.require_exclusive([])
+        with pytest.raises(SystemExit, match="hold the GPU"):
+            s2.require_exclusive(["1"])
+
+
+class TestReportMarkupAndStructure:
+    """Shapes the first guard let through as "no processes", and the markup a real report never needs."""
+
+    DOCTYPE = '<?xml version="1.0" ?>\n<!DOCTYPE nvidia_smi_log SYSTEM "nvsmi_device_v13.dtd">\n'
+
+    @staticmethod
+    def _wrap(inner, head=""):
+        return f"{head}<nvidia_smi_log><gpu>{inner}</gpu></nvidia_smi_log>"
+
+    def test_a_processes_element_with_a_foreign_child_refuses_and_names_the_tag(self):
+        msg = _refusal(_smi(xml=self._wrap("<processes><other>N/A</other></processes>")))
+        assert "nvidia_smi_garbage" in msg and "<other>" in msg
+
+    def test_a_namespaced_process_info_refuses_as_a_foreign_child(self):
+        xml = self._wrap('<processes><process_info xmlns="urn:x"><type>C+G</type></process_info></processes>')
+        assert "{urn:x}process_info" in _refusal(_smi(xml=xml))
+
+    def test_a_second_gpu_nested_inside_the_one_direct_gpu_refuses(self):
+        msg = _refusal(_smi(xml=self._wrap("<processes/><gpu><processes/></gpu>")))
+        assert "more than one <gpu> element (2)" in msg
+
+    def test_a_namespaced_root_or_gpu_refuses(self):
+        assert "unexpected root element" in _refusal(
+            _smi(xml='<nvidia_smi_log xmlns="urn:x"><gpu/></nvidia_smi_log>')
+        )
+        xml = '<nvidia_smi_log><gpu xmlns="urn:x"><processes/></gpu></nvidia_smi_log>'
+        assert "no <gpu> element" in _refusal(_smi(xml=xml))
+
+    def test_the_genuine_empty_shapes_still_pass_to_rule_b(self):
+        for inner in ("<processes/>", "<processes></processes>", "<processes><!-- nothing --></processes>"):
+            rec = s2.check_exclusive(_smi(xml=self._wrap(inner), used="2400"))
+            assert rec["processes"] == [] and rec["result"] == "passed", inner
+            assert "rule (b)" in _refusal(_smi(xml=self._wrap(inner), used="4097")), inner
+
+    def test_a_process_info_with_attributes_and_the_real_fields_is_accepted(self):
+        info = (
+            '<process_info id="7" kind="x"><gpu_instance_id>N/A</gpu_instance_id>'
+            "<compute_instance_id>N/A</compute_instance_id><pid>1000</pid><type> c+g </type>"
+            "<process_name>explorer.exe</process_name><used_memory>N/A</used_memory></process_info>"
+        )
+        rec = s2.check_exclusive(_smi(xml=self._wrap(f"<processes>\n  {info}\n</processes>")))
+        assert rec["processes"] == ["explorer.exe"] and rec["process_types"] == ["C+G"]
+        assert rec["result"] == "passed"
+
+    def test_a_process_info_whose_type_is_missing_or_unreadable_refuses(self):
+        for typ, why in (
+            ("", "has no <type>"),
+            ("<type/>", "unknown process type"),
+            ("<type>X</type>", "unknown process type"),
+            ("<type>c;g</type>", "unknown process type"),
+        ):
+            info = f"<process_info>{typ}<process_name>a.exe</process_name></process_info>"
+            assert why in _refusal(_smi(xml=self._wrap(f"<processes>{info}</processes>"))), typ
+
+    def _info(self, inner):
+        return self._wrap(f"<processes><process_info>{inner}</process_info></processes>")
+
+    def test_a_second_type_cannot_hide_a_compute_process_behind_the_first(self):
+        xml = self._info("<type>C+G</type><type>C</type><process_name>python.exe</process_name>")
+        assert "repeats <type>" in _refusal(_smi(xml=xml))
+
+    def test_a_second_processes_block_cannot_hide_a_compute_process(self):
+        hidden = "<processes><process_info><type>C</type><process_name>python.exe</process_name></process_info></processes>"
+        xml = self._wrap("<processes/>" + hidden)
+        assert "more than one <processes> element (2)" in _refusal(_smi(xml=xml))
+        deeper = self._wrap("<processes/><other>" + hidden + "</other>")
+        assert "more than one <processes> element (2)" in _refusal(_smi(xml=deeper))
+
+    def test_memory_that_is_not_ascii_digits_refuses_by_name_and_never_crashes(self):
+        for used in ("\u00b2", "\u0663\u0664", "\uff12\uff14", "12\u00b2", " \u2082 "):
+            msg = _refusal(_smi(DESKTOP, used=used))
+            assert "not a MiB integer" in msg and "nvidia_smi_garbage" in msg, repr(used)
+
+    def test_a_memory_reading_is_bounded_to_nine_digits(self):
+        for used in ("9" * 5000, "1" * 4301, "1234567890", "0" * 10):
+            msg = _refusal(_smi(DESKTOP, used=used))
+            assert "not a MiB integer of 1 to 9 digits" in msg and len(msg) < 200, used[:20]
+        assert "rule (b)" in _refusal(_smi(DESKTOP, used="999999999"))
+        assert s2.check_exclusive(_smi(DESKTOP, used="000000009"))["memory_used_mib"] == 9
+        assert "no memory.used reading" in _refusal(_smi(DESKTOP, used=""))
+
+    def test_a_process_info_outside_the_one_processes_element_refuses_wherever_it_sits(self):
+        stray = "<process_info><type>C</type><process_name>python.exe</process_name></process_info>"
+        cases = [
+            (self._wrap("<processes/>" + stray), "sits under <gpu>"),
+            (
+                f"<nvidia_smi_log><gpu><processes/></gpu>{stray}</nvidia_smi_log>",
+                "sits under <nvidia_smi_log>",
+            ),
+            (self._wrap(f"<processes/><other>{stray}</other>"), "sits under <other>"),
+            (self._wrap(f"<processes/><other><deep>{stray}</deep></other>"), "sits under <deep>"),
+            (self._wrap("<processes/>").replace("</gpu>", "</gpu><x/>") + "", None),
+        ]
+        for xml, why in cases[:4]:
+            msg = _refusal(_smi(xml=xml))
+            assert why in msg and "not under the one <processes>" in msg, why
+
+    def test_a_stray_process_info_next_to_real_entries_also_refuses(self):
+        real = "<process_info><type>G</type><process_name>explorer.exe</process_name></process_info>"
+        stray = "<process_info><type>C</type><process_name>x.exe</process_name></process_info>"
+        xml = self._wrap(f"<processes>{real}</processes>{stray}")
+        assert "sits under <gpu>" in _refusal(_smi(xml=xml))
+
+    def test_the_other_compute_tools_are_runner_names_too(self):
+        for name in ("llama-cli.exe", "llama-bench.exe", "uv.exe", "uvx.exe", "LLAMA-CLI", "uv"):
+            assert "rule (a)" in _refusal(_smi([*DESKTOP, ("C+G", name)])), name
+
+    def test_text_outside_the_entries_refuses(self):
+        entry = "<process_info><type>G</type></process_info>"
+        cases = [
+            (f"<processes>stray{entry}</processes>", "outside any <process_info>"),
+            (f"<processes>{entry}between{entry}</processes>", "after a </process_info>"),
+            (f"<processes>{entry}tail</processes>", "after a </process_info>"),
+            ("<processes><process_info>loose<type>G</type></process_info></processes>", "outside its fields"),
+            ("<processes><process_info><type>G</type>loose</process_info></processes>", "after a <type>"),
+            (
+                "<processes><process_info><type>G</type><pid>1</pid>x</process_info></processes>",
+                "after a <pid>",
+            ),
+        ]
+        for inner, why in cases:
+            assert why in _refusal(_smi(xml=self._wrap(inner))), inner
+
+    def test_an_element_outside_the_allowlist_a_repeat_or_a_nested_element_refuses(self):
+        cases = [
+            ("<type>G</type><foo/>", "unexpected <foo>"),
+            ("<type>G</type><extra><deep/></extra>", "unexpected <extra>"),
+            ("<type><b>C</b></type>", "nested <b>"),
+            ("<type>G</type><pid>1</pid><pid>2</pid>", "repeats <pid>"),
+            (
+                "<type>G</type><process_name>a.exe</process_name><process_name>b.exe</process_name>",
+                "repeats <process_name>",
+            ),
+            ("<pid>1</pid>", "has no <type>"),
+            ("<type>G</type><pid><x/></pid>", "nested <x>"),
+        ]
+        for inner, why in cases:
+            assert why in _refusal(_smi(xml=self._info(inner))), inner
+
+    def test_a_predefined_entity_in_a_name_is_just_text(self):
+        info = "<process_info><type>G</type><process_name>a&amp;b.exe</process_name></process_info>"
+        rec = s2.check_exclusive(_smi(xml=self._wrap(f"<processes>{info}</processes>")))
+        assert rec["processes"] == ["a&b.exe"]
+
+    def test_the_drivers_declaration_doctype_and_comments_are_accepted(self):
+        xml = self.DOCTYPE + "<!-- header -->" + self._wrap("<!-- a --><processes><!-- b --></processes>")
+        assert s2.check_exclusive(_smi(xml=xml))["result"] == "passed"
+        assert (
+            s2.check_exclusive(_smi(xml=self._wrap("<processes/>")))["result"] == "passed"
+        )  # no DOCTYPE at all
+
+    def test_markup_a_real_report_never_needs_refuses_with_a_named_reason(self):
+        sys_ok = '<!DOCTYPE nvidia_smi_log SYSTEM "nvsmi_device_v13.dtd">'
+        wrap = self._wrap("<processes/>")
+        cases = [
+            ("<?foo bar?>" + wrap, "processing instruction"),
+            (wrap.replace("<gpu>", "<gpu><?foo bar?>"), "processing instruction"),
+            ('<!DOCTYPE nvidia_smi_log [<!ENTITY x "y">]>' + wrap, "an ENTITY or any other declaration"),
+            ("<!DOCTYPE nvidia_smi_log [ ]>" + wrap, "internal subset"),
+            (sys_ok + wrap.replace("<processes/>", "<processes>&xxe;</processes>"), "entity reference &xxe;"),
+            (wrap.replace("<processes/>", "<processes>&xxe;</processes>"), "not XML"),
+            ('<!DOCTYPE nvidia_smi_log PUBLIC "-//x//y" "nvsmi_device_v13.dtd">' + wrap, "PUBLIC identifier"),
+            ('<!DOCTYPE other SYSTEM "nvsmi_device_v13.dtd">' + wrap, "names 'other'"),
+            ('<!DOCTYPE nvidia_smi_log SYSTEM "http://example.invalid/x.dtd">' + wrap, "x.dtd"),
+        ]
+        for xml, why in cases:
+            assert why in _refusal(_smi(xml=xml)), why
+
+    def test_any_numbered_nvsmi_device_dtd_is_accepted_and_nothing_else_is(self):
+        wrap = self._wrap("<processes/>")
+        for dtd in (
+            "nvsmi_device_v13.dtd",
+            "nvsmi_device_v14.dtd",
+            "nvsmi_device_v99.dtd",
+            "nvsmi_device_v1.dtd",
+        ):
+            xml = f'<!DOCTYPE nvidia_smi_log SYSTEM "{dtd}">' + wrap
+            assert s2.check_exclusive(_smi(xml=xml))["result"] == "passed", dtd
+        for dtd in (
+            "nvsmi_device_v13a.dtd",
+            "nvsmi_device_v.dtd",
+            "../x.dtd",
+            "../nvsmi_device_v13.dtd",
+            "sub/nvsmi_device_v13.dtd",
+            "nvsmi_device_v13.dtd.evil",
+            "Nvsmi_device_v13.dtd",
+            "nvsmi_device_v13_.dtd",
+            "",
+        ):
+            xml = f'<!DOCTYPE nvidia_smi_log SYSTEM "{dtd}">' + wrap
+            msg = _refusal(_smi(xml=xml))
+            assert "nvidia_smi_garbage" in msg and "nvsmi_device_v<digits>.dtd" in msg, dtd
+
+    def test_the_external_dtd_is_never_opened_or_fetched(self, tmp_path, monkeypatch):
+        import builtins
+        import socket
+        import urllib.request
+
+        # a DTD sits where a naive parser would look for it; it declares &x;, so loading it would make &x; legal
+        (tmp_path / "nvsmi_device_v13.dtd").write_text('<!ENTITY x "from-the-dtd">', encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+        touched = []
+        real_open = builtins.open
+
+        def spy_open(file, *a, **kw):
+            if str(file).endswith(".dtd"):
+                touched.append(str(file))
+            return real_open(file, *a, **kw)
+
+        def no_network(*a, **kw):
+            touched.append("network")
+            raise AssertionError("network access while parsing")
+
+        monkeypatch.setattr(builtins, "open", spy_open)
+        monkeypatch.setattr(socket, "create_connection", no_network)
+        monkeypatch.setattr(socket.socket, "connect", no_network)
+        monkeypatch.setattr(urllib.request, "urlopen", no_network)
+        head = '<!DOCTYPE nvidia_smi_log SYSTEM "nvsmi_device_v13.dtd">'
+        ok = head + self._wrap("<processes/>")
+        assert s2.check_exclusive(_smi(xml=ok))["result"] == "passed"
+        url = '<!DOCTYPE nvidia_smi_log SYSTEM "http://example.invalid/nvsmi_device_v13.dtd">'
+        assert "DTD is" in _refusal(_smi(xml=url + self._wrap("<processes/>")))
+        # if the DTD had been read, this reference would resolve and the report would pass
+        ref = head + self._wrap(
+            "<processes><process_info><type>G</type><process_name>&x;</process_name></process_info></processes>"
+        )
+        assert "entity reference &x;" in _refusal(_smi(xml=ref))
+        assert touched == []
+
+
+class TestRigPreflight:
+    def _rig(self, tmp_path, smi):
+        beat = tmp_path / "beat"
+        beat.write_text("x", encoding="utf-8")
+        return s2.Rig(Namespace(heartbeat=beat), smi=smi)
+
+    def _smi(self, gpus, procs, used="2400"):
+        inner = _smi(procs, used)
+
+        def run(args):
+            if list(args)[0] == "--query-gpu=name,driver_version":
+                return gpus
+            return inner(args)
+
+        return run
+
+    def test_a_real_preflight_on_the_rigs_desktop_passes_and_returns_the_guard_record(self, tmp_path):
+        rig = self._rig(tmp_path, self._smi("NVIDIA GeForce RTX 5090, 590.1\n", DESKTOP))
+        got = rig.preflight()
+        assert got["name"] == "NVIDIA GeForce RTX 5090" and got["driver"] == "590.1"
+        assert got["guard"]["result"] == "passed" and got["guard"]["source"] == "nvidia-smi"
+
+    def test_a_runner_on_the_card_refuses_the_preflight(self, tmp_path):
+        rig = self._rig(
+            tmp_path, self._smi("NVIDIA GeForce RTX 5090, 590.1\n", [*DESKTOP, ("C", "python.exe")])
+        )
+        with pytest.raises(SystemExit, match="rule .a."):
+            rig.preflight()
+
+    def test_two_gpus_a_non_nvidia_gpu_and_a_garbled_gpu_line_still_refuse(self, tmp_path):
+        for gpus, why in (
+            ("NVIDIA A, 1\nNVIDIA B, 1\n", "2 GPUs"),
+            ("AMD Radeon, 1\n", "not an NVIDIA GPU"),
+            ("NVIDIA A\n", "nvidia_smi_garbage"),
+        ):
+            with pytest.raises(SystemExit, match=why):
+                self._rig(tmp_path, self._smi(gpus, DESKTOP)).preflight()
+
+    def test_a_missing_heartbeat_still_refuses_first(self, tmp_path):
+        rig = s2.Rig(Namespace(heartbeat=tmp_path / "nope"), smi=self._smi("NVIDIA A, 1\n", DESKTOP))
+        with pytest.raises(SystemExit, match="heartbeat"):
+            rig.preflight()
+
+    @needs_torch
+    def test_a_run_carries_the_guard_record_into_the_receipt(self, tmp_path):
+        class Rig:
+            def preflight(self):
+                return {"name": "NVIDIA GeForce RTX 5090", "driver": "590.1", "guard": {"result": "passed"}}
+
+            def vram_query(self):
+                return 12345
+
+            def cuda_version(self):
+                return "13.0"
+
+        a = _args(tmp_path, _gold(tmp_path), steps=1, g=2, max_new=24)
+        assert s2.execute(a, build=s2.dry_bundle, rig=Rig()) == 1
+        body = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert body["environment"]["exclusive_guard"] == {"result": "passed"}
+        assert body["environment"]["gpu_exclusive"] is True
+
+
+@needs_torch
+class TestDryUsesTheRealGuard:
+    def test_the_dry_receipt_records_the_guards_result_without_running_nvidia_smi(
+        self, tmp_path, monkeypatch
+    ):
+        import subprocess
+
+        def forbidden(*args, **kw):
+            raise AssertionError("the real nvidia-smi was started")
+
+        monkeypatch.setattr(subprocess, "run", forbidden)
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True))
+        assert s2.execute(a, build=s2.dry_bundle) == 0
+        body = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        guard = body["environment"]["exclusive_guard"]
+        assert guard["result"] == "passed" and guard["source"].startswith("dry:")
+        assert guard["memory_used_mib"] == s2.DRY_IDLE_MIB and len(guard["processes"]) == 26
+        assert body["environment"]["gpu_exclusive"] is None
+
+    def test_a_dry_run_whose_canned_card_is_not_the_desktop_would_refuse(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(s2, "DRY_IDLE_MIB", 5000)
+        a = s2.apply_dry_defaults(_args(tmp_path, _gold(tmp_path), dry=True))
+        with pytest.raises(SystemExit, match="rule .b."):
+            s2.execute(a, build=s2.dry_bundle)
+
+
+class TestTheRealNvidiaSmiShape:
+    """The fixture has the real ``nvidia-smi -q -x`` shape at the real process count and type mix (26 desktop
+    processes, all ``C+G``, memory ``N/A``), with OS and shell image names only. These tests assert the guard's
+    verdict on it, not the file's contents."""
+
+    FIXTURE = Path(__file__).parent / "fixtures" / "nvidia-smi-q-x-fixture-public-2026-11-03.xml"
+
+    @staticmethod
+    def _runner(xml, used="2400"):
+        def run(args):
+            return xml if list(args) == ["-q", "-x"] else used + "\n"
+
+        return run
+
+    def test_the_real_shape_passes_with_26_desktop_processes(self):
+        rec = s2.check_exclusive(self._runner(self.FIXTURE.read_text(encoding="utf-8")))
+        assert rec["result"] == "passed" and len(rec["processes"]) == 26
+        assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
+        assert all("\\" not in n and "/" not in n for n in rec["processes"])
+
+    def test_the_same_shape_refuses_when_a_runner_joins_it(self):
+        xml = self.FIXTURE.read_text(encoding="utf-8")
+        extra = (
+            "<process_info><pid>9</pid><type>C</type><process_name>python.exe</process_name>"
+            "<used_memory>N/A</used_memory></process_info></processes>"
+        )
+        with pytest.raises(SystemExit, match="rule .a.*python.exe"):
+            s2.check_exclusive(self._runner(xml.replace("</processes>", extra, 1)))
+
+    def test_the_same_shape_refuses_above_the_baseline(self):
+        xml = self.FIXTURE.read_text(encoding="utf-8")
+        with pytest.raises(SystemExit, match="rule .b."):
+            s2.check_exclusive(self._runner(xml, used="4097"))
