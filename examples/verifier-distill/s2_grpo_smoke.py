@@ -362,6 +362,9 @@ COMPUTE_RUNNER_PATTERNS = (
     "python*",
     "ollama*",
     "llama-server*",
+    "llama-cli*",
+    "llama-bench*",
+    "uv*",
 )  # image names, lower case; a card adds a name
 EXCLUSIVE_BASELINE_MIB = 4096
 DESKTOP_PROCESS_TYPES = ("C+G", "G")  # type "C" (compute only) and any other type refuse
@@ -442,13 +445,14 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
 
     The ``<processes>`` subtree is walked against an allowlist, so nothing can hide in it. Exactly one
     ``<gpu>`` (at any depth) and exactly one ``<processes>`` (at any depth), directly under that
-    ``<gpu>``. Its only children are ``<process_info>``; each ``<process_info>``'s only children are the
-    names in ``PROCESS_INFO_FIELDS``, each at most once, none with element children of its own, and
-    ``type`` exactly once. Any other element, a repeat, a nested element, or non-whitespace text or tail
-    anywhere in the subtree refuses, naming what was seen. The rest of the ``<gpu>`` block (hundreds of
-    elements) is not constrained. ``type`` is read as C, G or C+G, case and padding ignored, and anything
-    else refuses. Only a present, truly empty ``<processes/>`` (comments allowed) means "nothing on the
-    card". The markup is checked first (``check_report_markup``).
+    ``<gpu>``, and every ``<process_info>`` in the report sits under it. Its only children are
+    ``<process_info>``; each ``<process_info>``'s only children are the names in ``PROCESS_INFO_FIELDS``,
+    each at most once, none with element children of its own, and ``type`` exactly once. Any other
+    element, a repeat, a nested element, or non-whitespace text or tail anywhere in the subtree refuses,
+    naming what was seen. The rest of the ``<gpu>`` block (hundreds of elements) is not constrained.
+    ``type`` is read as C, G or C+G, case and padding ignored, and anything else refuses. Only a present,
+    truly empty ``<processes/>`` (comments allowed) means "nothing on the card". The markup is checked
+    first (``check_report_markup``).
 
     If the real rig ever returns a refused shape, it is amended by a card with the real fixture, never by
     relaxing this parser."""
@@ -478,6 +482,11 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
     if len(listings) > 1 or every_processes > 1:
         refuse(f"more than one <processes> element ({every_processes})")
     listing = listings[0]
+    parents = {child: parent for parent in root.iter() for child in parent}
+    for info in root.iter("process_info"):
+        if parents.get(info) is not listing:
+            where = parents[info].tag if info in parents else "the root"
+            refuse(f"a <process_info> sits under <{where}>, not under the one <processes>")
     if not _blank(listing.text):
         refuse(f"<processes> holds text {listing.text.strip()!r} outside any <process_info>")
     procs = []
@@ -512,9 +521,9 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
 def parse_memory_used(text: str) -> int:
     """``memory.used`` in MiB from ``--query-gpu=memory.used --format=csv,noheader,nounits``.
 
-    Exactly one line (the guard allows one GPU) of ASCII digits only (a regex, not ``isdigit``); anything else
-    refuses by name.
-    Rule (b) reads only this source; the XML's ``fb_memory_usage`` is not read."""
+    Exactly one line (the guard allows one GPU) of 1 to 9 ASCII digits (a bounded regex, not ``isdigit``,
+    so ``int`` never sees a long string); anything else refuses by name. Rule (b) reads only this source;
+    the XML's ``fb_memory_usage`` is not read."""
     lines = [x.strip() for x in text.splitlines() if x.strip()]
     if not lines:
         raise SystemExit("refusing to start: nvidia_smi_garbage: no memory.used reading")
@@ -522,9 +531,10 @@ def parse_memory_used(text: str) -> int:
         raise SystemExit(
             f"refusing to start: nvidia_smi_garbage: {len(lines)} memory.used readings for one GPU"
         )
-    if not re.fullmatch(r"[0-9]+", lines[0]):
+    if not re.fullmatch(r"[0-9]{1,9}", lines[0]):
         raise SystemExit(
-            f"refusing to start: nvidia_smi_garbage: memory.used is {lines[0]!r}, not a MiB integer"
+            "refusing to start: nvidia_smi_garbage: "
+            f"memory.used is {lines[0][:40]!r}, not a MiB integer of 1 to 9 digits"
         )
     return int(lines[0])
 

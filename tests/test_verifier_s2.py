@@ -1100,7 +1100,14 @@ class TestExclusiveGuard:
         )
         assert len(rec["processes"]) == len(procs)
         assert rec["memory_used_mib"] == 2572 and rec["baseline_mib"] == 4096
-        assert rec["runner_patterns"] == ["python*", "ollama*", "llama-server*"]
+        assert rec["runner_patterns"] == [
+            "python*",
+            "ollama*",
+            "llama-server*",
+            "llama-cli*",
+            "llama-bench*",
+            "uv*",
+        ]
         assert rec["process_types"] == ["C+G", "G"]
         assert rec["rules"] == {"a_no_compute_runner": "passed", "b_memory_baseline": "passed"}
         assert rec["result"] == "passed" and rec["source"] == "nvidia-smi"
@@ -1209,6 +1216,40 @@ class TestReportMarkupAndStructure:
         for used in ("\u00b2", "\u0663\u0664", "\uff12\uff14", "12\u00b2", " \u2082 "):
             msg = _refusal(_smi(DESKTOP, used=used))
             assert "not a MiB integer" in msg and "nvidia_smi_garbage" in msg, repr(used)
+
+    def test_a_memory_reading_is_bounded_to_nine_digits(self):
+        for used in ("9" * 5000, "1" * 4301, "1234567890", "0" * 10):
+            msg = _refusal(_smi(DESKTOP, used=used))
+            assert "not a MiB integer of 1 to 9 digits" in msg and len(msg) < 200, used[:20]
+        assert "rule (b)" in _refusal(_smi(DESKTOP, used="999999999"))
+        assert s2.check_exclusive(_smi(DESKTOP, used="000000009"))["memory_used_mib"] == 9
+        assert "no memory.used reading" in _refusal(_smi(DESKTOP, used=""))
+
+    def test_a_process_info_outside_the_one_processes_element_refuses_wherever_it_sits(self):
+        stray = "<process_info><type>C</type><process_name>python.exe</process_name></process_info>"
+        cases = [
+            (self._wrap("<processes/>" + stray), "sits under <gpu>"),
+            (
+                f"<nvidia_smi_log><gpu><processes/></gpu>{stray}</nvidia_smi_log>",
+                "sits under <nvidia_smi_log>",
+            ),
+            (self._wrap(f"<processes/><other>{stray}</other>"), "sits under <other>"),
+            (self._wrap(f"<processes/><other><deep>{stray}</deep></other>"), "sits under <deep>"),
+            (self._wrap("<processes/>").replace("</gpu>", "</gpu><x/>") + "", None),
+        ]
+        for xml, why in cases[:4]:
+            msg = _refusal(_smi(xml=xml))
+            assert why in msg and "not under the one <processes>" in msg, why
+
+    def test_a_stray_process_info_next_to_real_entries_also_refuses(self):
+        real = "<process_info><type>G</type><process_name>explorer.exe</process_name></process_info>"
+        stray = "<process_info><type>C</type><process_name>x.exe</process_name></process_info>"
+        xml = self._wrap(f"<processes>{real}</processes>{stray}")
+        assert "sits under <gpu>" in _refusal(_smi(xml=xml))
+
+    def test_the_other_compute_tools_are_runner_names_too(self):
+        for name in ("llama-cli.exe", "llama-bench.exe", "uv.exe", "uvx.exe", "LLAMA-CLI", "uv"):
+            assert "rule (a)" in _refusal(_smi([*DESKTOP, ("C+G", name)])), name
 
     def test_text_outside_the_entries_refuses(self):
         entry = "<process_info><type>G</type></process_info>"
