@@ -622,6 +622,8 @@ def readout(
     }
     if flags:
         out["flags"] = dict(flags)
+        if out["flags"].get("stress_prefix", 0) > 0:
+            out["flags"]["stress_prefix_masks"] = "off"
     if eval_summary_record is not None:
         qr_rel = eval_summary_record.get("quote_relevance") or {}
         out["eval_summary"] = {
@@ -2543,6 +2545,7 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["attention_mask"] = True
     if getattr(a, "stress_prefix", 0):
         flags["stress_prefix"] = int(a.stress_prefix)
+        flags["stress_prefix_masks"] = "off"
     if getattr(a, "zero_variance_mask", False):
         flags["zero_variance_mask"] = True
     if getattr(a, "advantage", "std") != "std":
@@ -2688,9 +2691,9 @@ def execute(
                     empty_cache_phases=empty_phases,
                     phase_logger=phase_logger,
                     groups_per_update=groups_per_upd,
-                    zero_variance_mask=zv_mask,
+                    zero_variance_mask=False,
                     advantage_mode=adv_mode,
-                    mask_truncated=mask_trunc,
+                    mask_truncated=False,
                     quote_reward=quote_rew,
                 )
                 if stress_stopped is not None or stress_oom:
@@ -2879,7 +2882,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--stress-prefix",
         type=int,
         default=0,
-        help="extra full steps before the registered steps on the longest prompt with min_new=max_new",
+        help=(
+            "extra full steps before the registered steps on the longest prompt with min_new=max_new. "
+            "The prefix always runs with both masks off, so it measures the full-width training forward."
+        ),
     )
     ap.add_argument(
         "--zero-variance-mask",
