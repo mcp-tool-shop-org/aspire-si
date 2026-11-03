@@ -465,6 +465,20 @@ class TestLazyTorch:
             s2.require_torch()
         assert not isinstance(caught.value, SystemExit)
 
+    def test_a_missing_dependency_of_torch_is_re_raised_not_swallowed(self, monkeypatch):
+        class Missing:
+            @staticmethod
+            def find_spec(name, path=None, target=None):
+                if name == "torch":
+                    raise ModuleNotFoundError("No module named 'torch_dep'", name="torch_dep")
+                return None
+
+        monkeypatch.delitem(sys.modules, "torch", raising=False)
+        monkeypatch.setattr(sys, "meta_path", [Missing, *sys.meta_path])
+        with pytest.raises(ModuleNotFoundError, match="torch_dep") as caught:
+            s2.require_torch()
+        assert caught.value.name == "torch_dep"
+
     def test_ci_that_has_torch_does_not_skip_the_torch_tests(self):
         if os.environ.get("S2_REQUIRE_TORCH") == "1":
             assert HAS_TORCH, "S2_REQUIRE_TORCH=1 but torch is not installed: the rehearsal would be skipped"
@@ -592,3 +606,350 @@ class TestDryRehearsal:
         assert s2.execute(a, build=build) == 1
         body = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
         assert body["readout"]["oom"] is True and body["readout"]["pass"] is False
+
+
+# -- review jo: the stopped mutants, the cut, the llama.cpp server, the receipt, gradient checkpointing --------------
+class TestStoppedAndCut:
+    STOP = {"step": 7, "error": "timeout: /completion did not answer in 120s"}
+
+    def test_a_20_step_run_with_a_stop_record_never_passes(self):
+        res = _result(
+            steps=_steps(20), stopped=self.STOP
+        )  # every step counted, yet something stopped the run
+        assert res["pass"] is False and res["complete"] is False
+
+    def test_a_dry_run_with_all_its_steps_but_a_stop_reads_stopped(self):
+        res = _result(steps=_steps(2), requested=2, dry=True, stopped=self.STOP)
+        assert s2.verdict_line(res, stopped=self.STOP, cut=True, dry=True) == "S2-STOPPED"
+        assert s2.exit_status("S2-STOPPED") == 1
+
+    def test_a_changed_max_new_is_not_the_registered_shape(self):
+        shape = {"steps": s2.STEPS, "prompts": s2.PROMPTS, "g": s2.G, "max_new": s2.MAX_NEW_TOKENS}
+        assert s2.is_cut(Namespace(**shape)) is False
+        for key, value in (("steps", 5), ("prompts", 8), ("g", 4), ("max_new", 1024)):
+            assert s2.is_cut(Namespace(**{**shape, key: value})) is True, key
+
+
+class _Resp:
+    def __init__(self, body):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return json.dumps(self.body).encode()
+
+
+class TestLlamaServer:
+    def test_http_json_posts_json_and_gets_when_there_is_no_payload(self):
+        seen = []
+
+        def urlopen(req, timeout):
+            seen.append((req.full_url, req.data, req.get_method(), timeout))
+            return _Resp({"ok": True})
+
+        assert s2.http_json("http://h:1", "/completion", {"n": 1}, 120.0, urlopen=urlopen) == {"ok": True}
+        assert s2.http_json("http://h:1", "/health", None, 10.0, urlopen=urlopen) == {"ok": True}
+        assert seen[0][1] == b'{"n": 1}' and seen[0][2] == "POST" and seen[0][3] == 120.0
+        assert seen[1][1] is None and seen[1][2] == "GET" and seen[1][3] == 10.0
+
+    def test_a_socket_timeout_however_urllib_wraps_it_becomes_timeout_error(self):
+        import urllib.error
+
+        for exc in (TimeoutError("timed out"), urllib.error.URLError(TimeoutError("timed out"))):
+
+            def urlopen(req, timeout, exc=exc):
+                raise exc
+
+            with pytest.raises(TimeoutError, match="/completion did not answer in 120s"):
+                s2.http_json("http://h:1", "/completion", {}, 120.0, urlopen=urlopen)
+
+    def test_other_url_errors_are_not_turned_into_timeouts(self):
+        import urllib.error
+
+        def urlopen(req, timeout):
+            raise urllib.error.URLError(ConnectionRefusedError("refused"))
+
+        with pytest.raises(urllib.error.URLError) as caught:
+            s2.http_json("http://h:1", "/health", None, 10.0, urlopen=urlopen)
+        assert not isinstance(caught.value, TimeoutError)
+
+    def test_wait_ready_polls_until_health_says_ok(self):
+        import urllib.error
+
+        replies = iter([urllib.error.URLError("refused"), {"status": "loading model"}, {"status": "ok"}])
+        polls, sleeps = [], []
+
+        def get(path, timeout_s):
+            polls.append((path, timeout_s))
+            reply = next(replies)
+            if isinstance(reply, Exception):
+                raise reply
+            return reply
+
+        clock = iter(range(1000))
+        s2.wait_ready(
+            get,
+            lambda: None,
+            timeout_s=100.0,
+            control_timeout_s=10.0,
+            sleep=sleeps.append,
+            now=lambda: next(clock),
+        )
+        assert (
+            polls == [("/health", 10.0)] * 3 and len(sleeps) == 2
+        )  # it waited between polls, not after the ok
+
+    def test_a_server_that_is_never_ready_is_a_structured_stop(self):
+        clock = iter(range(0, 10_000, 40))
+        sleeps = []
+
+        def sleep(seconds):
+            sleeps.append(seconds)
+            assert len(sleeps) < 100, "wait_ready kept polling: it has no deadline"
+
+        with pytest.raises(SystemExit, match="llama_server_not_ready"):
+            s2.wait_ready(
+                lambda p, t: {"status": "loading model"},
+                lambda: None,
+                timeout_s=100.0,
+                sleep=sleep,
+                now=lambda: next(clock),
+            )
+
+    def test_a_server_that_exited_is_a_structured_stop_and_is_not_polled_further(self):
+        called = []
+        with pytest.raises(SystemExit, match="llama_server_exited.*code 1"):
+            s2.wait_ready(lambda p, t: called.append(p) or {"status": "ok"}, lambda: 1, sleep=lambda s: None)
+        assert called == []
+
+    def test_terminate_and_wait_stops_a_running_server_kills_a_stuck_one_and_leaves_an_exited_one(self):
+        import subprocess
+
+        class Proc:
+            def __init__(self, code=None, stuck=False):
+                self.code, self.stuck, self.calls = code, stuck, []
+
+            def poll(self):
+                return self.code
+
+            def terminate(self):
+                self.calls.append("terminate")
+
+            def kill(self):
+                self.calls.append("kill")
+                self.code = -9
+
+            def wait(self, timeout=None):
+                self.calls.append("wait")
+                if self.stuck and "kill" not in self.calls:
+                    raise subprocess.TimeoutExpired("llama-server", timeout)
+
+        running, stuck, gone = Proc(), Proc(stuck=True), Proc(code=0)
+        for proc in (running, stuck, gone):
+            s2.terminate_and_wait(proc, timeout_s=0.1)
+        assert running.calls == ["terminate", "wait"]
+        assert stuck.calls == ["terminate", "wait", "kill", "wait"]
+        assert gone.calls == []
+
+    def _args(self, tmp_path, **kw):
+        return Namespace(
+            llama_server=tmp_path / "llama-server",
+            gguf=tmp_path / "m.gguf",
+            ready_timeout=100.0,
+            timeout=10.0,
+            **kw,
+        )
+
+    def test_start_llama_server_waits_for_ready_then_hands_back_the_process_and_a_post(self, tmp_path):
+        launched = []
+
+        class Proc:
+            terminated = False
+
+            def poll(self):
+                return None
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self, timeout=None):
+                pass
+
+        proc = Proc()
+        answers = iter([{"status": "loading model"}, {"status": "ok"}, {"echo": 1}])
+
+        def urlopen(req, timeout):
+            return _Resp(next(answers))
+
+        got, post = s2.start_llama_server(
+            self._args(tmp_path),
+            popen=lambda cmd: launched.append(cmd) or proc,
+            urlopen=urlopen,
+            sleep=lambda s: None,
+            now=iter(range(1000)).__next__,
+        )
+        assert got is proc and not proc.terminated and "-m" in launched[0] and "--port" in launched[0]
+        assert post("/completion", {}, 120.0) == {"echo": 1}
+
+    def test_a_server_that_never_gets_ready_is_terminated_before_the_error_leaves(self, tmp_path):
+        class Proc:
+            calls = []
+
+            def poll(self):
+                return None if "terminate" not in self.calls else -15
+
+            def terminate(self):
+                self.calls.append("terminate")
+
+            def wait(self, timeout=None):
+                self.calls.append("wait")
+
+        proc = Proc()
+        clock = iter(range(0, 10_000, 60))
+
+        def urlopen(req, timeout):
+            return _Resp({"status": "loading model"})
+
+        with pytest.raises(SystemExit, match="llama_server_not_ready"):
+            s2.start_llama_server(
+                self._args(tmp_path),
+                popen=lambda cmd: proc,
+                urlopen=urlopen,
+                sleep=lambda s: None,
+                now=lambda: next(clock),
+            )
+        assert proc.calls == ["terminate", "wait"]
+
+    def test_file_record_hashes_the_bytes(self, tmp_path):
+        import hashlib
+
+        f = tmp_path / "x.gguf"
+        f.write_bytes(b"abc")
+        assert s2.file_record(f) == {"path": str(f), "sha256": hashlib.sha256(b"abc").hexdigest()}
+
+
+class TestReceiptSeries:
+    def test_the_sampler_keeps_its_series_and_the_readout_carries_it(self):
+        readings = iter([9000, None, 31000, 12000])
+        sampler = s2.VramSampler(lambda: next(readings, None))
+        for _ in range(4):
+            sampler.sample_once()
+        assert sampler.series == [9000, 31000, 12000]
+        res = s2.readout(
+            _steps(),
+            peak_mib=sampler.peak_mib,
+            steps_requested=20,
+            stopped=None,
+            oom=False,
+            cut=False,
+            dry=False,
+            series=sampler.series,
+        )
+        assert res["vram_mib_sampler_series"] == [9000, 31000, 12000] and res["sampler_samples"] == 3
+
+    def test_a_sampler_that_read_nothing_has_no_peak_and_does_not_fit(self):
+        res = s2.readout(
+            _steps(),
+            peak_mib=None,
+            steps_requested=20,
+            stopped=None,
+            oom=False,
+            cut=False,
+            dry=False,
+            series=[],
+        )
+        assert res["sampler_samples"] == 0 and res["peak_vram_mib_sampler"] is None
+        assert res["vram_mib_sampler_series"] == [] and res["fits"] is False and res["pass"] is False
+
+    def test_the_environment_records_the_interpreter_path(self):
+        env = s2.environment(gpu=None, dtype="x", batch=1, exclusive=None, cuda=None)
+        assert env["python_executable"] == sys.executable and "python_executable" in s2.ENVIRONMENT_FIELDS
+
+
+@needs_torch
+class TestReviewJoOnTheDryBundle:
+    def test_checkpointing_is_off_in_the_rollout_and_on_in_every_training_pass(self, tmp_path):
+        gold = _gold(tmp_path)
+        a = s2.apply_dry_defaults(_args(tmp_path, gold, dry=True))
+        inside = []
+
+        def build(args):
+            bundle = s2.dry_bundle(args)
+            inner = bundle["rollout"]
+
+            def rollout(*x):
+                inside.append(bundle["state"]()["grad_ckpt"])  # the state while generate runs
+                return inner(*x)
+
+            bundle["rollout"] = rollout
+            return bundle
+
+        assert s2.execute(a, build=build) == 0
+        steps = [
+            json.loads(x) for x in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert inside and inside == [False] * len(inside)
+        assert [s["grad_ckpt"] for s in steps] == [True, True]
+        assert [s["grad_ckpt_rollout"] for s in steps] == [False, False]
+
+    def test_the_mode_switch_toggles_checkpointing_the_cache_and_train_mode(self):
+        bundle = s2.dry_bundle(Namespace())
+        model, mode, state = bundle["model"], bundle["mode"], bundle["state"]
+        inner = model.get_base_model()
+        mode(True)
+        assert state() == {"grad_ckpt": True} and inner.config.use_cache is False and model.training is True
+        mode(False)
+        assert state() == {"grad_ckpt": False} and inner.config.use_cache is True and model.training is False
+
+    def test_the_server_is_stopped_in_a_finally_on_success_and_on_an_exception(self, tmp_path):
+        gold = _gold(tmp_path)
+        closed = []
+
+        def build_with(rollout_error):
+            def build(args):
+                bundle = s2.dry_bundle(args)
+                bundle["close"] = lambda: closed.append(1)
+                if rollout_error:
+
+                    def rollout(*x):
+                        raise RuntimeError("the server fell over")
+
+                    bundle["rollout"] = rollout
+                return bundle
+
+            return build
+
+        a = s2.apply_dry_defaults(_args(tmp_path, gold, dry=True))
+        assert s2.execute(a, build=build_with(False)) == 0 and closed == [1]
+        with pytest.raises(RuntimeError, match="fell over"):
+            s2.execute(a, build=build_with(True))
+        assert closed == [1, 1]
+
+    def test_the_series_the_python_path_and_the_environment_land_in_the_receipt(self, tmp_path):
+        gold = _gold(tmp_path)
+
+        class Rig:
+            def preflight(self):
+                return {"name": "NVIDIA GeForce RTX 5090", "driver": "590.1"}
+
+            def vram_query(self):
+                return 12345
+
+            def cuda_version(self):
+                return "13.0"
+
+        a = _args(tmp_path, gold, steps=1, g=2, max_new=24)
+        assert s2.execute(a, build=s2.dry_bundle, rig=Rig()) == 1  # a cut run: S2-LIMITED, non-zero
+        body = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        res = body["readout"]
+        assert res["vram_mib_sampler_series"] and set(res["vram_mib_sampler_series"]) == {12345}
+        assert res["sampler_samples"] == len(res["vram_mib_sampler_series"]) >= 2
+        assert res["peak_vram_mib_sampler"] == 12345 and body["verdict"] == "S2-LIMITED"
+        env = body["environment"]
+        assert env["python_executable"] == sys.executable and env["gpu_name"] == "NVIDIA GeForce RTX 5090"
+        assert env["cuda"] == "13.0" and set(env) == set(s2.ENVIRONMENT_FIELDS)

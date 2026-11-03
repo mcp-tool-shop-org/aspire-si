@@ -28,6 +28,8 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -50,12 +52,15 @@ MAX_NEW_TOKENS = 2048
 VRAM_LINE_MIB = 31_200  # the rig's watchdog line
 SAMPLER_PERIOD_S = 1.0
 HEARTBEAT_MAX_AGE_S = 60
+READY_TIMEOUT_S = 300.0
+READY_POLL_S = 1.0
 HEARTBEAT_ENV = "WATCHDOG_HEARTBEAT"
 PROMPT_SPLIT = "tune"
 GOLD_FILES = ("grounded.jsonl", "prs/grounded-prs.jsonl", "diffs/reasoning-diffs.jsonl")
 VERDICTS = ("supported", "unsupported", "cannot_tell")
 ENVIRONMENT_FIELDS = (
     "python",
+    "python_executable",
     "platform",
     "gpu_name",
     "driver",
@@ -236,6 +241,7 @@ def readout(
     oom: bool,
     cut: bool,
     dry: bool,
+    series: Sequence[int] = (),
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -254,6 +260,8 @@ def readout(
         "steps_requested": steps_requested,
         "steps_completed": completed,
         "peak_vram_mib_sampler": peak_mib,
+        "sampler_samples": len(series),
+        "vram_mib_sampler_series": list(series),
         "peak_vram_mib_torch": max((s.get("peak_alloc_mib") or 0 for s in steps), default=None)
         if steps
         else None,
@@ -305,6 +313,7 @@ def environment(
     """What the receipt records about the machine. No package is imported to read a version."""
     return {
         "python": platform.python_version(),
+        "python_executable": sys.executable,
         "platform": platform.platform(),
         "gpu_name": gpu["name"] if gpu else None,
         "driver": gpu["driver"] if gpu else None,
@@ -398,6 +407,7 @@ class VramSampler:
         self.query, self.period_s = query, period_s
         self.peak_mib: int | None = None
         self.samples = 0
+        self.series: list[int] = []
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
@@ -405,6 +415,7 @@ class VramSampler:
         used = self.query()
         if used is not None:
             self.samples += 1
+            self.series.append(used)
             self.peak_mib = used if self.peak_mib is None else max(self.peak_mib, used)
 
     def _loop(self) -> None:
@@ -477,6 +488,103 @@ def hf_rollout(model, tok, prompt_text: str, g: int, max_new: int, temperature: 
     return prompt_ids[0].tolist(), comps
 
 
+def http_json(base_url: str, path: str, payload, timeout_s: float, *, urlopen=urllib.request.urlopen):
+    """POST ``payload`` as JSON (a GET when None). A socket timeout always becomes TimeoutError."""
+    data = None if payload is None else json.dumps(payload).encode()
+    req = urllib.request.Request(base_url + path, data=data, headers={"Content-Type": "application/json"})
+    try:
+        with urlopen(req, timeout=timeout_s) as resp:
+            return json.loads(resp.read().decode())
+    except TimeoutError as exc:
+        raise TimeoutError(f"{path} did not answer in {timeout_s:g}s") from exc
+    except urllib.error.URLError as exc:
+        if isinstance(exc.reason, TimeoutError):
+            raise TimeoutError(f"{path} did not answer in {timeout_s:g}s") from exc
+        raise
+
+
+def wait_ready(
+    get: Callable[[str, float], dict],
+    poll: Callable[[], int | None],
+    *,
+    timeout_s: float = READY_TIMEOUT_S,
+    control_timeout_s: float = 10.0,
+    interval_s: float = READY_POLL_S,
+    sleep: Callable[[float], None] = time.sleep,
+    now: Callable[[], float] = time.monotonic,
+) -> None:
+    """Poll the server's /health until it says ok. A server that exited, or is never ok in time, is a stop."""
+    deadline = now() + timeout_s
+    while True:
+        code = poll()
+        if code is not None:
+            raise SystemExit(f"llama_server_exited: the server ended with code {code} before it was ready")
+        try:
+            reply = get("/health", control_timeout_s)
+            if isinstance(reply, dict) and reply.get("status") == "ok":
+                return
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            pass  # still loading the model (503), not listening yet, or a slow answer: poll again
+        if now() >= deadline:
+            raise SystemExit(f"llama_server_not_ready: no ok from /health within {timeout_s:g}s")
+        sleep(interval_s)
+
+
+def terminate_and_wait(proc, timeout_s: float = 10.0) -> None:
+    """Stop a child process, and make sure it is gone: terminate, wait, then kill."""
+    if proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
+def file_record(path: Path) -> dict:
+    return {"path": str(path), "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest()}
+
+
+def start_llama_server(
+    a: argparse.Namespace,
+    *,
+    popen=subprocess.Popen,
+    urlopen=urllib.request.urlopen,
+    sleep: Callable[[float], None] = time.sleep,
+    now: Callable[[], float] = time.monotonic,
+    port: int = 8091,
+):
+    """Start the server and wait until it is ready. Returns (process, post). A server that is not ready is
+    stopped before the error is raised, so it never outlives the run."""
+    proc = popen(
+        [
+            str(a.llama_server),
+            "-m",
+            str(a.gguf),
+            "--port",
+            str(port),
+            "-ngl",
+            "99",
+            "--lora-init-without-apply",
+        ]
+    )
+    base = f"http://127.0.0.1:{port}"
+    try:
+        wait_ready(
+            lambda path, timeout_s: http_json(base, path, None, timeout_s, urlopen=urlopen),
+            proc.poll,
+            timeout_s=a.ready_timeout,
+            control_timeout_s=a.timeout,
+            sleep=sleep,
+            now=now,
+        )
+    except BaseException:
+        terminate_and_wait(proc)
+        raise
+    return proc, lambda path, payload, timeout_s: http_json(base, path, payload, timeout_s, urlopen=urlopen)
+
+
 class LlamaCppRollout:
     """Path (b): a llama.cpp server samples G completions; the adapter is exported and reloaded each step.
 
@@ -529,11 +637,17 @@ def run_steps(
     peak_alloc_mib: Callable[[], int | None],
     on_step: Callable[[dict], None] | None = None,
     before_step: Callable[[int], None] | None = None,
+    mode: Callable[[bool], None] | None = None,
+    state: Callable[[], dict] | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
     Each step is GROUPS_PER_STEP prompt groups of G samples, one group at a time (gradients accumulate), so
     peak memory is one group's. The reference is the same model with the adapter off.
+
+    ``mode(False)`` puts the model in rollout mode (gradient checkpointing off, the KV cache on) and
+    ``mode(True)`` in training mode (checkpointing on, cache off, as the plan's memory table assumes);
+    ``state()`` reports whether checkpointing is on. Both states are recorded in every step row.
     """
 
     torch = require_torch()
@@ -550,6 +664,9 @@ def run_steps(
             optimiser.zero_grad(set_to_none=True)
             for k in range(GROUPS_PER_STEP):
                 row = prompts[(step * GROUPS_PER_STEP + k) % len(prompts)]
+                if mode:
+                    mode(False)
+                ckpt_rollout = state()["grad_ckpt"] if state else None
                 t0 = time.time()
                 prompt_ids, comps = rollout(build_prompt(row), g, max_new, TEMPERATURE)
                 device_sync()
@@ -564,6 +681,9 @@ def run_steps(
                 rewards_all += rewards
                 adv = torch.tensor(advantages(rewards), dtype=torch.float32)
                 t1 = time.time()
+                if mode:
+                    mode(True)
+                ckpt_train = state()["grad_ckpt"] if state else None
                 width = max(len(c) for c in comps) or 1
                 pad = tok.pad_token_id
                 ids = torch.tensor([prompt_ids + c + [pad] * (width - len(c)) for c in comps])
@@ -596,6 +716,8 @@ def run_steps(
                 "mean_reward": round(statistics.fmean(rewards_all), 4),
                 "loss": round(float(loss.detach()) * GROUPS_PER_STEP, 6),
                 "peak_alloc_mib": peak_alloc_mib(),
+                "grad_ckpt": ckpt_train,
+                "grad_ckpt_rollout": ckpt_rollout,
             }
             rows.append(rec)
             if on_step:
@@ -605,6 +727,26 @@ def run_steps(
         except TimeoutError as exc:
             return rows, {"step": step, "error": f"timeout: {exc}"}, False
     return rows, None, False
+
+
+def make_mode(model) -> tuple[Callable[[bool], None], Callable[[], dict]]:
+    """(mode, state) for a PEFT model: training = checkpointing on and cache off; rollout = the reverse."""
+    inner = model.get_base_model()
+
+    def mode(training: bool) -> None:
+        if training:
+            inner.config.use_cache = False
+            model.train()
+            inner.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        else:
+            inner.gradient_checkpointing_disable()
+            inner.config.use_cache = True
+            model.eval()
+
+    def state() -> dict:
+        return {"grad_ckpt": bool(inner.is_gradient_checkpointing)}
+
+    return mode, state
 
 
 # -- the dry rehearsal: a tiny random model on the CPU, no download, no network ------------------------------
@@ -656,9 +798,12 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0),
     )
     params = [p for p in model.parameters() if p.requires_grad]
+    mode, state = make_mode(model)
     return {
         "model": model,
         "tok": tok,
+        "mode": mode,
+        "state": state,
         "optimiser": torch.optim.AdamW(params, lr=LEARNING_RATE),
         "ref_adapter_off": model.disable_adapter,
         "rollout": lambda text, g, max_new, temp: hf_rollout(model, tok, text, g, max_new, temp),
@@ -755,9 +900,12 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
             enable_thinking=True,
         )
 
+    mode, state = make_mode(model)
     bundle = {
         "model": model,
         "tok": tok,
+        "mode": mode,
+        "state": state,
         "optimiser": optimiser,
         "ref_adapter_off": model.disable_adapter,
         "reward_fn": lambda text, row, tt: reward(text, row["label"], evidence_of(row), tt),
@@ -767,40 +915,17 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         "llama": None,
     }
     if a.path == "hf":
-        model.gradient_checkpointing_disable()  # generation runs with the cache; training re-enables per step
+        # generation runs with checkpointing off and the cache on, and training with it on: run_steps switches
+        # the mode around every rollout and every training pass
         bundle["rollout"] = lambda text, g, max_new, temp: hf_rollout(
             model, tok, render(text), g, max_new, temp
         )
         return bundle
     if not (a.llama_server and a.gguf and a.convert_script):
         raise SystemExit("--path llamacpp needs --llama-server, --gguf and --convert-script")
-    import urllib.request
-
     server_sha = hashlib.sha256(a.llama_server.read_bytes()).hexdigest()
-    port = 8091
-    proc = subprocess.Popen(
-        [
-            str(a.llama_server),
-            "-m",
-            str(a.gguf),
-            "--port",
-            str(port),
-            "-ngl",
-            "99",
-            "--lora-init-without-apply",
-        ]
-    )
-    base_url = f"http://127.0.0.1:{port}"
-
-    def post(path: str, payload, timeout_s: float):
-        req = urllib.request.Request(
-            base_url + path, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"}
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-                return json.loads(resp.read().decode())
-        except TimeoutError as exc:
-            raise TimeoutError(f"{path} did not answer in {timeout_s:g}s") from exc
+    gguf_record, convert_record = file_record(a.gguf), file_record(a.convert_script)
+    proc, post = start_llama_server(a)
 
     def export(step: int) -> Path:
         out = a.out / f"adapter-{step}"
@@ -812,87 +937,115 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
     rollout = LlamaCppRollout(post, export, tok, a.timeout, a.gen_timeout)
     bundle["rollout"] = lambda text, g, max_new, temp: rollout(render(text), g, max_new, temp)
     bundle["before_step"] = rollout.reload
-    bundle["llama"] = {"path": str(a.llama_server), "sha256": server_sha, "pid": proc.pid}
+    bundle["llama"] = {
+        "path": str(a.llama_server),
+        "sha256": server_sha,
+        "pid": proc.pid,
+        "gguf": gguf_record,
+        "convert_script": convert_record,
+    }
+    bundle["close"] = lambda: terminate_and_wait(proc)
     return bundle
 
 
 # -- the run -------------------------------------------------------------------------------------------------
+def is_cut(a: argparse.Namespace) -> bool:
+    """Whether the run is not the registered shape: --steps, --prompts, --g or --max-new changed."""
+    return a.steps != STEPS or a.prompts != PROMPTS or a.g != G or a.max_new != MAX_NEW_TOKENS
+
+
 def execute(a: argparse.Namespace, *, build: Callable[[argparse.Namespace], dict], rig=None) -> int:
     """One S2 run: guards, prompts, steps, readout, receipt. ``build`` makes the model bundle; ``rig`` is the
     machine's side (the GPU query, the heartbeat, the sampler), None for a dry rehearsal."""
     rows, gold_hashes = read_gold(a.gold)
     prompts = select_prompts(rows, a.prompts)
-    cut = a.steps != STEPS or a.prompts != PROMPTS or a.g != G
+    cut = is_cut(a)
     gpu = None
     if not a.dry:
         gpu = rig.preflight()
     bundle = build(a)
-    sampler = VramSampler(rig.vram_query) if rig is not None and not a.dry else None
+    try:
+        sampler = VramSampler(rig.vram_query) if rig is not None and not a.dry else None
 
-    def run_it() -> tuple[list[dict], dict | None, bool]:
-        return run_steps(
-            model=bundle["model"],
-            ref_adapter_off=bundle["ref_adapter_off"],
-            tok=bundle["tok"],
-            optimiser=bundle["optimiser"],
-            prompts=prompts,
-            rollout=bundle["rollout"],
-            steps=a.steps,
-            g=a.g,
-            max_new=a.max_new,
-            reward_fn=bundle["reward_fn"],
-            device_sync=bundle["sync"],
-            peak_alloc_mib=bundle["peak_alloc_mib"],
-            before_step=bundle.get("before_step"),
-        )
+        def run_it() -> tuple[list[dict], dict | None, bool]:
+            return run_steps(
+                model=bundle["model"],
+                ref_adapter_off=bundle["ref_adapter_off"],
+                tok=bundle["tok"],
+                optimiser=bundle["optimiser"],
+                prompts=prompts,
+                rollout=bundle["rollout"],
+                steps=a.steps,
+                g=a.g,
+                max_new=a.max_new,
+                reward_fn=bundle["reward_fn"],
+                device_sync=bundle["sync"],
+                peak_alloc_mib=bundle["peak_alloc_mib"],
+                before_step=bundle.get("before_step"),
+                mode=bundle.get("mode"),
+                state=bundle.get("state"),
+            )
 
-    if sampler is not None:
-        with sampler:
+        if sampler is not None:
+            with sampler:
+                steps, stopped, oom = run_it()
+        else:
             steps, stopped, oom = run_it()
-    else:
-        steps, stopped, oom = run_it()
-    peak = sampler.peak_mib if sampler is not None else None
-    result = readout(
-        steps, peak_mib=peak, steps_requested=a.steps, stopped=stopped, oom=oom, cut=cut, dry=a.dry
-    )
-    line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry)
-    env = environment(
-        gpu=gpu,
-        dtype="float32 (dry, CPU)" if a.dry else "bfloat16 compute on a 4-bit base",
-        batch=a.g,
-        exclusive=None if a.dry else True,
-        cuda=rig.cuda_version() if rig is not None and not a.dry else None,
-    )
-    receipt = build_receipt(
-        path=a.path,
-        dry=a.dry,
-        args={"steps": a.steps, "prompts": a.prompts, "g": a.g, "max_new": a.max_new, "dry": a.dry},
-        rnd_commit=a.rnd_commit,
-        gold_hashes=gold_hashes,
-        prompt_ids=[r["id"] for r in prompts],
-        env=env,
-        revision=bundle.get("revision"),
-        llama=bundle.get("llama"),
-        result=result,
-        stopped=stopped,
-        verdict=line,
-    )
-    a.out.mkdir(parents=True, exist_ok=True)
-    (a.out / f"s2-{a.path}.json").write_text(json.dumps(receipt, indent=1), encoding="utf-8", newline="\n")
-    (a.out / f"s2-{a.path}-steps.jsonl").write_text(
-        "".join(json.dumps(r) + "\n" for r in steps), encoding="utf-8", newline="\n"
-    )
-    keys = (
-        "steps_completed",
-        "peak_vram_mib_sampler",
-        "rollout_tok_s",
-        "step_s",
-        "zero_variance_groups",
-        "oom",
-    )
-    print(json.dumps({"path": a.path, "stopped": stopped, **{k: result[k] for k in keys}}))
-    print(line)
-    return exit_status(line)
+        peak = sampler.peak_mib if sampler is not None else None
+        result = readout(
+            steps,
+            peak_mib=peak,
+            steps_requested=a.steps,
+            stopped=stopped,
+            oom=oom,
+            cut=cut,
+            dry=a.dry,
+            series=sampler.series if sampler is not None else (),
+        )
+        line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry)
+        env = environment(
+            gpu=gpu,
+            dtype="float32 (dry, CPU)" if a.dry else "bfloat16 compute on a 4-bit base",
+            batch=a.g,
+            exclusive=None if a.dry else True,
+            cuda=rig.cuda_version() if rig is not None and not a.dry else None,
+        )
+        receipt = build_receipt(
+            path=a.path,
+            dry=a.dry,
+            args={"steps": a.steps, "prompts": a.prompts, "g": a.g, "max_new": a.max_new, "dry": a.dry},
+            rnd_commit=a.rnd_commit,
+            gold_hashes=gold_hashes,
+            prompt_ids=[r["id"] for r in prompts],
+            env=env,
+            revision=bundle.get("revision"),
+            llama=bundle.get("llama"),
+            result=result,
+            stopped=stopped,
+            verdict=line,
+        )
+        a.out.mkdir(parents=True, exist_ok=True)
+        (a.out / f"s2-{a.path}.json").write_text(
+            json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
+        )
+        (a.out / f"s2-{a.path}-steps.jsonl").write_text(
+            "".join(json.dumps(r) + "\n" for r in steps), encoding="utf-8", newline="\n"
+        )
+        keys = (
+            "steps_completed",
+            "peak_vram_mib_sampler",
+            "rollout_tok_s",
+            "step_s",
+            "zero_variance_groups",
+            "oom",
+        )
+        print(json.dumps({"path": a.path, "stopped": stopped, **{k: result[k] for k in keys}}))
+        print(line)
+        return exit_status(line)
+    finally:
+        close = bundle.get("close")
+        if close:
+            close()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -903,7 +1056,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--prompts", type=int, default=PROMPTS, help="a value other than 32 makes the run S2-LIMITED"
     )
     ap.add_argument("--g", type=int, default=G, help="a value other than 8 makes the run S2-LIMITED")
-    ap.add_argument("--max-new", type=int, default=MAX_NEW_TOKENS)
+    ap.add_argument(
+        "--max-new", type=int, default=MAX_NEW_TOKENS, help="a value other than 2048 makes the run S2-LIMITED"
+    )
     ap.add_argument("--gold", type=Path, required=True, help="rnd experiments/verifier-gold at --rnd-commit")
     ap.add_argument("--rnd-commit", required=True)
     ap.add_argument("--out", type=Path, required=True)
@@ -916,6 +1071,9 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--gguf", type=Path, default=None, help="the base model's GGUF for the llama.cpp server")
     ap.add_argument("--convert-script", type=Path, default=None, help="llama.cpp's convert_lora_to_gguf.py")
     ap.add_argument("--timeout", type=float, default=10.0, help="seconds per llama.cpp control call")
+    ap.add_argument(
+        "--ready-timeout", type=float, default=READY_TIMEOUT_S, help="seconds to wait for /health"
+    )
     ap.add_argument("--gen-timeout", type=float, default=120.0, help="seconds per llama.cpp generation call")
     return ap
 
