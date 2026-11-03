@@ -420,23 +420,38 @@ def check_report_markup(xml_text: str) -> None:
         ) from exc
 
 
+PROCESS_INFO_FIELDS = (
+    "gpu_instance_id",
+    "compute_instance_id",
+    "pid",
+    "type",
+    "process_name",
+    "used_memory",
+)  # the elements the rig's real report carries in every <process_info> (26 of 26, 2026-11-03)
+
+
+def _blank(text: str | None) -> bool:
+    return not (text or "").strip()
+
+
 def parse_gpu_processes(xml_text: str) -> list[dict]:
     """The processes from ``nvidia-smi -q -x``: ``[{"image": <file name>, "type": "C" | "G" | "C+G"}]``.
 
     That XML carries each process's type and name (the compute-apps query has no type and, on Windows, no
     usable memory figure). Output that is not that XML is a refusal, never an empty list.
 
-    The shapes that refuse, each named in the message: not XML, markup the report never needs
-    (``check_report_markup``), a wrong or namespaced root, no ``<gpu>``, more than one ``<gpu>`` at any
-    depth, a ``<gpu>`` with no ``<processes>``, ``<processes>`` holding text but no ``<process_info>``
-    (for example "N/A"), any child of ``<processes>`` other than a plain ``<process_info>`` (a different
-    tag, or a namespaced one), and an unknown process type. Only a present, truly empty ``<processes/>``
-    (comments allowed) means "nothing on the card". A ``<process_info>`` may carry attributes and extra
-    children (the real report has pid, memory and instance ids); it is accepted when its ``<type>`` is C,
-    G or C+G, and its image name is whatever ``<process_name>`` gives.
+    The ``<processes>`` subtree is walked against an allowlist, so nothing can hide in it. Exactly one
+    ``<gpu>`` (at any depth) and exactly one ``<processes>`` (at any depth), directly under that
+    ``<gpu>``. Its only children are ``<process_info>``; each ``<process_info>``'s only children are the
+    names in ``PROCESS_INFO_FIELDS``, each at most once, none with element children of its own, and
+    ``type`` exactly once. Any other element, a repeat, a nested element, or non-whitespace text or tail
+    anywhere in the subtree refuses, naming what was seen. The rest of the ``<gpu>`` block (hundreds of
+    elements) is not constrained. ``type`` is read as C, G or C+G, case and padding ignored, and anything
+    else refuses. Only a present, truly empty ``<processes/>`` (comments allowed) means "nothing on the
+    card". The markup is checked first (``check_report_markup``).
 
-    If the real rig ever returns one of the refused shapes, it is amended by a card with the real fixture,
-    never by relaxing this parser."""
+    If the real rig ever returns a refused shape, it is amended by a card with the real fixture, never by
+    relaxing this parser."""
     check_report_markup(xml_text)
     try:
         root = ET.fromstring(xml_text)
@@ -444,42 +459,61 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
         raise SystemExit(
             f"refusing to start: nvidia_smi_garbage: the process list is not XML ({exc})"
         ) from exc
+
+    def refuse(why: str) -> None:
+        raise SystemExit(f"refusing to start: nvidia_smi_garbage: {why}")
+
     if root.tag != "nvidia_smi_log":
-        raise SystemExit(f"refusing to start: nvidia_smi_garbage: unexpected root element {root.tag!r}")
+        refuse(f"unexpected root element {root.tag!r}")
     gpus = root.findall("gpu")
     if not gpus:
-        raise SystemExit("refusing to start: nvidia_smi_garbage: no <gpu> element")
+        refuse("no <gpu> element")
     every_gpu = len(list(root.iter("gpu")))
     if len(gpus) > 1 or every_gpu > 1:
-        raise SystemExit(f"refusing to start: nvidia_smi_garbage: more than one <gpu> element ({every_gpu})")
-    listing = gpus[0].find("processes")
-    if listing is None:
-        raise SystemExit("refusing to start: nvidia_smi_garbage: the <gpu> has no <processes> element")
-    infos = list(listing)
-    for child in infos:
-        if child.tag != "process_info":
-            raise SystemExit(
-                f"refusing to start: nvidia_smi_garbage: <processes> holds a <{child.tag}> child,"
-                " not process_info"
-            )
-    if not infos and (listing.text or "").strip():
-        raise SystemExit(
-            f"refusing to start: nvidia_smi_garbage: <processes> holds text {listing.text.strip()!r} "
-            "but no <process_info> entries"
-        )
+        refuse(f"more than one <gpu> element ({every_gpu})")
+    every_processes = len(list(root.iter("processes")))
+    listings = gpus[0].findall("processes")
+    if not listings:
+        refuse("the <gpu> has no <processes> element")
+    if len(listings) > 1 or every_processes > 1:
+        refuse(f"more than one <processes> element ({every_processes})")
+    listing = listings[0]
+    if not _blank(listing.text):
+        refuse(f"<processes> holds text {listing.text.strip()!r} outside any <process_info>")
     procs = []
-    for info in infos:
-        ptype = (info.findtext("type") or "").strip().upper()
+    for info in listing:
+        if info.tag != "process_info":
+            refuse(f"<processes> holds a <{info.tag}> child, not process_info")
+        if not _blank(info.tail):
+            refuse(f"text {info.tail.strip()!r} after a </process_info>")
+        if not _blank(info.text):
+            refuse(f"a <process_info> holds text {info.text.strip()!r} outside its fields")
+        fields: dict[str, ET.Element] = {}
+        for field in info:
+            if field.tag not in PROCESS_INFO_FIELDS:
+                refuse(f"a <process_info> holds an unexpected <{field.tag}> element")
+            if field.tag in fields:
+                refuse(f"a <process_info> repeats <{field.tag}>")
+            if len(field):
+                refuse(f"a <process_info>'s <{field.tag}> has a nested <{field[0].tag}> element")
+            if not _blank(field.tail):
+                refuse(f"text {field.tail.strip()!r} after a <{field.tag}> in a <process_info>")
+            fields[field.tag] = field
+        if "type" not in fields:
+            refuse("a <process_info> has no <type>")
+        ptype = (fields["type"].text or "").strip().upper()
         if ptype not in ("C", "G", "C+G"):
-            raise SystemExit(f"refusing to start: nvidia_smi_garbage: unknown process type {ptype!r}")
-        procs.append({"image": image_name(info.findtext("process_name") or ""), "type": ptype})
+            refuse(f"unknown process type {ptype!r}")
+        name = fields["process_name"].text if "process_name" in fields else ""
+        procs.append({"image": image_name(name or ""), "type": ptype})
     return procs
 
 
 def parse_memory_used(text: str) -> int:
     """``memory.used`` in MiB from ``--query-gpu=memory.used --format=csv,noheader,nounits``.
 
-    Exactly one line (the guard allows one GPU) holding a plain non-negative integer; anything else refuses.
+    Exactly one line (the guard allows one GPU) of ASCII digits only (a regex, not ``isdigit``); anything else
+    refuses by name.
     Rule (b) reads only this source; the XML's ``fb_memory_usage`` is not read."""
     lines = [x.strip() for x in text.splitlines() if x.strip()]
     if not lines:
@@ -488,7 +522,7 @@ def parse_memory_used(text: str) -> int:
         raise SystemExit(
             f"refusing to start: nvidia_smi_garbage: {len(lines)} memory.used readings for one GPU"
         )
-    if not lines[0].isdigit():
+    if not re.fullmatch(r"[0-9]+", lines[0]):
         raise SystemExit(
             f"refusing to start: nvidia_smi_garbage: memory.used is {lines[0]!r}, not a MiB integer"
         )

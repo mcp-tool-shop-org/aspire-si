@@ -1060,7 +1060,7 @@ class TestExclusiveGuard:
             (_smi(xml="<nvidia_smi_log><gpu/></nvidia_smi_log>"), "has no <processes> element"),
             (
                 _smi(xml="<nvidia_smi_log><gpu><processes>N/A</processes></gpu></nvidia_smi_log>"),
-                "no <process_info>",
+                "outside any <process_info>",
             ),
             (
                 _smi(xml="<nvidia_smi_log><gpu><processes>not available</processes></gpu></nvidia_smi_log>"),
@@ -1171,20 +1171,76 @@ class TestReportMarkupAndStructure:
             assert rec["processes"] == [] and rec["result"] == "passed", inner
             assert "rule (b)" in _refusal(_smi(xml=self._wrap(inner), used="4097")), inner
 
-    def test_a_process_info_with_attributes_and_extra_children_is_accepted_when_name_and_type_parse(self):
+    def test_a_process_info_with_attributes_and_the_real_fields_is_accepted(self):
         info = (
-            '<process_info id="7" kind="x"><pid>1000</pid><type>C+G</type><process_name>explorer.exe</process_name>'
-            "<used_memory>N/A</used_memory><extra><deep>1</deep></extra></process_info>"
+            '<process_info id="7" kind="x"><gpu_instance_id>N/A</gpu_instance_id>'
+            "<compute_instance_id>N/A</compute_instance_id><pid>1000</pid><type> c+g </type>"
+            "<process_name>explorer.exe</process_name><used_memory>N/A</used_memory></process_info>"
         )
-        rec = s2.check_exclusive(_smi(xml=self._wrap(f"<processes>{info}</processes>")))
-        assert rec["processes"] == ["explorer.exe"] and rec["result"] == "passed"
+        rec = s2.check_exclusive(_smi(xml=self._wrap(f"<processes>\n  {info}\n</processes>")))
+        assert rec["processes"] == ["explorer.exe"] and rec["process_types"] == ["C+G"]
+        assert rec["result"] == "passed"
 
     def test_a_process_info_whose_type_is_missing_or_unreadable_refuses(self):
-        for typ in ("", "<type/>", "<type>X</type>", "<type>c;g</type>"):
+        for typ, why in (
+            ("", "has no <type>"),
+            ("<type/>", "unknown process type"),
+            ("<type>X</type>", "unknown process type"),
+            ("<type>c;g</type>", "unknown process type"),
+        ):
             info = f"<process_info>{typ}<process_name>a.exe</process_name></process_info>"
-            assert "unknown process type" in _refusal(
-                _smi(xml=self._wrap(f"<processes>{info}</processes>"))
-            ), typ
+            assert why in _refusal(_smi(xml=self._wrap(f"<processes>{info}</processes>"))), typ
+
+    def _info(self, inner):
+        return self._wrap(f"<processes><process_info>{inner}</process_info></processes>")
+
+    def test_a_second_type_cannot_hide_a_compute_process_behind_the_first(self):
+        xml = self._info("<type>C+G</type><type>C</type><process_name>python.exe</process_name>")
+        assert "repeats <type>" in _refusal(_smi(xml=xml))
+
+    def test_a_second_processes_block_cannot_hide_a_compute_process(self):
+        hidden = "<processes><process_info><type>C</type><process_name>python.exe</process_name></process_info></processes>"
+        xml = self._wrap("<processes/>" + hidden)
+        assert "more than one <processes> element (2)" in _refusal(_smi(xml=xml))
+        deeper = self._wrap("<processes/><other>" + hidden + "</other>")
+        assert "more than one <processes> element (2)" in _refusal(_smi(xml=deeper))
+
+    def test_memory_that_is_not_ascii_digits_refuses_by_name_and_never_crashes(self):
+        for used in ("\u00b2", "\u0663\u0664", "\uff12\uff14", "12\u00b2", " \u2082 "):
+            msg = _refusal(_smi(DESKTOP, used=used))
+            assert "not a MiB integer" in msg and "nvidia_smi_garbage" in msg, repr(used)
+
+    def test_text_outside_the_entries_refuses(self):
+        entry = "<process_info><type>G</type></process_info>"
+        cases = [
+            (f"<processes>stray{entry}</processes>", "outside any <process_info>"),
+            (f"<processes>{entry}between{entry}</processes>", "after a </process_info>"),
+            (f"<processes>{entry}tail</processes>", "after a </process_info>"),
+            ("<processes><process_info>loose<type>G</type></process_info></processes>", "outside its fields"),
+            ("<processes><process_info><type>G</type>loose</process_info></processes>", "after a <type>"),
+            (
+                "<processes><process_info><type>G</type><pid>1</pid>x</process_info></processes>",
+                "after a <pid>",
+            ),
+        ]
+        for inner, why in cases:
+            assert why in _refusal(_smi(xml=self._wrap(inner))), inner
+
+    def test_an_element_outside_the_allowlist_a_repeat_or_a_nested_element_refuses(self):
+        cases = [
+            ("<type>G</type><foo/>", "unexpected <foo>"),
+            ("<type>G</type><extra><deep/></extra>", "unexpected <extra>"),
+            ("<type><b>C</b></type>", "nested <b>"),
+            ("<type>G</type><pid>1</pid><pid>2</pid>", "repeats <pid>"),
+            (
+                "<type>G</type><process_name>a.exe</process_name><process_name>b.exe</process_name>",
+                "repeats <process_name>",
+            ),
+            ("<pid>1</pid>", "has no <type>"),
+            ("<type>G</type><pid><x/></pid>", "nested <x>"),
+        ]
+        for inner, why in cases:
+            assert why in _refusal(_smi(xml=self._info(inner))), inner
 
     def test_a_predefined_entity_in_a_name_is_just_text(self):
         info = "<process_info><type>G</type><process_name>a&amp;b.exe</process_name></process_info>"
