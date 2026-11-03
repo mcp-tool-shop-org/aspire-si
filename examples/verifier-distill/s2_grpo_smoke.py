@@ -105,6 +105,11 @@ def evidence_of(row: dict) -> str:
     return "\n".join(f"[{c.get('source', '')}]\n{c.get('text', '')}" for c in row["context"])
 
 
+def passages_of(row: dict) -> list[str]:
+    """Each passage's text from row['context'] kept as a separate list element (never joined)."""
+    return [str(c.get("text", "")) for c in row["context"]]
+
+
 def build_prompt(row: dict) -> str:
     """The user message: the task, the reply contract, the evidence and the claim."""
     return (
@@ -116,17 +121,46 @@ def build_prompt(row: dict) -> str:
     )
 
 
-# -- the reward: the plan's mechanical reward, reduced as the pre-registration declares ----------------------
-def normalise(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+# -- the reward: the plan's mechanical reward, with offrig rule 2 and optional v2 schedule -------------------
+try:
+    from quote_rule import (  # noqa: F401
+        MIN_LINE_QUOTE_CHARS,
+        MIN_QUOTE_CHARS,
+        QUOTE_RULE,
+        WATERFALL_RUNGS,
+        as_passages,
+        classify_quote_rung,
+        normalise,
+        normalise_unmarked,
+        quote_credit_v2,
+        quote_found,
+        quote_is_relevant,
+        strip_markers,
+    )
+except ModuleNotFoundError:  # pragma: no cover
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from quote_rule import (  # noqa: F401
+        MIN_LINE_QUOTE_CHARS,
+        MIN_QUOTE_CHARS,
+        QUOTE_RULE,
+        WATERFALL_RUNGS,
+        as_passages,
+        classify_quote_rung,
+        normalise,
+        normalise_unmarked,
+        quote_credit_v2,
+        quote_found,
+        quote_is_relevant,
+        strip_markers,
+    )
 
 
 def split_reply(text: str) -> tuple[str, str]:
-    """(thinking, answer): the thinking is what precedes </think>, when there is one."""
+    """(thinking, answer): the thinking precedes </think>; an unclosed thinking block has no answer."""
     if "</think>" in text:
         head, _, tail = text.partition("</think>")
         return head.replace("<think>", "").strip(), tail
-    return "", text
+    return text.replace("<think>", "").strip(), ""
 
 
 def parse_reply(text: str) -> dict | None:
@@ -183,59 +217,278 @@ def macro(verdict: str, gold: str) -> tuple[float, bool]:
     return -0.3, False  # cannot_tell on a decidable gold
 
 
-def reward(reply: str, gold: str, evidence: str, thinking_tokens: int, *, truncated: bool = False) -> float:
-    """The gated reward of the plan (:336-412), reduced as declared in the pre-registration.
-
-    Run: the format gate; the macro outcome; the micro quote rule (an unfound quote on a supported part is a
-    false accept); credit for found quotes (extras, at most +0.3, correct verdicts only); the meso consistency
-    penalty (-0.5); the length penalty on correct samples (capped -0.5); the loop penalty (-0.5, and the
-    verdict
-    is read as cannot_tell); the hard cap at 8,192 thinking tokens (-1.0).
-    Not run, because the gold has no part labels or tiers: part correctness, part false accepts, and the easy
-    and quick credit.
-    """
-
-    if truncated or thinking_tokens >= 8192:
-        return -1.0
+def reward_details(
+    reply: str,
+    gold: str,
+    evidence: str | Sequence[str | dict],
+    thinking_tokens: int,
+    *,
+    truncated: bool = False,
+    quote_reward: str = "v1",
+) -> dict:
+    """Detailed breakdown of the reward for logging and diagnostics."""
+    if truncated:
+        return {
+            "total": -1.0,
+            "verdict_score": -1.0,
+            "quote_credit": 0.0,
+            "correct": False,
+            "truncated_or_malformed": True,
+            "verdict": None,
+        }
     parsed = parse_reply(reply)
     if parsed is None:
-        return -1.0
+        return {
+            "total": -1.0,
+            "verdict_score": -1.0,
+            "quote_credit": 0.0,
+            "correct": False,
+            "truncated_or_malformed": True,
+            "verdict": None,
+        }
     verdict = parsed["verdict"]
     looped = loop_detected(reply)
     if looped:
         verdict = "cannot_tell"
+    passages = as_passages(evidence)
+    parts = parsed["evidence_quotes"]
+    quotes = [p["quote"] for p in parts]
+    found = [quote_found(q, passages) for q in quotes]
+    meso = -0.5 if part_rule(parts) != parsed["verdict"] else 0.0
+    loop_pen = -0.5 if looped else 0.0
+
+    if quote_reward == "v2":
+        k = len(parts)
+        m = sum(found)
+        eligible_for_credit = False
+        if verdict == "supported" and gold == "supported":
+            correct = True
+            if m == k:
+                outcome = 1.0
+                eligible_for_credit = True
+            elif m > 0:
+                outcome = -0.2 + 1.2 * (m / k)
+            else:
+                outcome = -0.2
+        elif verdict == "supported" and gold != "supported":
+            correct = False
+            outcome = -3.0 if m == k else -3.2
+        elif verdict == "unsupported" and gold in ("unsupported", "cannot_tell"):
+            correct = True
+            given_found = [f for q, f in zip(quotes, found, strict=True) if normalise(q)]
+            if not given_found:
+                outcome = 1.0
+            elif all(given_found):
+                outcome = 1.0
+                eligible_for_credit = True
+            else:
+                outcome = 0.8
+        elif verdict == "unsupported" and gold == "supported":
+            correct = False
+            outcome = -1.0
+        elif verdict == "cannot_tell" and gold == "cannot_tell":
+            correct = True
+            outcome = 1.0
+        else:
+            correct = False
+            outcome = -0.3
+
+        if not correct:
+            return {
+                "total": outcome + meso + loop_pen,
+                "verdict_score": outcome,
+                "quote_credit": 0.0,
+                "correct": False,
+                "truncated_or_malformed": False,
+                "verdict": verdict,
+            }
+        budget = 256 if verdict == "unsupported" else 1024
+        length = max(-0.5, -0.1 * (thinking_tokens - budget) / budget) if thinking_tokens > budget else 0.0
+        penalties = max(meso + length + loop_pen, -1.0)
+        extras = (
+            min(quote_credit_v2(quotes, passages, verdict=verdict, correct=True), 0.3)
+            if eligible_for_credit
+            else 0.0
+        )
+        return {
+            "total": outcome + penalties + extras,
+            "verdict_score": outcome,
+            "quote_credit": extras,
+            "correct": True,
+            "truncated_or_malformed": False,
+            "verdict": verdict,
+        }
+
+    if quote_reward != "v1":
+        raise SystemExit(f"unknown --quote-reward {quote_reward!r}")
+
     outcome, correct = macro(verdict, gold)
-    evidence_n = normalise(evidence)
-    found = [
-        normalise(p["quote"]) in evidence_n and bool(normalise(p["quote"])) for p in parsed["evidence_quotes"]
-    ]
     unfound_supported = any(
-        p["verdict"] == "supported" and not f for p, f in zip(parsed["evidence_quotes"], found, strict=True)
+        p["verdict"] == "supported" and not f for p, f in zip(parts, found, strict=True)
     )
     if verdict == "supported" and unfound_supported:
         outcome, correct = -3.0, False
-    meso = -0.5 if part_rule(parsed["evidence_quotes"]) != parsed["verdict"] else 0.0
-    loop_pen = -0.5 if looped else 0.0
     if not correct:
-        return outcome + meso + loop_pen
+        return {
+            "total": outcome + meso + loop_pen,
+            "verdict_score": outcome,
+            "quote_credit": 0.0,
+            "correct": False,
+            "truncated_or_malformed": False,
+            "verdict": verdict,
+        }
     budget = 256 if verdict == "unsupported" else 1024
     length = max(-0.5, -0.1 * (thinking_tokens - budget) / budget) if thinking_tokens > budget else 0.0
     penalties = max(meso + length + loop_pen, -1.0)
     extras = min(0.05 * sum(found), 0.3)
-    return outcome + penalties + extras
+    return {
+        "total": outcome + penalties + extras,
+        "verdict_score": outcome,
+        "quote_credit": extras,
+        "correct": True,
+        "truncated_or_malformed": False,
+        "verdict": verdict,
+    }
 
 
-def advantages(rewards: Sequence[float]) -> list[float]:
-    """Group-normalised. A group whose rewards are all equal has advantage 0 (zero-variance)."""
+def reward(
+    reply: str,
+    gold: str,
+    evidence: str | Sequence[str | dict],
+    thinking_tokens: int,
+    *,
+    truncated: bool = False,
+    quote_reward: str = "v1",
+) -> float:
+    """The gated reward of the plan (:336-412), with offrig quote rule 2 and optional v2 quote schedule."""
+    return float(
+        reward_details(
+            reply,
+            gold,
+            evidence,
+            thinking_tokens,
+            truncated=truncated,
+            quote_reward=quote_reward,
+        )["total"]
+    )
+
+
+def advantages(rewards: Sequence[float], *, mode: str = "std") -> list[float]:
+    """Group advantages. 'std' normalises by group std; 'dr-grpo' subtracts the group mean only."""
+    if not rewards:
+        return []
     sd = statistics.pstdev(rewards)
     if sd == 0:
         return [0.0] * len(rewards)
     mean = statistics.fmean(rewards)
+    if mode == "dr-grpo":
+        return [r - mean for r in rewards]
+    if mode != "std":
+        raise SystemExit(f"unknown --advantage mode {mode!r}")
     return [(r - mean) / (sd + 1e-6) for r in rewards]
 
 
 def zero_variance(rewards: Sequence[float]) -> bool:
     return len(set(rewards)) <= 1
+
+
+def classify_zero_variance_group(samples: Sequence[dict], gold: str | None = None) -> str:
+    """Classify a zero-variance group into one of the four required diagnostic labels."""
+    _ = gold
+    if not samples or all(
+        bool(s.get("truncated_or_malformed") or s.get("truncated") or s.get("malformed")) for s in samples
+    ):
+        return "all truncated or malformed"
+    if all(bool(s.get("correct")) for s in samples):
+        if all(float(s.get("quote_credit") or 0.0) > 0.0 for s in samples):
+            return "all correct with full credit"
+        return "all correct without quote credit"
+    return "all wrong"
+
+
+def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") -> dict:
+    """Compute per-evaluation diagnostic summary (counts and ratios only; never logs item text or quotes)."""
+    total_rollouts = 0
+    pred_supported = 0
+    gold_supported_rollouts = 0
+    cannot_tell_on_gold_supported = 0
+    gold_supported_groups = 0
+    gold_supported_groups_pos_ct_adv = 0
+    false_accepts = 0
+    false_rejects = 0
+    waterfall: dict[str, int] = {r: 0 for r in (*WATERFALL_RUNGS, "unmatched")}
+    relevant_quotes = 0
+    total_found_supported_quotes = 0
+
+    for grp in records:
+        gold = str(grp.get("gold") or grp.get("label") or "")
+        claim = str(grp.get("claim") or "")
+        passages = as_passages(grp.get("passages") or grp.get("context") or ())
+        rollouts = list(grp.get("rollouts") or ())
+        rewards = [float(r.get("reward", 0.0)) for r in rollouts]
+        advs = advantages(rewards, mode=advantage_mode) if rollouts else []
+
+        if gold == "supported" and rollouts:
+            gold_supported_groups += 1
+            if any(
+                r.get("verdict") == "cannot_tell" and a > 0.0
+                for r, a in zip(rollouts, advs, strict=True)
+            ):
+                gold_supported_groups_pos_ct_adv += 1
+
+        for r in rollouts:
+            total_rollouts += 1
+            v = r.get("verdict")
+            if v == "supported":
+                pred_supported += 1
+            if gold == "supported":
+                gold_supported_rollouts += 1
+                if v == "cannot_tell":
+                    cannot_tell_on_gold_supported += 1
+                elif v == "unsupported":
+                    false_rejects += 1
+            else:
+                if v == "supported":
+                    false_accepts += 1
+
+            raw_quotes = r.get("quotes")
+            if raw_quotes is None and isinstance(r.get("evidence_quotes"), Sequence):
+                raw_quotes = [p.get("quote", "") for p in r["evidence_quotes"] if isinstance(p, dict)]
+            for q in raw_quotes or ():
+                if quote_found(q, passages):
+                    if v == "supported":
+                        total_found_supported_quotes += 1
+                        if quote_is_relevant(q, claim):
+                            relevant_quotes += 1
+                else:
+                    rung = classify_quote_rung(q, passages)
+                    waterfall[rung] = waterfall.get(rung, 0) + 1
+
+    pred_rate = (pred_supported / total_rollouts) if total_rollouts > 0 else 0.0
+    prior_rate = (gold_supported_rollouts / total_rollouts) if total_rollouts > 0 else 0.0
+    ratio = (pred_rate / prior_rate) if prior_rate > 0 else None
+    p_ct_given_sup = (
+        (cannot_tell_on_gold_supported / gold_supported_rollouts) if gold_supported_rollouts > 0 else 0.0
+    )
+    pos_ct_share = (
+        (gold_supported_groups_pos_ct_adv / gold_supported_groups) if gold_supported_groups > 0 else 0.0
+    )
+    rel_share = (
+        (relevant_quotes / total_found_supported_quotes) if total_found_supported_quotes > 0 else 0.0
+    )
+    return {
+        "supported_pred_to_prior_ratio": ratio,
+        "p_cannot_tell_given_gold_supported": p_ct_given_sup,
+        "gold_supported_groups_with_positive_cannot_tell_advantage": pos_ct_share,
+        "false_accepts": false_accepts,
+        "false_rejects": false_rejects,
+        "miss_waterfall": waterfall,
+        "quote_relevance": {
+            "relevant": relevant_quotes,
+            "total": total_found_supported_quotes,
+            "share": rel_share,
+        },
+    }
 
 
 # -- the readout, the pass line and the exit status ----------------------------------------------------------
@@ -288,6 +541,7 @@ def readout(
         "step_s": {"p50": statistics.median(step_s), "max": max(step_s)} if step_s else None,
         "wall_s": round(sum(step_s), 2),
         "zero_variance_groups": sum(s["zero_variance_groups"] for s in steps),
+        "active_groups": sum(s.get("active_groups", s["groups"] - s["zero_variance_groups"]) for s in steps),
         "groups": sum(s["groups"] for s in steps),
         "complete": complete and whole,
         "pass": bool(complete and whole and fits),
@@ -883,15 +1137,45 @@ def completion_logprobs_microbatch(model, input_ids, attention_mask, prompt_len:
     return torch.cat(chunks, dim=0)
 
 
-def grpo_loss(logp, old_logp, ref_logp, adv, mask, *, beta: float = BETA, eps: float = EPSILON):
+def _active_group_row_mask(adv, group_size: int | None = None):
+    """Return a (batch, 1) float32 mask that is 1.0 for rows in non-zero-variance groups and 0.0 otherwise."""
+    torch = require_torch()
+    batch = int(adv.shape[0])
+    g_sz = batch if group_size is None or group_size <= 0 else int(group_size)
+    row_mask = torch.zeros((batch, 1), dtype=torch.float32, device=adv.device)
+    for g_start in range(0, batch, g_sz):
+        g_end = min(g_start + g_sz, batch)
+        grp_adv = adv[g_start:g_end]
+        if bool(torch.any(grp_adv != 0)):
+            row_mask[g_start:g_end, 0] = 1.0
+    return row_mask
+
+
+def grpo_loss(
+    logp,
+    old_logp,
+    ref_logp,
+    adv,
+    mask,
+    *,
+    beta: float = BETA,
+    eps: float = EPSILON,
+    zero_variance_mask: bool = False,
+    group_size: int | None = None,
+):
     """The clipped-ratio policy loss plus a k3 KL penalty to the reference, masked, averaged over tokens."""
     torch = require_torch()
+    eff_mask = mask
+    if zero_variance_mask:
+        eff_mask = mask * _active_group_row_mask(adv, group_size)
+        if float(eff_mask.sum().detach()) == 0.0:
+            return logp.sum() * 0.0
     ratio = torch.exp(logp - old_logp)
     a = adv.unsqueeze(-1)
     policy = -torch.min(ratio * a, torch.clamp(ratio, 1 - eps, 1 + eps) * a)
     delta = ref_logp - logp
     kl = torch.exp(delta) - delta - 1
-    return ((policy + beta * kl) * mask).sum() / mask.sum().clamp(min=1)
+    return ((policy + beta * kl) * eff_mask).sum() / eff_mask.sum().clamp(min=1)
 
 
 def grpo_microbatch_backward(
@@ -909,6 +1193,8 @@ def grpo_microbatch_backward(
     beta: float = BETA,
     eps: float = EPSILON,
     after_forward: Callable[[], None] | None = None,
+    zero_variance_mask: bool = False,
+    group_size: int | None = None,
 ):
     """Run training forward and backward over ``G`` sequences in micro-batches of ``microbatch`` with
     gradients accumulated, using ``logits_to_keep`` and ``gather - logsumexp``."""
@@ -918,10 +1204,20 @@ def grpo_microbatch_backward(
     batch, seq_len = input_ids.shape
     comp_len = seq_len - prompt_len
     keep = comp_len + 1
-    denom = mask.sum().clamp(min=1)
+    eff_mask = mask * _active_group_row_mask(adv, group_size) if zero_variance_mask else mask
+    if zero_variance_mask and float(eff_mask.sum().detach()) == 0.0:
+        if after_forward is not None:
+            after_forward()
+        return torch.zeros((), dtype=torch.float32, device=input_ids.device)
+    denom = eff_mask.sum().clamp(min=1)
     total_loss = torch.zeros((), dtype=torch.float32, device=input_ids.device)
     for start in range(0, batch, microbatch):
         end = min(start + microbatch, batch)
+        mb_mask = eff_mask[start:end]
+        if zero_variance_mask and float(mb_mask.sum().detach()) == 0.0:
+            if end == batch and after_forward is not None:
+                after_forward()
+            continue
         mb_ids = input_ids[start:end]
         mb_att = attention_mask[start:end]
         out = model(input_ids=mb_ids, attention_mask=mb_att, logits_to_keep=keep)
@@ -931,7 +1227,6 @@ def grpo_microbatch_backward(
         mb_old = old_logp[start:end]
         mb_ref = ref_logp[start:end]
         mb_adv = adv[start:end].unsqueeze(-1)
-        mb_mask = mask[start:end]
         ratio = torch.exp(mb_logp - mb_old)
         policy = -torch.min(ratio * mb_adv, torch.clamp(ratio, 1 - eps, 1 + eps) * mb_adv)
         delta = mb_ref - mb_logp
@@ -942,6 +1237,15 @@ def grpo_microbatch_backward(
         (mb_loss * scale).backward()
         total_loss = total_loss + mb_loss.detach()
     return total_loss * scale
+
+
+def _eos_token_ids(tok) -> set[int]:
+    eos = getattr(tok, "eos_token_id", None)
+    if isinstance(eos, int):
+        return {eos}
+    if isinstance(eos, Sequence):
+        return {int(x) for x in eos}
+    return set()
 
 
 def hf_rollout(
@@ -972,13 +1276,17 @@ def hf_rollout(
         gen_kwargs["attention_mask"] = torch.ones_like(repeated)
     with torch.no_grad():
         out = model.generate(repeated, **gen_kwargs)
-    comps = []
+    eos_ids = _eos_token_ids(tok)
+    comps: list[list[int]] = []
+    truncated: list[bool] = []
     for row in out[:, prompt_ids.shape[1] :]:
         ids = row.tolist()
-        while ids and ids[-1] == tok.pad_token_id:
+        while ids and ids[-1] == tok.pad_token_id and tok.pad_token_id not in eos_ids:
             ids.pop()
+        hit_cap = len(ids) >= max_new and (not eos_ids or not any(t in eos_ids for t in ids))
         comps.append(ids)
-    return prompt_ids[0].tolist(), comps
+        truncated.append(hit_cap)
+    return prompt_ids[0].tolist(), comps, truncated
 
 
 PHASE_BOUNDARIES = (
@@ -989,6 +1297,73 @@ PHASE_BOUNDARIES = (
     "post_train_backward",
     "step_end",
 )
+
+
+class GroupLogger:
+    """Per-group diagnostic JSONL logger (always on for GPU runs; a no-op on CPU and dry runs).
+
+    Flushes one JSONL line per group with step, group, prompt_id, prompt_tokens, k_correct, g,
+    reward_std, verdict_reward_std, truncations, mean_thinking_tokens, and zero_variance_label.
+    Never records item text, quotes or claim text.
+    """
+
+    def __init__(
+        self,
+        path: Path | None,
+        *,
+        enabled: bool,
+        cuda=None,
+        fsync: Callable[[int], None] = os.fsync,
+    ) -> None:
+        self.path = path
+        cuda_ready = (
+            cuda is not None and callable(getattr(cuda, "is_available", None)) and bool(cuda.is_available())
+        )
+        self.enabled = bool(enabled and path is not None and cuda_ready)
+        self.fsync = fsync
+        self._fh = None
+        if self.enabled and self.path is not None:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._fh = self.path.open("w", encoding="utf-8", newline="\n")
+
+    def record(
+        self,
+        *,
+        step: int,
+        group: int,
+        prompt_id: str,
+        prompt_tokens: int,
+        k_correct: int,
+        g: int,
+        reward_std: float,
+        verdict_reward_std: float,
+        truncations: int,
+        mean_thinking_tokens: float,
+        zero_variance_label: str | None,
+    ) -> None:
+        if not self.enabled or self._fh is None:
+            return
+        line = {
+            "step": int(step),
+            "group": int(group),
+            "prompt_id": str(prompt_id),
+            "prompt_tokens": int(prompt_tokens),
+            "k_correct": int(k_correct),
+            "g": int(g),
+            "reward_std": round(float(reward_std), 6),
+            "verdict_reward_std": round(float(verdict_reward_std), 6),
+            "truncations": int(truncations),
+            "mean_thinking_tokens": round(float(mean_thinking_tokens), 2),
+            "zero_variance_label": zero_variance_label,
+        }
+        self._fh.write(json.dumps(line) + "\n")
+        self._fh.flush()
+        self.fsync(self._fh.fileno())
+
+    def close(self) -> None:
+        if self._fh is not None:
+            self._fh.close()
+            self._fh = None
 
 
 class PhaseLogger:
@@ -1211,6 +1586,13 @@ class LlamaCppRollout:
 
 
 # -- one run -------------------------------------------------------------------------------------------------
+def _call_reward_fn(reward_fn: Callable, text: str, row: dict, think_toks: int, truncated: bool) -> float:
+    try:
+        return float(reward_fn(text, row, think_toks, truncated=truncated))
+    except TypeError:
+        return float(reward_fn(text, row, think_toks))
+
+
 def run_steps(
     *,
     model,
@@ -1222,7 +1604,7 @@ def run_steps(
     steps: int,
     g: int,
     max_new: int,
-    reward_fn: Callable[[str, dict, int], float],
+    reward_fn: Callable,
     device_sync: Callable[[], None],
     peak_alloc_mib: Callable[[], int | None],
     on_step: Callable[[dict], None] | None = None,
@@ -1233,21 +1615,30 @@ def run_steps(
     empty_cache_phases: bool = False,
     empty_cache: Callable[[], None] | None = None,
     phase_logger: PhaseLogger | None = None,
+    group_logger: GroupLogger | None = None,
+    groups_per_update: int = GROUPS_PER_STEP,
+    zero_variance_mask: bool = False,
+    advantage_mode: str = "std",
+    mask_truncated: bool = False,
+    quote_reward: str = "v1",
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
-    Each step is GROUPS_PER_STEP prompt groups of G samples, one group at a time (gradients accumulate), so
-    peak memory is one group's. The reference is the same model with the adapter off.
+    Each step is ``groups_per_update`` prompt groups of G samples, one group at a time (gradients accumulate),
+    so peak memory is one group's. The reference is the same model with the adapter off.
 
     ``mode(False)`` puts the model in rollout mode (gradient checkpointing off, the KV cache on) and
     ``mode(True)`` in training mode (checkpointing on, cache off, as the plan's memory table assumes);
     ``state()`` reports whether checkpointing is on. Both states are recorded in every step row.
     """
+    if groups_per_update < 1:
+        raise SystemExit(f"--groups-per-update must be >= 1, got {groups_per_update}")
 
     torch = require_torch()
     if empty_cache is None:
         cuda_mod = getattr(torch, "cuda", None)
         empty_cache = getattr(cuda_mod, "empty_cache", lambda: None)
+    eos_ids = _eos_token_ids(tok)
     rows: list[dict] = []
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     for step in range(steps):
@@ -1256,13 +1647,15 @@ def run_steps(
             if before_step:
                 before_step(step)
             roll_s = train_s = 0.0
-            tokens = zero_var = 0
+            tokens = zero_var = active_groups = 0
             rewards_all: list[float] = []
             optimiser.zero_grad(set_to_none=True)
             last_prompt_tokens = 0
             last_comp_lens: list[int] = []
-            for k in range(GROUPS_PER_STEP):
-                row = prompts[(step * GROUPS_PER_STEP + k) % len(prompts)]
+            step_loss_sum = 0.0
+            ckpt_train = ckpt_rollout = None
+            for k in range(groups_per_update):
+                row = prompts[(step * groups_per_update + k) % len(prompts)]
                 prompt_text = build_prompt(row)
                 if mode:
                     mode(False)
@@ -1276,7 +1669,15 @@ def run_steps(
                         completion_lengths=(),
                     )
                 t0 = time.time()
-                prompt_ids, comps = rollout(prompt_text, g, max_new, TEMPERATURE)
+                roll_out = rollout(prompt_text, g, max_new, TEMPERATURE)
+                if len(roll_out) == 3:
+                    prompt_ids, comps, truncs = roll_out
+                    truncs = [bool(t) for t in truncs]
+                else:
+                    prompt_ids, comps = roll_out
+                    truncs = [
+                        len(c) >= max_new and (not eos_ids or not any(t in eos_ids for t in c)) for c in comps
+                    ]
                 device_sync()
                 roll_s += time.time() - t0
                 comp_lens = [len(c) for c in comps]
@@ -1293,14 +1694,61 @@ def run_steps(
                         completion_lengths=comp_lens,
                     )
                 tokens += sum(comp_lens)
-                rewards = []
-                for c in comps:
+                rewards: list[float] = []
+                think_counts: list[int] = []
+                group_samples: list[dict] = []
+                verdict_scores: list[float] = []
+                for c, trunc in zip(comps, truncs, strict=True):
                     text = tok.decode(c, skip_special_tokens=True)
                     think, _ = split_reply(text)
-                    rewards.append(reward_fn(text, row, len(tok.encode(think)) if think else 0))
-                zero_var += zero_variance(rewards)
+                    tt = len(tok.encode(think)) if think else 0
+                    think_counts.append(tt)
+                    r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
+                    rewards.append(r_val)
+                    if group_logger is not None and group_logger.enabled:
+                        det = reward_details(
+                            text,
+                            str(row.get("label", "supported")),
+                            passages_of(row) if "context" in row else "",
+                            tt,
+                            truncated=trunc,
+                            quote_reward=quote_reward,
+                        )
+                        group_samples.append(det)
+                        verdict_scores.append(float(det["verdict_score"]))
+
+                if mask_truncated:
+                    active_rewards = [r for r, tr in zip(rewards, truncs, strict=True) if not tr]
+                    is_zv = zero_variance(active_rewards)
+                    active_adv = advantages(active_rewards, mode=advantage_mode)
+                    adv_iter = iter(active_adv)
+                    adv_list = [0.0 if tr else next(adv_iter) for tr in truncs]
+                else:
+                    is_zv = zero_variance(rewards)
+                    adv_list = advantages(rewards, mode=advantage_mode)
+
+                zero_var += int(is_zv)
+                if not is_zv:
+                    active_groups += 1
                 rewards_all += rewards
-                adv = torch.tensor(advantages(rewards), dtype=torch.float32)
+
+                if group_logger is not None and group_logger.enabled:
+                    zv_label = classify_zero_variance_group(group_samples) if is_zv else None
+                    group_logger.record(
+                        step=step,
+                        group=k,
+                        prompt_id=str(row.get("id", k)),
+                        prompt_tokens=len(prompt_ids),
+                        k_correct=sum(1 for s in group_samples if s.get("correct")),
+                        g=len(comps),
+                        reward_std=statistics.pstdev(rewards) if rewards else 0.0,
+                        verdict_reward_std=statistics.pstdev(verdict_scores) if verdict_scores else 0.0,
+                        truncations=sum(1 for tr in truncs if tr),
+                        mean_thinking_tokens=statistics.fmean(think_counts) if think_counts else 0.0,
+                        zero_variance_label=zv_label,
+                    )
+
+                adv = torch.tensor(adv_list, dtype=torch.float32)
                 t1 = time.time()
                 if mode:
                     mode(True)
@@ -1309,7 +1757,15 @@ def run_steps(
                 pad = tok.pad_token_id
                 ids = torch.tensor([prompt_ids + c + [pad] * (width - len(c)) for c in comps])
                 att = torch.tensor([[1] * (len(prompt_ids) + len(c)) + [0] * (width - len(c)) for c in comps])
-                mask = torch.tensor([[1.0] * len(c) + [0.0] * (width - len(c)) for c in comps])
+                if mask_truncated:
+                    mask = torch.tensor(
+                        [
+                            [0.0] * width if tr else [1.0] * len(c) + [0.0] * (width - len(c))
+                            for c, tr in zip(comps, truncs, strict=True)
+                        ]
+                    )
+                else:
+                    mask = torch.tensor([[1.0] * len(c) + [0.0] * (width - len(c)) for c in comps])
                 ids, att, mask, adv = (x.to(model.device) for x in (ids, att, mask, adv))
                 with torch.no_grad():
                     if logprob_microbatch is not None:
@@ -1334,8 +1790,9 @@ def run_steps(
                         prompt_tokens=len(prompt_ids),
                         completion_lengths=comp_lens,
                     )
+                grp_scale = 1.0 if zero_variance_mask else (1.0 / groups_per_update)
                 if logprob_microbatch is not None:
-                    loss = grpo_microbatch_backward(
+                    grp_loss = grpo_microbatch_backward(
                         model,
                         ids,
                         att,
@@ -1345,7 +1802,9 @@ def run_steps(
                         adv,
                         mask,
                         microbatch=logprob_microbatch,
-                        scale=1.0 / GROUPS_PER_STEP,
+                        scale=grp_scale,
+                        zero_variance_mask=zero_variance_mask,
+                        group_size=g,
                         after_forward=(
                             (
                                 lambda s=step, grp=k, pt=len(prompt_ids), cl=comp_lens: phase_logger.record(
@@ -1360,18 +1819,42 @@ def run_steps(
                             else None
                         ),
                     )
+                    step_loss_sum += float(grp_loss.detach())
                 else:
-                    logp = completion_logprobs(model, ids, att, len(prompt_ids))
-                    loss = grpo_loss(logp, old, ref, adv, mask) / GROUPS_PER_STEP
-                    if phase_logger is not None:
-                        phase_logger.record(
-                            step=step,
-                            group=k,
-                            phase="post_train_forward",
-                            prompt_tokens=len(prompt_ids),
-                            completion_lengths=comp_lens,
+                    if zero_variance_mask and is_zv:
+                        grp_loss = torch.zeros((), dtype=torch.float32, device=ids.device)
+                        if phase_logger is not None:
+                            phase_logger.record(
+                                step=step,
+                                group=k,
+                                phase="post_train_forward",
+                                prompt_tokens=len(prompt_ids),
+                                completion_lengths=comp_lens,
+                            )
+                    else:
+                        logp = completion_logprobs(model, ids, att, len(prompt_ids))
+                        grp_loss = (
+                            grpo_loss(
+                                logp,
+                                old,
+                                ref,
+                                adv,
+                                mask,
+                                zero_variance_mask=zero_variance_mask,
+                                group_size=g,
+                            )
+                            * grp_scale
                         )
-                    loss.backward()
+                        if phase_logger is not None:
+                            phase_logger.record(
+                                step=step,
+                                group=k,
+                                phase="post_train_forward",
+                                prompt_tokens=len(prompt_ids),
+                                completion_lengths=comp_lens,
+                            )
+                        grp_loss.backward()
+                    step_loss_sum += float(grp_loss.detach())
                 device_sync()
                 if phase_logger is not None:
                     phase_logger.record(
@@ -1383,29 +1866,41 @@ def run_steps(
                     )
                 train_s += time.time() - t1
             t2 = time.time()
-            optimiser.step()
+            if zero_variance_mask:
+                if active_groups > 0:
+                    for p in model.parameters():
+                        if p.requires_grad and p.grad is not None:
+                            p.grad.mul_(1.0 / active_groups)
+                    optimiser.step()
+                    reported_loss = step_loss_sum / active_groups
+                else:
+                    reported_loss = 0.0
+            else:
+                optimiser.step()
+                reported_loss = step_loss_sum * groups_per_update
             device_sync()
             if phase_logger is not None:
                 phase_logger.record(
                     step=step,
-                    group=GROUPS_PER_STEP - 1,
+                    group=groups_per_update - 1,
                     phase="step_end",
                     prompt_tokens=last_prompt_tokens,
                     completion_lengths=last_comp_lens,
                 )
             train_s += time.time() - t2
-            if not math.isfinite(float(loss.detach())):
+            if not math.isfinite(reported_loss):
                 return rows, {"step": step, "error": "non-finite loss"}, False
             rec = {
                 "step": step,
-                "groups": GROUPS_PER_STEP,
+                "groups": groups_per_update,
+                "active_groups": active_groups,
                 "zero_variance_groups": zero_var,
                 "tokens": tokens,
                 "rollout_s": round(roll_s, 4),
                 "train_s": round(train_s, 4),
                 "step_s": round(time.time() - started, 4),
                 "mean_reward": round(statistics.fmean(rewards_all), 4),
-                "loss": round(float(loss.detach()) * GROUPS_PER_STEP, 6),
+                "loss": round(reported_loss, 6),
                 "peak_alloc_mib": (
                     phase_logger.peak_alloc_mib()
                     if phase_logger is not None and phase_logger.max_memory_allocated is not None
@@ -1598,6 +2093,7 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
 
     mode, state = make_mode(model)
     pass_att = bool(getattr(a, "attention_mask", False))
+    quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
     bundle = {
         "model": model,
         "tok": tok,
@@ -1606,7 +2102,14 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         "state": state,
         "optimiser": optimiser,
         "ref_adapter_off": model.disable_adapter,
-        "reward_fn": lambda text, row, tt: reward(text, row["label"], evidence_of(row), tt),
+        "reward_fn": lambda text, row, tt, truncated=False: reward(
+            text,
+            row["label"],
+            passages_of(row),
+            tt,
+            truncated=truncated,
+            quote_reward=quote_rew,
+        ),
         "sync": torch.cuda.synchronize,
         "peak_alloc_mib": lambda: int(torch.cuda.max_memory_allocated() / 2**20),
         "revision": revision,
@@ -1918,7 +2421,7 @@ def run_probe_memory(
 
 # -- the run -------------------------------------------------------------------------------------------------
 def active_flags(a: argparse.Namespace) -> dict:
-    """Return a dict of memory/probe/stress flags that are enabled on ``a``."""
+    """Return a dict of memory/probe/stress/loss/reward flags that are enabled on ``a``."""
     flags: dict = {}
     if getattr(a, "bf16_restore", False):
         flags["bf16_restore"] = True
@@ -1932,6 +2435,16 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["attention_mask"] = True
     if getattr(a, "stress_prefix", 0):
         flags["stress_prefix"] = int(a.stress_prefix)
+    if getattr(a, "zero_variance_mask", False):
+        flags["zero_variance_mask"] = True
+    if getattr(a, "advantage", "std") != "std":
+        flags["advantage"] = a.advantage
+    if getattr(a, "groups_per_update", GROUPS_PER_STEP) != GROUPS_PER_STEP:
+        flags["groups_per_update"] = int(a.groups_per_update)
+    if getattr(a, "mask_truncated", False):
+        flags["mask_truncated"] = True
+    if getattr(a, "quote_reward", "v1") != "v1":
+        flags["quote_reward"] = a.quote_reward
     return flags
 
 
@@ -1955,6 +2468,8 @@ def execute(
         raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
     if getattr(a, "stress_prefix", 0) < 0:
         raise SystemExit(f"--stress-prefix must be >= 0, got {a.stress_prefix}")
+    if getattr(a, "groups_per_update", GROUPS_PER_STEP) < 1:
+        raise SystemExit(f"--groups-per-update must be >= 1, got {a.groups_per_update}")
 
     rows, gold_hashes = read_gold(a.gold)
     prompts = select_prompts(rows, a.prompts)
@@ -1982,6 +2497,7 @@ def execute(
         guard = gpu.get("guard")
     bundle = build(a)
     phase_logger: PhaseLogger | None = None
+    group_logger: GroupLogger | None = None
     try:
         if getattr(a, "probe_memory", False):
             return run_probe_memory(
@@ -2002,10 +2518,20 @@ def execute(
             enabled=rig is not None and not a.dry,
             cuda=cuda_mod,
         )
+        group_logger = GroupLogger(
+            a.out / f"s2-{a.path}-groups.jsonl",
+            enabled=rig is not None and not a.dry,
+            cuda=cuda_mod,
+        )
         stress_n = int(getattr(a, "stress_prefix", 0) or 0)
         microbatch = getattr(a, "logprob_microbatch", None)
         empty_phases = bool(getattr(a, "empty_cache_phases", False))
         pass_att = bool(getattr(a, "attention_mask", False))
+        groups_per_upd = int(getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP)
+        zv_mask = bool(getattr(a, "zero_variance_mask", False))
+        adv_mode = str(getattr(a, "advantage", "std") or "std")
+        mask_trunc = bool(getattr(a, "mask_truncated", False))
+        quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
             if stress_n > 0:
@@ -2046,6 +2572,11 @@ def execute(
                     logprob_microbatch=microbatch,
                     empty_cache_phases=empty_phases,
                     phase_logger=phase_logger,
+                    groups_per_update=groups_per_upd,
+                    zero_variance_mask=zv_mask,
+                    advantage_mode=adv_mode,
+                    mask_truncated=mask_trunc,
+                    quote_reward=quote_rew,
                 )
                 if stress_stopped is not None or stress_oom:
                     return [], stress_stopped, stress_oom
@@ -2068,6 +2599,12 @@ def execute(
                 logprob_microbatch=microbatch,
                 empty_cache_phases=empty_phases,
                 phase_logger=phase_logger,
+                group_logger=group_logger,
+                groups_per_update=groups_per_upd,
+                zero_variance_mask=zv_mask,
+                advantage_mode=adv_mode,
+                mask_truncated=mask_trunc,
+                quote_reward=quote_rew,
             )
 
         if sampler is not None:
@@ -2140,6 +2677,8 @@ def execute(
         print(line)
         return exit_status(line)
     finally:
+        if group_logger is not None:
+            group_logger.close()
         if phase_logger is not None:
             phase_logger.close()
         close = bundle.get("close")
@@ -2221,6 +2760,34 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=0,
         help="extra full steps before the registered steps on the longest prompt with min_new=max_new",
+    )
+    ap.add_argument(
+        "--zero-variance-mask",
+        action="store_true",
+        help="mask zero-variance groups out of the policy and KL loss; normalise over active groups only",
+    )
+    ap.add_argument(
+        "--advantage",
+        choices=("std", "dr-grpo"),
+        default="std",
+        help="advantage form: 'std' (default) or 'dr-grpo' (reward minus group mean, not divided by std)",
+    )
+    ap.add_argument(
+        "--groups-per-update",
+        type=int,
+        default=GROUPS_PER_STEP,
+        help="number of prompt groups accumulated per optimizer step (default 2)",
+    )
+    ap.add_argument(
+        "--mask-truncated",
+        action="store_true",
+        help="leave truncated completions out of the loss and group advantage calculation instead of -1.0",
+    )
+    ap.add_argument(
+        "--quote-reward",
+        choices=("v1", "v2"),
+        default="v1",
+        help="quote reward schedule: 'v1' (default) or 'v2' (partial credit + span-disjoint anti-farming)",
     )
     return ap
 

@@ -179,7 +179,9 @@ class TestReward:
         assert r(_reply("unsupported", "alpha beta"), "cannot_tell", EVIDENCE, 5) == pytest.approx(
             1.05
         )  # also counts
-        assert r(_reply("supported"), "supported", EVIDENCE, 8192) == -1.0  # the hard cap
+        assert r(_reply("supported"), "supported", EVIDENCE, 8192) == pytest.approx(
+            1.0 - 0.5 + 0.05
+        )  # dead 8,192 hard gate removed; smooth length penalty capped at -0.5
         assert r(_reply("supported"), "supported", EVIDENCE, 5, truncated=True) == -1.0
 
     def test_quotes_match_through_whitespace_normalisation(self):
@@ -1540,7 +1542,11 @@ class TestNoPersonalNamesInPublicFiles:
     ROOT = Path(__file__).parent.parent
 
     def _public_files(self):
-        files = [self.ROOT / "examples" / "verifier-distill" / "s2_grpo_smoke.py", Path(__file__)]
+        files = [
+            self.ROOT / "examples" / "verifier-distill" / "s2_grpo_smoke.py",
+            self.ROOT / "examples" / "verifier-distill" / "quote_rule.py",
+            Path(__file__),
+        ]
         for folder in (self.ROOT / "docs", self.ROOT / "tests" / "fixtures"):
             files += sorted(p for p in folder.rglob("*") if p.is_file())
         return files
@@ -2610,3 +2616,938 @@ class TestStressPrefix:
         sec_file = tmp_path / "v3_section.md"
         sec_file.write_text(section, encoding="utf-8")
         assert _scan([sec_file]) == []
+
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-03 GRPO loss (zero-variance mask, Dr. GRPO, groups-per-update),
+# root truncation + unclosed thinking, offrig quote rule 2 port,
+# quote-reward v2, per-group logging + evaluation summary, prereg amendment
+# ---------------------------------------------------------------------------
+
+
+OFFRIG_RULE2_PARITY_FIXTURE = [
+    {
+        "name": "quotes_match_across_whitespace_and_curly_marks_1",
+        "passages": ['First line:\n    "hello   world" — and don\'t panic.'],
+        "quote": "\u201chello world\u201d \u2014 and don\u2019t",
+        "expected": True,
+    },
+    {
+        "name": "quotes_match_across_whitespace_and_curly_marks_2",
+        "passages": ['First line:\n    "hello   world" — and don\'t panic.'],
+        "quote": 'first line: "hello',
+        "expected": False,
+    },
+    {
+        "name": "quotes_match_across_whitespace_and_curly_marks_3",
+        "passages": ['First line:\n    "hello   world" — and don\'t panic.'],
+        "quote": "not in the text at all",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_empty",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_whitespace",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "   ",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_single_char",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "a",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_two_chars",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "is",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_11_char_substring",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "The answer ",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_punctuation_line",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "---",
+        "expected": False,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_13_char_substring",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "The answer is",
+        "expected": True,
+    },
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_whole_short_line",
+        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "quote": "status = 0",
+        "expected": True,
+    },
+    {
+        "name": "diff_and_comment_markers_stripped_multiline",
+        "passages": ["+ // return Err(Error::Timeout);\n+ // retry_count += 1;"],
+        "quote": "return Err(Error::Timeout); retry_count += 1;",
+        "expected": True,
+    },
+    {
+        "name": "diff_and_comment_markers_stripped_short_whole_line",
+        "passages": ["  - # x = 1\n"],
+        "quote": "x = 1",
+        "expected": True,
+    },
+    {
+        "name": "diff_header_double_plus_or_minus_not_stripped_as_single_diff_marker",
+        "passages": ["+++ b/lib.rs\n--- a/lib.rs"],
+        "quote": "b/lib.rs",
+        "expected": False,
+    },
+    {
+        "name": "cross_passage_boundary_does_not_match",
+        "passages": ["alpha beta", "gamma delta"],
+        "quote": "alpha beta gamma delta",
+        "expected": False,
+    },
+]
+
+
+@needs_torch
+class TestZeroVarianceMask:
+    def test_zero_variance_group_contributes_zero_loss_and_zero_lora_grad(self):
+        import torch
+
+        model = _tiny_qwen3(torch.float32)
+        model.eval()
+        model.get_base_model().gradient_checkpointing_disable()
+        torch.manual_seed(7)
+        for name, param in model.named_parameters():
+            if param.requires_grad and "lora_B" in name:
+                param.data.normal_(0.0, 0.05)
+
+        ids = torch.tensor([[10, 11, 20, 21, 22], [10, 11, 23, 24, 25]], dtype=torch.long)
+        att = torch.ones_like(ids)
+        mask = torch.tensor([[1.0, 1.0, 1.0], [1.0, 1.0, 0.0]], dtype=torch.float32)
+        adv = torch.tensor([0.0, 0.0], dtype=torch.float32)
+        prompt_len = 2
+
+        with torch.no_grad():
+            old_lp = s2.completion_logprobs(model, ids, att, prompt_len) + 0.02
+            with model.disable_adapter():
+                ref_lp = s2.completion_logprobs(model, ids, att, prompt_len)
+        pi_lp = s2.completion_logprobs(model, ids, att, prompt_len)
+
+        loss = s2.grpo_loss(
+            pi_lp,
+            old_lp,
+            ref_lp,
+            adv,
+            mask,
+            zero_variance_mask=True,
+            group_size=2,
+        )
+        assert float(loss.detach()) == 0.0
+
+        model.zero_grad(set_to_none=True)
+        mb_loss = s2.grpo_microbatch_backward(
+            model,
+            ids,
+            att,
+            prompt_len,
+            old_lp,
+            ref_lp,
+            adv,
+            mask,
+            microbatch=1,
+            zero_variance_mask=True,
+            group_size=2,
+        )
+        assert float(mb_loss) == 0.0
+        for p in model.parameters():
+            if p.requires_grad and p.grad is not None:
+                assert torch.all(p.grad == 0.0)
+
+    def test_equality_no_zero_variance_and_one_zero_variance_group_atol_1e6(self):
+        import copy
+
+        import torch
+
+        torch.manual_seed(123)
+        model_old = _tiny_qwen3(torch.float32)
+        model_old.eval()
+        model_old.get_base_model().gradient_checkpointing_disable()
+        with torch.no_grad():
+            for n, p in model_old.named_parameters():
+                if p.requires_grad and "lora_B" in n:
+                    p.uniform_(-0.05, 0.05)
+
+        model_new = copy.deepcopy(model_old)
+        prompt_len = 2
+
+        ids_all = torch.tensor(
+            [
+                [10, 11, 20, 21, 22],
+                [10, 11, 23, 24, 25],
+                [12, 13, 30, 31, 32],
+                [12, 13, 33, 34, 35],
+            ],
+            dtype=torch.long,
+        )
+        att_all = torch.tensor(
+            [
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 0, 0],
+            ],
+            dtype=torch.long,
+        )
+        mask_all = torch.tensor(
+            [
+                [1.0, 1.0, 1.0],
+                [1.0, 1.0, 0.0],
+                [1.0, 1.0, 1.0],
+                [1.0, 0.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+        adv_g0 = torch.tensor(s2.advantages([1.0, -0.3]), dtype=torch.float32)
+        adv_g1 = torch.tensor(s2.advantages([0.8, -1.0]), dtype=torch.float32)
+
+        with torch.no_grad():
+            old_lp_all = s2.completion_logprobs(model_old, ids_all, att_all, prompt_len).detach() + 0.03
+            with model_old.disable_adapter():
+                ref_lp_all = s2.completion_logprobs(model_old, ids_all, att_all, prompt_len).detach()
+
+        # Case 1: no zero-variance group in the batch (2 active groups)
+        model_old.zero_grad(set_to_none=True)
+        loss_old = float(
+            s2.grpo_microbatch_backward(
+                model_old,
+                ids_all[:2],
+                att_all[:2],
+                prompt_len,
+                old_lp_all[:2],
+                ref_lp_all[:2],
+                adv_g0,
+                mask_all[:2],
+                microbatch=1,
+                scale=1.0 / 2,
+                zero_variance_mask=False,
+            )
+            + s2.grpo_microbatch_backward(
+                model_old,
+                ids_all[2:],
+                att_all[2:],
+                prompt_len,
+                old_lp_all[2:],
+                ref_lp_all[2:],
+                adv_g1,
+                mask_all[2:],
+                microbatch=1,
+                scale=1.0 / 2,
+                zero_variance_mask=False,
+            )
+        )
+
+        model_new.zero_grad(set_to_none=True)
+        loss_new = float(
+            s2.grpo_microbatch_backward(
+                model_new,
+                ids_all[:2],
+                att_all[:2],
+                prompt_len,
+                old_lp_all[:2],
+                ref_lp_all[:2],
+                adv_g0,
+                mask_all[:2],
+                microbatch=1,
+                scale=1.0 / 2,
+                zero_variance_mask=True,
+                group_size=2,
+            )
+            + s2.grpo_microbatch_backward(
+                model_new,
+                ids_all[2:],
+                att_all[2:],
+                prompt_len,
+                old_lp_all[2:],
+                ref_lp_all[2:],
+                adv_g1,
+                mask_all[2:],
+                microbatch=1,
+                scale=1.0 / 2,
+                zero_variance_mask=True,
+                group_size=2,
+            )
+        )
+
+        assert abs(loss_old - loss_new) <= 1e-6
+        for (n1, p1), (n2, p2) in zip(
+            model_old.named_parameters(), model_new.named_parameters(), strict=True
+        ):
+            assert n1 == n2
+            if p1.requires_grad:
+                assert torch.allclose(p1.grad, p2.grad, atol=1e-6)
+
+        # Case 2: one zero-variance group (g0) and one active group (g1)
+        adv_zv = torch.tensor(s2.advantages([1.0, 1.0]), dtype=torch.float32)
+        adv_mixed = torch.cat([adv_zv, adv_g1], dim=0)
+
+        model_old.zero_grad(set_to_none=True)
+        loss_active_only = float(
+            s2.grpo_microbatch_backward(
+                model_old,
+                ids_all[2:],
+                att_all[2:],
+                prompt_len,
+                old_lp_all[2:],
+                ref_lp_all[2:],
+                adv_g1,
+                mask_all[2:],
+                microbatch=1,
+                scale=1.0,
+                zero_variance_mask=False,
+            )
+        )
+
+        model_new.zero_grad(set_to_none=True)
+        loss_masked_batch = float(
+            s2.grpo_microbatch_backward(
+                model_new,
+                ids_all,
+                att_all,
+                prompt_len,
+                old_lp_all,
+                ref_lp_all,
+                adv_mixed,
+                mask_all,
+                microbatch=1,
+                scale=1.0,
+                zero_variance_mask=True,
+                group_size=2,
+            )
+        )
+
+        assert abs(loss_active_only - loss_masked_batch) <= 1e-6
+        for (_, p1), (_, p2) in zip(
+            model_old.named_parameters(), model_new.named_parameters(), strict=True
+        ):
+            if p1.requires_grad:
+                assert torch.allclose(p1.grad, p2.grad, atol=1e-6)
+
+    def test_cli_and_step_log_active_groups(self, tmp_path):
+        gold_dir = _gold(tmp_path)
+        ap = s2.build_parser()
+        base_argv = ["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(tmp_path / "out")]
+        a0 = ap.parse_args(base_argv)
+        assert a0.zero_variance_mask is False
+
+        a1 = s2.apply_dry_defaults(
+            ap.parse_args([*base_argv, "--dry", "--steps", "1", "--zero-variance-mask"])
+        )
+        assert a1.zero_variance_mask is True
+
+        call_idx = {"n": 0}
+
+        def build_mixed(args):
+            bundle = s2.dry_bundle(args)
+
+            def mixed_rollout(text, g, max_new, temp):
+                call_idx["n"] += 1
+                if call_idx["n"] == 1:
+                    return [10, 11], [[20, 21] for _ in range(g)], [False] * g
+                comps = [[20, 21] for _ in range(g)]
+                comps[0] = [25, 26]
+                return [10, 11], comps, [False] * g
+
+            bundle["rollout"] = mixed_rollout
+            return bundle
+
+        assert s2.execute(a1, build=build_mixed) == 0
+        receipt = json.loads((a1.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["run"]["zero_variance_mask"] is True
+        assert receipt["readout"]["flags"]["zero_variance_mask"] is True
+        step_lines = [
+            json.loads(line)
+            for line in (a1.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert step_lines[0]["active_groups"] == 1
+        assert step_lines[0]["zero_variance_groups"] == 1
+
+
+class TestDrGrpoAndGroupsPerUpdate:
+    def test_dr_grpo_advantages_are_centered_not_divided_by_std(self):
+        rewards = [1.0, -0.2, -0.2, -0.2]
+        adv_dr = s2.advantages(rewards, mode="dr-grpo")
+        mean = sum(rewards) / len(rewards)
+        assert adv_dr == pytest.approx([r - mean for r in rewards], abs=1e-6)
+        adv_std = s2.advantages(rewards)
+        assert adv_std != pytest.approx(adv_dr, abs=1e-3)
+        assert s2.advantages([1.0, 1.0, 1.0], mode="dr-grpo") == [0.0, 0.0, 0.0]
+
+    @needs_torch
+    def test_groups_per_update_flag_and_accumulation(self, tmp_path):
+        gold_dir = _gold(tmp_path)
+        ap = s2.build_parser()
+        base_argv = ["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(tmp_path / "out")]
+        a_def = ap.parse_args(base_argv)
+        assert a_def.advantage == "std"
+        assert a_def.groups_per_update == 2
+
+        a = s2.apply_dry_defaults(
+            ap.parse_args(
+                [
+                    *base_argv,
+                    "--dry",
+                    "--steps",
+                    "1",
+                    "--advantage",
+                    "dr-grpo",
+                    "--groups-per-update",
+                    "4",
+                ]
+            )
+        )
+        assert a.advantage == "dr-grpo"
+        assert a.groups_per_update == 4
+
+        seen_prompts: list[str] = []
+
+        def build_tracked(args):
+            bundle = s2.dry_bundle(args)
+            orig_rollout = bundle["rollout"]
+
+            def tracking_rollout(text, g, max_new, temp):
+                seen_prompts.append(text)
+                return orig_rollout(text, g, max_new, temp)
+
+            bundle["rollout"] = tracking_rollout
+            return bundle
+
+        assert s2.execute(a, build=build_tracked) == 0
+        assert len(seen_prompts) == 4
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["readout"]["flags"]["advantage"] == "dr-grpo"
+        assert receipt["readout"]["flags"]["groups_per_update"] == 4
+        assert receipt["readout"]["groups"] == 4
+
+
+class TestTruncationAndUnclosedThinking:
+    @needs_torch
+    def test_hf_rollout_reports_per_completion_truncation_and_passes_to_reward(self, tmp_path):
+        import torch
+
+        tok = s2.DryTokenizer()
+        eos = tok.eos_token_id  # 1
+
+        class _FakeGenModel:
+            device = torch.device("cpu")
+
+            def generate(self, input_ids, **kwargs):
+                max_new = kwargs["max_new_tokens"]
+                row0 = torch.cat(
+                    [input_ids[0], torch.tensor([10] * max_new, dtype=torch.long)]
+                )
+                row1 = torch.cat(
+                    [input_ids[1], torch.tensor([10] * (max_new - 1) + [eos], dtype=torch.long)]
+                )
+                return torch.stack([row0, row1], dim=0)
+
+        p_ids, comps, truncs = s2.hf_rollout(
+            _FakeGenModel(),
+            tok,
+            "hello world",
+            g=2,
+            max_new=4,
+            temperature=0.7,
+        )
+        assert len(comps) == 2
+        assert truncs == [True, False]
+
+        gold_dir = _gold(tmp_path)
+        a = s2.apply_dry_defaults(_args(tmp_path, gold_dir, dry=True, steps=1, g=2))
+        seen_truncs: list[bool] = []
+
+        def build_trunc(args):
+            bundle = s2.dry_bundle(args)
+            bundle["rollout"] = lambda text, g, max_new, temp: (
+                [10, 11],
+                [[20, 21, 22, 23], [20, 21, eos]],
+                [True, False],
+            )
+            bundle["reward_fn"] = lambda text, row, tt, truncated=False: (
+                seen_truncs.append(bool(truncated)) or (-1.0 if truncated else 1.0)
+            )
+            return bundle
+
+        assert s2.execute(a, build=build_trunc) == 0
+        assert seen_truncs == [True, False, True, False]
+
+    def test_unclosed_thinking_block_never_parsed_for_verdict(self):
+        raw = "<think>Considering " + json.dumps(
+            {
+                "verdict": "supported",
+                "evidence_quotes": [{"part": "p", "verdict": "supported", "quote": "alpha beta"}],
+            }
+        )
+        thinking, answer = s2.split_reply(raw)
+        assert answer == ""
+        assert "Considering" in thinking
+        assert s2.parse_reply(raw) is None
+        assert s2.reward(raw, "supported", EVIDENCE, 50, truncated=False) == -1.0
+
+    @needs_torch
+    def test_mask_truncated_leaves_truncated_completions_out_of_loss(self, tmp_path):
+        gold_dir = _gold(tmp_path)
+        ap = s2.build_parser()
+        a = s2.apply_dry_defaults(
+            ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "out"),
+                    "--dry",
+                    "--steps",
+                    "1",
+                    "--mask-truncated",
+                ]
+            )
+        )
+        assert a.mask_truncated is True
+
+        def build_masked(args):
+            bundle = s2.dry_bundle(args)
+            bundle["rollout"] = lambda text, g, max_new, temp: (
+                [10, 11],
+                [[20, 21, 22], [20, 21, 1]],
+                [True, False],
+            )
+            bundle["reward_fn"] = lambda text, row, tt, truncated=False: -1.0 if truncated else 1.0
+            return bundle
+
+        assert s2.execute(a, build=build_masked) == 0
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["readout"]["flags"]["mask_truncated"] is True
+        step_lines = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        # With completion 0 truncated and masked out, only 1 non-truncated completion remains per group -> zero variance
+        assert step_lines[0]["zero_variance_groups"] == 2
+
+    def test_dead_8192_thinking_token_gate_removed(self):
+        val = s2.reward(_reply("supported", "alpha beta"), "supported", EVIDENCE, 8192, truncated=False)
+        assert val == pytest.approx(1.0 - 0.5 + 0.05)
+
+
+class TestOffrigQuoteRuleParity:
+    def test_offrig_rule_2_parity_fixture(self):
+        import quote_rule as qr
+
+        assert qr.QUOTE_RULE == 2
+        assert qr.MIN_QUOTE_CHARS == 12
+        assert qr.MIN_LINE_QUOTE_CHARS == 5
+
+        for case in OFFRIG_RULE2_PARITY_FIXTURE:
+            got = qr.quote_found(case["quote"], case["passages"])
+            assert got is case["expected"], f"Mismatch on {case['name']}: got {got}"
+
+    def test_gold_row_context_maps_to_passage_list_not_joined_string(self):
+        row = {
+            "id": "p1",
+            "claim": "alpha beta gamma delta",
+            "label": "supported",
+            "context": [
+                {"source": "a.rs:1", "text": "alpha beta"},
+                {"source": "b.rs:2", "text": "gamma delta"},
+            ],
+        }
+        passages = s2.passages_of(row)
+        assert passages == ["alpha beta", "gamma delta"]
+        assert s2.reward(_reply("supported", "alpha beta gamma delta"), "supported", passages, 5) == -3.0
+
+
+class TestQuoteRewardV2:
+    PASSAGES = [
+        "alpha beta gamma delta epsilon zeta eta theta",
+        "second passage with status_code = 404 and retry_limit = 3",
+    ]
+
+    def test_table_rows_under_quote_reward_v2(self):
+        # 1. gold=supported, verdict=supported, m=k (1/1) -> +1.0 + 0.05 = +1.05
+        assert s2.reward(
+            _reply("supported", "alpha beta gamma"),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.05)
+
+        # 2. gold=supported, verdict=supported, 0 < m < k (1/2) -> -0.2 + 1.2*(1/2) = +0.4
+        parts_1_of_2 = [
+            {"part": "p1", "verdict": "supported", "quote": "alpha beta gamma"},
+            {"part": "p2", "verdict": "supported", "quote": "missing quote text here"},
+        ]
+        assert s2.reward(
+            _reply("supported", parts=parts_1_of_2),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(0.4)
+
+        # 3. gold=supported, verdict=supported, m=0 -> -0.2
+        assert s2.reward(
+            _reply("supported", "completely fabricated quote"),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(-0.2)
+
+        # Default v1 stays -3.0 on missed quote
+        assert s2.reward(
+            _reply("supported", "completely fabricated quote"),
+            "supported",
+            self.PASSAGES,
+            10,
+        ) == pytest.approx(-3.0)
+
+        # 4. gold=unsupported, verdict=supported, all found -> -3.0 (false accept)
+        assert s2.reward(
+            _reply("supported", "alpha beta gamma"),
+            "unsupported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(-3.0)
+
+        # 5. gold=unsupported, verdict=supported, any missed -> -3.2 (fabricating never helps)
+        assert s2.reward(
+            _reply("supported", "completely fabricated quote"),
+            "unsupported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(-3.2)
+
+        # 6. gold=unsupported, verdict=unsupported, none given -> +1.0
+        assert s2.reward(
+            _reply("unsupported", ""),
+            "unsupported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.0)
+
+        # 7. gold=unsupported, verdict=unsupported, given and all found (>= 20 chars) -> +1.0 + 0.05 = +1.05
+        assert s2.reward(
+            _reply("unsupported", "alpha beta gamma delta"),
+            "unsupported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.05)
+
+        # 8. gold=unsupported, verdict=unsupported, given and any missed -> +0.8
+        assert s2.reward(
+            _reply("unsupported", "completely fabricated quote"),
+            "unsupported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(0.8)
+
+        # 9. decidable gold, verdict=cannot_tell -> -0.3
+        assert s2.reward(
+            _reply("cannot_tell", ""),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(-0.3)
+
+        # 10. gold=supported, verdict=unsupported -> -1.0
+        assert s2.reward(
+            _reply("unsupported", ""),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(-1.0)
+
+    def test_anti_farming_duplicates_overlap_density_unsupported_length_and_4way_split(self):
+        # Duplicate quotes earn once (+0.05)
+        dup_parts = [
+            {"part": "p1", "verdict": "supported", "quote": "alpha beta gamma"},
+            {"part": "p2", "verdict": "supported", "quote": "alpha   beta   gamma"},
+        ]
+        assert s2.reward(
+            _reply("supported", parts=dup_parts),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.05)
+
+        # Overlapping spans (>= 25% of shorter span in same passage) earn only once
+        overlap_parts = [
+            {"part": "p1", "verdict": "supported", "quote": "alpha beta gamma delta"},
+            {"part": "p2", "verdict": "supported", "quote": "beta gamma delta"},
+        ]
+        assert s2.reward(
+            _reply("supported", parts=overlap_parts),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.05)
+
+        # Low density (< 8 alphanumeric chars, e.g. whole short line "x = 1") is found by rule 2 but gets 0 credit
+        assert s2.reward(
+            _reply("supported", "x = 1"),
+            "supported",
+            ["x = 1\nalpha beta gamma"],
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.0)
+
+        # Unsupported quote < 20 chars gets 0 credit (+1.0 total)
+        assert s2.reward(
+            _reply("unsupported", "alpha beta gamma"),
+            "unsupported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.0)
+
+        # 4-way split of a simple claim:
+        # (a) 4 overlapping quotes from the same span earn only +0.05
+        split_same = [
+            {"part": "1", "verdict": "supported", "quote": "alpha beta gamma delta"},
+            {"part": "2", "verdict": "supported", "quote": "alpha beta gamma"},
+            {"part": "3", "verdict": "supported", "quote": "beta gamma delta"},
+            {"part": "4", "verdict": "supported", "quote": "alpha beta gamma delta epsilon"},
+        ]
+        assert s2.reward(
+            _reply("supported", parts=split_same),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.05)
+
+        # (b) 4 genuinely disjoint spans are capped at +0.15
+        split_disjoint = [
+            {"part": "1", "verdict": "supported", "quote": "alpha beta gamma"},
+            {"part": "2", "verdict": "supported", "quote": "delta epsilon zeta"},
+            {"part": "3", "verdict": "supported", "quote": "second passage with"},
+            {"part": "4", "verdict": "supported", "quote": "status_code = 404 and"},
+        ]
+        assert s2.reward(
+            _reply("supported", parts=split_disjoint),
+            "supported",
+            self.PASSAGES,
+            10,
+            quote_reward="v2",
+        ) == pytest.approx(1.15)
+
+
+class TestPerGroupLoggingAndEvaluationSummary:
+    @needs_torch
+    def test_per_group_logging_gpu_vs_cpu_and_zero_variance_labels(self, tmp_path):
+        assert (
+            s2.classify_zero_variance_group(
+                [
+                    {"correct": True, "quote_credit": 0.05, "truncated_or_malformed": False}
+                    for _ in range(2)
+                ]
+            )
+            == "all correct with full credit"
+        )
+        assert (
+            s2.classify_zero_variance_group(
+                [
+                    {"correct": True, "quote_credit": 0.0, "truncated_or_malformed": False}
+                    for _ in range(2)
+                ]
+            )
+            == "all correct without quote credit"
+        )
+        assert (
+            s2.classify_zero_variance_group(
+                [
+                    {"correct": False, "quote_credit": 0.0, "truncated_or_malformed": False}
+                    for _ in range(2)
+                ]
+            )
+            == "all wrong"
+        )
+        assert (
+            s2.classify_zero_variance_group(
+                [
+                    {"correct": False, "quote_credit": 0.0, "truncated_or_malformed": True}
+                    for _ in range(2)
+                ]
+            )
+            == "all truncated or malformed"
+        )
+
+        # Dry/CPU run -> GroupLogger is a no-op
+        gold_dir = _gold(tmp_path)
+        a_dry = s2.apply_dry_defaults(_args(tmp_path / "dry", gold_dir, dry=True, steps=1, g=2))
+        assert s2.execute(a_dry, build=s2.dry_bundle) == 0
+        assert not (a_dry.out / "s2-hf-groups.jsonl").exists()
+
+        # GPU run -> writes s2-hf-groups.jsonl with required fields and no text/quotes
+        a_gpu = _args(tmp_path / "gpu", gold_dir, steps=1, g=2, max_new=8)
+        fake_cuda = _FakeCuda()
+        rig = _FakeRig(a_gpu)
+
+        def build_gpu(args):
+            bundle = s2.dry_bundle(args)
+            bundle["cuda"] = fake_cuda
+            bundle["peak_alloc_mib"] = lambda: int(fake_cuda.max_memory_allocated() / 2**20)
+            return bundle
+
+        assert s2.execute(a_gpu, build=build_gpu, rig=rig) == 1  # cut run -> S2-LIMITED
+        g_file = a_gpu.out / "s2-hf-groups.jsonl"
+        assert g_file.exists()
+        g_lines = [json.loads(line) for line in g_file.read_text(encoding="utf-8").splitlines()]
+        assert len(g_lines) == 2
+        required_keys = {
+            "step",
+            "group",
+            "prompt_id",
+            "prompt_tokens",
+            "k_correct",
+            "g",
+            "reward_std",
+            "verdict_reward_std",
+            "truncations",
+            "mean_thinking_tokens",
+            "zero_variance_label",
+        }
+        for rec in g_lines:
+            assert required_keys.issubset(rec.keys())
+            assert "claim" not in rec
+            assert "quotes" not in rec
+            assert "context" not in rec
+
+    def test_evaluation_summary_metrics_and_7_rung_waterfall(self):
+        records = [
+            {
+                "group": 0,
+                "gold": "supported",
+                "claim": "The handler sets retry_limit to 3 when timeout occurs.",
+                "passages": [
+                    "When timeout occurs, the handler sets retry_limit = 3 in config.",
+                    "Fallback path logs a warning.",
+                ],
+                "rollouts": [
+                    {
+                        "verdict": "supported",
+                        "quotes": ["handler sets retry_limit = 3 in config"],
+                        "reward": 1.05,
+                    },
+                    {
+                        "verdict": "cannot_tell",
+                        "quotes": [],
+                        "reward": -0.3,
+                    },
+                ],
+            },
+            {
+                "group": 1,
+                "gold": "supported",
+                "claim": "Timeout triggers fallback warning.",
+                "passages": [
+                    "First part of evidence",
+                    "Second part of evidence",
+                ],
+                "rollouts": [
+                    {
+                        "verdict": "supported",
+                        "quotes": [
+                            "First part",
+                            "FIRST PART OF EVIDENCE",
+                            "First part, of evidence!",
+                            "First part ... of evidence",
+                            "First part of evidence Second part",
+                            "First part of the evidence",
+                        ],
+                        "reward": -3.0,
+                    },
+                    {
+                        "verdict": "cannot_tell",
+                        "quotes": [],
+                        "reward": -0.3,
+                    },
+                ],
+            },
+            {
+                "group": 2,
+                "gold": "unsupported",
+                "claim": "It deletes the database.",
+                "passages": ["Read-only query path."],
+                "rollouts": [
+                    {
+                        "verdict": "supported",
+                        "quotes": ["Read-only query path."],
+                        "reward": -3.0,
+                    },
+                    {
+                        "verdict": "unsupported",
+                        "quotes": [],
+                        "reward": 1.0,
+                    },
+                ],
+            },
+        ]
+        summary = s2.evaluation_summary(records)
+        assert summary["supported_pred_to_prior_ratio"] == pytest.approx((3 / 6) / (4 / 6))
+        assert summary["p_cannot_tell_given_gold_supported"] == pytest.approx(2 / 4)
+        assert summary["gold_supported_groups_with_positive_cannot_tell_advantage"] == pytest.approx(1 / 2)
+        assert summary["false_accepts"] == 1
+        assert summary["false_rejects"] == 0
+        wf = summary["miss_waterfall"]
+        assert wf["rule_2"] == 0
+        assert wf["no_minimum"] == 1
+        assert wf["case"] == 1
+        assert wf["punctuation"] == 1
+        assert wf["ellipsis_split"] == 1
+        assert wf["joined_passages"] == 1
+        assert wf["fuzzy"] == 1
+        assert summary["quote_relevance"]["relevant"] == 1
+        assert summary["quote_relevance"]["total"] == 2
+        assert summary["quote_relevance"]["share"] == pytest.approx(0.5)
+        raw_json = json.dumps(summary)
+        assert "retry_limit" not in raw_json
+        assert "First part" not in raw_json
+
+
+class TestPreregAmendmentLossAndQuote:
+    def test_prereg_doc_has_loss_and_quote_amendment(self):
+        doc = Path(__file__).parent.parent / "docs" / "runs" / "2026-10-10-smoke-s2-prereg.md"
+        text = doc.read_text(encoding="utf-8")
+        for needle in (
+            "--zero-variance-mask",
+            "--advantage dr-grpo",
+            "--groups-per-update",
+            "--mask-truncated",
+            "--quote-reward v2",
+            "QUOTE_RULE = 2",
+        ):
+            assert needle in text
