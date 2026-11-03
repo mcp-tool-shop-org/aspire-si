@@ -3943,3 +3943,223 @@ class TestFollowup2EvalSummaryParityEdgeCasesAndLoss:
         doc_text = doc.read_text(encoding="utf-8")
         assert "2026-11-03" in doc_text
         assert "mean over the step's groups of each group's loss" in doc_text
+
+
+def _run_stress_prefix_fake(tmp_path: Path, monkeypatch, *, force_base_prefix_masks: bool = False) -> dict:
+    from contextlib import nullcontext
+
+    import torch
+
+    monkeypatch.setattr(s2.time, "time", lambda: 1000.0)
+    rows_by_file = {
+        "grounded.jsonl": [
+            _row(f"g{i:02d}", text="short" if i < 19 else "longest_stress_prompt " * 20) for i in range(20)
+        ],
+        "prs/grounded-prs.jsonl": [_row(f"p{i:02d}") for i in range(20)],
+        "diffs/reasoning-diffs.jsonl": [_row(f"r{i:02d}", label="unsupported") for i in range(20)],
+    }
+    gold_dir = _gold(tmp_path / "gold", rows_by_file)
+    ap = s2.build_parser()
+    a = s2.apply_dry_defaults(
+        ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out"),
+                "--dry",
+                "--steps",
+                "1",
+                "--g",
+                "4",
+                "--max-new",
+                "12",
+                "--stress-prefix",
+                "1",
+                "--mask-truncated",
+                "--zero-variance-mask",
+                "--groups-per-update",
+                "2",
+                "--logprob-microbatch",
+                "2",
+            ]
+        )
+    )
+    tok = s2.DryTokenizer()
+    all_rows, _ = s2.read_gold(a.gold)
+    selected_prompts = s2.select_prompts(all_rows, a.prompts)
+    longest_row = max(selected_prompts, key=lambda r: (len(tok.encode(s2.build_prompt(r))), r["id"]))
+    longest_prompt_len = len(tok.encode(s2.build_prompt(longest_row)))
+
+    phase = {"stage": "prefix", "reg_group": -1}
+    prefix_train_widths: list[int] = []
+    reg_train_widths_by_group: dict[int, list[int]] = {0: [], 1: []}
+
+    class _FakeModel:
+        device = torch.device("cpu")
+
+        def __init__(self) -> None:
+            self._param = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+        def parameters(self):
+            return [self._param]
+
+        def generate(self, input_ids, **kwargs):
+            max_n = int(kwargs["max_new_tokens"])
+            cap_fill = torch.full((input_ids.shape[0], max_n), 10, dtype=torch.long)
+            return torch.cat([input_ids, cap_fill], dim=1)
+
+        def __call__(self, input_ids, attention_mask=None, logits_to_keep=None, **kwargs):
+            if torch.is_grad_enabled():
+                width = int(input_ids.shape[1])
+                if phase["stage"] == "prefix":
+                    prefix_train_widths.append(width)
+                else:
+                    grp = phase["reg_group"]
+                    reg_train_widths_by_group[grp].append(width)
+            logits = (
+                torch.zeros(
+                    (input_ids.shape[0], input_ids.shape[1], tok.vocab_size),
+                    dtype=torch.float32,
+                )
+                + self._param * 0.0
+            )
+            return Namespace(logits=logits)
+
+    fake_model = _FakeModel()
+
+    def fake_reg_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+        phase["stage"] = "registered"
+        phase["reg_group"] += 1
+        grp = phase["reg_group"]
+        p_ids = tok.encode(prompt_text)
+        if grp == 0:
+            # Group 0: row 0 truncated at max_n, rows 1..3 non-truncated with identical replies/rewards
+            comps = [
+                [10] * max_n,
+                [20, 21, 22, tok.eos_token_id],
+                [20, 21, 22, tok.eos_token_id],
+                [20, 21, 22, tok.eos_token_id],
+            ]
+            truncs = [True, False, False, False]
+        else:
+            # Group 1: microbatch 0 (rows 0, 1) truncated; microbatch 1 (rows 2, 3) non-truncated with distinct rewards
+            comps = [
+                [10] * max_n,
+                [10] * max_n,
+                [20, 21, 22, tok.eos_token_id],
+                [30, 31, 32, tok.eos_token_id],
+            ]
+            truncs = [True, True, False, False]
+        return p_ids, comps, truncs
+
+    def fake_reward(text: str, row: dict, tt: int, truncated: bool = False) -> float:
+        if truncated:
+            return -1.0
+        if text == tok.decode([30, 31, 32]):
+            return -0.3
+        return 1.0
+
+    def build_fake(_args_ns):
+        return {
+            "model": fake_model,
+            "tok": tok,
+            "mode": lambda training: None,
+            "state": lambda: {"grad_ckpt": True},
+            "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            "ref_adapter_off": nullcontext,
+            "rollout": fake_reg_rollout,
+            "reward_fn": fake_reward,
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: None,
+            "revision": None,
+            "llama": None,
+            "dtype_census": None,
+        }
+
+    if force_base_prefix_masks:
+        orig_run_steps = s2.run_steps
+        call_n = {"n": 0}
+
+        def base_run_steps(**kw):
+            call_n["n"] += 1
+            if call_n["n"] == 1:
+                kw["mask_truncated"] = True
+                kw["zero_variance_mask"] = True
+            return orig_run_steps(**kw)
+
+        monkeypatch.setattr(s2, "run_steps", base_run_steps)
+
+    rc = s2.execute(a, build=build_fake)
+    assert rc == 0
+    step_rows = [
+        json.loads(line) for line in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+    return {
+        "args": a,
+        "longest_prompt_len": longest_prompt_len,
+        "prefix_train_widths": prefix_train_widths,
+        "reg_train_widths_by_group": reg_train_widths_by_group,
+        "step_rows": step_rows,
+        "receipt": receipt,
+    }
+
+
+class TestStressPrefixMasksOff:
+    @needs_torch
+    def test_t1_prefix_trains_at_full_width_under_plan_flags(self, tmp_path, monkeypatch):
+        run = _run_stress_prefix_fake(tmp_path, monkeypatch)
+        a = run["args"]
+        expected_count = a.groups_per_update * a.g // a.logprob_microbatch
+        expected_width = run["longest_prompt_len"] + a.max_new
+        assert len(run["prefix_train_widths"]) == expected_count
+        assert run["prefix_train_widths"] == [expected_width] * expected_count
+
+    @needs_torch
+    def test_t2_registered_steps_unchanged_and_equal_to_base(self, tmp_path, monkeypatch):
+        head_run = _run_stress_prefix_fake(tmp_path / "head", monkeypatch, force_base_prefix_masks=False)
+        base_run = _run_stress_prefix_fake(tmp_path / "base", monkeypatch, force_base_prefix_masks=True)
+
+        # Registered group 0 (1 truncated row + 3 identical rewards) masked the truncated row, became
+        # zero-variance, and skipped both all-masked microbatches:
+        assert head_run["reg_train_widths_by_group"][0] == []
+        # Registered group 1 skipped microbatch 0 (both rows truncated -> all-masked) and ran only microbatch 1:
+        assert len(head_run["reg_train_widths_by_group"][1]) == 1
+        assert head_run["reg_train_widths_by_group"] == base_run["reg_train_widths_by_group"]
+
+        # Registered step rows match base across all fields:
+        assert head_run["step_rows"] == base_run["step_rows"]
+        assert head_run["step_rows"][0]["zero_variance_groups"] == 1
+        assert head_run["step_rows"][0]["active_groups"] == 1
+        # While in the same run, the prefix did run all microbatches (unlike base where prefix ran 0):
+        assert len(head_run["prefix_train_widths"]) == 4 and len(base_run["prefix_train_widths"]) == 0
+
+    @needs_torch
+    def test_t3_readout_stress_prefix_masks_off_when_on_and_absent_when_off(self, tmp_path, monkeypatch):
+        on_run = _run_stress_prefix_fake(tmp_path / "on", monkeypatch)
+        assert on_run["receipt"]["readout"]["flags"]["stress_prefix_masks"] == "off"
+
+        gold_dir = _gold(tmp_path / "gold_off")
+        a_off = s2.apply_dry_defaults(
+            _args(
+                tmp_path / "off",
+                gold_dir,
+                dry=True,
+                steps=1,
+                g=2,
+                stress_prefix=0,
+                mask_truncated=True,
+            )
+        )
+        assert s2.execute(a_off, build=s2.dry_bundle) == 0
+        receipt_off = json.loads((a_off.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert "stress_prefix_masks" not in receipt_off["readout"].get("flags", {})
+        assert "stress_prefix_masks" not in s2.active_flags(a_off)
+
+        stress_help = next(
+            act.help for act in s2.build_parser()._actions if "--stress-prefix" in act.option_strings
+        )
+        assert "both masks off" in stress_help and "full-width training forward" in stress_help
