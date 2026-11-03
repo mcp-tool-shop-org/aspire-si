@@ -1038,9 +1038,6 @@ class TestExclusiveGuard:
         msg = _refusal(_smi([("C", "python.exe")], used="9000"))
         assert "rule (a)" in msg and "rule (b)" in msg
 
-    def test_memory_is_summed_over_the_gpus_lines(self):
-        assert "rule (b)" in _refusal(_smi(DESKTOP, used="2000\n2200\n"))
-
     def test_nvidia_smi_missing_failing_slow_or_unreadable_each_refuses_with_a_named_reason(self):
         import subprocess
 
@@ -1059,8 +1056,29 @@ class TestExclusiveGuard:
             (_smi(xml="this is not xml"), "nvidia_smi_garbage"),
             (_smi(xml="<other_root/>"), "unexpected root element"),
             (_smi(xml=_xml([("Z", "x.exe")])), "unknown process type"),
-            (_smi(DESKTOP, used="lots"), "nvidia_smi_garbage"),
-            (_smi(DESKTOP, used=""), "no memory.used reading"),
+            (_smi(xml="<nvidia_smi_log/>"), "no <gpu> element"),
+            (_smi(xml="<nvidia_smi_log><gpu/></nvidia_smi_log>"), "has no <processes> element"),
+            (
+                _smi(xml="<nvidia_smi_log><gpu><processes>N/A</processes></gpu></nvidia_smi_log>"),
+                "no <process_info>",
+            ),
+            (
+                _smi(xml="<nvidia_smi_log><gpu><processes>not available</processes></gpu></nvidia_smi_log>"),
+                "holds text",
+            ),
+            (
+                _smi(xml="<nvidia_smi_log><gpu><processes/></gpu><gpu><processes/></gpu></nvidia_smi_log>"),
+                "more than one <gpu> element",
+            ),
+            (
+                _smi(xml=_xml(DESKTOP).replace("</gpu>", "</gpu><gpu><processes/></gpu>")),
+                "more than one <gpu>",
+            ),
+            (_smi(DESKTOP, used="lots"), "not a MiB integer"),
+            (_smi(DESKTOP, used="-5"), "not a MiB integer"),
+            (_smi(DESKTOP, used="24.5"), "not a MiB integer"),
+            (_smi(DESKTOP, used="2000\n2200\n"), "2 memory.used readings for one GPU"),
+            (_smi(DESKTOP, used="\n"), "no memory.used reading"),
         ]
         for smi, reason in cases:
             assert reason in _refusal(smi), reason
@@ -1095,6 +1113,23 @@ class TestExclusiveGuard:
             ]
             == []
         )
+
+    def test_an_empty_processes_element_is_the_real_nothing_on_the_card_shape_and_passes_to_rule_b(self):
+        for empty in ("<processes/>", "<processes></processes>", "<processes>  </processes>"):
+            xml = f"<nvidia_smi_log><gpu>{empty}</gpu></nvidia_smi_log>"
+            rec = s2.check_exclusive(_smi(xml=xml, used="2400"))
+            assert rec["processes"] == [] and rec["result"] == "passed", empty
+            assert "rule (b)" in _refusal(_smi(xml=xml, used="4097")), empty
+
+    def test_a_runner_like_directory_with_a_non_runner_file_name_passes_rule_a(self):
+        sep = chr(92)  # built at runtime: no drive letter or user name is written out
+        for folder in ("python", "ollama", "llama-server"):
+            for path in (
+                sep.join(["D:", folder, "notepad.exe"]),
+                "/".join(["", "opt", folder, "notepad.exe"]),
+            ):
+                rec = s2.check_exclusive(_smi([("C+G", path)]))
+                assert rec["processes"] == ["notepad.exe"] and rec["result"] == "passed", path
 
     def test_the_old_plain_rule_is_unchanged(self):
         s2.require_exclusive([])

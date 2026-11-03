@@ -379,7 +379,15 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
     """The processes from ``nvidia-smi -q -x``: ``[{"image": <file name>, "type": "C" | "G" | "C+G"}]``.
 
     That XML carries each process's type and name (the compute-apps query has no type and, on Windows,
-    no usable memory figure). Output that is not that XML is a refusal, never an empty list."""
+    no usable memory figure). Output that is not that XML is a refusal, never an empty list.
+
+    The shapes that refuse, each named in the message: not XML, a wrong root, no ``<gpu>``, more than one
+    ``<gpu>``, a ``<gpu>`` with no ``<processes>``, ``<processes>`` holding text but no ``<process_info>``
+    (for example "N/A"), and an unknown process type. Only a present, truly empty ``<processes/>`` means
+    "nothing on the card".
+
+    If the real rig ever returns one of the refused shapes, it is amended by a card with the real fixture,
+    never by relaxing this parser."""
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError as exc:
@@ -388,8 +396,22 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
         ) from exc
     if root.tag != "nvidia_smi_log":
         raise SystemExit(f"refusing to start: nvidia_smi_garbage: unexpected root element {root.tag!r}")
+    gpus = root.findall("gpu")
+    if not gpus:
+        raise SystemExit("refusing to start: nvidia_smi_garbage: no <gpu> element")
+    if len(gpus) > 1:
+        raise SystemExit(f"refusing to start: nvidia_smi_garbage: more than one <gpu> element ({len(gpus)})")
+    listing = gpus[0].find("processes")
+    if listing is None:
+        raise SystemExit("refusing to start: nvidia_smi_garbage: the <gpu> has no <processes> element")
+    infos = listing.findall("process_info")
+    if not infos and (listing.text or "").strip():
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: <processes> holds text {listing.text.strip()!r} "
+            "but no <process_info> entries"
+        )
     procs = []
-    for info in root.iter("process_info"):
+    for info in infos:
         ptype = (info.findtext("type") or "").strip().upper()
         if ptype not in ("C", "G", "C+G"):
             raise SystemExit(f"refusing to start: nvidia_smi_garbage: unknown process type {ptype!r}")
@@ -398,14 +420,22 @@ def parse_gpu_processes(xml_text: str) -> list[dict]:
 
 
 def parse_memory_used(text: str) -> int:
-    """Total ``memory.used`` in MiB from ``--query-gpu=memory.used --format=csv,noheader,nounits``."""
+    """``memory.used`` in MiB from ``--query-gpu=memory.used --format=csv,noheader,nounits``.
+
+    Exactly one line (the guard allows one GPU) holding a plain non-negative integer; anything else refuses.
+    Rule (b) reads only this source; the XML's ``fb_memory_usage`` is not read."""
     lines = [x.strip() for x in text.splitlines() if x.strip()]
     if not lines:
         raise SystemExit("refusing to start: nvidia_smi_garbage: no memory.used reading")
-    try:
-        return sum(int(x) for x in lines)
-    except ValueError as exc:
-        raise SystemExit(f"refusing to start: nvidia_smi_garbage: memory.used is {lines!r}") from exc
+    if len(lines) != 1:
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: {len(lines)} memory.used readings for one GPU"
+        )
+    if not lines[0].isdigit():
+        raise SystemExit(
+            f"refusing to start: nvidia_smi_garbage: memory.used is {lines[0]!r}, not a MiB integer"
+        )
+    return int(lines[0])
 
 
 def run_smi(args: Sequence[str]) -> str:  # pragma: no cover - runs the real nvidia-smi
