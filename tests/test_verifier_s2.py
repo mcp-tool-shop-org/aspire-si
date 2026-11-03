@@ -2618,7 +2618,6 @@ class TestStressPrefix:
         assert _scan([sec_file]) == []
 
 
-
 # ---------------------------------------------------------------------------
 # 2026-11-03 GRPO loss (zero-variance mask, Dr. GRPO, groups-per-update),
 # root truncation + unclosed thinking, offrig quote rule 2 port,
@@ -2627,70 +2626,81 @@ class TestStressPrefix:
 
 
 OFFRIG_RULE2_PARITY_FIXTURE = [
+    # Actual strings from offrig crates/offrig-core/src/verify.rs:1810-1822
+    # (quotes_match_across_whitespace_and_curly_marks):
     {
-        "name": "quotes_match_across_whitespace_and_curly_marks_1",
-        "passages": ['First line:\n    "hello   world" — and don\'t panic.'],
-        "quote": "\u201chello world\u201d \u2014 and don\u2019t",
+        "name": "quotes_match_across_whitespace_and_curly_marks_found",
+        "passages": ['He said\n  "it\'s   fine"  and left.'],
+        "quote": "\u201cit\u2019s fine\u201d and left.",
         "expected": True,
     },
     {
-        "name": "quotes_match_across_whitespace_and_curly_marks_2",
-        "passages": ['First line:\n    "hello   world" — and don\'t panic.'],
-        "quote": 'first line: "hello',
+        "name": "quotes_match_across_whitespace_and_curly_marks_paraphrase_not_found",
+        "passages": ['He said\n  "it\'s   fine"  and left.'],
+        "quote": "it is fine",
         "expected": False,
     },
     {
-        "name": "quotes_match_across_whitespace_and_curly_marks_3",
-        "passages": ['First line:\n    "hello   world" — and don\'t panic.'],
-        "quote": "not in the text at all",
-        "expected": False,
-    },
-    {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_empty",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "",
-        "expected": False,
-    },
-    {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_whitespace",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
+        "name": "quotes_match_across_whitespace_and_curly_marks_empty_not_found",
+        "passages": ['He said\n  "it\'s   fine"  and left.'],
         "quote": "   ",
         "expected": False,
     },
     {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_single_char",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "a",
+        "name": "quotes_match_across_whitespace_and_curly_marks_empty_evidence_not_found",
+        "passages": [],
+        "quote": "x",
+        "expected": False,
+    },
+    # Actual strings from offrig crates/offrig-core/src/verify.rs:1824-1830
+    # (a_quote_too_short_to_prove_anything_is_not_found):
+    {
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_one_word",
+        "passages": ["the cache is cleared on the next start"],
+        "quote": "the",
         "expected": False,
     },
     {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_two_chars",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "is",
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_under_minimum",
+        "passages": ["the cache is cleared on the next start"],
+        "quote": "the next",
         "expected": False,
     },
     {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_11_char_substring",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "The answer ",
-        "expected": False,
+        "name": "a_quote_too_short_to_prove_anything_is_not_found_long_enough",
+        "passages": ["the cache is cleared on the next start"],
+        "quote": "cleared on the next start",
+        "expected": True,
     },
+    # Additional rule 2 cases (whole short lines, diff/comment markers, cross-passage):
     {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_punctuation_line",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "---",
-        "expected": False,
-    },
-    {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_13_char_substring",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "The answer is",
+        "name": "a_short_quote_that_is_a_whole_line_is_found_1",
+        "passages": ["def f(v):\n    v = v * 3\n    return v\n}"],
+        "quote": "v = v * 3",
         "expected": True,
     },
     {
-        "name": "a_quote_too_short_to_prove_anything_is_not_found_whole_short_line",
-        "passages": ["The answer is 42, according to the deep thought manual.\nstatus = 0\n---\n"],
-        "quote": "status = 0",
+        "name": "a_short_quote_that_is_a_whole_line_is_found_2",
+        "passages": ["def f(v):\n    v = v * 3\n    return v\n}"],
+        "quote": "return v",
+        "expected": True,
+    },
+    {
+        "name": "a_short_quote_that_is_a_whole_line_fragment_not_found",
+        "passages": ["def f(v):\n    v = v * 3\n    return v\n}"],
+        "quote": "v * 3",
+        "expected": False,
+    },
+    {
+        "name": "a_short_quote_that_is_a_whole_line_brace_only_not_found",
+        "passages": ["def f(v):\n    v = v * 3\n    return v\n}"],
+        "quote": "}",
+        "expected": False,
+    },
+    {
+        "name": "a_short_quote_that_is_a_whole_diff_line_marker_removed",
+        "passages": ["@@ -1,3 +1,3 @@\n-    x += 1\n+    x += 2"],
+        "quote": "x += 2",
         "expected": True,
     },
     {
@@ -2716,6 +2726,85 @@ OFFRIG_RULE2_PARITY_FIXTURE = [
         "passages": ["alpha beta", "gamma delta"],
         "quote": "alpha beta gamma delta",
         "expected": False,
+    },
+    # Python/Rust edge cases (str::lines() and char::is_whitespace):
+    {
+        "name": "rust_edge_cr_alone_not_line_break_short_line",
+        "passages": ["x = 1\ry = 2"],
+        "quote": "x = 1",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_cr_alone_not_line_break_strip_markers",
+        "passages": ["+ // first line\r+ // second line"],
+        "quote": "first line second line",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_vt_x0b_not_line_break",
+        "passages": ["x = 1\x0by = 2"],
+        "quote": "x = 1",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_ff_x0c_not_line_break",
+        "passages": ["x = 1\x0cy = 2"],
+        "quote": "x = 1",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_nel_x85_not_line_break",
+        "passages": ["x = 1\x85y = 2"],
+        "quote": "x = 1",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_ls_u2028_not_line_break",
+        "passages": ["x = 1\u2028y = 2"],
+        "quote": "x = 1",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_ps_u2029_not_line_break",
+        "passages": ["x = 1\u2029y = 2"],
+        "quote": "x = 1",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_vt_ff_nel_ls_ps_collapsed_as_whitespace",
+        "passages": ["alpha\x0bbeta\x0cgamma\x85delta\u2028eps\u2029zeta"],
+        "quote": "alpha beta gamma delta eps zeta",
+        "expected": True,
+    },
+    {
+        "name": "rust_edge_fs_x1c_not_whitespace",
+        "passages": ["alpha\x1cbeta gamma delta"],
+        "quote": "alpha beta gamma delta",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_gs_x1d_not_whitespace",
+        "passages": ["alpha\x1dbeta gamma delta"],
+        "quote": "alpha beta gamma delta",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_rs_x1e_not_whitespace",
+        "passages": ["alpha\x1ebeta gamma delta"],
+        "quote": "alpha beta gamma delta",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_us_x1f_not_whitespace",
+        "passages": ["alpha\x1fbeta gamma delta"],
+        "quote": "alpha beta gamma delta",
+        "expected": False,
+    },
+    {
+        "name": "rust_edge_fs_gs_rs_us_preserved_in_normalise",
+        "passages": ["alpha\x1cbeta\x1dgamma\x1edelta\x1feps"],
+        "quote": "alpha\x1cbeta\x1dgamma\x1edelta\x1feps",
+        "expected": True,
     },
 ]
 
@@ -2938,9 +3027,7 @@ class TestZeroVarianceMask:
         )
 
         assert abs(loss_active_only - loss_masked_batch) <= 1e-6
-        for (_, p1), (_, p2) in zip(
-            model_old.named_parameters(), model_new.named_parameters(), strict=True
-        ):
+        for (_, p1), (_, p2) in zip(model_old.named_parameters(), model_new.named_parameters(), strict=True):
             if p1.requires_grad:
                 assert torch.allclose(p1.grad, p2.grad, atol=1e-6)
 
@@ -3054,12 +3141,8 @@ class TestTruncationAndUnclosedThinking:
 
             def generate(self, input_ids, **kwargs):
                 max_new = kwargs["max_new_tokens"]
-                row0 = torch.cat(
-                    [input_ids[0], torch.tensor([10] * max_new, dtype=torch.long)]
-                )
-                row1 = torch.cat(
-                    [input_ids[1], torch.tensor([10] * (max_new - 1) + [eos], dtype=torch.long)]
-                )
+                row0 = torch.cat([input_ids[0], torch.tensor([10] * max_new, dtype=torch.long)])
+                row1 = torch.cat([input_ids[1], torch.tensor([10] * (max_new - 1) + [eos], dtype=torch.long)])
                 return torch.stack([row0, row1], dim=0)
 
         p_ids, comps, truncs = s2.hf_rollout(
@@ -3370,37 +3453,25 @@ class TestPerGroupLoggingAndEvaluationSummary:
     def test_per_group_logging_gpu_vs_cpu_and_zero_variance_labels(self, tmp_path):
         assert (
             s2.classify_zero_variance_group(
-                [
-                    {"correct": True, "quote_credit": 0.05, "truncated_or_malformed": False}
-                    for _ in range(2)
-                ]
+                [{"correct": True, "quote_credit": 0.05, "truncated_or_malformed": False} for _ in range(2)]
             )
             == "all correct with full credit"
         )
         assert (
             s2.classify_zero_variance_group(
-                [
-                    {"correct": True, "quote_credit": 0.0, "truncated_or_malformed": False}
-                    for _ in range(2)
-                ]
+                [{"correct": True, "quote_credit": 0.0, "truncated_or_malformed": False} for _ in range(2)]
             )
             == "all correct without quote credit"
         )
         assert (
             s2.classify_zero_variance_group(
-                [
-                    {"correct": False, "quote_credit": 0.0, "truncated_or_malformed": False}
-                    for _ in range(2)
-                ]
+                [{"correct": False, "quote_credit": 0.0, "truncated_or_malformed": False} for _ in range(2)]
             )
             == "all wrong"
         )
         assert (
             s2.classify_zero_variance_group(
-                [
-                    {"correct": False, "quote_credit": 0.0, "truncated_or_malformed": True}
-                    for _ in range(2)
-                ]
+                [{"correct": False, "quote_credit": 0.0, "truncated_or_malformed": True} for _ in range(2)]
             )
             == "all truncated or malformed"
         )
@@ -3551,3 +3622,324 @@ class TestPreregAmendmentLossAndQuote:
             "QUOTE_RULE = 2",
         ):
             assert needle in text
+
+
+class TestFollowup2EvalSummaryParityEdgeCasesAndLoss:
+    def test_offrig_named_parity_strings_and_rust_lines_whitespace_edge_cases(self):
+        import quote_rule as qr
+
+        by_name = {c["name"]: c for c in OFFRIG_RULE2_PARITY_FIXTURE}
+        assert by_name["quotes_match_across_whitespace_and_curly_marks_found"]["passages"] == [
+            'He said\n  "it\'s   fine"  and left.'
+        ]
+        assert by_name["a_quote_too_short_to_prove_anything_is_not_found_long_enough"]["passages"] == [
+            "the cache is cleared on the next start"
+        ]
+        assert qr.normalise("  a \n\t b\u00a0c ") == "a b c"
+        assert qr.normalise("\u201cit\u2019s\u201d") == '"it\'s"'
+
+        # Rust str::lines() vs Python splitlines():
+        # \r alone, \x0b, \x0c, \x85, \u2028, \u2029 are NOT line breaks in Rust str::lines()
+        for sep in ("\r", "\x0b", "\x0c", "\x85", "\u2028", "\u2029"):
+            assert qr.quote_found("x = 1", [f"x = 1{sep}y = 2"]) is False, repr(sep)
+        assert qr.quote_found("first line second line", ["+ // first line\r+ // second line"]) is False
+        assert qr.quote_found("x = 1", ["x = 1\r\ny = 2"]) is True
+
+        # Rust char::is_whitespace vs Python str.split():
+        # \x1c-\x1f are NOT whitespace in Rust
+        for ctrl in ("\x1c", "\x1d", "\x1e", "\x1f"):
+            assert qr.normalise(f"a{ctrl}b") == f"a{ctrl}b", repr(ctrl)
+            assert qr.quote_found("alpha beta gamma delta", [f"alpha{ctrl}beta gamma delta"]) is False
+            assert qr.quote_found(f"alpha{ctrl}beta gamma delta", [f"alpha{ctrl}beta gamma delta"]) is True
+
+    @needs_torch
+    def test_fake_run_of_2_steps_writes_eval_summary_and_readout_with_no_item_text(self, tmp_path):
+        marker_claim = "".join(("PLANTED", "_", "CLAIM", "_", "TEXT", "_", "9941"))
+        marker_passage = "".join(("PLANTED", "_", "PASSAGE", "_", "TEXT", "_", "8832"))
+        marker_quote = "".join(("PLANTED", "_", "QUOTE", "_", "TEXT", "_", "7723"))
+
+        # Build gold where the first 4 tune items (2 steps * 2 groups/step) have known labels and passages:
+        # g00: gold=supported, passage has marker_passage + " handler sets retry_limit = 3 in config"
+        # g01: gold=supported, passage has "First part of evidence" and "Second part of evidence"
+        # g02: gold=unsupported, passage has "Read-only query path."
+        # g03: gold=supported, passage has "When timeout occurs, retry_limit = 3"
+        g_rows = []
+        for i in range(20):
+            if i == 0:
+                g_rows.append(
+                    {
+                        "id": "g00",
+                        "check_type": "grounded",
+                        "claim": f"{marker_claim} handler sets retry_limit to 3.",
+                        "label": "supported",
+                        "split": "tune",
+                        "context": [
+                            {
+                                "source": "src@g00",
+                                "text": f"{marker_passage} handler sets retry_limit = 3 in config.",
+                            }
+                        ],
+                    }
+                )
+            elif i == 1:
+                g_rows.append(
+                    {
+                        "id": "g01",
+                        "check_type": "grounded",
+                        "claim": f"{marker_claim} Timeout triggers fallback warning.",
+                        "label": "supported",
+                        "split": "tune",
+                        "context": [
+                            {"source": "src@g01a", "text": "First part of evidence"},
+                            {"source": "src@g01b", "text": "Second part of evidence"},
+                        ],
+                    }
+                )
+            elif i == 2:
+                g_rows.append(
+                    {
+                        "id": "g02",
+                        "check_type": "grounded",
+                        "claim": f"{marker_claim} It deletes the database.",
+                        "label": "unsupported",
+                        "split": "tune",
+                        "context": [{"source": "src@g02", "text": "Read-only query path."}],
+                    }
+                )
+            elif i == 3:
+                g_rows.append(
+                    {
+                        "id": "g03",
+                        "check_type": "grounded",
+                        "claim": f"{marker_claim} Timeout sets retry_limit.",
+                        "label": "supported",
+                        "split": "tune",
+                        "context": [
+                            {"source": "src@g03", "text": "When timeout occurs, retry_limit = 3 in config."}
+                        ],
+                    }
+                )
+            else:
+                g_rows.append(_row(f"g{i:02d}"))
+
+        gold_dir = _gold(
+            tmp_path,
+            {
+                "grounded.jsonl": g_rows,
+                "prs/grounded-prs.jsonl": [_row(f"p{i:02d}") for i in range(20)],
+                "diffs/reasoning-diffs.jsonl": [_row(f"r{i:02d}", label="unsupported") for i in range(20)],
+            },
+        )
+        a = s2.apply_dry_defaults(_args(tmp_path, gold_dir, dry=True, steps=2, g=2, max_new=64))
+
+        # Scripted replies for the 4 groups (2 completions each = 8 rollouts total):
+        # Group 0 (g00, gold=supported):
+        #   r0: verdict=supported, quote="handler sets retry_limit = 3 in config" (found, relevant -> relevant=1, total=1)
+        #   r1: verdict=cannot_tell, quote="short" (not found, no_minimum=0 since not in passage -> unmatched=1)
+        # Group 1 (g01, gold=supported):
+        #   r0: verdict=supported, quotes=["First part", "FIRST PART OF EVIDENCE", marker_quote]
+        #       -> "First part" is no_minimum, "FIRST PART OF EVIDENCE" is case, marker_quote is unmatched.
+        #       Because unfound supported quote -> reward = -3.0.
+        #   r1: verdict=cannot_tell, quote="First part, of evidence!" (punctuation=1)
+        #       -> reward = -0.3 > -3.0, so cannot_tell has positive advantage in this gold-supported group!
+        # Group 2 (g02, gold=unsupported):
+        #   r0: verdict=supported, quote="Read-only query path." (found, not relevant -> relevant=0, total=1; false_accepts=1)
+        #   r1: verdict=unsupported, quote="First part ... of evidence" (unmatched=1)
+        # Group 3 (g03, gold=supported):
+        #   r0: verdict=unsupported, quote="When timeout occurs, retry_limit = 3" (found, but verdict=unsupported; false_rejects=1)
+        #   r1: verdict=supported, quote="When timeout occurs, retry_limit = 3" (found, relevant -> relevant=1, total=1)
+        scripted_replies = [
+            [
+                _reply("supported", "handler sets retry_limit = 3 in config"),
+                _reply("cannot_tell", "absent_xyz"),
+            ],
+            [
+                _reply(
+                    "supported",
+                    parts=[
+                        {"part": "p1", "verdict": "supported", "quote": "First part"},
+                        {"part": "p2", "verdict": "supported", "quote": "FIRST PART OF EVIDENCE"},
+                        {"part": "p3", "verdict": "supported", "quote": marker_quote},
+                    ],
+                ),
+                _reply("cannot_tell", "First part, of evidence!"),
+            ],
+            [
+                _reply("supported", "Read-only query path."),
+                _reply("unsupported", "absent_uvw"),
+            ],
+            [
+                _reply("unsupported", "When timeout occurs, retry_limit = 3"),
+                _reply("supported", "When timeout occurs, retry_limit = 3"),
+            ],
+        ]
+        grp_counter = {"idx": 0}
+
+        def build_scripted(args):
+            bundle = s2.dry_bundle(args)
+            tok = bundle["tok"]
+
+            def scripted_rollout(text, g, max_new, temp):
+                idx = grp_counter["idx"]
+                grp_counter["idx"] += 1
+                replies = scripted_replies[idx]
+                p_ids = tok.encode(text)
+                comps = [tok.encode(rep) + [tok.eos_token_id] for rep in replies]
+                return p_ids, comps, [False] * len(comps)
+
+            bundle["rollout"] = scripted_rollout
+            bundle["reward_fn"] = lambda text, row, tt, truncated=False: s2.reward(
+                text,
+                row["label"],
+                s2.passages_of(row),
+                tt,
+                truncated=truncated,
+            )
+            return bundle
+
+        assert s2.execute(a, build=build_scripted) == 0
+
+        summary_path = a.out / "s2-hf-eval-summary.json"
+        assert summary_path.exists()
+        raw_summary = summary_path.read_text(encoding="utf-8")
+        for m in (marker_claim, marker_passage, marker_quote):
+            assert m not in raw_summary
+        receipt_raw = (a.out / "s2-hf.json").read_text(encoding="utf-8")
+        for m in (marker_claim, marker_passage, marker_quote):
+            assert m not in receipt_raw
+
+        summary = json.loads(raw_summary)
+        # Hand-computed expectations over 8 rollouts (4 groups * 2):
+        # pred_supported = 4 (g0.r0, g1.r0, g2.r0, g3.r1) -> pred_rate = 4/8 = 0.5
+        # gold_supported_rollouts = 6 (g0, g1, g3 each have 2) -> prior_rate = 6/8 = 0.75
+        # supported_pred_to_prior_ratio = (4/8) / (6/8) = 4/6 = 2/3
+        assert summary["supported_pred_to_prior_ratio"] == pytest.approx(4 / 6)
+        # cannot_tell on gold_supported = 2 (g0.r1, g1.r1) out of 6 -> 2/6 = 1/3
+        assert summary["p_cannot_tell_given_gold_supported"] == pytest.approx(2 / 6)
+        # gold_supported_groups = 3 (g0, g1, g3); positive cannot_tell advantage in g1 only -> 1/3
+        assert summary["gold_supported_groups_with_positive_cannot_tell_advantage"] == pytest.approx(1 / 3)
+        # false_accepts = 1 (g2.r0), false_rejects = 1 (g3.r0)
+        assert summary["false_accepts"] == 1
+        assert summary["false_rejects"] == 1
+        # miss_waterfall: no_minimum=1, case=1, punctuation=1, unmatched=3 (absent_xyz, marker_quote, absent_uvw)
+        assert summary["miss_waterfall"] == {
+            "rule_2": 0,
+            "no_minimum": 1,
+            "case": 1,
+            "punctuation": 1,
+            "ellipsis_split": 0,
+            "joined_passages": 0,
+            "fuzzy": 0,
+            "unmatched": 3,
+        }
+        # quote_relevance: 3 found quotes on supported verdicts (g0.r0 relevant, g2.r0 not relevant, g3.r1 relevant) -> 2/3
+        assert summary["quote_relevance"]["relevant"] == 2
+        assert summary["quote_relevance"]["total"] == 3
+        assert summary["quote_relevance"]["share"] == pytest.approx(2 / 3)
+
+        # Headline numbers in readout
+        receipt = json.loads(receipt_raw)
+        ro = receipt["readout"]
+        assert "eval_summary" in ro
+        assert ro["eval_summary"]["supported_pred_to_prior_ratio"] == pytest.approx(4 / 6)
+        assert ro["eval_summary"]["p_cannot_tell_given_gold_supported"] == pytest.approx(2 / 6)
+        assert ro["eval_summary"][
+            "gold_supported_groups_with_positive_cannot_tell_advantage"
+        ] == pytest.approx(1 / 3)
+        assert ro["eval_summary"]["false_accepts"] == 1
+        assert ro["eval_summary"]["false_rejects"] == 1
+        assert ro["eval_summary"]["quote_relevance_share"] == pytest.approx(2 / 3)
+
+    @needs_torch
+    def test_logged_step_loss_is_mean_over_step_groups_in_both_mask_off_and_mask_on_modes(self, tmp_path):
+        import copy
+
+        import torch
+
+        gold_dir = _gold(tmp_path)
+
+        # Group 0: zero-variance (all completions identical -> reward equal -> advantage 0, group loss 0 under mask,
+        # or KL=0 and policy=0 when old == pi == ref).
+        # Let's make old != pi or ref != pi so we can also test active vs zero-variance groups!
+        # Wait: in run_steps, old is computed from current model, and ref from model with adapter off.
+        # If LoRA B weights are non-zero, ref != pi, so KL > 0 on an unmasked group, and on an active group policy+KL != 0!
+        def run_mode(zero_variance_mask: bool):
+            a = s2.apply_dry_defaults(
+                _args(
+                    tmp_path / ("on" if zero_variance_mask else "off"),
+                    gold_dir,
+                    dry=True,
+                    steps=1,
+                    g=2,
+                    groups_per_update=2,
+                    zero_variance_mask=zero_variance_mask,
+                )
+            )
+            bundle = s2.dry_bundle(a)
+            torch.manual_seed(99)
+            with torch.no_grad():
+                for n, p in bundle["model"].named_parameters():
+                    if p.requires_grad and "lora_B" in n:
+                        p.normal_(0.0, 0.2)
+
+            model_snap = copy.deepcopy(bundle["model"])
+            model_snap.eval()
+            model_snap.get_base_model().gradient_checkpointing_disable()
+
+            call_n = {"n": 0}
+            grp_Data = []
+
+            def rollout(text, g, max_new, temp):
+                call_n["n"] += 1
+                p_ids = [10, 11, 12]
+                if call_n["n"] == 1:
+                    # Group 0: identical completions -> zero variance
+                    comps = [[20, 21, 22, 1], [20, 21, 22, 1]]
+                else:
+                    # Group 1: distinct completions -> active group
+                    comps = [[20, 21, 22, 1], [30, 31, 32, 1]]
+                grp_Data.append((p_ids, comps))
+                return p_ids, comps, [False, False]
+
+            bundle["rollout"] = rollout
+            s2.execute(a, build=lambda _: bundle)
+            step_rec = json.loads((a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()[0])
+
+            # Compute each group's unscaled loss directly on model_snap (before optimizer.step())
+            grp_losses = []
+            for idx, (p_ids, comps) in enumerate(grp_Data):
+                rewards = [bundle["reward_fn"](bundle["tok"].decode(c), {}, 0) for c in comps]
+                adv_t = torch.tensor(s2.advantages(rewards), dtype=torch.float32)
+                ids_t = torch.tensor([p_ids + c for c in comps], dtype=torch.long)
+                att_t = torch.ones_like(ids_t)
+                mask_t = torch.ones((2, len(comps[0])), dtype=torch.float32)
+                with torch.no_grad():
+                    old_lp = s2.completion_logprobs(model_snap, ids_t, att_t, len(p_ids))
+                    with model_snap.disable_adapter():
+                        ref_lp = s2.completion_logprobs(model_snap, ids_t, att_t, len(p_ids))
+                    gl = s2.grpo_loss(
+                        old_lp,
+                        old_lp,
+                        ref_lp,
+                        adv_t,
+                        mask_t,
+                        zero_variance_mask=zero_variance_mask,
+                        group_size=2,
+                    )
+                    grp_losses.append(float(gl))
+
+            expected_mean_over_groups = sum(grp_losses) / len(grp_losses)
+            return step_rec["loss"], round(expected_mean_over_groups, 6), grp_losses
+
+        loss_off, exp_off, gl_off = run_mode(False)
+        loss_on, exp_on, gl_on = run_mode(True)
+        assert gl_off[0] > 0.0 and gl_off[1] > 0.0
+        assert gl_on[0] == 0.0 and gl_on[1] > 0.0
+        assert loss_off == pytest.approx(exp_off, abs=1e-6)
+        assert loss_on == pytest.approx(exp_on, abs=1e-6)
+
+        # Also check prereg amendment dated 2026-11-03
+        doc = Path(__file__).parent.parent / "docs" / "runs" / "2026-10-10-smoke-s2-prereg.md"
+        doc_text = doc.read_text(encoding="utf-8")
+        assert "2026-11-03" in doc_text
+        assert "mean over the step's groups of each group's loss" in doc_text
