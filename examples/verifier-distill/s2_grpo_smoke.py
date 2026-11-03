@@ -323,9 +323,7 @@ def reward_details(
         raise SystemExit(f"unknown --quote-reward {quote_reward!r}")
 
     outcome, correct = macro(verdict, gold)
-    unfound_supported = any(
-        p["verdict"] == "supported" and not f for p, f in zip(parts, found, strict=True)
-    )
+    unfound_supported = any(p["verdict"] == "supported" and not f for p, f in zip(parts, found, strict=True))
     if verdict == "supported" and unfound_supported:
         outcome, correct = -3.0, False
     if not correct:
@@ -406,6 +404,61 @@ def classify_zero_variance_group(samples: Sequence[dict], gold: str | None = Non
     return "all wrong"
 
 
+def completion_eval_outcome(
+    reply: str,
+    row: dict,
+    *,
+    truncated: bool = False,
+    reward_val: float = 0.0,
+) -> dict:
+    """Extract text-free evaluation outcomes for one completion: verdict, per-quote found/missed status,
+    waterfall rung, and relevance boolean. Never stores item, claim, or quote text.
+    """
+    if truncated:
+        return {
+            "verdict": None,
+            "reward": float(reward_val),
+            "quote_outcomes": [],
+        }
+    parsed = parse_reply(reply)
+    if parsed is None:
+        return {
+            "verdict": None,
+            "reward": float(reward_val),
+            "quote_outcomes": [],
+        }
+    verdict = parsed["verdict"]
+    if loop_detected(reply):
+        verdict = "cannot_tell"
+    passages = passages_of(row) if "context" in row else as_passages(row.get("passages") or ())
+    claim = str(row.get("claim") or "")
+    quote_outcomes: list[dict] = []
+    for p in parsed["evidence_quotes"]:
+        q = p["quote"]
+        found = bool(quote_found(q, passages))
+        if found:
+            quote_outcomes.append(
+                {
+                    "found": True,
+                    "rung": "rule_2",
+                    "relevant": bool(quote_is_relevant(q, claim)) if verdict == "supported" else False,
+                }
+            )
+        else:
+            quote_outcomes.append(
+                {
+                    "found": False,
+                    "rung": classify_quote_rung(q, passages),
+                    "relevant": False,
+                }
+            )
+    return {
+        "verdict": verdict,
+        "reward": float(reward_val),
+        "quote_outcomes": quote_outcomes,
+    }
+
+
 def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") -> dict:
     """Compute per-evaluation diagnostic summary (counts and ratios only; never logs item text or quotes)."""
     total_rollouts = 0
@@ -422,19 +475,28 @@ def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") 
 
     for grp in records:
         gold = str(grp.get("gold") or grp.get("label") or "")
-        claim = str(grp.get("claim") or "")
-        passages = as_passages(grp.get("passages") or grp.get("context") or ())
         rollouts = list(grp.get("rollouts") or ())
-        rewards = [float(r.get("reward", 0.0)) for r in rollouts]
-        advs = advantages(rewards, mode=advantage_mode) if rollouts else []
+        if rollouts and all("advantage" in r for r in rollouts):
+            advs = [float(r["advantage"]) for r in rollouts]
+        elif isinstance(grp.get("advantages"), Sequence) and len(grp["advantages"]) == len(rollouts):
+            advs = [float(a) for a in grp["advantages"]]
+        else:
+            rewards = [float(r.get("reward", 0.0)) for r in rollouts]
+            advs = advantages(rewards, mode=advantage_mode) if rollouts else []
 
         if gold == "supported" and rollouts:
             gold_supported_groups += 1
             if any(
-                r.get("verdict") == "cannot_tell" and a > 0.0
-                for r, a in zip(rollouts, advs, strict=True)
+                r.get("verdict") == "cannot_tell" and a > 0.0 for r, a in zip(rollouts, advs, strict=True)
             ):
                 gold_supported_groups_pos_ct_adv += 1
+
+        claim = str(grp.get("claim") or "")
+        passages = (
+            as_passages(grp.get("passages") or grp.get("context") or ())
+            if ("passages" in grp or "context" in grp)
+            else ()
+        )
 
         for r in rollouts:
             total_rollouts += 1
@@ -450,6 +512,19 @@ def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") 
             else:
                 if v == "supported":
                     false_accepts += 1
+
+            q_outcomes = r.get("quote_outcomes")
+            if isinstance(q_outcomes, Sequence):
+                for qo in q_outcomes:
+                    if qo.get("found"):
+                        if v == "supported":
+                            total_found_supported_quotes += 1
+                            if qo.get("relevant"):
+                                relevant_quotes += 1
+                    else:
+                        rung = str(qo.get("rung") or "unmatched")
+                        waterfall[rung] = waterfall.get(rung, 0) + 1
+                continue
 
             raw_quotes = r.get("quotes")
             if raw_quotes is None and isinstance(r.get("evidence_quotes"), Sequence):
@@ -473,9 +548,7 @@ def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") 
     pos_ct_share = (
         (gold_supported_groups_pos_ct_adv / gold_supported_groups) if gold_supported_groups > 0 else 0.0
     )
-    rel_share = (
-        (relevant_quotes / total_found_supported_quotes) if total_found_supported_quotes > 0 else 0.0
-    )
+    rel_share = (relevant_quotes / total_found_supported_quotes) if total_found_supported_quotes > 0 else 0.0
     return {
         "supported_pred_to_prior_ratio": ratio,
         "p_cannot_tell_given_gold_supported": p_ct_given_sup,
@@ -504,6 +577,7 @@ def readout(
     series: Sequence[int] = (),
     flags: dict | None = None,
     phase_logger: PhaseLogger | None = None,
+    eval_summary_record: dict | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -548,6 +622,21 @@ def readout(
     }
     if flags:
         out["flags"] = dict(flags)
+    if eval_summary_record is not None:
+        qr_rel = eval_summary_record.get("quote_relevance") or {}
+        out["eval_summary"] = {
+            "supported_pred_to_prior_ratio": eval_summary_record.get("supported_pred_to_prior_ratio"),
+            "p_cannot_tell_given_gold_supported": eval_summary_record.get(
+                "p_cannot_tell_given_gold_supported"
+            ),
+            "gold_supported_groups_with_positive_cannot_tell_advantage": eval_summary_record.get(
+                "gold_supported_groups_with_positive_cannot_tell_advantage"
+            ),
+            "false_accepts": eval_summary_record.get("false_accepts"),
+            "false_rejects": eval_summary_record.get("false_rejects"),
+            "miss_waterfall": dict(eval_summary_record.get("miss_waterfall") or {}),
+            "quote_relevance_share": qr_rel.get("share"),
+        }
     return out
 
 
@@ -1621,6 +1710,8 @@ def run_steps(
     advantage_mode: str = "std",
     mask_truncated: bool = False,
     quote_reward: str = "v1",
+    eval_records: list[dict] | None = None,
+    on_eval: Callable[[dict], None] | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -1698,6 +1789,7 @@ def run_steps(
                 think_counts: list[int] = []
                 group_samples: list[dict] = []
                 verdict_scores: list[float] = []
+                rollout_outcomes: list[dict] = []
                 for c, trunc in zip(comps, truncs, strict=True):
                     text = tok.decode(c, skip_special_tokens=True)
                     think, _ = split_reply(text)
@@ -1705,6 +1797,10 @@ def run_steps(
                     think_counts.append(tt)
                     r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
                     rewards.append(r_val)
+                    if eval_records is not None:
+                        rollout_outcomes.append(
+                            completion_eval_outcome(text, row, truncated=trunc, reward_val=r_val)
+                        )
                     if group_logger is not None and group_logger.enabled:
                         det = reward_details(
                             text,
@@ -1726,6 +1822,18 @@ def run_steps(
                 else:
                     is_zv = zero_variance(rewards)
                     adv_list = advantages(rewards, mode=advantage_mode)
+
+                if eval_records is not None:
+                    for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
+                        ro_item["advantage"] = float(adv_val)
+                    eval_records.append(
+                        {
+                            "step": step,
+                            "group": k,
+                            "gold": str(row.get("label", "supported")),
+                            "rollouts": rollout_outcomes,
+                        }
+                    )
 
                 zero_var += int(is_zv)
                 if not is_zv:
@@ -1872,12 +1980,10 @@ def run_steps(
                         if p.requires_grad and p.grad is not None:
                             p.grad.mul_(1.0 / active_groups)
                     optimiser.step()
-                    reported_loss = step_loss_sum / active_groups
-                else:
-                    reported_loss = 0.0
+                reported_loss = step_loss_sum / groups_per_update
             else:
                 optimiser.step()
-                reported_loss = step_loss_sum * groups_per_update
+                reported_loss = step_loss_sum
             device_sync()
             if phase_logger is not None:
                 phase_logger.record(
@@ -1912,6 +2018,8 @@ def run_steps(
             rows.append(rec)
             if on_step:
                 on_step(rec)
+            if on_eval is not None and eval_records is not None:
+                on_eval(evaluation_summary(eval_records, advantage_mode=advantage_mode))
         except oom_types:
             return rows, {"step": step, "error": "out of memory"}, True
         except TimeoutError as exc:
@@ -2532,6 +2640,13 @@ def execute(
         adv_mode = str(getattr(a, "advantage", "std") or "std")
         mask_trunc = bool(getattr(a, "mask_truncated", False))
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
+        eval_records: list[dict] = []
+
+        def write_eval_summary(summary_doc: dict) -> None:
+            a.out.mkdir(parents=True, exist_ok=True)
+            (a.out / f"s2-{a.path}-eval-summary.json").write_text(
+                json.dumps(summary_doc, indent=1), encoding="utf-8", newline="\n"
+            )
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
             if stress_n > 0:
@@ -2605,6 +2720,8 @@ def execute(
                 advantage_mode=adv_mode,
                 mask_truncated=mask_trunc,
                 quote_reward=quote_rew,
+                eval_records=eval_records,
+                on_eval=write_eval_summary,
             )
 
         if sampler is not None:
@@ -2612,6 +2729,8 @@ def execute(
                 steps, stopped, oom = run_it()
         else:
             steps, stopped, oom = run_it()
+        eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
+        write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
         flags_in_use = active_flags(a)
         result = readout(
@@ -2625,6 +2744,7 @@ def execute(
             series=sampler.series if sampler is not None else (),
             flags=flags_in_use or None,
             phase_logger=phase_logger,
+            eval_summary_record=eval_summary_doc,
         )
         line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry)
         env = environment(

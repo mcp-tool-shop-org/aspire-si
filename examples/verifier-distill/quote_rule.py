@@ -29,6 +29,45 @@ _CURLY_QUOTES = str.maketrans(
     }
 )
 
+# Explicit Unicode White_Space property set matching Rust's char::is_whitespace.
+# Note: \x1c-\x1f (FS, GS, RS, US) are NOT in Unicode White_Space (nor Rust char::is_whitespace),
+# even though Python's str.isspace() and str.split() treat them as whitespace.
+RUST_WHITESPACE_CHARS: frozenset[str] = frozenset(
+    {
+        "\t",  # U+0009
+        "\n",  # U+000A
+        "\x0b",  # U+000B
+        "\x0c",  # U+000C
+        "\r",  # U+000D
+        " ",  # U+0020
+        "\x85",  # U+0085
+        "\xa0",  # U+00A0
+        "\u1680",  # U+1680
+        "\u2000",  # U+2000
+        "\u2001",  # U+2001
+        "\u2002",  # U+2002
+        "\u2003",  # U+2003
+        "\u2004",  # U+2004
+        "\u2005",  # U+2005
+        "\u2006",  # U+2006
+        "\u2007",  # U+2007
+        "\u2008",  # U+2008
+        "\u2009",  # U+2009
+        "\u200a",  # U+200A
+        "\u2028",  # U+2028
+        "\u2029",  # U+2029
+        "\u202f",  # U+202F
+        "\u205f",  # U+205F
+        "\u3000",  # U+3000
+    }
+)
+_RUST_WHITESPACE_STR: str = "".join(sorted(RUST_WHITESPACE_CHARS))
+_RUST_WS_RUN_RE = re.compile("[" + re.escape(_RUST_WHITESPACE_STR) + "]+")
+
+# Explicit line-break set matching Rust's str::lines(): split on '\n' and strip a single trailing '\r'
+# (i.e. '\n' and '\r\n' only; never standalone '\r', '\x0b', '\x0c', '\x85', '\u2028', or '\u2029').
+RUST_LINE_BREAK_CHARS: frozenset[str] = frozenset({"\n"})
+
 _COMMENT_MARKERS: tuple[str, ...] = ("///", "//!", "//", "#", "*", "--")
 
 WATERFALL_RUNGS: tuple[str, ...] = (
@@ -96,28 +135,50 @@ _STOPWORDS: frozenset[str] = frozenset(
 )
 
 
+def rust_lines(text: str) -> list[str]:
+    """Split text into lines matching Rust's str::lines() exactly.
+
+    Splits on '\\n' only (dropping a single trailing '\\n' at the end of the string) and strips
+    a single trailing '\\r' from each resulting line. Standalone '\\r', '\\x0b', '\\x0c',
+    '\\x85', '\\u2028', and '\\u2029' do not split lines.
+    """
+    if not text:
+        return []
+    if text.endswith("\n"):
+        text = text[:-1]
+    return [part[:-1] if part.endswith("\r") else part for part in text.split("\n")]
+
+
+def _rust_split_whitespace(text: str) -> list[str]:
+    """Split on runs of Unicode White_Space matching Rust's str::split_whitespace()."""
+    stripped = text.strip(_RUST_WHITESPACE_STR)
+    if not stripped:
+        return []
+    return _RUST_WS_RUN_RE.split(stripped)
+
+
 def normalise(s: str) -> str:
     """Collapse runs of whitespace to single spaces, trim, and straighten curly quotes (verify.rs:487-497)."""
     straight = s.translate(_CURLY_QUOTES)
-    return " ".join(straight.split())
+    return " ".join(_rust_split_whitespace(straight))
 
 
 def strip_markers(line: str) -> str:
     """Strip one leading diff marker (+ or -, not ++ or --) and one leading comment marker."""
-    t = line.lstrip()
+    t = line.lstrip(_RUST_WHITESPACE_STR)
     if t and t[0] in ("+", "-"):
         rest = t[1:]
         if not (rest and rest[0] in ("+", "-")):
-            t = rest.lstrip()
+            t = rest.lstrip(_RUST_WHITESPACE_STR)
     for m in _COMMENT_MARKERS:
         if t.startswith(m):
-            return t[len(m) :].lstrip()
+            return t[len(m) :].lstrip(_RUST_WHITESPACE_STR)
     return t
 
 
 def normalise_unmarked(text: str) -> str:
     """Strip leading diff/comment markers from each line, then normalise (verify.rs:532-540)."""
-    return normalise("\n".join(strip_markers(line) for line in text.splitlines()))
+    return normalise("\n".join(strip_markers(line) for line in rust_lines(text)))
 
 
 def as_passages(evidence: str | Sequence[str | dict]) -> list[str]:
@@ -146,7 +207,7 @@ def quote_found(quote: str, evidence: str | Sequence[str | dict]) -> bool:
         length >= MIN_LINE_QUOTE_CHARS
         and any(ch.isalnum() for ch in q)
         and any(
-            any(normalise(line) == q or normalise(strip_markers(line)) == q for line in p.splitlines())
+            any(normalise(line) == q or normalise(strip_markers(line)) == q for line in rust_lines(p))
             for p in passages
         )
     )
@@ -169,7 +230,7 @@ def _find_quote_spans(q: str, passages: Sequence[str]) -> list[tuple[int, int, i
 
     for p_idx, p in enumerate(passages):
         offset = 0
-        for line in p.splitlines():
+        for line in rust_lines(p):
             l_norm = normalise(line)
             l_unmarked = normalise(strip_markers(line))
             if l_norm == q or l_unmarked == q:
@@ -237,9 +298,9 @@ def _strip_punct(text: str) -> str:
     if "..." in text or "\u2026" in text:
         text = text.replace("\u2026", "...")
         parts = [re.sub(r"[^\w\s]+", " ", seg.lower()) for seg in text.split("...")]
-        return " ... ".join(" ".join(p.split()) for p in parts)
+        return " ... ".join(" ".join(_rust_split_whitespace(p)) for p in parts)
     cleaned = re.sub(r"[^\w\s]+", " ", text.lower())
-    return " ".join(cleaned.split())
+    return " ".join(_rust_split_whitespace(cleaned))
 
 
 def _word_tokens(text: str) -> list[str]:
@@ -268,8 +329,7 @@ def classify_quote_rung(quote: str, evidence: str | Sequence[str | dict]) -> str
     q_punct = _strip_punct(q)
     if q_punct and "..." not in q_punct:
         if any(
-            q_punct in _strip_punct(p) or q_punct in _strip_punct(normalise_unmarked(p))
-            for p in passages
+            q_punct in _strip_punct(p) or q_punct in _strip_punct(normalise_unmarked(p)) for p in passages
         ):
             return "punctuation"
 
