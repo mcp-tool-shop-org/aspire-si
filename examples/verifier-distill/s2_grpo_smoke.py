@@ -620,13 +620,17 @@ def check_exclusive(smi: SmiRunner, *, source: str = "nvidia-smi") -> dict:
     return record
 
 
+# The canned desktop for --dry: 26 processes of type C+G, OS and shell image names only (the same multiset as
+# the public fixture tests/fixtures/nvidia-smi-q-x-fixture-public-2026-11-03.xml; a test checks they agree).
+# Never put a personal application's name in a public file.
 DRY_DESKTOP_IMAGES = (
-    "Antigravity.exe ApplicationFrameHost.exe chrome.exe claude.exe CrossDeviceResume.exe explorer.exe "
-    "IntelGraphicsSoftware.exe msedgewebview2.exe Notepad.exe OmenCommandCenterBackground.exe SearchHost.exe "
-    "ShellExperienceHost.exe ShellHost.exe SnippingTool.exe StartMenuExperienceHost.exe steamwebhelper.exe "
-    "SystemSettings.exe TextInputHost.exe WidgetBoard.exe WindowsTerminal.exe "
-    "chrome.exe chrome.exe chrome.exe msedgewebview2.exe msedgewebview2.exe msedgewebview2.exe"
-).split()  # the 20 desktop images the rig showed, and 6 repeats: 26 processes of type "C+G"
+    "ShellHost.exe WindowsTerminal.exe explorer.exe CrossDeviceResume.exe TextInputHost.exe "
+    "StartMenuExperienceHost.exe SearchHost.exe WidgetBoard.exe msedgewebview2.exe explorer.exe "
+    "ApplicationFrameHost.exe msedgewebview2.exe ShellHost.exe SearchHost.exe StartMenuExperienceHost.exe "
+    "WindowsTerminal.exe msedgewebview2.exe msedgewebview2.exe ShellExperienceHost.exe "
+    "TextInputHost.exe ApplicationFrameHost.exe ShellExperienceHost.exe SystemSettings.exe "
+    "CrossDeviceResume.exe TextInputHost.exe msedgewebview2.exe "
+).split()
 DRY_IDLE_MIB = 2400
 
 
