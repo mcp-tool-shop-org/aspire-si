@@ -566,7 +566,25 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 **Decided (the APPLY draw, from decision 1 above):**
 1. **The APPLY draw is uniform from the tune split, as drawn, with zero-variance groups out of the loss.** About 9.5% of groups carry no gradient at the start. Results are reported split by each item's pre-pass k, so it is visible whether gains come from verdicts (k 1–7) or from quoting (k = 8). This keeps decision 7 above ("not used: dropping prompts the base model always answers correctly").
 2. **The draw is a recorded setting.** The default is uniform. A k-band option (drawing only from items with k in a stated range) exists for a later study, and the setting used is written into the run header. It is not used in this run.
-3. **Still owed before the full run:** a stress prefix on the longest tune prompt (2,761 tokens against the 853 used in v5), under the 29,000 MiB stop.
+3. **Still owed before the full run:** a stress prefix on the longest tune prompt (2,761 tokens against the 853 used in v5), under the 29,000 MiB stop. (Done: see the v6 section below.)
+
+### The worst-case training memory on the longest tune prompt, measured (2026-11-04, from smoke test S2 v6)
+
+**Why it was run.** v5 measured the worst case on the longest of the first 32 tune rows: 853 prompt tokens, a width of 2,901 with the 2,048-token cap. The APPLY draw comes from all 493 tune items (decision 1 of the pre-pass section above), and the longest of those is 2,761 tokens. The decision above required a stress prefix on that prompt before the full run.
+
+**The measurement.** S2 v6 ran on aspire-si main 1395130e, which added `--stress-pool tune` so the stress prefix takes the longest prompt in the whole tune split.
+- **Configuration:** the plan's configuration, as in v5: zero-variance groups out of the loss, Dr. GRPO advantages, 4 groups per update, truncated completions out of the loss, quote reward v2, and the memory flags.
+- **The stress step:** 1 forced-length step of 4 groups on `diffhard-role-os-4342dff-1s`, at 2,761 prompt tokens with every completion at the 2,048-token cap. The width is 4,809, 66% wider than v5. Both masks were off in that step only, so every microbatch ran its training forward and backward at full width.
+- **Then** 1 normal update of 4 groups.
+
+Counts only. One run, so this is a memory reading, not a distribution.
+- **Card peak 24,360 MiB** (1 s sampler). That is 2,640 MiB under the 27,000 MiB pass line and 4,640 MiB under the 29,000 MiB automatic stop. There was no out-of-memory error and no stop.
+- **Training forward at full width: 19.06 GiB allocated, 20.73 GiB reserved.** Torch's own peak was 19,520 MiB allocated and 21,384 MiB reserved.
+- **Compared with v5:** 66% more width raised the training-forward peak by **0.99 GiB** (18.07 → 19.06 GiB) and the card peak by **1,437 MiB** (22,923 → 24,360 MiB).
+- **The projection was wrong.** Before the run, a linear scaling of v5's training-forward growth projected about 26 GiB allocated and a card peak near the stop. Memory grew far less than linearly with width.
+- **Time at the worst case:** about 180 s per group of 8 at a forced 2,048 tokens with training (rollout about 155 s, training about 15 s). The normal update of 4 groups took 162 s.
+
+**Decided:** the memory settings stand for the full run over the whole tune split. There is no prompt-length cap in the APPLY draw and no change to the training microbatch. The automatic stop at 29,000 MiB stays as the guard.
 
 ## Evaluation, by stage
 
