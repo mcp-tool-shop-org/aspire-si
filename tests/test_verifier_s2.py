@@ -4803,3 +4803,230 @@ class TestRolloutOnlyPrepass:
                 bundle=bundle_oom,
             )
             assert flag_oom is True and st_oom == {"step": 0, "error": "out of memory"}
+
+    @needs_torch
+    def test_t7_llamacpp_resume_refusal(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": {"path": "llama-server", "sha256": "00" * 32, "pid": 1},
+                "dtype_census": None,
+            }
+
+        a = _args(tmp_path / "llama_run", gold_dir, path="llamacpp", rollout_only=True, g=2, max_new=16)
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 0
+        assert (a.out / "s2-llamacpp-prepass-header.json").exists()
+
+        with pytest.raises(
+            SystemExit,
+            match="refusing to resume prepass: --path llamacpp samples are not seeded per item, so a resumed run is not reproducible",
+        ):
+            s2.execute(a, build=build_fake, rig=_FakeRig(a))
+
+    @needs_torch
+    def test_t8_fresh_llamacpp_header_and_summary_reproducible_false(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": {"path": "llama-server", "sha256": "00" * 32, "pid": 1},
+                "dtype_census": None,
+            }
+
+        a_llama = _args(
+            tmp_path / "llama_fresh", gold_dir, path="llamacpp", rollout_only=True, g=2, max_new=16
+        )
+        assert s2.execute(a_llama, build=build_fake, rig=_FakeRig(a_llama)) == 0
+        header = json.loads((a_llama.out / "s2-llamacpp-prepass-header.json").read_text(encoding="utf-8"))
+        summary = json.loads((a_llama.out / "s2-llamacpp-prepass-summary.json").read_text(encoding="utf-8"))
+        assert header["reproducible"] is False
+        assert summary["reproducible"] is False
+
+        a_hf = _args(tmp_path / "hf_fresh", gold_dir, path="hf", rollout_only=True, g=2, max_new=16)
+        assert s2.execute(a_hf, build=build_fake, rig=_FakeRig(a_hf)) == 0
+        hf_header = json.loads((a_hf.out / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        hf_summary = json.loads((a_hf.out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert hf_header["reproducible"] is True
+        assert hf_summary["reproducible"] is True
+
+    @needs_torch
+    def test_t9_hf_header_without_reproducible_key_still_resumes(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        calls = {"n": 0}
+
+        def make_builder(stop_after: int | None):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                calls["n"] += 1
+                if stop_after is not None and calls["n"] > stop_after:
+                    raise TimeoutError("stop early")
+                return (
+                    tok.encode(prompt_text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                )
+
+            def build_fake(_args_ns):
+                return {
+                    "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                    "tok": tok,
+                    "mode": lambda training: None,
+                    "state": lambda: {"grad_ckpt": False},
+                    "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                    "ref_adapter_off": nullcontext,
+                    "rollout": rollout,
+                    "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                        text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                    ),
+                    "sync": lambda: None,
+                    "peak_alloc_mib": lambda: 1000,
+                    "revision": "rev123",
+                    "llama": None,
+                    "dtype_census": None,
+                }
+
+            return build_fake
+
+        a = _args(tmp_path / "hf_compat", gold_dir, path="hf", rollout_only=True, g=2, max_new=16)
+        assert s2.execute(a, build=make_builder(stop_after=2), rig=_FakeRig(a)) == 1
+        header_path = a.out / "s2-hf-prepass-header.json"
+        hdr = json.loads(header_path.read_text(encoding="utf-8"))
+        assert hdr["reproducible"] is True
+        del hdr["reproducible"]
+        header_path.write_text(json.dumps(hdr, indent=1) + "\n", encoding="utf-8")
+
+        calls["n"] = 0
+        assert s2.execute(a, build=make_builder(stop_after=None), rig=_FakeRig(a)) == 0
+        assert calls["n"] == 4
+        lines = (a.out / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 6
+
+    @needs_torch
+    def test_t10_quote_pass_role_in_summary_readout_and_help(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text,
+                    row["label"],
+                    s2.passages_of(row),
+                    tt,
+                    truncated=truncated,
+                    quote_reward="v2",
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        a = _args(
+            tmp_path / "qrole_v2",
+            gold_dir,
+            path="hf",
+            rollout_only=True,
+            quote_reward="v2",
+            g=2,
+            max_new=16,
+        )
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 0
+        expected_v2 = (
+            "diagnostic: every evidence quote found in the passages; "
+            "not the registered reward (quote rule v2)"
+        )
+        summary = json.loads((a.out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert summary["quote_pass_role"] == expected_v2
+        assert summary["quote_pass"] == 12
+        assert receipt["readout"]["quote_pass_role"] == expected_v2
+        assert receipt["readout"]["prepass_summary"]["quote_pass_role"] == expected_v2
+
+        ro_help = next(
+            act.help for act in s2.build_parser()._actions if "--rollout-only" in act.option_strings
+        )
+        assert (
+            "diagnostic: every evidence quote found in the passages; "
+            "not the registered reward (quote rule <v>)"
+        ) in ro_help
+        ro_no_summary = s2.readout(
+            [],
+            peak_mib=100,
+            steps_requested=2,
+            stopped=None,
+            oom=False,
+            cut=False,
+            dry=False,
+            rollout_only=True,
+            quote_reward="v1",
+        )
+        assert ro_no_summary["quote_pass_role"] == (
+            "diagnostic: every evidence quote found in the passages; "
+            "not the registered reward (quote rule v1)"
+        )
