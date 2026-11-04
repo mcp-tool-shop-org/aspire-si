@@ -195,6 +195,7 @@ try:
         quote_is_relevant,
         strip_markers,
     )
+    from s2_draw import DRAW_MODES, draw_prompts  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from quote_rule import (  # noqa: F401
@@ -211,6 +212,7 @@ except ModuleNotFoundError:  # pragma: no cover
         quote_is_relevant,
         strip_markers,
     )
+    from s2_draw import DRAW_MODES, draw_prompts  # noqa: F401
 
 
 def split_reply(text: str) -> tuple[str, str]:
@@ -1172,7 +1174,20 @@ def build_receipt(
     }
     if dtype_census_record is not None:
         out["dtype_census"] = dtype_census_record
-    for k in ("stress_pool", "stress_prompt_id", "stress_prompt_tokens", "stress_width"):
+    for k in (
+        "stress_pool",
+        "stress_prompt_id",
+        "stress_prompt_tokens",
+        "stress_width",
+        "draw_mode",
+        "draw_n",
+        "draw_seed",
+        "drawn_ids_sha256",
+        "prepass_sha256",
+        "k_min",
+        "k_max",
+        "band_pool_size",
+    ):
         if k in args:
             out[k] = args[k]
     return out
@@ -3133,10 +3148,34 @@ def execute(
     rollout_only = bool(getattr(a, "rollout_only", False))
     if rollout_only and getattr(a, "stress_prefix", 0) > 0:
         raise SystemExit("refusing to start: --rollout-only cannot be used with --stress-prefix > 0")
+    draw_mode = str(getattr(a, "draw", "first") or "first")
+    if rollout_only and draw_mode != "first":
+        raise SystemExit(f"refusing to start: --rollout-only cannot be used with --draw {draw_mode}")
     stress_pool = str(getattr(a, "stress_pool", "selected") or "selected")
 
     rows, gold_hashes = read_gold(a.gold)
-    prompts = select_prompts(rows, None if rollout_only else a.prompts)
+    draw_record: dict = {}
+    if rollout_only:
+        prompts = select_prompts(rows, None)
+    else:
+        prepass_jsonl = getattr(a, "prepass_jsonl", None)
+        prepass_sha256 = getattr(a, "prepass_sha256", None)
+        prepass_spec = (
+            (prepass_jsonl, prepass_sha256)
+            if (prepass_jsonl is not None or prepass_sha256 is not None)
+            else None
+        )
+        prompts, draw_rec = draw_prompts(
+            rows,
+            a.prompts,
+            mode=draw_mode,
+            seed=getattr(a, "draw_seed", None),
+            prepass=prepass_spec,
+            k_min=getattr(a, "k_min", None),
+            k_max=getattr(a, "k_max", None),
+        )
+        if draw_mode != "first":
+            draw_record = draw_rec
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -3342,7 +3381,7 @@ def execute(
         eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
-        flags_in_use = {**active_flags(a), **stress_meta}
+        flags_in_use = {**active_flags(a), **stress_meta, **draw_record}
         prepass_summary_doc = (
             prepass_summary(
                 prepass_records,
@@ -3559,6 +3598,41 @@ def build_parser() -> argparse.ArgumentParser:
             "quote_pass is diagnostic: every evidence quote found in the passages; "
             "not the registered reward (quote rule <v>)."
         ),
+    )
+    ap.add_argument(
+        "--draw",
+        choices=DRAW_MODES,
+        default="first",
+        help="prompt draw mode: 'first' (default, sorted prefix), 'uniform' (seeded sample), or 'kband'",
+    )
+    ap.add_argument(
+        "--draw-seed",
+        type=int,
+        default=None,
+        help="integer seed for --draw uniform or --draw kband",
+    )
+    ap.add_argument(
+        "--prepass-jsonl",
+        type=Path,
+        default=None,
+        help="pre-pass JSONL file for --draw kband",
+    )
+    ap.add_argument(
+        "--prepass-sha256",
+        default=None,
+        help="expected sha256 hex digest of --prepass-jsonl for --draw kband",
+    )
+    ap.add_argument(
+        "--k-min",
+        type=int,
+        default=None,
+        help="minimum k_correct (inclusive) for --draw kband",
+    )
+    ap.add_argument(
+        "--k-max",
+        type=int,
+        default=None,
+        help="maximum k_correct (inclusive) for --draw kband",
     )
     return ap
 
