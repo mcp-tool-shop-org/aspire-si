@@ -567,6 +567,22 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 1. **The APPLY draw is uniform from the tune split, as drawn, with zero-variance groups out of the loss.** About 9.5% of groups carry no gradient at the start. Results are reported split by each item's pre-pass k, so it is visible whether gains come from verdicts (k 1–7) or from quoting (k = 8). This keeps decision 7 above ("not used: dropping prompts the base model always answers correctly").
 2. **The draw is a recorded setting.** The default is uniform. A k-band option (drawing only from items with k in a stated range) exists for a later study, and the setting used is written into the run header. It is not used in this run.
 3. **Still owed before the full run:** a stress prefix on the longest tune prompt (2,761 tokens against the 853 used in v5), under the 29,000 MiB stop. (Done: see the v6 section below.)
+4. **Two independent pre-passes: one assigns the buckets, the other is the baseline.**
+   - **The problem:** results reported by pre-pass k would be biased if the same 8-sample pre-pass both assigns each item to its k band and serves as that band's baseline. Items that landed at k = 8 partly by chance would score lower on any re-measurement, and items at k ≤ 1 higher, with no training at all.
+   - **Pass A** is the pre-pass above (seed 0). It assigns each item its k band.
+   - **Pass B** is a second, independent pre-pass with a different recorded seed and the same code and settings. It is the baseline each band's training result is compared against.
+   - Pass B runs on the local card before the full run, under its own grant.
+5. **Draw options considered and not used:**
+   - a stratified draw (for example 70% from k < 8 and 30% from k = 8);
+   - dropping all-correct items.
+
+   Both would give more verdict signal per step. Both were not used, because they would narrow the population the result speaks for, and the quote term already keeps most k = 8 groups informative (only 47 of 493 groups had zero reward variance). The k-band draw setting exists for a later study and is not used in this run.
+6. **Diagnostics recorded during the run, decided before it:**
+   - the share of correct-verdict rollouts with a negative advantage;
+   - the ratio of verdict-reward variance to total-reward variance, per 50 steps;
+   - each item's paired residual (k_online − k_baseline)/8, reported by k band (0–5, 6–7, 8).
+
+   The sign-disagreement on "supported" (a correct verdict whose quotes aren't all found can get a negative advantage) is intended by quote rule v2. It is measured in the next smoke test before anything about it is changed.
 
 ### The worst-case training memory on the longest tune prompt, measured (2026-11-04, from smoke test S2 v6)
 
