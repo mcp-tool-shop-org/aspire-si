@@ -6501,3 +6501,1260 @@ class TestDrawSetting:
             for p in out_dir.rglob("*"):
                 if p.is_file():
                     assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p}"
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-04 Diagnostics & Pre-pass seed (Items 1..5)
+# ---------------------------------------------------------------------------
+
+
+class TestPrepassSeed:
+    @needs_torch
+    def test_prepass_seed_0_matches_literal_base_header_and_resumes_tonights_header(
+        self, tmp_path, monkeypatch
+    ):
+        import hashlib
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        a0 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "seed0_out"),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+                "--quote-reward",
+                "v2",
+            ]
+        )
+        assert a0.prepass_seed == 0
+        assert "prepass_seed" not in s2.active_flags(a0)
+
+        fixed_script_sha = "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a"
+        monkeypatch.setattr(s2, "script_sha256", lambda: fixed_script_sha)
+
+        seen_seeds: list[int] = []
+        orig_manual_seed = torch.manual_seed
+
+        def spy_manual_seed(seed_val):
+            seen_seeds.append(int(seed_val))
+            return orig_manual_seed(seed_val)
+
+        monkeypatch.setattr(torch, "manual_seed", spy_manual_seed)
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text,
+                    row["label"],
+                    s2.passages_of(row),
+                    tt,
+                    truncated=truncated,
+                    quote_reward="v2",
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        assert s2.execute(a0, build=build_fake, rig=_FakeRig(a0)) == 0
+        expected_ids = ["t_a", "t_b", "t_d", "t_k", "t_m", "t_z"]
+        assert seen_seeds == [s2.item_seed(cid, 0) for cid in expected_ids]
+
+        header_bytes = (a0.out / "s2-hf-prepass-header.json").read_bytes()
+        expected_literal_header_bytes = (
+            b"{\n"
+            b' "ids_sha256": "1faaea262a971c66357c551cd28fbe6c8f94b922cc36fa1a8ac041e3fd7373ca",\n'
+            b' "script_sha256": "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a",\n'
+            b' "gold_files_sha256": {\n'
+            b'  "grounded.jsonl": "9cdc8be6611000289f539cb41573173827e3a4417249964496614a69fe4a8c31",\n'
+            b'  "prs/grounded-prs.jsonl": "2ad0462e5bb52f899dd802ea505cd62514a93690393d05401e8971924a1ba2e9",\n'
+            b'  "diffs/reasoning-diffs.jsonl": "aa66a79b4276ef90e68856ea30427d53d2058cc9c56e685f87bb92f259c2858d"\n'
+            b" },\n"
+            b' "g": 2,\n'
+            b' "max_new": 16,\n'
+            b' "quote_reward": "v2",\n'
+            b' "seed": 0,\n'
+            b' "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",\n'
+            b' "reproducible": true\n'
+            b"}\n"
+        )
+        assert header_bytes == expected_literal_header_bytes
+
+        # Also verify tonight's pre-pass header (sha256 1e749d8b897804fff93125c0888fa42cfb07a560ab93f731fe37370d49f3020f)
+        # resumes cleanly when seed is default 0:
+        tonight_header_bytes = (
+            b"{\n"
+            b' "ids_sha256": "5c41d3fb437be23d4cc7ef673963bbe3caba78d832dd23665c58c882679d72f8",\n'
+            b' "script_sha256": "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a",\n'
+            b' "gold_files_sha256": {\n'
+            b'  "grounded.jsonl": "59601d10dfea03351e506d08f5296f285d7f7cb37ba5ace79ae2bd006940aabd",\n'
+            b'  "prs/grounded-prs.jsonl": "6e2d068eb7d2f3bdbce5a229dd9eedac50c09e3f57abbacba78e06f3e3c34f13",\n'
+            b'  "diffs/reasoning-diffs.jsonl": "4f4c058a67f9f564bbb29123e580bee5c6f42f97ad334e4ceb089abfb3586989"\n'
+            b" },\n"
+            b' "g": 8,\n'
+            b' "max_new": 2048,\n'
+            b' "quote_reward": "v2",\n'
+            b' "seed": 0,\n'
+            b' "model_revision": "b968826d9c46dd6066d109eabc6255188de91218"\n'
+            b"}\n"
+        )
+        assert (
+            hashlib.sha256(tonight_header_bytes).hexdigest()
+            == "1e749d8b897804fff93125c0888fa42cfb07a560ab93f731fe37370d49f3020f"
+        )
+        tonight_dir = tmp_path / "tonight_resume"
+        tonight_dir.mkdir(parents=True, exist_ok=True)
+        tonight_hdr_path = tonight_dir / "s2-hf-prepass-header.json"
+        tonight_jsonl_path = tonight_dir / "s2-hf-prepass.jsonl"
+        tonight_hdr_path.write_bytes(tonight_header_bytes)
+        tonight_jsonl_path.write_bytes(b"")
+
+        monkeypatch.setattr(
+            s2,
+            "ids_sha256",
+            lambda _ids: "5c41d3fb437be23d4cc7ef673963bbe3caba78d832dd23665c58c882679d72f8",
+        )
+        tonight_gold_hashes = {
+            "grounded.jsonl": "59601d10dfea03351e506d08f5296f285d7f7cb37ba5ace79ae2bd006940aabd",
+            "prs/grounded-prs.jsonl": "6e2d068eb7d2f3bdbce5a229dd9eedac50c09e3f57abbacba78e06f3e3c34f13",
+            "diffs/reasoning-diffs.jsonl": "4f4c058a67f9f564bbb29123e580bee5c6f42f97ad334e4ceb089abfb3586989",
+        }
+        a_tonight = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tonight_dir),
+                "--rollout-only",
+                "--quote-reward",
+                "v2",
+            ]
+        )
+        rows_g, _ = s2.read_gold(gold_dir)
+        prompts_g = s2.select_prompts(rows_g, None)
+        s_rows, c_recs, st_rec, is_oom = s2.run_prepass(
+            a=a_tonight,
+            prompts=prompts_g,
+            gold_hashes=tonight_gold_hashes,
+            bundle=build_fake(a_tonight),
+        )
+        assert st_rec is None and not is_oom and len(c_recs) == 6
+        assert (
+            hashlib.sha256(tonight_hdr_path.read_bytes()).hexdigest()
+            == "1e749d8b897804fff93125c0888fa42cfb07a560ab93f731fe37370d49f3020f"
+        )
+
+    @needs_torch
+    def test_prepass_seed_1_changes_item_seeds_and_writes_seed_1_in_header(self, tmp_path, monkeypatch):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        a1 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "seed1_out"),
+                "--rollout-only",
+                "--prepass-seed",
+                "1",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+            ]
+        )
+        assert a1.prepass_seed == 1
+        assert s2.active_flags(a1)["prepass_seed"] == 1
+
+        seen_seeds_1: list[int] = []
+        orig_manual_seed = torch.manual_seed
+
+        def spy_manual_seed(seed_val):
+            seen_seeds_1.append(int(seed_val))
+            return orig_manual_seed(seed_val)
+
+        monkeypatch.setattr(torch, "manual_seed", spy_manual_seed)
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        assert s2.execute(a1, build=build_fake, rig=_FakeRig(a1)) == 0
+        expected_ids = ["t_a", "t_b", "t_d", "t_k", "t_m", "t_z"]
+        seeds_0 = [s2.item_seed(cid, 0) for cid in expected_ids]
+        seeds_1 = [s2.item_seed(cid, 1) for cid in expected_ids]
+        assert seen_seeds_1 == seeds_1
+        assert all(s0 != s1 for s0, s1 in zip(seeds_0, seeds_1, strict=True))
+
+        header_1 = json.loads((a1.out / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert header_1["seed"] == 1
+        receipt_1 = json.loads((a1.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt_1["readout"]["flags"]["prepass_seed"] == 1
+        assert receipt_1["run"]["prepass_seed"] == 1
+
+    @needs_torch
+    def test_prepass_seed_mismatch_refuses_resume(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        out_dir = tmp_path / "mismatch_seed"
+        a_seed0 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+            ]
+        )
+        assert s2.execute(a_seed0, build=build_fake, rig=_FakeRig(a_seed0)) == 0
+
+        a_seed1 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir),
+                "--rollout-only",
+                "--prepass-seed",
+                "1",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+            ]
+        )
+        with pytest.raises(SystemExit, match="refusing to resume prepass: header mismatch on seed"):
+            s2.execute(a_seed1, build=build_fake, rig=_FakeRig(a_seed1))
+
+        # And starting with seed 1, then attempting to resume with seed 0 or seed 2 also refuses
+        out_dir_1 = tmp_path / "mismatch_from_1"
+        a_start1 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir_1),
+                "--rollout-only",
+                "--prepass-seed",
+                "1",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+            ]
+        )
+        assert s2.execute(a_start1, build=build_fake, rig=_FakeRig(a_start1)) == 0
+        for other_seed in ("0", "2"):
+            a_other = ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(out_dir_1),
+                    "--rollout-only",
+                    "--prepass-seed",
+                    other_seed,
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "16",
+                ]
+            )
+            with pytest.raises(SystemExit, match="refusing to resume prepass: header mismatch on seed"):
+                s2.execute(a_other, build=build_fake, rig=_FakeRig(a_other))
+
+
+class TestSignDiagnostics:
+    @needs_torch
+    def test_sign_diagnostics_group_and_step_counts_and_variances_on_v2_supported_group(
+        self, tmp_path, capsys
+    ):
+        from contextlib import nullcontext
+
+        import torch
+
+        marker = "".join(("PLANTED", "_", "SIGN", "_", "DIAG", "_", "3104"))
+        gold_dir = _gold(
+            tmp_path / "gold",
+            {
+                "grounded.jsonl": [
+                    _row(
+                        f"g{i:02d}",
+                        label="supported",
+                        claim=f"Claim {marker}.",
+                        text=f"alpha beta gamma delta {marker}",
+                    )
+                    for i in range(20)
+                ],
+                "prs/grounded-prs.jsonl": [_row(f"p{i:02d}") for i in range(20)],
+                "diffs/reasoning-diffs.jsonl": [_row(f"r{i:02d}", label="unsupported") for i in range(20)],
+            },
+        )
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+
+        # Group 0 (active, gold="supported", quote_reward="v2"):
+        #   3 rollouts with correct "supported" verdict and found quote ("alpha beta gamma")
+        #     -> verdict_score = 1.0, quote_credit = 0.05, total = 1.05
+        #   1 rollout with correct "supported" verdict and unfound quote ("missing quote text here")
+        #     -> verdict_score = -0.2, quote_credit = 0.0, total = -0.2
+        #   Group mean reward = (3 * 1.05 + (-0.2)) / 4 = 2.95 / 4 = 0.7375.
+        #   Rollout 3 has correct=True and advantage < 0 (-0.9375 in dr-grpo, -1.732048 in std)
+        #     -> correct_n = 4, correct_negative_adv_n = 1.
+        #   verdict_score_var = pvariance([1.0, 1.0, 1.0, -0.2]) = 0.27.
+        #   total_reward_var  = pvariance([1.05, 1.05, 1.05, -0.2]) = 0.29296875 -> rounded 0.292969.
+        # Group 1 (zero-variance, gold="supported", quote_reward="v2"):
+        #   4 rollouts with correct "supported" verdict and found quote ("alpha beta gamma")
+        #     -> correct_n = 4, correct_negative_adv_n = 0, verdict_score_var = 0.0, total_reward_var = 0.0.
+        # Step 0 summary:
+        #   correct_negative_adv_share = (1 + 0) / (4 + 4) = 0.125.
+        #   verdict_to_total_var_ratio (pooled over active groups: Group 0 only) = 0.27 / 0.29296875 = 0.9216.
+        grp_call = {"n": 0}
+
+        def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            grp_call["n"] += 1
+            p_ids = tok.encode(prompt_text)
+            found_rep = tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]
+            unfound_rep = tok.encode(_reply("supported", "missing quote text here")) + [tok.eos_token_id]
+            if grp_call["n"] == 1:
+                comps = [found_rep, found_rep, found_rep, unfound_rep]
+            else:
+                comps = [found_rep, found_rep, found_rep, found_rep]
+            return p_ids, comps, [False] * g_cnt
+
+        class _FakeTrainModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeTrainModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": scripted_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text,
+                    row["label"],
+                    s2.passages_of(row),
+                    tt,
+                    truncated=truncated,
+                    quote_reward="v2",
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "sign_out"),
+                "--steps",
+                "1",
+                "--prompts",
+                "4",
+                "--g",
+                "4",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--sign-diagnostics",
+            ]
+        )
+        assert a.sign_diagnostics is True
+        assert s2.active_flags(a)["sign_diagnostics"] is True
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1  # cut run -> S2-LIMITED
+
+        group_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-groups.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(group_rows) == 2
+
+        g0, g1 = group_rows[0], group_rows[1]
+        assert g0["step"] == 0 and g0["group"] == 0 and g0["prompt_id"] == "g00"
+        assert g0["k_correct"] == 4
+        assert g0["correct_n"] == 4
+        assert g0["correct_negative_adv_n"] == 1
+        assert g0["correct_negative_adv_n"] >= 1
+        assert g0["verdict_score_var"] == 0.27
+        assert g0["total_reward_var"] == 0.292969
+        assert g0["zero_variance_label"] is None
+
+        assert g1["step"] == 0 and g1["group"] == 1 and g1["prompt_id"] == "g01"
+        assert g1["k_correct"] == 4
+        assert g1["correct_n"] == 4
+        assert g1["correct_negative_adv_n"] == 0
+        assert g1["verdict_score_var"] == 0.0
+        assert g1["total_reward_var"] == 0.0
+        assert g1["zero_variance_label"] == "all correct with full credit"
+
+        step_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(step_rows) == 1
+        s0 = step_rows[0]
+        assert s0["active_groups"] == 1
+        assert s0["zero_variance_groups"] == 1
+        assert s0["correct_negative_adv_share"] == 0.125
+        assert s0["verdict_to_total_var_ratio"] == 0.9216
+
+        captured = capsys.readouterr()
+        assert marker not in captured.out and marker not in captured.err
+        for p in a.out.rglob("*"):
+            if p.is_file():
+                assert marker not in p.read_text(encoding="utf-8")
+
+
+class TestPrepassBaseline:
+    @needs_torch
+    def test_prepass_baseline_writes_group_residuals_and_readout_k_band_means_with_no_item_text(
+        self, tmp_path, capsys
+    ):
+        import hashlib
+        from contextlib import nullcontext
+
+        import torch
+
+        marker = "".join(("PLANTED", "_", "BASELINE", "_", "CLAIM", "_", "4419"))
+        gold_dir = _gold(
+            tmp_path / "gold",
+            {
+                "grounded.jsonl": [
+                    _row(
+                        f"g{i:02d}",
+                        label="supported",
+                        claim=f"Claim {marker}.",
+                        text=f"alpha beta gamma delta {marker}",
+                    )
+                    for i in range(20)
+                ],
+                "prs/grounded-prs.jsonl": [_row(f"p{i:02d}") for i in range(20)],
+                "diffs/reasoning-diffs.jsonl": [_row(f"r{i:02d}", label="unsupported") for i in range(20)],
+            },
+        )
+
+        # Fake pre-pass JSONL in tmp_path:
+        #   g00: k_prepass = 2 (band [0,5]), online k = 6 -> residual = (6 - 2) / 8 = +0.5
+        #   g01: k_prepass = 5 (band [0,5]), online k = 3 -> residual = (3 - 5) / 8 = -0.25
+        #   g02: k_prepass = 7 (band [6,7]), online k = 5 -> residual = (5 - 7) / 8 = -0.25
+        #   g03: k_prepass = 8 (band 8),     online k = 6 -> residual = (6 - 8) / 8 = -0.25
+        # Mean residual by band:
+        #   "[0,5]": (0.5 + (-0.25)) / 2 = 0.125
+        #   "[6,7]": -0.25
+        #   "8":     -0.25
+        k_prepass_map = {"g00": 2, "g01": 5, "g02": 7, "g03": 8}
+        k_online_map = {"g00": 6, "g01": 3, "g02": 5, "g03": 6}
+        baseline_path = tmp_path / "fake_prepass_baseline.jsonl"
+        baseline_sha = _write_fake_prepass(
+            baseline_path,
+            [f"g{i:02d}" for i in range(4)],
+            k_fn=lambda idx: k_prepass_map[f"g{idx:02d}"],
+            g=8,
+        )
+        assert baseline_sha == hashlib.sha256(baseline_path.read_bytes()).hexdigest()
+
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+        grp_idx = {"n": 0}
+        ordered_ids = ["g00", "g01", "g02", "g03"]
+
+        def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            cid = ordered_ids[grp_idx["n"]]
+            grp_idx["n"] += 1
+            k_on = k_online_map[cid]
+            p_ids = tok.encode(prompt_text)
+            ok_comp = tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]
+            bad_comp = tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id]
+            comps = [ok_comp] * k_on + [bad_comp] * (g_cnt - k_on)
+            return p_ids, comps, [False] * g_cnt
+
+        class _FakeTrainModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeTrainModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": scripted_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "baseline_out"),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "8",
+                "--max-new",
+                "32",
+                "--prepass-baseline",
+                str(baseline_path),
+                "--prepass-baseline-sha256",
+                baseline_sha,
+            ]
+        )
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1  # cut run -> S2-LIMITED
+
+        group_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-groups.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(group_rows) == 4
+        expected_group_baseline = [
+            ("g00", 6, 2, 0.5),
+            ("g01", 3, 5, -0.25),
+            ("g02", 5, 7, -0.25),
+            ("g03", 6, 8, -0.25),
+        ]
+        for gr, (cid, exp_k_on, exp_k_pre, exp_res) in zip(group_rows, expected_group_baseline, strict=True):
+            assert gr["prompt_id"] == cid
+            assert gr["k_correct"] == exp_k_on
+            assert gr["k_prepass"] == exp_k_pre
+            assert gr["residual"] == exp_res
+
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["readout"]["mean_residual_by_k_band"] == {
+            "[0,5]": 0.125,
+            "[6,7]": -0.25,
+            "8": -0.25,
+        }
+        assert receipt["readout"]["flags"]["prepass_baseline_sha256"] == baseline_sha
+
+        captured = capsys.readouterr()
+        assert marker not in captured.out and marker not in captured.err
+        for p in a.out.rglob("*"):
+            if p.is_file():
+                content = p.read_text(encoding="utf-8")
+                assert marker not in content
+                assert str(baseline_path) not in content
+
+    def test_prepass_baseline_refusals_on_sha_mismatch_and_missing_id(self, tmp_path):
+        gold_dir = _gold(tmp_path / "gold")
+        baseline_path = tmp_path / "baseline.jsonl"
+        sha = _write_fake_prepass(baseline_path, [f"g{i:02d}" for i in range(4)], k_fn=lambda idx: 4, g=8)
+        ap = s2.build_parser()
+
+        # 1. SHA-256 mismatch refuses
+        a_bad_sha = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "bad_sha"),
+                "--dry",
+                "--prompt-lengths",
+                "--prompts",
+                "4",
+                "--prepass-baseline",
+                str(baseline_path),
+                "--prepass-baseline-sha256",
+                "0" * 64,
+            ]
+        )
+        with pytest.raises(SystemExit, match="prepass_baseline_sha_mismatch"):
+            s2.execute(a_bad_sha, build=s2.dry_bundle)
+
+        # 2. Missing prompt ID refuses
+        missing_id_path = tmp_path / "missing_id.jsonl"
+        missing_id_sha = _write_fake_prepass(missing_id_path, ["g00", "g01", "g02"], k_fn=lambda idx: 4, g=8)
+        a_missing_id = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "missing_id"),
+                "--dry",
+                "--prompt-lengths",
+                "--prompts",
+                "4",
+                "--prepass-baseline",
+                str(missing_id_path),
+                "--prepass-baseline-sha256",
+                missing_id_sha,
+            ]
+        )
+        with pytest.raises(SystemExit, match="prepass_baseline_missing_id"):
+            s2.execute(a_missing_id, build=s2.dry_bundle)
+
+        # 3. Missing companion flag or missing file refuses
+        a_no_sha = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "no_sha"),
+                "--dry",
+                "--prompt-lengths",
+                "--prompts",
+                "4",
+                "--prepass-baseline",
+                str(baseline_path),
+            ]
+        )
+        with pytest.raises(SystemExit, match="prepass_baseline_missing_arg"):
+            s2.execute(a_no_sha, build=s2.dry_bundle)
+
+        a_no_file = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "no_file"),
+                "--dry",
+                "--prompt-lengths",
+                "--prompts",
+                "4",
+                "--prepass-baseline",
+                str(tmp_path / "does_not_exist.jsonl"),
+                "--prepass-baseline-sha256",
+                sha,
+            ]
+        )
+        with pytest.raises(SystemExit, match="prepass_baseline_missing_file"):
+            s2.execute(a_no_file, build=s2.dry_bundle)
+
+
+class TestLogSdpaBackend:
+    @needs_torch
+    def test_log_sdpa_backend_records_allowed_backend_on_cpu_and_unknown_with_reason(
+        self, tmp_path, monkeypatch
+    ):
+        from contextlib import nullcontext
+
+        import torch
+        import torch.nn.functional as F
+        from torch.nn.attention import SDPBackend, sdpa_kernel
+
+        gold_dir = _gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+        allowed = {"flash", "efficient", "math", "cudnn", "unknown"}
+
+        def fake_attention_call(requires_grad: bool = False):
+            q = torch.randn(1, 2, 4, 16, requires_grad=requires_grad)
+            return F.scaled_dot_product_attention(q, q, q, is_causal=True)
+
+        class _FakeSdpaModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                attn_out = fake_attention_call(requires_grad=torch.is_grad_enabled())
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                    + attn_out.sum() * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def fake_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            with sdpa_kernel(SDPBackend.MATH):
+                _ = fake_attention_call(requires_grad=False)
+            p_ids = tok.encode(prompt_text)
+            comp = tok.encode(_reply("supported", "alpha beta")) + [tok.eos_token_id]
+            return p_ids, [comp for _ in range(g_cnt)], [False] * g_cnt
+
+        def fake_mode(training: bool) -> None:
+            if not training:
+                _ = fake_attention_call(requires_grad=False)
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeSdpaModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": fake_mode,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": fake_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        before_sdp_flags = (
+            torch.backends.cuda.flash_sdp_enabled(),
+            torch.backends.cuda.mem_efficient_sdp_enabled(),
+            torch.backends.cuda.math_sdp_enabled(),
+            torch.backends.cuda.cudnn_sdp_enabled(),
+        )
+
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "sdpa_out"),
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+                "--log-sdpa-backend",
+            ]
+        )
+        assert a.log_sdpa_backend is True
+        assert s2.active_flags(a)["log_sdpa_backend"] is True
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1
+
+        after_sdp_flags = (
+            torch.backends.cuda.flash_sdp_enabled(),
+            torch.backends.cuda.mem_efficient_sdp_enabled(),
+            torch.backends.cuda.math_sdp_enabled(),
+            torch.backends.cuda.cudnn_sdp_enabled(),
+        )
+        assert before_sdp_flags == after_sdp_flags
+
+        phase_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-phases.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        target_phases = {
+            "pre_rollout",
+            "post_rollout",
+            "post_ref",
+            "post_train_forward",
+            "post_train_backward",
+        }
+        seen_target_phases = {r["phase"] for r in phase_rows if r["phase"] in target_phases}
+        assert seen_target_phases == target_phases
+        for row in phase_rows:
+            assert "sdpa_backend" in row
+            assert row["sdpa_backend"] in allowed
+            if row["phase"] == "post_rollout":
+                assert row["sdpa_backend"] == "math"
+            elif row["phase"] in ("pre_rollout", "post_ref", "post_train_forward", "post_train_backward"):
+                assert row["sdpa_backend"] in {"flash", "efficient", "math", "cudnn"}
+            elif row["sdpa_backend"] == "unknown":
+                assert isinstance(row.get("sdpa_backend_reason"), str) and row["sdpa_backend_reason"]
+
+
+class TestDefaultPathLiteralExpectation:
+    @needs_torch
+    def test_default_path_with_no_new_flags_matches_literal_base_expectations(self, tmp_path, monkeypatch):
+        from contextlib import nullcontext
+
+        import torch
+
+        monkeypatch.setattr(s2.time, "time", lambda: 1000.0)
+        monkeypatch.setattr(s2.time, "monotonic", lambda: 500.0)
+        monkeypatch.setitem(s2.PhaseLogger.__init__.__kwdefaults__, "now", lambda: 500.0)
+
+        gold_dir = _gold(tmp_path / "gold")
+        _, gold_hashes = s2.read_gold(gold_dir)
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "default_out"),
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+            ]
+        )
+        assert a.prepass_seed == 0
+        assert a.sign_diagnostics is False
+        assert a.prepass_baseline is None
+        assert a.prepass_baseline_sha256 is None
+        assert a.log_sdpa_backend is False
+        assert s2.active_flags(a) == {}
+
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+
+        class _FakeModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def fake_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            p_ids = tok.encode(prompt_text)
+            c0 = tok.encode(_reply("supported", "alpha beta")) + [tok.eos_token_id]
+            c1 = tok.encode(_reply("unsupported", "alpha beta")) + [tok.eos_token_id]
+            return p_ids, [c0, c1], [False, False]
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": fake_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 100,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1  # cut run -> S2-LIMITED
+
+        # 1. Literal steps rows expectation
+        step_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        expected_step_rows = [
+            {
+                "step": 0,
+                "groups": 2,
+                "active_groups": 2,
+                "zero_variance_groups": 0,
+                "tokens": 520,
+                "rollout_s": 0.0,
+                "train_s": 0.0,
+                "step_s": 0.0,
+                "mean_reward": 0.025,
+                "loss": 0.015385,
+                "peak_alloc_mib": 110,
+                "grad_ckpt": True,
+                "grad_ckpt_rollout": True,
+            }
+        ]
+        assert step_rows == expected_step_rows
+
+        # 2. Literal groups rows expectation
+        group_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-groups.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        expected_group_rows = [
+            {
+                "step": 0,
+                "group": 0,
+                "prompt_id": "g00",
+                "prompt_tokens": 438,
+                "k_correct": 1,
+                "g": 2,
+                "reward_std": 1.025,
+                "verdict_reward_std": 1.0,
+                "truncations": 0,
+                "mean_thinking_tokens": 5.0,
+                "zero_variance_label": None,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "prompt_id": "g01",
+                "prompt_tokens": 438,
+                "k_correct": 1,
+                "g": 2,
+                "reward_std": 1.025,
+                "verdict_reward_std": 1.0,
+                "truncations": 0,
+                "mean_thinking_tokens": 5.0,
+                "zero_variance_label": None,
+            },
+        ]
+        assert group_rows == expected_group_rows
+
+        # 3. Literal phase rows expectation
+        phase_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-phases.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        zero_comp = {"min": 0, "max": 0, "sum": 0}
+        full_comp = {"min": 128, "max": 132, "sum": 260}
+        mem_first = {
+            "memory_allocated": 104857600,
+            "memory_reserved": 134217728,
+            "max_memory_allocated": 115343360,
+            "max_memory_reserved": 146800640,
+        }
+        mem_rest = {
+            "memory_allocated": 104857600,
+            "memory_reserved": 134217728,
+            "max_memory_allocated": 104857600,
+            "max_memory_reserved": 134217728,
+        }
+        expected_phase_rows = [
+            {
+                "step": 0,
+                "group": 0,
+                "phase": "pre_rollout",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": zero_comp,
+                **mem_first,
+            },
+            {
+                "step": 0,
+                "group": 0,
+                "phase": "post_rollout",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 0,
+                "phase": "post_ref",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 0,
+                "phase": "post_train_forward",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 0,
+                "phase": "post_train_backward",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "phase": "pre_rollout",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": zero_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "phase": "post_rollout",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "phase": "post_ref",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "phase": "post_train_forward",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "phase": "post_train_backward",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+            {
+                "step": 0,
+                "group": 1,
+                "phase": "step_end",
+                "monotonic_s": 500.0,
+                "prompt_tokens": 438,
+                "completion_tokens": full_comp,
+                **mem_rest,
+            },
+        ]
+        assert phase_rows == expected_phase_rows
+
+        # 4. Literal readout and receipt expectation
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        expected_readout = {
+            "steps_requested": 1,
+            "steps_completed": 1,
+            "peak_vram_mib_sampler": 2500,
+            "sampler_samples": len(receipt["readout"]["vram_mib_sampler_series"]),
+            "vram_mib_sampler_series": [2500] * len(receipt["readout"]["vram_mib_sampler_series"]),
+            "peak_vram_mib_torch": 110,
+            "peak_reserved_mib_torch": 140,
+            "fits": True,
+            "oom": False,
+            "rollout_tok_s": None,
+            "step_s": {"p50": 0.0, "max": 0.0},
+            "wall_s": 0.0,
+            "zero_variance_groups": 0,
+            "active_groups": 2,
+            "groups": 2,
+            "complete": False,
+            "pass": False,
+            "eval_summary": {
+                "supported_pred_to_prior_ratio": 0.5,
+                "p_cannot_tell_given_gold_supported": 0.0,
+                "gold_supported_groups_with_positive_cannot_tell_advantage": 0.0,
+                "false_accepts": 0,
+                "false_rejects": 2,
+                "miss_waterfall": {
+                    "rule_2": 0,
+                    "no_minimum": 0,
+                    "case": 0,
+                    "punctuation": 0,
+                    "ellipsis_split": 0,
+                    "joined_passages": 0,
+                    "fuzzy": 0,
+                    "unmatched": 0,
+                },
+                "quote_relevance_share": 0.0,
+            },
+        }
+        assert receipt["readout"] == expected_readout
+
+        guard_rec = s2.check_exclusive(s2.dry_smi, source="fake preflight")
+        expected_env = s2.environment(
+            gpu={"name": "NVIDIA GeForce RTX 5090", "driver": "595.71"},
+            dtype="bfloat16 compute on a 4-bit base",
+            batch=2,
+            exclusive=True,
+            cuda="13.0",
+            guard=guard_rec,
+        )
+        expected_receipt = {
+            "test": "S2",
+            "path": "hf",
+            "dry": False,
+            "model": "Qwen/Qwen3-8B",
+            "revision_registered": "b968826d9c46",
+            "revision_resolved": "rev123",
+            "registered": {
+                "steps": 20,
+                "prompts": 32,
+                "groups_per_step": 2,
+                "G": 8,
+                "temperature": 0.7,
+                "lora": {"r": 16, "alpha": 32, "targets": ["q_proj", "k_proj", "v_proj", "o_proj"]},
+                "learning_rate": 1e-5,
+                "beta": 0.04,
+                "epsilon": 0.2,
+                "max_new_tokens": 2048,
+            },
+            "run": {"steps": 1, "prompts": 2, "g": 2, "max_new": 8, "dry": False},
+            "rnd_commit": "e48cc90c",
+            "gold_files_sha256": gold_hashes,
+            "prompt_split": "tune",
+            "prompt_ids": ["g00", "g01"],
+            "environment": expected_env,
+            "llama_cpp": None,
+            "pass_line": {"vram_line_mib": 31200, "steps": 20, "oom": False},
+            "stopped": None,
+            "readout": expected_readout,
+            "verdict": "S2-LIMITED",
+        }
+        expected_receipt_bytes = json.dumps(expected_receipt, indent=1).encode("utf-8")
+        assert (a.out / "s2-hf.json").read_bytes() == expected_receipt_bytes
