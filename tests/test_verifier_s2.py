@@ -4163,3 +4163,643 @@ class TestStressPrefixMasksOff:
             act.help for act in s2.build_parser()._actions if "--stress-prefix" in act.option_strings
         )
         assert "both masks off" in stress_help and "full-width training forward" in stress_help
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-04 Rollout-only pre-pass (--rollout-only): T1..T6
+# ---------------------------------------------------------------------------
+
+
+def _prepass_gold(tmp_path: Path) -> Path:
+    rows_by_file = {
+        "grounded.jsonl": [
+            _row("t_z", split="tune", label="supported", claim="Claim tz", text="alpha beta gamma delta"),
+            _row("h_a", split="heldout", label="supported", claim="Heldout ha", text="alpha beta gamma"),
+            _row("t_b", split="tune", label="unsupported", claim="Claim tb", text="alpha beta gamma delta"),
+        ],
+        "prs/grounded-prs.jsonl": [
+            _row("t_m", split="tune", label="cannot_tell", claim="Claim tm", text="alpha beta gamma delta"),
+            _row("h_b", split="heldout", label="unsupported", claim="Heldout hb", text="alpha beta gamma"),
+            _row("t_a", split="tune", label="supported", claim="Claim ta", text="alpha beta gamma delta"),
+        ],
+        "diffs/reasoning-diffs.jsonl": [
+            _row("t_k", split="tune", label="unsupported", claim="Claim tk", text="alpha beta gamma delta"),
+            _row("h_c", split="heldout", label="cannot_tell", claim="Heldout hc", text="alpha beta gamma"),
+            _row("t_d", split="tune", label="supported", claim="Claim td", text="alpha beta gamma delta"),
+        ],
+    }
+    return _gold(tmp_path, rows_by_file)
+
+
+class TestRolloutOnlyPrepass:
+    @needs_torch
+    def test_t1_no_training(self, tmp_path):
+        from contextlib import contextmanager
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        a = _args(
+            tmp_path,
+            gold_dir,
+            rollout_only=True,
+            steps=3,
+            prompts=2,
+            g=2,
+            max_new=16,
+        )
+        tok = s2.DryTokenizer()
+        calls = {
+            "optimiser_step": 0,
+            "optimiser_zero_grad": 0,
+            "ref_forward": 0,
+            "train_forward": 0,
+            "backward": 0,
+            "rollout": 0,
+        }
+
+        class _TrackedTensor(torch.Tensor):
+            def backward(self, *args, **kwargs):
+                calls["backward"] += 1
+                return super().backward(*args, **kwargs)
+
+        class _FakeModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                calls["train_forward"] += 1
+                logits = (
+                    torch.zeros(
+                        (input_ids.shape[0], input_ids.shape[1], tok.vocab_size),
+                        dtype=torch.float32,
+                    )
+                    + self._p * 0.0
+                ).as_subclass(_TrackedTensor)
+                return Namespace(logits=logits)
+
+        @contextmanager
+        def tracked_ref():
+            calls["ref_forward"] += 1
+            yield
+
+        class _TrackedOptim:
+            def zero_grad(self, set_to_none: bool = True) -> None:
+                calls["optimiser_zero_grad"] += 1
+
+            def step(self) -> None:
+                calls["optimiser_step"] += 1
+
+        def tracked_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            calls["rollout"] += 1
+            p_ids = tok.encode(prompt_text)
+            rep = tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]
+            return p_ids, [rep for _ in range(g_cnt)], [False] * g_cnt
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeModel(),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": _TrackedOptim(),
+                "ref_adapter_off": tracked_ref,
+                "rollout": tracked_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        rc = s2.execute(a, build=build_fake, rig=_FakeRig(a))
+        assert calls["optimiser_step"] == 0
+        assert calls["ref_forward"] == 0
+        assert calls["train_forward"] == 0
+        assert calls["backward"] == 0
+        assert calls["rollout"] == 6
+        assert rc == 0
+
+    @needs_torch
+    def test_t2_selection_and_counts(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        a = _args(
+            tmp_path,
+            gold_dir,
+            rollout_only=True,
+            steps=1,
+            prompts=2,
+            g=4,
+            max_new=32,
+        )
+        tok = s2.DryTokenizer()
+        seen_prompts: list[str] = []
+
+        valid_q = "alpha beta gamma"
+        bad_q = "missing quote text"
+        scripted_by_idx = [
+            (
+                [_reply("supported", valid_q)] * 4,
+                [False, False, False, False],
+            ),
+            (
+                [
+                    _reply("unsupported", valid_q),
+                    _reply("unsupported", valid_q),
+                    _reply("supported", valid_q),
+                    "not json at all",
+                ],
+                [False, False, False, False],
+            ),
+            (
+                [
+                    _reply("supported", valid_q),
+                    _reply("cannot_tell", bad_q),
+                    _reply("cannot_tell", bad_q),
+                    _reply("supported", valid_q),
+                ],
+                [False, False, False, True],
+            ),
+            (
+                [_reply("supported", valid_q)] * 4,
+                [False, False, False, False],
+            ),
+            (
+                [
+                    _reply("cannot_tell", bad_q),
+                    _reply("cannot_tell", bad_q),
+                    _reply("unsupported", valid_q),
+                    _reply("supported", valid_q),
+                ],
+                [False, False, False, False],
+            ),
+            (
+                [
+                    _reply("supported", valid_q),
+                    _reply("supported", bad_q),
+                    _reply("unsupported", valid_q),
+                    "broken { json",
+                ],
+                [False, False, False, False],
+            ),
+        ]
+
+        def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            idx = len(seen_prompts)
+            seen_prompts.append(prompt_text)
+            replies, truncs = scripted_by_idx[idx]
+            p_ids = tok.encode(prompt_text)
+            comps = [tok.encode(r) + ([] if tr else [tok.eos_token_id]) for r, tr in zip(replies, truncs)]
+            return p_ids, comps, truncs
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": scripted_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        rc = s2.execute(a, build=build_fake, rig=_FakeRig(a))
+        assert rc == 0
+        prepass_path = a.out / "s2-hf-prepass.jsonl"
+        assert prepass_path.exists()
+        lines = [json.loads(x) for x in prepass_path.read_text(encoding="utf-8").splitlines()]
+        assert [r["id"] for r in lines] == ["t_a", "t_b", "t_d", "t_k", "t_m", "t_z"]
+        assert all(not r["id"].startswith("h_") for r in lines)
+
+        expected_truth = [
+            ("t_a", "prs/grounded-prs.jsonl", "supported", 4, 4, 0, 0, 0, 0, 4, True),
+            ("t_b", "grounded.jsonl", "unsupported", 2, 1, 2, 0, 1, 0, 3, False),
+            ("t_d", "diffs/reasoning-diffs.jsonl", "supported", 1, 1, 0, 2, 1, 1, 1, False),
+            ("t_k", "diffs/reasoning-diffs.jsonl", "unsupported", 0, 4, 0, 0, 0, 0, 4, True),
+            ("t_m", "prs/grounded-prs.jsonl", "cannot_tell", 3, 1, 1, 2, 0, 0, 2, False),
+            ("t_z", "grounded.jsonl", "supported", 1, 2, 1, 0, 1, 0, 2, False),
+        ]
+        for rec, (
+            cid,
+            gfile,
+            gverd,
+            k_corr,
+            sup,
+            unsup,
+            ct,
+            malf,
+            trunc_c,
+            q_pass,
+            zv,
+        ) in zip(lines, expected_truth, strict=True):
+            assert rec["id"] == cid
+            assert rec["gold_file"] == gfile
+            assert rec["gold_verdict"] == gverd
+            assert rec["g"] == 4
+            assert rec["k_correct"] == k_corr
+            assert rec["supported"] == sup
+            assert rec["unsupported"] == unsup
+            assert rec["cannot_tell"] == ct
+            assert rec["malformed"] == malf
+            assert rec["truncations"] == trunc_c
+            assert rec["quote_pass"] == q_pass
+            assert rec["zero_variance"] is zv
+
+        summary = json.loads((a.out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert summary["item_count"] == 6
+        assert summary["k_correct_histogram"] == {"0": 1, "1": 2, "2": 1, "3": 1, "4": 1}
+        assert summary["all_correct_share"] == pytest.approx(1 / 6)
+        assert summary["zero_variance_share"] == pytest.approx(2 / 6)
+        assert summary["total_truncations"] == 1
+        assert summary["p_cannot_tell_given_gold_supported"] == pytest.approx(2 / 12)
+        assert summary["by_gold_file"]["grounded.jsonl"] == {"0": 0, "1": 1, "2": 1, "3": 0, "4": 0}
+        assert summary["by_gold_file"]["prs/grounded-prs.jsonl"] == {"0": 0, "1": 0, "2": 0, "3": 1, "4": 1}
+        assert summary["by_gold_file"]["diffs/reasoning-diffs.jsonl"] == {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+        }
+        assert summary["by_gold_verdict"]["supported"] == {"0": 0, "1": 2, "2": 0, "3": 0, "4": 1}
+        assert summary["by_gold_verdict"]["unsupported"] == {"0": 1, "1": 0, "2": 1, "3": 0, "4": 0}
+        assert summary["by_gold_verdict"]["cannot_tell"] == {"0": 0, "1": 0, "2": 0, "3": 1, "4": 0}
+
+    @needs_torch
+    def test_t3_no_text(self, tmp_path, capsys):
+        from contextlib import nullcontext
+
+        import torch
+
+        marker = "SECRET_PREPASS_MARKER_8472"
+        rows_by_file = {
+            "grounded.jsonl": [
+                _row(
+                    "g01",
+                    split="tune",
+                    label="supported",
+                    claim=f"Claim with {marker}",
+                    text=f"Evidence passage with {marker} inside it",
+                )
+            ],
+            "prs/grounded-prs.jsonl": [
+                _row(
+                    "p01",
+                    split="tune",
+                    label="unsupported",
+                    claim=f"PR claim {marker}",
+                    text=f"PR evidence {marker}",
+                )
+            ],
+            "diffs/reasoning-diffs.jsonl": [
+                _row(
+                    "r01",
+                    split="tune",
+                    label="cannot_tell",
+                    claim=f"Diff claim {marker}",
+                    text=f"Diff evidence {marker}",
+                )
+            ],
+        }
+        gold_dir = _gold(tmp_path / "gold", rows_by_file)
+        a = _args(tmp_path, gold_dir, rollout_only=True, g=2, max_new=32)
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+
+        def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            p_ids = tok.encode(prompt_text)
+            reply_str = _reply(
+                "supported",
+                quote=f"Evidence passage with {marker} inside it",
+                think=f"thinking about {marker}",
+            )
+            comp = tok.encode(reply_str) + [tok.eos_token_id]
+            return p_ids, [comp for _ in range(g_cnt)], [False] * g_cnt
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 0
+        assert (a.out / "s2-hf-prepass.jsonl").exists()
+        assert (a.out / "s2-hf-prepass-header.json").exists()
+        assert (a.out / "s2-hf-prepass-summary.json").exists()
+        assert (a.out / "s2-hf-phases.jsonl").exists()
+
+        captured = capsys.readouterr()
+        assert marker not in captured.out
+        assert marker not in captured.err
+        for path in a.out.rglob("*"):
+            if path.is_file():
+                assert marker not in path.read_text(encoding="utf-8"), f"marker leaked into {path.name}"
+
+    @needs_torch
+    def test_t4_resume(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def make_builder(stop_after: int | None = None, seen_prompts: list[str] | None = None):
+            calls = {"n": 0}
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                calls["n"] += 1
+                if stop_after is not None and calls["n"] > stop_after:
+                    raise TimeoutError("simulated stop after k items")
+                if seen_prompts is not None:
+                    seen_prompts.append(prompt_text)
+                p_ids = tok.encode(prompt_text)
+                comps = []
+                truncs = []
+                for _ in range(g_cnt):
+                    draw = int(torch.randint(0, 4, (1,)).item())
+                    if draw == 0:
+                        rep = _reply("supported", "alpha beta gamma")
+                        tr = False
+                    elif draw == 1:
+                        rep = _reply("unsupported", "alpha beta gamma")
+                        tr = False
+                    elif draw == 2:
+                        rep = _reply("cannot_tell", "absent quote")
+                        tr = False
+                    else:
+                        rep = "malformed reply"
+                        tr = True
+                    comps.append(tok.encode(rep) + ([] if tr else [tok.eos_token_id]))
+                    truncs.append(tr)
+                return p_ids, comps, truncs
+
+            def build_fake(_args_ns):
+                return {
+                    "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                    "tok": tok,
+                    "mode": lambda training: None,
+                    "state": lambda: {"grad_ckpt": False},
+                    "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                    "ref_adapter_off": nullcontext,
+                    "rollout": rollout,
+                    "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                        text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                    ),
+                    "sync": lambda: None,
+                    "peak_alloc_mib": lambda: 1000,
+                    "revision": "rev123",
+                    "llama": None,
+                    "dtype_census": None,
+                }
+
+            return build_fake
+
+        # 1. Full uninterrupted run
+        a_full = _args(tmp_path / "full", gold_dir, rollout_only=True, g=4, max_new=32)
+        assert s2.execute(a_full, build=make_builder(), rig=_FakeRig(a_full)) == 0
+        assert (a_full.out / "s2-hf-prepass.jsonl").exists()
+        full_jsonl = (a_full.out / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+        full_summary = json.loads((a_full.out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert len(full_jsonl) == 6
+
+        # 2. Interrupted run after k = 3 items + half-written trailing line
+        a_res = _args(tmp_path / "resumed", gold_dir, rollout_only=True, g=4, max_new=32)
+        assert s2.execute(a_res, build=make_builder(stop_after=3), rig=_FakeRig(a_res)) == 1
+        res_jsonl_path = a_res.out / "s2-hf-prepass.jsonl"
+        with res_jsonl_path.open("a", encoding="utf-8", newline="\n") as fh:
+            fh.write('{"id": "t_k", "gold_file": "diffs/reasoning-diffs.jsonl", "k_correct": ')
+
+        # 3. Rerun to resume
+        resumed_prompts: list[str] = []
+        assert (
+            s2.execute(
+                a_res,
+                build=make_builder(stop_after=None, seen_prompts=resumed_prompts),
+                rig=_FakeRig(a_res),
+            )
+            == 0
+        )
+        assert len(resumed_prompts) == 3  # first 3 done ids skipped, only remaining 3 rolled out
+        res_jsonl = res_jsonl_path.read_text(encoding="utf-8").splitlines()
+        res_summary = json.loads((a_res.out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert [json.loads(x) for x in res_jsonl] == [json.loads(x) for x in full_jsonl]
+        assert res_summary == full_summary
+
+    @needs_torch
+    def test_t5_refuse_on_mismatch(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def build_fake(_args_ns):
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        a1 = _args(tmp_path / "run", gold_dir, rollout_only=True, g=4, max_new=32)
+        assert s2.execute(a1, build=build_fake, rig=_FakeRig(a1)) == 0
+        header_path = a1.out / "s2-hf-prepass-header.json"
+        jsonl_path = a1.out / "s2-hf-prepass.jsonl"
+        assert header_path.exists() and jsonl_path.exists()
+        before_bytes = jsonl_path.read_bytes()
+
+        # Change G (4 -> 2) and rerun on the same out dir
+        a_mismatch = _args(tmp_path / "run", gold_dir, rollout_only=True, g=2, max_new=32)
+        with pytest.raises(SystemExit, match="mismatch"):
+            s2.execute(a_mismatch, build=build_fake, rig=_FakeRig(a_mismatch))
+        assert jsonl_path.read_bytes() == before_bytes
+
+        # Also check corrupt header, non-dict header, orphan JSONL, and corrupt mid-file JSONL line
+        exp_hdr = json.loads(header_path.read_text(encoding="utf-8"))
+        bad_dir = tmp_path / "bad"
+        bad_dir.mkdir()
+        hp = bad_dir / "h.json"
+        jp = bad_dir / "p.jsonl"
+        jp.write_text("{}", encoding="utf-8")
+        with pytest.raises(SystemExit, match="without"):
+            s2._prepare_prepass_resume(hp, jp, exp_hdr)
+        jp.unlink()
+        hp.write_text("{not json", encoding="utf-8")
+        with pytest.raises(SystemExit, match="not valid JSON"):
+            s2._prepare_prepass_resume(hp, jp, exp_hdr)
+        hp.write_text("[1, 2]", encoding="utf-8")
+        with pytest.raises(SystemExit, match="not a JSON object"):
+            s2._prepare_prepass_resume(hp, jp, exp_hdr)
+        hp.write_text(json.dumps(exp_hdr), encoding="utf-8")
+        assert s2._prepare_prepass_resume(hp, jp, exp_hdr) == []
+        jp.write_text("{corrupt\n{}\n", encoding="utf-8")
+        with pytest.raises(SystemExit, match="corrupt line 1"):
+            s2._prepare_prepass_resume(hp, jp, exp_hdr)
+        jp.write_text('{"id": "only_id"}\n{"id": "second"}\n', encoding="utf-8")
+        with pytest.raises(SystemExit, match="incomplete record on line 1"):
+            s2._prepare_prepass_resume(hp, jp, exp_hdr)
+        # Trailing incomplete record on last line is truncated cleanly
+        first_valid_line = before_bytes.splitlines(keepends=True)[0].decode("utf-8")
+        jp.write_text(first_valid_line + '{"id": "partial_record"}\n', encoding="utf-8")
+        recs = s2._prepare_prepass_resume(hp, jp, exp_hdr)
+        assert len(recs) == 1
+        assert jp.read_text(encoding="utf-8") == first_valid_line
+
+    @needs_torch
+    def test_t6_readout_and_flags(self, tmp_path, capsys):
+        import torch
+
+        gold_dir = _gold(tmp_path / "gold")
+        ap = s2.build_parser()
+        ro_actions = [act for act in ap._actions if "--rollout-only" in act.option_strings]
+        assert ro_actions, "missing --rollout-only flag"
+        assert "it trains nothing and writes counts per item" in ro_actions[0].help
+
+        base_argv = ["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(tmp_path / "out")]
+        parsed = ap.parse_args([*base_argv, "--rollout-only", "--dry"])
+        assert parsed.rollout_only is True
+        assert s2.active_flags(parsed)["rollout_only"] is True
+
+        # --rollout-only with --stress-prefix > 0 is refused
+        bad = ap.parse_args([*base_argv, "--rollout-only", "--stress-prefix", "1"])
+        with pytest.raises(SystemExit, match="--rollout-only"):
+            s2.execute(bad, build=s2.dry_bundle)
+
+        # --dry --rollout-only runs on CPU with the tiny model over DRY_PREPASS_ITEMS (4) items and exercises resume
+        rc = s2.main([*base_argv, "--dry", "--rollout-only", "--prompts", "11", "--steps", "7"])
+        assert rc == 0
+        out_lines = capsys.readouterr().out.strip().splitlines()
+        assert out_lines[-1] == "S2-PREPASS"
+        receipt = json.loads((Path(base_argv[5]) / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["verdict"] == "S2-PREPASS"
+        assert receipt["readout"]["flags"]["rollout_only"] is True
+        assert receipt["readout"]["ignored_flags"] == ["prompts", "steps"]
+        prepass_lines = [
+            json.loads(x)
+            for x in (Path(base_argv[5]) / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(prepass_lines) == s2.DRY_PREPASS_ITEMS == 4
+
+        # Check verdict_line failure branches and 2-tuple rollout + OOM handling in run_prepass
+        assert (
+            s2.verdict_line(
+                {"items_requested": 4, "items_completed": 2, "oom": True},
+                stopped=None,
+                cut=False,
+                dry=False,
+                rollout_only=True,
+            )
+            == "S2-FAIL"
+        )
+        assert (
+            s2.verdict_line(
+                {"items_requested": 4, "items_completed": 2, "oom": True},
+                stopped=None,
+                cut=False,
+                dry=True,
+                rollout_only=True,
+            )
+            == "S2-STOPPED"
+        )
+        tok = s2.DryTokenizer()
+        rows_g, hashes_g = s2.read_gold(gold_dir)
+        prompts_2 = s2.select_prompts(rows_g, 2)
+        a_2t = _args(
+            tmp_path / "twotuple",
+            gold_dir,
+            rollout_only=True,
+            empty_cache_phases=True,
+            g=2,
+            max_new=16,
+        )
+        before_called: list[int] = []
+        bundle_2t = {
+            "tok": tok,
+            "rollout": lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [tok.encode(_reply("supported", "x")) + [tok.eos_token_id]] * g_cnt,
+            ),
+            "reward_fn": s2.dry_reward,
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: 100,
+            "before_step": before_called.append,
+            "mode": None,
+            "state": None,
+            "revision": "rev123",
+        }
+        s_rows, c_recs, st_rec, is_oom = s2.run_prepass(
+            a=a_2t,
+            prompts=prompts_2,
+            gold_hashes=hashes_g,
+            bundle=bundle_2t,
+            phase_logger=None,
+            eval_records=None,
+        )
+        assert len(s_rows) == 2 and len(c_recs) == 2 and st_rec is None and not is_oom
+        assert before_called == [0]
+
+        oom_cls = getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None)
+        if oom_cls is not None:
+            a_oom = _args(tmp_path / "oom_prepass", gold_dir, rollout_only=True, g=2, max_new=16)
+            bundle_oom = {
+                **bundle_2t,
+                "rollout": lambda text, g_cnt, max_n, temp: (_ for _ in ()).throw(oom_cls("fake oom")),
+            }
+            _, _, st_oom, flag_oom = s2.run_prepass(
+                a=a_oom,
+                prompts=prompts_2,
+                gold_hashes=hashes_g,
+                bundle=bundle_oom,
+            )
+            assert flag_oom is True and st_oom == {"step": 0, "error": "out of memory"}
