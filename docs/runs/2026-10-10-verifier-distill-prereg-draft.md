@@ -544,6 +544,30 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 
 **Decided:** the memory settings stand as they are for the full run. The worst case the plan's flags can reach fits the card with margin, and the automatic stop at 29,000 MiB stays as the guard.
 
+### The starting policy over the whole tune split, measured (2026-11-04, rollout-only pre-pass)
+
+**The measurement.** The rollout-only pre-pass (aspire-si #184, main 4ddbcb3a) ran every one of the 493 tune items once at the plan's settings: G 8, cap 2,048, quote reward v2. It did no training. It ran on the local RTX 5090 in six chunks of at most 90 minutes, resumed from a checked header. The header sha256, 1e749d8b897804fff93125c0888fa42cfb07a560ab93f731fe37370d49f3020f, matched at every chunk. This is the **starting** policy, not a training result. These are counts only; no text was kept. The pre-pass covers the tune split, not the full train split that decision 1 above named. The tune split is the pool the APPLY draw comes from.
+
+**Verdicts correct, k of 8, per item (n 493):**
+
+| k | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| items | 13 | 11 | 12 | 13 | 26 | 30 | 45 | 73 | 270 |
+
+- **All 8 correct: 270 (54.8%).** None correct: 13 (2.6%). Mixed, k 1–7: 210 (42.6%).
+- **Zero-variance reward groups: 47 (9.5%).** As in S2 v4, the quote reward still separates most groups whose verdicts are all correct.
+- **By gold file** (k=8 / n): grounded 48/65, prs 103/205, diffs 119/223.
+- **By gold verdict** (k=8 / n): supported 139/229, unsupported 114/230, cannot tell 17/34.
+- **P(cannot tell | gold supported) = 0.0.**
+- **Truncations:** 46 of 3,944 completions (1.2%).
+- **Card peak per chunk:** 12,606 to 16,527 MiB (1 s sampler), with no stop and no out-of-memory error.
+- **Rollout time:** about 66 s per item of 8 completions on average across the chunks.
+
+**Decided (the APPLY draw, from decision 1 above):**
+1. **The APPLY draw is uniform from the tune split, as drawn, with zero-variance groups out of the loss.** About 9.5% of groups carry no gradient at the start. Results are reported split by each item's pre-pass k, so it is visible whether gains come from verdicts (k 1–7) or from quoting (k = 8). This keeps decision 7 above ("not used: dropping prompts the base model always answers correctly").
+2. **The draw is a recorded setting.** The default is uniform. A k-band option (drawing only from items with k in a stated range) exists for a later study, and the setting used is written into the run header. It is not used in this run.
+3. **Still owed before the full run:** a stress prefix on the longest tune prompt (2,761 tokens against the 853 used in v5), under the 29,000 MiB stop.
+
 ## Evaluation, by stage
 
 Each stage is scored mechanically and reported on its own:
