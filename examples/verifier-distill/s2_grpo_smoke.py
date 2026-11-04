@@ -593,6 +593,13 @@ def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") 
 
 
 # -- the readout, the pass line and the exit status ----------------------------------------------------------
+def quote_pass_role_text(quote_reward: str = "v1") -> str:
+    return (
+        "diagnostic: every evidence quote found in the passages; "
+        f"not the registered reward (quote rule {quote_reward})"
+    )
+
+
 def readout(
     steps: list[dict],
     *,
@@ -610,6 +617,7 @@ def readout(
     items_requested: int | None = None,
     items_completed: int | None = None,
     prepass_summary_record: dict | None = None,
+    quote_reward: str | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -668,8 +676,16 @@ def readout(
         out["pass"] = False
         out.setdefault("flags", {})["rollout_only"] = True
         out["flags"]["ignored_flags"] = ["prompts", "steps"]
+        q_rew = str(quote_reward or out["flags"].get("quote_reward") or "v1")
         if prepass_summary_record is not None:
             out["prepass_summary"] = prepass_summary_record
+            if "quote_pass" in prepass_summary_record:
+                out["quote_pass"] = prepass_summary_record["quote_pass"]
+            out["quote_pass_role"] = prepass_summary_record.get(
+                "quote_pass_role", quote_pass_role_text(q_rew)
+            )
+        else:
+            out["quote_pass_role"] = quote_pass_role_text(q_rew)
     if eval_summary_record is not None:
         qr_rel = eval_summary_record.get("quote_relevance") or {}
         out["eval_summary"] = {
@@ -2617,6 +2633,7 @@ def build_prepass_header(
     seed: int = PREPASS_BASE_SEED,
     model_revision: str | None,
     script_hash: str | None = None,
+    reproducible: bool = True,
 ) -> dict:
     return {
         "ids_sha256": ids_sha256(prompt_ids),
@@ -2627,6 +2644,7 @@ def build_prepass_header(
         "quote_reward": str(quote_reward),
         "seed": int(seed),
         "model_revision": model_revision,
+        "reproducible": bool(reproducible),
     }
 
 
@@ -2713,7 +2731,13 @@ def _k_correct_hist(records: Sequence[dict], g: int) -> dict[str, int]:
     return hist
 
 
-def prepass_summary(records: Sequence[dict], *, g: int) -> dict:
+def prepass_summary(
+    records: Sequence[dict],
+    *,
+    g: int,
+    quote_reward: str = "v1",
+    reproducible: bool = True,
+) -> dict:
     """Summary of a rollout-only pre-pass: counts, histograms (0..G), and ratios only."""
     n = len(records)
     hist = _k_correct_hist(records, g)
@@ -2726,6 +2750,7 @@ def prepass_summary(records: Sequence[dict], *, g: int) -> dict:
     for gv in VERDICTS:
         by_verdict[gv] = _k_correct_hist([r for r in records if r.get("gold_verdict") == gv], g)
     total_truncs = sum(int(r["truncations"]) for r in records)
+    total_quote_pass = sum(int(r.get("quote_pass", 0)) for r in records)
     gold_sup_completions = sum(int(r["g"]) for r in records if r.get("gold_verdict") == "supported")
     ct_on_gold_sup = sum(int(r["cannot_tell"]) for r in records if r.get("gold_verdict") == "supported")
     p_ct_given_sup = (ct_on_gold_sup / gold_sup_completions) if gold_sup_completions > 0 else 0.0
@@ -2740,7 +2765,10 @@ def prepass_summary(records: Sequence[dict], *, g: int) -> dict:
         "by_gold_file": by_file,
         "by_gold_verdict": by_verdict,
         "total_truncations": total_truncs,
+        "quote_pass": total_quote_pass,
+        "quote_pass_role": quote_pass_role_text(quote_reward),
         "p_cannot_tell_given_gold_supported": p_ct_given_sup,
+        "reproducible": bool(reproducible),
     }
 
 
@@ -2749,10 +2777,16 @@ def _prepare_prepass_resume(
     jsonl_path: Path,
     expected_header: dict,
     *,
+    path: str = "hf",
     fsync: Callable[[int], None] = os.fsync,
 ) -> list[dict]:
     """Verify or write the prepass header, truncate any trailing partial line, and return done records."""
     if header_path.exists():
+        if path == "llamacpp" or expected_header.get("reproducible") is False:
+            raise SystemExit(
+                "refusing to resume prepass: --path llamacpp samples are not seeded per item, "
+                "so a resumed run is not reproducible"
+            )
         try:
             existing_header = json.loads(header_path.read_text(encoding="utf-8"))
         except Exception as exc:
@@ -2761,10 +2795,13 @@ def _prepare_prepass_resume(
             ) from exc
         if not isinstance(existing_header, dict):
             raise SystemExit(f"refusing to resume prepass: header {header_path} is not a JSON object")
+        existing_cmp = dict(existing_header)
+        if "reproducible" not in existing_cmp and expected_header.get("reproducible") is True:
+            existing_cmp["reproducible"] = True
         mismatched = [
             k
-            for k in sorted(set(expected_header) | set(existing_header))
-            if existing_header.get(k) != expected_header.get(k)
+            for k in sorted(set(expected_header) | set(existing_cmp))
+            if existing_cmp.get(k) != expected_header.get(k)
         ]
         if mismatched:
             raise SystemExit(f"refusing to resume prepass: header mismatch on {', '.join(mismatched)}")
@@ -2848,6 +2885,8 @@ def run_prepass(
         if bundle.get("revision") is not None
         else str(getattr(a, "revision", STUDENT_REVISION))
     )
+    path_name = str(getattr(a, "path", "hf") or "hf")
+    reproducible = path_name != "llamacpp"
     expected_header = build_prepass_header(
         prompt_ids=[r["id"] for r in prompts],
         gold_hashes=gold_hashes,
@@ -2856,13 +2895,16 @@ def run_prepass(
         quote_reward=quote_rew,
         seed=base_seed,
         model_revision=model_rev,
+        reproducible=reproducible,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
     jsonl_path = a.out / f"s2-{a.path}-prepass.jsonl"
     summary_path = a.out / f"s2-{a.path}-prepass-summary.json"
 
-    completed_records = _prepare_prepass_resume(header_path, jsonl_path, expected_header, fsync=fsync)
+    completed_records = _prepare_prepass_resume(
+        header_path, jsonl_path, expected_header, path=path_name, fsync=fsync
+    )
     done_ids = {str(r["id"]) for r in completed_records}
 
     if mode:
@@ -2975,7 +3017,9 @@ def run_prepass(
                 return step_rows, completed_records, {"step": item_idx, "error": f"timeout: {exc}"}, False
 
     if len(completed_records) == len(prompts):
-        summary_doc = prepass_summary(completed_records, g=a.g)
+        summary_doc = prepass_summary(
+            completed_records, g=a.g, quote_reward=quote_rew, reproducible=reproducible
+        )
         with summary_path.open("w", encoding="utf-8", newline="\n") as sfh:
             sfh.write(json.dumps(summary_doc, indent=1) + "\n")
             sfh.flush()
@@ -3246,7 +3290,14 @@ def execute(
         peak = sampler.peak_mib if sampler is not None else None
         flags_in_use = active_flags(a)
         prepass_summary_doc = (
-            prepass_summary(prepass_records, g=a.g) if rollout_only and prepass_records else None
+            prepass_summary(
+                prepass_records,
+                g=a.g,
+                quote_reward=quote_rew,
+                reproducible=(a.path != "llamacpp"),
+            )
+            if rollout_only and prepass_records
+            else None
         )
         result = readout(
             steps,
@@ -3264,6 +3315,7 @@ def execute(
             items_requested=len(prompts) if rollout_only else None,
             items_completed=len(prepass_records) if rollout_only else None,
             prepass_summary_record=prepass_summary_doc,
+            quote_reward=quote_rew,
         )
         line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
         env = environment(
@@ -3443,7 +3495,9 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "rollout-only pre-pass over every tune item (sorted by id; --prompts and --steps are ignored): "
-            "it trains nothing and writes counts per item."
+            "it trains nothing and writes counts per item. "
+            "quote_pass is diagnostic: every evidence quote found in the passages; "
+            "not the registered reward (quote rule <v>)."
         ),
     )
     return ap
