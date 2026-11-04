@@ -534,6 +534,16 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
 
 **Also found:** with truncated completions out of the loss, a stress step that forces every completion to the cap trains on nothing. So it no longer measures the worst-case training memory, which is a full-width group whose other completions are still trained. The stress step is changed to run its training forward at full width before the full run, and the worst case is measured separately on the GPU.
 
+### The worst-case training memory under the plan's flags, measured (2026-11-03, from smoke test S2 v5)
+
+**The measurement.** S2 v5 ran the plan's configuration (zero-variance groups out of the loss, Dr. GRPO advantages, 4 groups per update, truncated completions out of the loss, quote reward v2) with the changed stress step: 2 forced-length steps of 4 groups each, every completion at the 2,048-token cap, with both masks off in that step only, so every microbatch ran its training forward and backward at full width. Then 1 normal update of 4 groups. Counts only; one run, so a memory reading, not a distribution.
+- **Card peak 22,923 MiB** (1 s sampler), under the 27,000 MiB pass line and about 6 GB below the 29,000 MiB automatic stop. No out-of-memory error and no stop.
+- **Training forward at full width: 18.07 GiB allocated, 19.56 GiB reserved.** In v4, where the stress step trained on nothing, the same reading was 5.75 GiB. Torch's own peak was 18,503 MiB allocated and 20,082 MiB reserved.
+- Compared with v3 (the same full width, without the plan's flags): training forward 17.82 / 19.31 GiB and card peak 22,484 MiB. The plan's flags add about 440 MiB to the worst case.
+- **Time at the worst case:** 175.8 s per group of 8 at a forced 2,048 tokens with training. A normal update of 4 groups took 176.9 s.
+
+**Decided:** the memory settings stand as they are for the full run. The worst case the plan's flags can reach fits the card with margin, and the automatic stop at 29,000 MiB stays as the guard.
+
 ## Evaluation, by stage
 
 Each stage is scored mechanically and reported on its own:
