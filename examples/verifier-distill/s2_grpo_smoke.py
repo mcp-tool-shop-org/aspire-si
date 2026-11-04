@@ -638,6 +638,7 @@ def readout(
     items_completed: int | None = None,
     prepass_summary_record: dict | None = None,
     quote_reward: str | None = None,
+    mean_residual_by_k_band_record: dict[str, object] | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -721,6 +722,8 @@ def readout(
             "miss_waterfall": dict(eval_summary_record.get("miss_waterfall") or {}),
             "quote_relevance_share": qr_rel.get("share"),
         }
+    if mean_residual_by_k_band_record is not None:
+        out["mean_residual_by_k_band"] = dict(mean_residual_by_k_band_record)
     return out
 
 
@@ -1545,6 +1548,14 @@ class GroupLogger:
         truncations: int,
         mean_thinking_tokens: float,
         zero_variance_label: str | None,
+        correct_n: int | None = None,
+        correct_negative_adv_n: int | None = None,
+        truncated_n: int | None = None,
+        outcome_var: float | None = None,
+        correct_var: float | None = None,
+        total_reward_var: float | None = None,
+        k_prepass: int | None = None,
+        residual: float | None = None,
     ) -> None:
         if not self.enabled or self._fh is None:
             return
@@ -1561,6 +1572,16 @@ class GroupLogger:
             "mean_thinking_tokens": round(float(mean_thinking_tokens), 2),
             "zero_variance_label": zero_variance_label,
         }
+        if correct_n is not None:
+            line["correct_n"] = int(correct_n)
+            line["correct_negative_adv_n"] = int(correct_negative_adv_n or 0)
+            line["truncated_n"] = int(truncated_n if truncated_n is not None else truncations)
+            line["outcome_var"] = round(float(outcome_var or 0.0), 6)
+            line["correct_var"] = round(float(correct_var or 0.0), 6)
+            line["total_reward_var"] = round(float(total_reward_var or 0.0), 6)
+        if k_prepass is not None:
+            line["k_prepass"] = int(k_prepass)
+            line["residual"] = round(float(residual or 0.0), 6)
         self._fh.write(json.dumps(line) + "\n")
         self._fh.flush()
         self.fsync(self._fh.fileno())
@@ -1569,6 +1590,118 @@ class GroupLogger:
         if self._fh is not None:
             self._fh.close()
             self._fh = None
+
+
+SDPA_BACKEND_NAMES = ("flash", "efficient", "math", "cudnn", "unknown")
+
+
+def detect_sdpa_backend(
+    query,
+    key,
+    value,
+    *,
+    attn_mask=None,
+    dropout_p: float = 0.0,
+    is_causal: bool = False,
+    scale: float | None = None,
+    enable_gqa: bool = False,
+) -> tuple[str, str | None]:
+    """Report the SDPA backend ('flash', 'efficient', 'math', 'cudnn', or ('unknown', reason)) for a call.
+
+    Uses ``torch.nn.attention.SDPBackend``, ``torch.ops.aten._fused_sdp_choice``, and
+    ``torch.backends.cuda.SDPAParams`` / ``can_use_*_attention`` without altering the attention configuration.
+    """
+    torch = require_torch()
+    from torch.nn.attention import SDPBackend
+
+    backend_map = {
+        int(SDPBackend.FLASH_ATTENTION): "flash",
+        int(SDPBackend.EFFICIENT_ATTENTION): "efficient",
+        int(SDPBackend.MATH): "math",
+        int(SDPBackend.CUDNN_ATTENTION): "cudnn",
+    }
+    choice_err: str | None = None
+    try:
+        code = int(
+            torch.ops.aten._fused_sdp_choice(
+                query,
+                key,
+                value,
+                attn_mask=attn_mask,
+                dropout_p=float(dropout_p),
+                is_causal=bool(is_causal),
+                scale=scale,
+                enable_gqa=bool(enable_gqa),
+            )
+        )
+        if code in backend_map:
+            return backend_map[code], None
+        choice_err = f"_fused_sdp_choice returned {code}"
+    except Exception as exc:
+        choice_err = f"{type(exc).__name__}: {exc}"
+
+    try:
+        cuda_backends = getattr(getattr(torch, "backends", None), "cuda", None)
+        if cuda_backends is not None and getattr(query, "is_cuda", False):
+            params = cuda_backends.SDPAParams(
+                query,
+                key,
+                value,
+                attn_mask,
+                float(dropout_p),
+                bool(is_causal),
+                bool(enable_gqa),
+            )
+            if cuda_backends.flash_sdp_enabled() and cuda_backends.can_use_flash_attention(params, False):
+                return "flash", None
+            if cuda_backends.cudnn_sdp_enabled() and cuda_backends.can_use_cudnn_attention(params, False):
+                return "cudnn", None
+            if cuda_backends.mem_efficient_sdp_enabled() and cuda_backends.can_use_efficient_attention(
+                params, False
+            ):
+                return "efficient", None
+            if cuda_backends.math_sdp_enabled():
+                return "math", None
+    except Exception as exc:
+        choice_err = f"{type(exc).__name__}: {exc}"
+
+    return "unknown", (choice_err or "torch could not report an SDPA backend")
+
+
+def _make_sdpa_function_mode(on_sdpa: Callable[[str, str | None], None]):
+    """Build a ``torch.overrides.TorchFunctionMode`` that observes ``F.scaled_dot_product_attention``."""
+    torch = require_torch()
+    from torch.overrides import TorchFunctionMode
+
+    sdpa_fn = torch.nn.functional.scaled_dot_product_attention
+
+    class _SdpaObserverMode(TorchFunctionMode):
+        def __torch_function__(self, func, types, args=(), kwargs=None):
+            kwargs = kwargs or {}
+            out = func(*args, **kwargs)
+            if func is sdpa_fn and len(args) >= 3:
+                q, k, v = args[0], args[1], args[2]
+                attn_mask = args[3] if len(args) > 3 else kwargs.get("attn_mask")
+                dropout_p = args[4] if len(args) > 4 else kwargs.get("dropout_p", 0.0)
+                is_causal = args[5] if len(args) > 5 else kwargs.get("is_causal", False)
+                scale = kwargs.get("scale")
+                enable_gqa = kwargs.get("enable_gqa", False)
+                backend, reason = detect_sdpa_backend(
+                    q,
+                    k,
+                    v,
+                    attn_mask=attn_mask,
+                    dropout_p=dropout_p,
+                    is_causal=is_causal,
+                    scale=scale,
+                    enable_gqa=enable_gqa,
+                )
+                on_sdpa(backend, reason)
+                if isinstance(out, torch.Tensor) and out.requires_grad:
+                    out.register_hook(lambda _grad, b=backend, r=reason: on_sdpa(b, r))
+            return out
+
+    return _SdpaObserverMode()
 
 
 class PhaseLogger:
@@ -1586,6 +1719,7 @@ class PhaseLogger:
         cuda=None,
         now: Callable[[], float] = time.monotonic,
         fsync: Callable[[int], None] = os.fsync,
+        log_sdpa_backend: bool = False,
     ) -> None:
         self.path = path
         cuda_ready = (
@@ -1595,12 +1729,37 @@ class PhaseLogger:
         self.cuda = cuda
         self.now = now
         self.fsync = fsync
+        self.log_sdpa_backend = bool(log_sdpa_backend)
         self.max_memory_allocated: int | None = None
         self.max_memory_reserved: int | None = None
+        self._phase_sdpa_backends: list[str] = []
+        self._phase_sdpa_reasons: list[str] = []
+        self._sdpa_mode = None
         self._fh = None
         if self.enabled and self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._fh = self.path.open("w", encoding="utf-8", newline="\n")
+            if self.log_sdpa_backend:
+                self._sdpa_mode = _make_sdpa_function_mode(self._note_sdpa)
+                self._sdpa_mode.__enter__()
+
+    def _note_sdpa(self, backend: str, reason: str | None = None) -> None:
+        self._phase_sdpa_backends.append(backend)
+        if reason:
+            self._phase_sdpa_reasons.append(reason)
+
+    def _consume_sdpa_backend(self) -> tuple[str, str | None]:
+        backends = list(self._phase_sdpa_backends)
+        reasons = list(self._phase_sdpa_reasons)
+        self._phase_sdpa_backends.clear()
+        self._phase_sdpa_reasons.clear()
+        known = [b for b in backends if b in ("flash", "efficient", "math", "cudnn")]
+        if known:
+            if "math" in known:
+                return "math", None
+            return known[-1], None
+        reason = reasons[-1] if reasons else "no_sdpa_call_in_phase"
+        return "unknown", reason
 
     def peak_alloc_mib(self) -> int | None:
         return int(self.max_memory_allocated / 2**20) if self.max_memory_allocated is not None else None
@@ -1636,7 +1795,7 @@ class PhaseLogger:
             "max": max(lengths) if lengths else 0,
             "sum": sum(lengths),
         }
-        line = {
+        line: dict = {
             "step": step,
             "group": group,
             "phase": phase,
@@ -1648,11 +1807,19 @@ class PhaseLogger:
             "max_memory_allocated": max_alloc,
             "max_memory_reserved": max_reserved,
         }
+        if self.log_sdpa_backend:
+            sdpa_backend, sdpa_reason = self._consume_sdpa_backend()
+            line["sdpa_backend"] = sdpa_backend
+            if sdpa_backend == "unknown":
+                line["sdpa_backend_reason"] = sdpa_reason or "no_sdpa_call_in_phase"
         self._fh.write(json.dumps(line) + "\n")
         self._fh.flush()
         self.fsync(self._fh.fileno())
 
     def close(self) -> None:
+        if self._sdpa_mode is not None:
+            self._sdpa_mode.__exit__(None, None, None)
+            self._sdpa_mode = None
         if self._fh is not None:
             self._fh.close()
             self._fh = None
@@ -1828,6 +1995,9 @@ def run_steps(
     quote_reward: str = "v1",
     eval_records: list[dict] | None = None,
     on_eval: Callable[[dict], None] | None = None,
+    sign_diagnostics: bool = False,
+    prepass_baseline_k: dict[str, int] | None = None,
+    group_residuals: list[tuple[str, int, float]] | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -1861,6 +2031,17 @@ def run_steps(
             last_comp_lens: list[int] = []
             step_loss_sum = 0.0
             ckpt_train = ckpt_rollout = None
+            step_correct_active_n = 0
+            step_correct_zv_n = 0
+            step_correct_neg_adv = 0
+            active_outcome_var_sum = 0.0
+            active_correct_var_sum = 0.0
+            active_total_var_sum = 0.0
+            need_details = (
+                (group_logger is not None and group_logger.enabled)
+                or sign_diagnostics
+                or prepass_baseline_k is not None
+            )
             for k in range(groups_per_update):
                 row = prompts[(step * groups_per_update + k) % len(prompts)]
                 prompt_text = build_prompt(row)
@@ -1917,7 +2098,7 @@ def run_steps(
                         rollout_outcomes.append(
                             completion_eval_outcome(text, row, truncated=trunc, reward_val=r_val)
                         )
-                    if group_logger is not None and group_logger.enabled:
+                    if need_details:
                         det = reward_details(
                             text,
                             str(row.get("label", "supported")),
@@ -1956,6 +2137,59 @@ def run_steps(
                     active_groups += 1
                 rewards_all += rewards
 
+                grp_k_correct = sum(1 for s in group_samples if s.get("correct")) if need_details else 0
+                grp_trunc_n = sum(1 for tr in truncs if tr)
+                grp_correct_n: int | None = None
+                grp_correct_neg_adv_n: int | None = None
+                grp_outcome_var: float | None = None
+                grp_correct_var: float | None = None
+                grp_total_var: float | None = None
+                if sign_diagnostics:
+                    if mask_truncated:
+                        diag_samples = [s for s, tr in zip(group_samples, truncs, strict=True) if not tr]
+                        diag_outcomes = [v for v, tr in zip(verdict_scores, truncs, strict=True) if not tr]
+                        diag_rewards = [r for r, tr in zip(rewards, truncs, strict=True) if not tr]
+                        diag_advs = [a for a, tr in zip(adv_list, truncs, strict=True) if not tr]
+                    else:
+                        diag_samples = group_samples
+                        diag_outcomes = verdict_scores
+                        diag_rewards = rewards
+                        diag_advs = adv_list
+                    diag_correct_flags = [1.0 if s.get("correct") else 0.0 for s in diag_samples]
+                    grp_correct_n = sum(1 for s in diag_samples if s.get("correct"))
+                    grp_correct_neg_adv_n = sum(
+                        1
+                        for s, a_val in zip(diag_samples, diag_advs, strict=True)
+                        if s.get("correct") and float(a_val) < 0.0
+                    )
+                    grp_outcome_var = float(statistics.pvariance(diag_outcomes)) if diag_outcomes else 0.0
+                    grp_correct_var = (
+                        float(statistics.pvariance(diag_correct_flags)) if diag_correct_flags else 0.0
+                    )
+                    grp_total_var = float(statistics.pvariance(diag_rewards)) if diag_rewards else 0.0
+                    if is_zv:
+                        step_correct_zv_n += grp_correct_n
+                    else:
+                        step_correct_active_n += grp_correct_n
+                        step_correct_neg_adv += grp_correct_neg_adv_n
+                        active_outcome_var_sum += grp_outcome_var
+                        active_correct_var_sum += grp_correct_var
+                        active_total_var_sum += grp_total_var
+
+                grp_k_prepass: int | None = None
+                grp_residual: float | None = None
+                if prepass_baseline_k is not None:
+                    pid_key = str(row.get("id", k))
+                    if pid_key not in prepass_baseline_k:
+                        raise SystemExit(
+                            f"refusing to continue (prepass_baseline_missing_id): "
+                            f"prompt {pid_key!r} has no baseline record"
+                        )
+                    grp_k_prepass = int(prepass_baseline_k[pid_key])
+                    grp_residual = (grp_k_correct - grp_k_prepass) / float(len(comps))
+                    if group_residuals is not None:
+                        group_residuals.append((pid_key, grp_k_prepass, grp_residual))
+
                 if group_logger is not None and group_logger.enabled:
                     zv_label = classify_zero_variance_group(group_samples) if is_zv else None
                     group_logger.record(
@@ -1963,13 +2197,21 @@ def run_steps(
                         group=k,
                         prompt_id=str(row.get("id", k)),
                         prompt_tokens=len(prompt_ids),
-                        k_correct=sum(1 for s in group_samples if s.get("correct")),
+                        k_correct=grp_k_correct,
                         g=len(comps),
                         reward_std=statistics.pstdev(rewards) if rewards else 0.0,
                         verdict_reward_std=statistics.pstdev(verdict_scores) if verdict_scores else 0.0,
-                        truncations=sum(1 for tr in truncs if tr),
+                        truncations=grp_trunc_n,
                         mean_thinking_tokens=statistics.fmean(think_counts) if think_counts else 0.0,
                         zero_variance_label=zv_label,
+                        correct_n=grp_correct_n if sign_diagnostics else None,
+                        correct_negative_adv_n=grp_correct_neg_adv_n if sign_diagnostics else None,
+                        truncated_n=grp_trunc_n if sign_diagnostics else None,
+                        outcome_var=grp_outcome_var if sign_diagnostics else None,
+                        correct_var=grp_correct_var if sign_diagnostics else None,
+                        total_reward_var=grp_total_var if sign_diagnostics else None,
+                        k_prepass=grp_k_prepass,
+                        residual=grp_residual,
                     )
 
                 adv = torch.tensor(adv_list, dtype=torch.float32)
@@ -2112,7 +2354,7 @@ def run_steps(
             train_s += time.time() - t2
             if not math.isfinite(reported_loss):
                 return rows, {"step": step, "error": "non-finite loss"}, False
-            rec = {
+            rec: dict = {
                 "step": step,
                 "groups": groups_per_update,
                 "active_groups": active_groups,
@@ -2131,6 +2373,24 @@ def run_steps(
                 "grad_ckpt": ckpt_train,
                 "grad_ckpt_rollout": ckpt_rollout,
             }
+            if sign_diagnostics:
+                rec["step_correct_active_n"] = step_correct_active_n
+                rec["step_correct_zv_n"] = step_correct_zv_n
+                rec["correct_negative_adv_share"] = (
+                    round(step_correct_neg_adv / step_correct_active_n, 6)
+                    if step_correct_active_n > 0
+                    else None
+                )
+                rec["outcome_to_total_var_ratio"] = (
+                    round(active_outcome_var_sum / active_total_var_sum, 6)
+                    if active_total_var_sum > 0.0
+                    else None
+                )
+                rec["correct_to_total_var_ratio"] = (
+                    round(active_correct_var_sum / active_total_var_sum, 6)
+                    if active_total_var_sum > 0.0
+                    else None
+                )
             rows.append(rec)
             if on_step:
                 on_step(rec)
@@ -2906,7 +3166,7 @@ def run_prepass(
     bundle: dict,
     phase_logger: PhaseLogger | None = None,
     eval_records: list[dict] | None = None,
-    base_seed: int = PREPASS_BASE_SEED,
+    base_seed: int | None = None,
     stop_after_new: int | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> tuple[list[dict], list[dict], dict | None, bool]:
@@ -2916,6 +3176,7 @@ def run_prepass(
     Never calls optimiser, reference forward, training forward, or backward.
     """
     torch = require_torch()
+    eff_seed = int(base_seed if base_seed is not None else getattr(a, "prepass_seed", PREPASS_BASE_SEED))
     tok = bundle["tok"]
     rollout = bundle["rollout"]
     reward_fn = bundle["reward_fn"]
@@ -2942,7 +3203,7 @@ def run_prepass(
         g=a.g,
         max_new=a.max_new,
         quote_reward=quote_rew,
-        seed=base_seed,
+        seed=eff_seed,
         model_revision=model_rev,
         reproducible=reproducible,
     )
@@ -2975,7 +3236,7 @@ def run_prepass(
                 break
             try:
                 started = time.time()
-                torch.manual_seed(item_seed(item_id, base_seed))
+                torch.manual_seed(item_seed(item_id, eff_seed))
                 prompt_text = build_prompt(row)
                 ckpt_rollout = state()["grad_ckpt"] if state else None
                 if phase_logger is not None:
@@ -3077,6 +3338,107 @@ def run_prepass(
 
 
 # -- the run -------------------------------------------------------------------------------------------------
+def load_prepass_baseline(
+    baseline_path: Path | None,
+    baseline_sha256: str | None,
+    required_ids: Sequence[str],
+    *,
+    g: int = G,
+) -> tuple[dict[str, int] | None, str | None]:
+    """Load and SHA-check a pre-pass baseline JSONL. Never records item text or full file paths."""
+    if baseline_path is None and baseline_sha256 is None:
+        return None, None
+    if baseline_path is None or not baseline_sha256:
+        raise SystemExit(
+            "refusing to start (prepass_baseline_missing_arg): "
+            "--prepass-baseline and --prepass-baseline-sha256 must be given together"
+        )
+    path = Path(baseline_path)
+    if not path.is_file():
+        raise SystemExit(
+            f"refusing to start (prepass_baseline_missing_file): baseline file does not exist: {path.name}"
+        )
+    raw_bytes = path.read_bytes()
+    actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+    expected_sha = str(baseline_sha256).strip().lower()
+    if actual_sha != expected_sha:
+        raise SystemExit(
+            f"refusing to start (prepass_baseline_sha_mismatch): "
+            f"expected sha256 {expected_sha}, got {actual_sha}"
+        )
+    expected_g = int(g)
+    k_by_id: dict[str, int] = {}
+    for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_corrupt_json): invalid JSON on line {line_no}"
+            ) from exc
+        if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_invalid_record): "
+                f"line {line_no} is missing 'id' or 'k_correct'"
+            )
+        rec_id = str(obj["id"])
+        if rec_id in k_by_id:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_duplicate_id): "
+                f"duplicate baseline record for id {rec_id!r}"
+            )
+        g_val = obj.get("g")
+        if isinstance(g_val, bool) or not isinstance(g_val, int) or g_val != expected_g:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_g_mismatch): "
+                f"baseline record for id {rec_id!r} has g={g_val!r}, expected {expected_g}"
+            )
+        k_val = obj["k_correct"]
+        if isinstance(k_val, bool) or not isinstance(k_val, int) or k_val < 0 or k_val > expected_g:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_k_out_of_range): "
+                f"baseline record for id {rec_id!r} has k_correct={k_val!r} outside 0..{expected_g}"
+            )
+        k_by_id[rec_id] = k_val
+    missing = [str(cid) for cid in required_ids if str(cid) not in k_by_id]
+    if missing:
+        raise SystemExit(
+            f"refusing to start (prepass_baseline_missing_id): prompt {missing[0]!r} has no baseline record "
+            f"({len(missing)} missing)"
+        )
+    return k_by_id, actual_sha
+
+
+def mean_residual_by_k_band(
+    entries: Sequence[tuple[str, int, float]],
+) -> dict[str, object]:
+    """Mean of ``residual = (k_online - k_prepass) / g`` by ``k_prepass`` band, one residual per prompt id."""
+    by_prompt: dict[str, tuple[int, list[float]]] = {}
+    for pid_raw, k_pre_raw, res_raw in entries:
+        pid, k_pre, res = str(pid_raw), int(k_pre_raw), float(res_raw)
+        if pid not in by_prompt:
+            by_prompt[pid] = (k_pre, [res])
+        else:
+            by_prompt[pid][1].append(res)
+    bands: dict[str, list[float]] = {"[0,5]": [], "[6,7]": [], "8": []}
+    for k_pre, res_list in by_prompt.values():
+        prompt_mean_res = float(statistics.fmean(res_list))
+        if 0 <= k_pre <= 5:
+            bands["[0,5]"].append(prompt_mean_res)
+        elif 6 <= k_pre <= 7:
+            bands["[6,7]"].append(prompt_mean_res)
+        elif k_pre == 8:
+            bands["8"].append(prompt_mean_res)
+    out: dict[str, object] = {
+        band: (round(float(statistics.fmean(vals)), 6) if vals else None) for band, vals in bands.items()
+    }
+    out["n_prompts"] = {band: len(vals) for band, vals in bands.items()}
+    out["prompt_visits_max"] = max((len(v[1]) for v in by_prompt.values()), default=0)
+    return out
+
+
 def active_flags(a: argparse.Namespace) -> dict:
     """Return a dict of memory/probe/stress/loss/reward flags that are enabled on ``a``."""
     flags: dict = {}
@@ -3106,6 +3468,14 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["quote_reward"] = a.quote_reward
     if getattr(a, "rollout_only", False):
         flags["rollout_only"] = True
+    if int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
+        flags["prepass_seed"] = int(a.prepass_seed)
+    if getattr(a, "sign_diagnostics", False):
+        flags["sign_diagnostics"] = True
+    if getattr(a, "prepass_baseline_sha256", None):
+        flags["prepass_baseline_sha256"] = str(a.prepass_baseline_sha256).strip().lower()
+    if getattr(a, "log_sdpa_backend", False):
+        flags["log_sdpa_backend"] = True
     return flags
 
 
@@ -3180,6 +3550,12 @@ def execute(
         )
         if draw_mode != "first":
             draw_record = draw_rec
+    prepass_baseline_k, _ = load_prepass_baseline(
+        getattr(a, "prepass_baseline", None),
+        getattr(a, "prepass_baseline_sha256", None),
+        [r["id"] for r in prompts],
+        g=a.g,
+    )
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -3223,10 +3599,14 @@ def execute(
         cuda_mod = bundle.get("cuda") or (
             getattr(require_torch(), "cuda", None) if rig is not None and not a.dry else None
         )
+        log_sdpa = bool(getattr(a, "log_sdpa_backend", False))
+        sign_diag = bool(getattr(a, "sign_diagnostics", False))
+        prepass_seed_val = int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0)
         phase_logger = PhaseLogger(
             a.out / f"s2-{a.path}-phases.jsonl",
             enabled=rig is not None and not a.dry,
             cuda=cuda_mod,
+            log_sdpa_backend=log_sdpa,
         )
         group_logger = GroupLogger(
             a.out / f"s2-{a.path}-groups.jsonl",
@@ -3244,6 +3624,7 @@ def execute(
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
         eval_records: list[dict] = []
         prepass_records: list[dict] = []
+        group_residuals: list[tuple[str, int, float]] = []
         stress_meta: dict = {}
 
         def write_eval_summary(summary_doc: dict) -> None:
@@ -3273,6 +3654,7 @@ def execute(
                         bundle=bundle,
                         phase_logger=phase_logger,
                         eval_records=eval_records,
+                        base_seed=prepass_seed_val,
                         stop_after_new=half,
                     )
                     with jsonl_path.open("a", encoding="utf-8", newline="\n") as pfh:
@@ -3285,6 +3667,7 @@ def execute(
                         bundle=bundle,
                         phase_logger=phase_logger,
                         eval_records=eval_records,
+                        base_seed=prepass_seed_val,
                     )
                     prepass_records = recs_p2
                     return rows_p1 + rows_p2, stop_p2, oom_p2
@@ -3295,6 +3678,7 @@ def execute(
                     bundle=bundle,
                     phase_logger=phase_logger,
                     eval_records=eval_records,
+                    base_seed=prepass_seed_val,
                 )
                 prepass_records = recs_ro
                 return rows_ro, stop_ro, oom_ro
@@ -3375,6 +3759,9 @@ def execute(
                 quote_reward=quote_rew,
                 eval_records=eval_records,
                 on_eval=write_eval_summary,
+                sign_diagnostics=sign_diag,
+                prepass_baseline_k=prepass_baseline_k,
+                group_residuals=group_residuals if prepass_baseline_k is not None else None,
             )
 
         if sampler is not None:
@@ -3396,6 +3783,9 @@ def execute(
             if rollout_only and prepass_records
             else None
         )
+        residual_band_doc = (
+            mean_residual_by_k_band(group_residuals) if prepass_baseline_k is not None else None
+        )
         result = readout(
             steps,
             peak_mib=peak,
@@ -3413,6 +3803,7 @@ def execute(
             items_completed=len(prepass_records) if rollout_only else None,
             prepass_summary_record=prepass_summary_doc,
             quote_reward=quote_rew,
+            mean_residual_by_k_band_record=residual_band_doc,
         )
         line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
         env = environment(
@@ -3637,6 +4028,37 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="maximum k_correct (inclusive) for --draw kband",
+    )
+    ap.add_argument(
+        "--prepass-seed",
+        type=int,
+        default=PREPASS_BASE_SEED,
+        help="base integer seed for item_seed in --rollout-only (default 0)",
+    )
+    ap.add_argument(
+        "--sign-diagnostics",
+        action="store_true",
+        help=(
+            "record sign-disagreement and variance diagnostics in group and step logs:\n"
+            "outcome_var: population variance of outcome (verdict + m/k quote match under v2);\n"
+            "correct_var: population variance of the 0/1 correct-verdict indicator"
+        ),
+    )
+    ap.add_argument(
+        "--prepass-baseline",
+        type=Path,
+        default=None,
+        help="independent pre-pass JSONL file for per-group k_prepass and residual=(k_online-k_prepass)/g",
+    )
+    ap.add_argument(
+        "--prepass-baseline-sha256",
+        default=None,
+        help="expected sha256 hex digest of --prepass-baseline",
+    )
+    ap.add_argument(
+        "--log-sdpa-backend",
+        action="store_true",
+        help="record sdpa_backend ('flash', 'efficient', 'math', 'cudnn', or 'unknown') in each phase row",
     )
     return ap
 
