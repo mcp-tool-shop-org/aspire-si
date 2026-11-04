@@ -5551,3 +5551,953 @@ class TestStressPool:
         assert empty_stats["stress_pool"] == "tune"
         assert empty_stats["stress_prompt_id"] is None
         assert empty_stats["stress_prompt_tokens"] == 0
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-04 Prompt draw setting (s2_draw.draw_prompts & --draw): (a)..(f)
+# ---------------------------------------------------------------------------
+
+
+def _draw_gold_40(tmp_path: Path, *, marker: str = "") -> Path:
+    claim_str = f"Claim {marker}." if marker else "Claim."
+    text_str = f"alpha beta gamma {marker}" if marker else "alpha beta gamma"
+    rows_by_file = {
+        "grounded.jsonl": [_row(f"t{i:02d}", claim=claim_str, text=text_str) for i in range(15)],
+        "prs/grounded-prs.jsonl": [_row(f"t{i:02d}", claim=claim_str, text=text_str) for i in range(15, 30)]
+        + [_row("h00", split="heldout", claim=claim_str, text=text_str)],
+        "diffs/reasoning-diffs.jsonl": [
+            _row(f"t{i:02d}", label="unsupported", claim=claim_str, text=text_str) for i in range(30, 40)
+        ],
+    }
+    return _gold(tmp_path, rows_by_file)
+
+
+def _write_fake_prepass(path: Path, ids: list[str], k_fn=lambda idx: idx % 9, g: int = 8) -> str:
+    import hashlib
+
+    lines = [
+        json.dumps(
+            {
+                "id": cid,
+                "gold_file": "grounded.jsonl",
+                "gold_verdict": "supported",
+                "g": g,
+                "k_correct": k_fn(idx),
+                "supported": k_fn(idx),
+                "unsupported": g - k_fn(idx),
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "quote_pass": k_fn(idx),
+                "reward_mean": 0.1,
+                "reward_std": 0.5,
+                "zero_variance": k_fn(idx) in (0, g),
+                "prompt_tokens": 24,
+                "completion_tokens_mean": 12.0,
+            }
+        )
+        + "\n"
+        for idx, cid in enumerate(ids)
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(lines), encoding="utf-8", newline="\n")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class TestDrawSetting:
+    def test_a_first_equals_select_prompts_and_calls_it(self, tmp_path, monkeypatch):
+        import s2_draw
+        from s2_draw import draw_prompts
+
+        assert s2.select_prompts is s2_draw.select_prompts
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        expected = s2.select_prompts(rows, 12)
+        picked, rec = draw_prompts(rows, 12, mode="first")
+        assert picked == expected
+        assert [r["id"] for r in picked] == [f"t{i:02d}" for i in range(12)]
+        assert rec == {
+            "draw_mode": "first",
+            "draw_n": 12,
+            "draw_seed": None,
+            "drawn_ids_sha256": s2.ids_sha256([r["id"] for r in expected]),
+        }
+
+        calls: list[tuple[int, str]] = []
+        real_select = s2_draw.select_prompts
+
+        def spy_select(r_list, n_val=s2.PROMPTS, split=s2.PROMPT_SPLIT):
+            calls.append((n_val, split))
+            return real_select(r_list, n_val, split=split)
+
+        monkeypatch.setattr(s2_draw, "select_prompts", spy_select)
+        picked2, _ = draw_prompts(rows, 10, mode="first")
+        assert calls == [(10, "tune")]
+        assert len(picked2) == 10
+
+    def test_s2_draw_subprocess_imports_no_smoke_and_no_torch(self):
+        import subprocess
+
+        verifier_dir = Path(__file__).parent.parent / "examples" / "verifier-distill"
+        code = (
+            "import sys\n"
+            f"sys.path.insert(0, {str(verifier_dir)!r})\n"
+            "import s2_draw\n"
+            "assert 's2_grpo_smoke' not in sys.modules, 's2_grpo_smoke loaded on import s2_draw'\n"
+            "assert 'torch' not in sys.modules, 'torch loaded on import s2_draw'\n"
+            "rows = [{'id': 't00', 'split': 'tune'}, {'id': 't01', 'split': 'tune'}]\n"
+            "picked, rec = s2_draw.draw_prompts(rows, 1, mode='first')\n"
+            "assert [r['id'] for r in picked] == ['t00']\n"
+            "assert 's2_grpo_smoke' not in sys.modules, 's2_grpo_smoke loaded on draw_prompts(mode=first)'\n"
+            "assert 'torch' not in sys.modules, 'torch loaded on draw_prompts(mode=first)'\n"
+        )
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            env={**os.environ, "CUDA_VISIBLE_DEVICES": ""},
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert proc.returncode == 0, f"subprocess failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
+
+    def test_b_uniform_pinned_draw_and_local_rng(self, tmp_path):
+        import random
+
+        from s2_draw import draw_prompts
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+
+        random.seed(99999)
+        before_global = random.getstate()
+        picked_1, rec_1 = draw_prompts(rows, 10, mode="uniform", seed=1234)
+        after_global = random.getstate()
+        assert before_global == after_global, "draw_prompts must never touch global random state"
+
+        pinned_ids = ["t00", "t02", "t05", "t06", "t07", "t15", "t22", "t28", "t36", "t37"]
+        assert [r["id"] for r in picked_1] == pinned_ids
+        assert [r["id"] for r in picked_1] == sorted(r["id"] for r in picked_1)
+        assert all(r["split"] == "tune" for r in picked_1)
+        assert rec_1 == {
+            "draw_mode": "uniform",
+            "draw_n": 10,
+            "draw_seed": 1234,
+            "drawn_ids_sha256": "0f33b135252d80b75ccc9486f3e2a3e3a188fb143741b503dd05d3bfabaf96b7",
+        }
+
+        # Same seed gives the exact same ids and record on a reversed input row order
+        picked_2, rec_2 = draw_prompts(list(reversed(rows)), 10, mode="uniform", seed=1234)
+        assert [r["id"] for r in picked_2] == pinned_ids
+        assert rec_2 == rec_1
+
+        # Different seed gives a different list
+        picked_diff, rec_diff = draw_prompts(rows, 10, mode="uniform", seed=5678)
+        assert [r["id"] for r in picked_diff] != pinned_ids
+        assert rec_diff["draw_seed"] == 5678
+        assert rec_diff["drawn_ids_sha256"] != rec_1["drawn_ids_sha256"]
+
+    def test_c_kband_keeps_only_in_band_and_matches_pinned_list(self, tmp_path):
+        import hashlib
+        import random
+
+        from s2_draw import draw_prompts
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "prepass.jsonl"
+        sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda idx: idx % 9, g=8)
+
+        random.seed(99999)
+        before_global = random.getstate()
+        picked, rec = draw_prompts(
+            rows,
+            8,
+            mode="kband",
+            seed=1234,
+            prepass=(prepass_path, sha),
+            k_min=2,
+            k_max=5,
+        )
+        after_global = random.getstate()
+        assert before_global == after_global, "kband draw_prompts must never touch global random state"
+
+        pinned_kband_ids = ["t02", "t03", "t05", "t21", "t22", "t29", "t31", "t32"]
+        assert [r["id"] for r in picked] == pinned_kband_ids
+        for r in picked:
+            idx = int(r["id"][1:])
+            assert 2 <= (idx % 9) <= 5
+        assert rec == {
+            "draw_mode": "kband",
+            "draw_n": 8,
+            "draw_seed": 1234,
+            "drawn_ids_sha256": "dcee2a8bdbc8f7d4576cc3b6e89a09273c676e70cdbabf8f522a103b286a0bf8",
+            "prepass_sha256": sha,
+            "k_min": 2,
+            "k_max": 5,
+            "band_pool_size": 18,
+        }
+
+        # Same result for shuffled rows
+        shuffled_rows = list(rows)
+        random.Random(42).shuffle(shuffled_rows)
+        assert [r["id"] for r in shuffled_rows] != [r["id"] for r in rows]
+        picked_shuf_rows, rec_shuf_rows = draw_prompts(
+            shuffled_rows,
+            8,
+            mode="kband",
+            seed=1234,
+            prepass=(prepass_path, sha),
+            k_min=2,
+            k_max=5,
+        )
+        assert [r["id"] for r in picked_shuf_rows] == pinned_kband_ids
+        assert rec_shuf_rows == rec
+
+        # Same result for a shuffled pre-pass file
+        prepass_lines = prepass_path.read_text(encoding="utf-8").splitlines(keepends=True)
+        shuf_prepass_lines = list(prepass_lines)
+        random.Random(42).shuffle(shuf_prepass_lines)
+        assert shuf_prepass_lines != prepass_lines
+        shuf_prepass_path = tmp_path / "prepass_shuffled.jsonl"
+        shuf_prepass_path.write_text("".join(shuf_prepass_lines), encoding="utf-8", newline="\n")
+        shuf_sha = hashlib.sha256(shuf_prepass_path.read_bytes()).hexdigest()
+        picked_shuf_prepass, rec_shuf_prepass = draw_prompts(
+            shuffled_rows,
+            8,
+            mode="kband",
+            seed=1234,
+            prepass=(shuf_prepass_path, shuf_sha),
+            k_min=2,
+            k_max=5,
+        )
+        assert [r["id"] for r in picked_shuf_prepass] == pinned_kband_ids
+        assert {**rec_shuf_prepass, "prepass_sha256": sha} == rec
+
+        # A second seed gives a different list
+        picked_diff, rec_diff = draw_prompts(
+            rows,
+            8,
+            mode="kband",
+            seed=5678,
+            prepass=(prepass_path, sha),
+            k_min=2,
+            k_max=5,
+        )
+        assert [r["id"] for r in picked_diff] != pinned_kband_ids
+        assert rec_diff["draw_seed"] == 5678
+        assert rec_diff["drawn_ids_sha256"] != rec["drawn_ids_sha256"]
+
+    def test_d_refusals_by_name(self, tmp_path):
+        from s2_draw import draw_prompts
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "prepass.jsonl"
+        sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda idx: idx % 9, g=8)
+
+        # 1. uniform without seed or with seed=True -> missing_seed
+        with pytest.raises(SystemExit, match="missing_seed"):
+            draw_prompts(rows, 10, mode="uniform", seed=None)
+        with pytest.raises(SystemExit, match="missing_seed"):
+            draw_prompts(rows, 10, mode="uniform", seed=True)
+
+        # 2. uniform n exceeds pool -> n_exceeds_pool
+        with pytest.raises(SystemExit, match="n_exceeds_pool"):
+            draw_prompts(rows, 41, mode="uniform", seed=1234)
+
+        # 3. kband without seed or with seed=True -> missing_seed
+        with pytest.raises(SystemExit, match="missing_seed"):
+            draw_prompts(rows, 5, mode="kband", seed=None, prepass=(prepass_path, sha), k_min=1, k_max=3)
+        with pytest.raises(SystemExit, match="missing_seed"):
+            draw_prompts(rows, 5, mode="kband", seed=True, prepass=(prepass_path, sha), k_min=1, k_max=3)
+
+        # 4. kband sha mismatch -> prepass_sha_mismatch
+        with pytest.raises(SystemExit, match="prepass_sha_mismatch"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(prepass_path, "0" * 64),
+                k_min=1,
+                k_max=3,
+            )
+
+        # 5. kband missing file -> prepass_missing_file
+        with pytest.raises(SystemExit, match="prepass_missing_file"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(tmp_path / "nonexistent.jsonl", sha),
+                k_min=1,
+                k_max=3,
+            )
+
+        # 6. split row with no pre-pass record -> prepass_missing_split_id
+        incomplete_path = tmp_path / "incomplete.jsonl"
+        incomplete_sha = _write_fake_prepass(incomplete_path, tune_ids[:-1])
+        with pytest.raises(SystemExit, match="prepass_missing_split_id"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(incomplete_path, incomplete_sha),
+                k_min=1,
+                k_max=3,
+            )
+
+        # 7. pre-pass id not in the split -> prepass_extra_id
+        extra_path = tmp_path / "extra.jsonl"
+        extra_sha = _write_fake_prepass(extra_path, [*tune_ids, "h00"])
+        with pytest.raises(SystemExit, match="prepass_extra_id"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(extra_path, extra_sha),
+                k_min=1,
+                k_max=3,
+            )
+
+        # 7b. duplicate id in the pre-pass -> prepass_duplicate_id
+        dup_path = tmp_path / "dup.jsonl"
+        dup_sha = _write_fake_prepass(dup_path, [*tune_ids, "t00"])
+        with pytest.raises(SystemExit, match="prepass_duplicate_id"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(dup_path, dup_sha),
+                k_min=1,
+                k_max=3,
+            )
+
+        # 7c. mixed g values across pre-pass records -> prepass_mixed_g
+        import hashlib
+
+        mixed_g_path = tmp_path / "mixed_g.jsonl"
+        mixed_g_lines = []
+        for idx, cid in enumerate(tune_ids):
+            g_row = 16 if idx == 0 else 8
+            mixed_g_lines.append(
+                json.dumps(
+                    {
+                        "id": cid,
+                        "gold_file": "grounded.jsonl",
+                        "gold_verdict": "supported",
+                        "g": g_row,
+                        "k_correct": 2,
+                    }
+                )
+                + "\n"
+            )
+        mixed_g_path.write_text("".join(mixed_g_lines), encoding="utf-8", newline="\n")
+        mixed_g_sha = hashlib.sha256(mixed_g_path.read_bytes()).hexdigest()
+        with pytest.raises(SystemExit, match="prepass_mixed_g"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(mixed_g_path, mixed_g_sha),
+                k_min=1,
+                k_max=4,
+            )
+
+        # 8. k_min > k_max -> k_min_gt_k_max
+        with pytest.raises(SystemExit, match="k_min_gt_k_max"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(prepass_path, sha),
+                k_min=5,
+                k_max=2,
+            )
+
+        # 9. out-of-range values -> k_out_of_range (k_min < 0, k_max > g, record k_correct > g, or k_correct < 0)
+        with pytest.raises(SystemExit, match="k_out_of_range"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(prepass_path, sha),
+                k_min=-1,
+                k_max=4,
+            )
+        with pytest.raises(SystemExit, match="k_out_of_range"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(prepass_path, sha),
+                k_min=1,
+                k_max=9,
+            )
+        bad_k_path = tmp_path / "bad_k.jsonl"
+        bad_k_sha = _write_fake_prepass(bad_k_path, tune_ids, k_fn=lambda idx: 99 if idx == 0 else 2, g=8)
+        with pytest.raises(SystemExit, match="k_out_of_range"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(bad_k_path, bad_k_sha),
+                k_min=1,
+                k_max=4,
+            )
+        neg_k_path = tmp_path / "neg_k.jsonl"
+        neg_k_sha = _write_fake_prepass(neg_k_path, tune_ids, k_fn=lambda idx: -1 if idx == 0 else 2, g=8)
+        with pytest.raises(SystemExit, match="k_out_of_range"):
+            draw_prompts(
+                rows,
+                5,
+                mode="kband",
+                seed=1234,
+                prepass=(neg_k_path, neg_k_sha),
+                k_min=1,
+                k_max=4,
+            )
+
+        # 10. n larger than the band -> n_exceeds_band
+        with pytest.raises(SystemExit, match="n_exceeds_band"):
+            draw_prompts(
+                rows,
+                19,
+                mode="kband",
+                seed=1234,
+                prepass=(prepass_path, sha),
+                k_min=2,
+                k_max=5,
+            )
+
+        # 11. draw flags given for a mode that doesn't use them -> unused_draw_flags
+        # (a) --draw first with --draw-seed, --prepass-*, or --k-*
+        for bad_kw in (
+            {"seed": 1234},
+            {"prepass": (prepass_path, None)},
+            {"prepass": (None, sha)},
+            {"k_min": 2},
+            {"k_max": 5},
+        ):
+            with pytest.raises(SystemExit, match="unused_draw_flags"):
+                draw_prompts(rows, 10, mode="first", **bad_kw)
+        for extra_cli in (
+            ["--draw-seed", "1234"],
+            ["--prepass-jsonl", str(prepass_path)],
+            ["--prepass-sha256", sha],
+            ["--k-min", "2"],
+            ["--k-max", "5"],
+        ):
+            a_first_bad = s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "first_bad"),
+                    "--draw",
+                    "first",
+                    *extra_cli,
+                ]
+            )
+            with pytest.raises(SystemExit, match="unused_draw_flags"):
+                s2.execute(a_first_bad, build=s2.dry_bundle)
+
+        # (b) --draw uniform with --prepass-* or --k-*
+        for bad_kw in (
+            {"prepass": (prepass_path, None)},
+            {"prepass": (None, sha)},
+            {"k_min": 2},
+            {"k_max": 5},
+        ):
+            with pytest.raises(SystemExit, match="unused_draw_flags"):
+                draw_prompts(rows, 10, mode="uniform", seed=1234, **bad_kw)
+        for extra_cli in (
+            ["--prepass-jsonl", str(prepass_path)],
+            ["--prepass-sha256", sha],
+            ["--k-min", "2"],
+            ["--k-max", "5"],
+        ):
+            a_uni_bad = s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "uni_bad"),
+                    "--draw",
+                    "uniform",
+                    "--draw-seed",
+                    "1234",
+                    *extra_cli,
+                ]
+            )
+            with pytest.raises(SystemExit, match="unused_draw_flags"):
+                s2.execute(a_uni_bad, build=s2.dry_bundle)
+
+        # (c) any draw flag with --rollout-only -> unused_draw_flags
+        for extra_cli in (
+            ["--draw", "uniform"],
+            ["--draw", "kband"],
+            ["--draw-seed", "1234"],
+            ["--prepass-jsonl", str(prepass_path)],
+            ["--prepass-sha256", sha],
+            ["--k-min", "2"],
+            ["--k-max", "5"],
+        ):
+            a_ro = s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "ro_bad"),
+                    "--rollout-only",
+                    *extra_cli,
+                ]
+            )
+            with pytest.raises(SystemExit, match="unused_draw_flags"):
+                s2.execute(a_ro, build=s2.dry_bundle)
+
+    @needs_torch
+    def test_e_default_first_is_byte_identical_to_base_shape(self, tmp_path, capsys):
+        import statistics
+
+        from s2_draw import draw_prompts
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, gold_hashes = s2.read_gold(gold_dir)
+        picked_first, _ = draw_prompts(rows, 10, mode="first")
+        assert [r["id"] for r in picked_first] == [f"t{i:02d}" for i in range(10)]
+
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        assert (
+            ap.parse_args(["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(tmp_path)]).draw
+            == "first"
+        )
+
+        seen_pref: list[str] = []
+        seen_reg: list[str] = []
+        a = s2.apply_dry_defaults(
+            ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "out_first"),
+                    "--dry",
+                    "--steps",
+                    "5",
+                    "--prompts",
+                    "10",
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "8",
+                ]
+            )
+        )
+        assert a.draw == "first"
+        assert s2.execute(a, build=_make_stress_pool_fake_bundle(tok, seen_pref, seen_reg)) == 0
+
+        # Assert the prompt ids that run_steps actually received equal select_prompts(rows, 10)
+        expected_first_rows = s2.select_prompts(rows, 10)
+        assert seen_reg == [s2.build_prompt(r) for r in expected_first_rows]
+        seen_first_ids = [re.search(r"\[src@([^\]]+)\]", p).group(1) for p in seen_reg]
+        assert seen_first_ids == [r["id"] for r in expected_first_rows] == [f"t{i:02d}" for i in range(10)]
+
+        # Check stdout carries no draw_ keys and matches literal key set
+        captured = capsys.readouterr()
+        assert "draw_" not in captured.out
+        stdout_lines = captured.out.strip().splitlines()
+        assert len(stdout_lines) == 2
+        stdout_summary = json.loads(stdout_lines[0])
+        expected_stdout_keys = {
+            "path",
+            "stopped",
+            "steps_completed",
+            "peak_vram_mib_sampler",
+            "rollout_tok_s",
+            "step_s",
+            "zero_variance_groups",
+            "oom",
+        }
+        assert set(stdout_summary.keys()) == expected_stdout_keys
+        assert not any(k.startswith("draw_") for k in stdout_summary)
+        assert stdout_lines[1] == "S2-DRY"
+
+        # Check s2-hf-eval-summary.json key set and literal expected contents
+        eval_sum = json.loads((a.out / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+        expected_eval_summary_keys = {
+            "supported_pred_to_prior_ratio",
+            "p_cannot_tell_given_gold_supported",
+            "gold_supported_groups_with_positive_cannot_tell_advantage",
+            "false_accepts",
+            "false_rejects",
+            "miss_waterfall",
+            "quote_relevance",
+        }
+        assert set(eval_sum.keys()) == expected_eval_summary_keys
+        expected_eval_summary_doc = {
+            "supported_pred_to_prior_ratio": 0.0,
+            "p_cannot_tell_given_gold_supported": 0.0,
+            "gold_supported_groups_with_positive_cannot_tell_advantage": 0.0,
+            "false_accepts": 0,
+            "false_rejects": 0,
+            "miss_waterfall": {
+                "rule_2": 0,
+                "no_minimum": 0,
+                "case": 0,
+                "punctuation": 0,
+                "ellipsis_split": 0,
+                "joined_passages": 0,
+                "fuzzy": 0,
+                "unmatched": 0,
+            },
+            "quote_relevance": {
+                "relevant": 0,
+                "total": 0,
+                "share": 0.0,
+            },
+        }
+        assert eval_sum == expected_eval_summary_doc
+
+        # Check every row in s2-hf-steps.jsonl against literal key set and literal deterministic values
+        step_rows = [
+            json.loads(x) for x in (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(step_rows) == 5
+        expected_step_row_keys = {
+            "step",
+            "groups",
+            "active_groups",
+            "zero_variance_groups",
+            "tokens",
+            "rollout_s",
+            "train_s",
+            "step_s",
+            "mean_reward",
+            "loss",
+            "peak_alloc_mib",
+            "grad_ckpt",
+            "grad_ckpt_rollout",
+        }
+        for idx, sr in enumerate(step_rows):
+            assert set(sr.keys()) == expected_step_row_keys
+            assert not any(k.startswith("draw_") for k in sr)
+            assert sr["step"] == idx
+            assert sr["groups"] == 2
+            assert sr["active_groups"] == 2
+            assert sr["zero_variance_groups"] == 0
+            assert sr["tokens"] == 16
+            assert sr["mean_reward"] == 0.35
+            assert sr["loss"] == 0.0
+            assert sr["peak_alloc_mib"] == 1000
+            assert sr["grad_ckpt"] is True
+            assert sr["grad_ckpt_rollout"] is True
+
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        readout_doc = receipt["readout"]
+
+        # Literal base-shaped key sets (independent of the run's output)
+        expected_receipt_keys = {
+            "test",
+            "path",
+            "dry",
+            "model",
+            "revision_registered",
+            "revision_resolved",
+            "registered",
+            "run",
+            "rnd_commit",
+            "gold_files_sha256",
+            "prompt_split",
+            "prompt_ids",
+            "environment",
+            "llama_cpp",
+            "pass_line",
+            "stopped",
+            "readout",
+            "verdict",
+        }
+        expected_run_keys = {"steps", "prompts", "g", "max_new", "dry"}
+        expected_readout_keys = {
+            "steps_requested",
+            "steps_completed",
+            "peak_vram_mib_sampler",
+            "sampler_samples",
+            "vram_mib_sampler_series",
+            "peak_vram_mib_torch",
+            "peak_reserved_mib_torch",
+            "fits",
+            "oom",
+            "rollout_tok_s",
+            "step_s",
+            "wall_s",
+            "zero_variance_groups",
+            "active_groups",
+            "groups",
+            "complete",
+            "pass",
+            "eval_summary",
+        }
+        assert set(receipt.keys()) == expected_receipt_keys
+        assert set(receipt["run"].keys()) == expected_run_keys
+        assert set(readout_doc.keys()) == expected_readout_keys
+        assert "flags" not in readout_doc
+        assert receipt["prompt_ids"] == [f"t{i:02d}" for i in range(10)]
+
+        # Construct literal base-shaped expected receipt and compare byte-for-byte
+        step_s_list = [r["step_s"] for r in step_rows]
+        total_rollout_s = sum(r["rollout_s"] for r in step_rows)
+        base_readout = {
+            "steps_requested": 5,
+            "steps_completed": 5,
+            "peak_vram_mib_sampler": None,
+            "sampler_samples": 0,
+            "vram_mib_sampler_series": [],
+            "peak_vram_mib_torch": 1000,
+            "peak_reserved_mib_torch": None,
+            "fits": False,
+            "oom": False,
+            "rollout_tok_s": round(80 / total_rollout_s, 2) if total_rollout_s > 0 else None,
+            "step_s": {"p50": statistics.median(step_s_list), "max": max(step_s_list)},
+            "wall_s": round(sum(step_s_list), 2),
+            "zero_variance_groups": 0,
+            "active_groups": 10,
+            "groups": 10,
+            "complete": False,
+            "pass": False,
+            "eval_summary": {
+                "supported_pred_to_prior_ratio": 0.0,
+                "p_cannot_tell_given_gold_supported": 0.0,
+                "gold_supported_groups_with_positive_cannot_tell_advantage": 0.0,
+                "false_accepts": 0,
+                "false_rejects": 0,
+                "miss_waterfall": {
+                    "rule_2": 0,
+                    "no_minimum": 0,
+                    "case": 0,
+                    "punctuation": 0,
+                    "ellipsis_split": 0,
+                    "joined_passages": 0,
+                    "fuzzy": 0,
+                    "unmatched": 0,
+                },
+                "quote_relevance_share": 0.0,
+            },
+        }
+        guard_rec = s2.check_exclusive(
+            s2.dry_smi, source="dry: a canned nvidia-smi output, never the real one"
+        )
+        base_env = s2.environment(
+            gpu=None,
+            dtype="float32 (dry, CPU)",
+            batch=2,
+            exclusive=None,
+            cuda=None,
+            guard=guard_rec,
+        )
+        base_receipt = {
+            "test": "S2",
+            "path": "hf",
+            "dry": True,
+            "model": "Qwen/Qwen3-8B",
+            "revision_registered": "b968826d9c46",
+            "revision_resolved": None,
+            "registered": {
+                "steps": 20,
+                "prompts": 32,
+                "groups_per_step": 2,
+                "G": 8,
+                "temperature": 0.7,
+                "lora": {"r": 16, "alpha": 32, "targets": ["q_proj", "k_proj", "v_proj", "o_proj"]},
+                "learning_rate": 1e-5,
+                "beta": 0.04,
+                "epsilon": 0.2,
+                "max_new_tokens": 2048,
+            },
+            "run": {"steps": 5, "prompts": 10, "g": 2, "max_new": 8, "dry": True},
+            "rnd_commit": "e48cc90c",
+            "gold_files_sha256": gold_hashes,
+            "prompt_split": "tune",
+            "prompt_ids": [f"t{i:02d}" for i in range(10)],
+            "environment": base_env,
+            "llama_cpp": None,
+            "pass_line": {"vram_line_mib": 31200, "steps": 20, "oom": False},
+            "stopped": None,
+            "readout": base_readout,
+            "verdict": "S2-DRY",
+        }
+        expected_bytes = json.dumps(base_receipt, indent=1).encode("utf-8")
+        actual_bytes = (a.out / "s2-hf.json").read_bytes()
+        assert actual_bytes == expected_bytes
+
+    @needs_torch
+    def test_f_no_item_text_in_record_or_any_output_for_uniform_and_kband(self, tmp_path, capsys):
+        from s2_draw import draw_prompts
+
+        marker = "SECRET_DRAW_" + "ITEM_TEXT_7742"
+        gold_dir = _draw_gold_40(tmp_path / "gold", marker=marker)
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "prepass.jsonl"
+        sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda idx: idx % 9, g=8)
+
+        # Direct draw_prompts records must not contain marker
+        picked_u, rec_u = draw_prompts(rows, 10, mode="uniform", seed=1234)
+        picked_k, rec_k = draw_prompts(
+            rows, 8, mode="kband", seed=1234, prepass=(prepass_path, sha), k_min=2, k_max=5
+        )
+        assert marker not in json.dumps(rec_u)
+        assert marker not in json.dumps(rec_k)
+
+        tok = s2.DryTokenizer()
+
+        # Execute smoke script with --draw uniform
+        seen_u_reg: list[str] = []
+        a_u = s2.apply_dry_defaults(
+            s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "out_uniform"),
+                    "--dry",
+                    "--steps",
+                    "5",
+                    "--prompts",
+                    "10",
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--draw",
+                    "uniform",
+                    "--draw-seed",
+                    "1234",
+                ]
+            )
+        )
+        assert s2.execute(a_u, build=_make_stress_pool_fake_bundle(tok, [], seen_u_reg)) == 0
+        receipt_u = json.loads((a_u.out / "s2-hf.json").read_text(encoding="utf-8"))
+        expected_u_ids = [
+            "t00",
+            "t02",
+            "t05",
+            "t06",
+            "t07",
+            "t15",
+            "t22",
+            "t28",
+            "t36",
+            "t37",
+        ]
+        assert receipt_u["prompt_ids"] == expected_u_ids
+        seen_u_ids = [re.search(r"\[src@([^\]]+)\]", p).group(1) for p in seen_u_reg]
+        assert seen_u_reg == [s2.build_prompt(r) for r in picked_u]
+        assert seen_u_ids == [r["id"] for r in picked_u] == expected_u_ids
+        assert (
+            s2.ids_sha256(seen_u_ids)
+            == rec_u["drawn_ids_sha256"]
+            == "0f33b135252d80b75ccc9486f3e2a3e3a188fb143741b503dd05d3bfabaf96b7"
+        )
+        for container in (receipt_u["readout"]["flags"], receipt_u["run"], receipt_u):
+            assert container["draw_mode"] == "uniform"
+            assert container["draw_n"] == 10
+            assert container["draw_seed"] == 1234
+            assert (
+                container["drawn_ids_sha256"]
+                == "0f33b135252d80b75ccc9486f3e2a3e3a188fb143741b503dd05d3bfabaf96b7"
+            )
+            assert "prepass_sha256" not in container
+
+        # Execute smoke script with --draw kband
+        seen_k_reg: list[str] = []
+        a_k = s2.apply_dry_defaults(
+            s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "out_kband"),
+                    "--dry",
+                    "--steps",
+                    "4",
+                    "--prompts",
+                    "8",
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--draw",
+                    "kband",
+                    "--draw-seed",
+                    "1234",
+                    "--prepass-jsonl",
+                    str(prepass_path),
+                    "--prepass-sha256",
+                    sha,
+                    "--k-min",
+                    "2",
+                    "--k-max",
+                    "5",
+                ]
+            )
+        )
+        assert s2.execute(a_k, build=_make_stress_pool_fake_bundle(tok, [], seen_k_reg)) == 0
+        receipt_k = json.loads((a_k.out / "s2-hf.json").read_text(encoding="utf-8"))
+        expected_k_ids = ["t02", "t03", "t05", "t21", "t22", "t29", "t31", "t32"]
+        assert receipt_k["prompt_ids"] == expected_k_ids
+        seen_k_ids = [re.search(r"\[src@([^\]]+)\]", p).group(1) for p in seen_k_reg]
+        assert seen_k_reg == [s2.build_prompt(r) for r in picked_k]
+        assert seen_k_ids == [r["id"] for r in picked_k] == expected_k_ids
+        assert (
+            s2.ids_sha256(seen_k_ids)
+            == rec_k["drawn_ids_sha256"]
+            == "dcee2a8bdbc8f7d4576cc3b6e89a09273c676e70cdbabf8f522a103b286a0bf8"
+        )
+        for container in (receipt_k["readout"]["flags"], receipt_k["run"], receipt_k):
+            assert container["draw_mode"] == "kband"
+            assert container["draw_n"] == 8
+            assert container["draw_seed"] == 1234
+            assert (
+                container["drawn_ids_sha256"]
+                == "dcee2a8bdbc8f7d4576cc3b6e89a09273c676e70cdbabf8f522a103b286a0bf8"
+            )
+            assert container["prepass_sha256"] == sha
+            assert container["k_min"] == 2
+            assert container["k_max"] == 5
+            assert container["band_pool_size"] == 18
+
+        captured = capsys.readouterr()
+        assert marker not in captured.out
+        assert marker not in captured.err
+        for out_dir in (a_u.out, a_k.out):
+            for p in out_dir.rglob("*"):
+                if p.is_file():
+                    assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p}"
