@@ -62,6 +62,7 @@ READY_TIMEOUT_S = 300.0
 READY_POLL_S = 1.0
 HEARTBEAT_ENV = "WATCHDOG_HEARTBEAT"
 PROMPT_SPLIT = "tune"
+STRESS_POOLS = ("selected", "tune")
 GOLD_FILES = ("grounded.jsonl", "prs/grounded-prs.jsonl", "diffs/reasoning-diffs.jsonl")
 VERDICTS = ("supported", "unsupported", "cannot_tell")
 DRY_PREPASS_ITEMS = 4
@@ -147,6 +148,35 @@ def build_prompt(row: dict) -> str:
         "Give 1 to 4 evidence_quotes (a simple claim is one part). A quote must appear in the evidence.\n\n"
         f"Evidence:\n{evidence_of(row)}\n\nClaim: {row['claim']}\n"
     )
+
+
+def stress_prompt_pool(
+    rows: list[dict],
+    selected_prompts: Sequence[dict],
+    stress_pool: str = "selected",
+    *,
+    split: str = PROMPT_SPLIT,
+) -> list[dict]:
+    """Prompt pool for the stress prefix: ``selected`` (first n tune rows) or ``tune`` (all tune rows)."""
+    if stress_pool == "selected":
+        return list(selected_prompts)
+    if stress_pool == "tune":
+        return select_prompts(rows, None, split=split)
+    raise SystemExit(f"unknown --stress-pool {stress_pool!r}")
+
+
+def select_stress_prompt(pool: Sequence[dict], tok) -> tuple[dict, int]:
+    """Return (longest row, prompt token count) from ``pool``, breaking ties by larger claim id."""
+    best_row: dict | None = None
+    best_key: tuple[int, str] | None = None
+    for r in pool:
+        n_tok = len(tok.encode(build_prompt(r)))
+        key = (n_tok, str(r["id"]))
+        if best_key is None or key > best_key:
+            best_row = r
+            best_key = key
+    assert best_row is not None and best_key is not None
+    return best_row, best_key[0]
 
 
 # -- the reward: the plan's mechanical reward, with offrig rule 2 and optional v2 schedule -------------------
@@ -1142,6 +1172,9 @@ def build_receipt(
     }
     if dtype_census_record is not None:
         out["dtype_census"] = dtype_census_record
+    for k in ("stress_pool", "stress_prompt_id", "stress_prompt_tokens", "stress_width"):
+        if k in args:
+            out[k] = args[k]
     return out
 
 
@@ -2401,11 +2434,21 @@ def read_gpu_adapter_memory(runner: Callable[[], str] = run_typeperf_gpu_memory)
         }
 
 
-def compute_prompt_lengths(prompts: Sequence[dict], tok) -> dict:
-    """Tokenize the selected prompts (CPU only, no model, no GPU) and return count, min, median, p90, max."""
+def compute_prompt_lengths(prompts: Sequence[dict], tok, *, stress_pool: str = "selected") -> dict:
+    """Tokenize ``prompts`` (CPU only, no model, no GPU) and return length statistics and stress choice."""
     lengths = sorted(len(tok.encode(build_prompt(r))) for r in prompts)
     if not lengths:
-        return {"count": 0, "min": 0, "median": 0, "p90": 0, "max": 0}
+        return {
+            "count": 0,
+            "min": 0,
+            "median": 0,
+            "p90": 0,
+            "max": 0,
+            "stress_pool": stress_pool,
+            "stress_prompt_id": None,
+            "stress_prompt_tokens": 0,
+        }
+    stress_row, stress_tokens = select_stress_prompt(prompts, tok)
     p90_idx = min(len(lengths) - 1, max(0, math.ceil(0.9 * len(lengths)) - 1))
     return {
         "count": len(lengths),
@@ -2413,6 +2456,9 @@ def compute_prompt_lengths(prompts: Sequence[dict], tok) -> dict:
         "median": statistics.median(lengths),
         "p90": lengths[p90_idx],
         "max": lengths[-1],
+        "stress_pool": stress_pool,
+        "stress_prompt_id": str(stress_row["id"]),
+        "stress_prompt_tokens": int(stress_tokens),
     }
 
 
@@ -3044,6 +3090,7 @@ def active_flags(a: argparse.Namespace) -> dict:
     if getattr(a, "stress_prefix", 0):
         flags["stress_prefix"] = int(a.stress_prefix)
         flags["stress_prefix_masks"] = "off"
+        flags["stress_pool"] = str(getattr(a, "stress_pool", "selected") or "selected")
     if getattr(a, "zero_variance_mask", False):
         flags["zero_variance_mask"] = True
     if getattr(a, "advantage", "std") != "std":
@@ -3086,6 +3133,7 @@ def execute(
     rollout_only = bool(getattr(a, "rollout_only", False))
     if rollout_only and getattr(a, "stress_prefix", 0) > 0:
         raise SystemExit("refusing to start: --rollout-only cannot be used with --stress-prefix > 0")
+    stress_pool = str(getattr(a, "stress_pool", "selected") or "selected")
 
     rows, gold_hashes = read_gold(a.gold)
     prompts = select_prompts(rows, None if rollout_only else a.prompts)
@@ -3096,7 +3144,8 @@ def execute(
             from transformers import AutoTokenizer
 
             tok = AutoTokenizer.from_pretrained(STUDENT, revision=a.revision)
-        stats = compute_prompt_lengths(prompts, tok)
+        length_pool = stress_prompt_pool(rows, prompts, stress_pool)
+        stats = compute_prompt_lengths(length_pool, tok, stress_pool=stress_pool)
         a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}-prompt-lengths.json").write_text(
             json.dumps(stats, indent=1), encoding="utf-8", newline="\n"
@@ -3152,6 +3201,7 @@ def execute(
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
         eval_records: list[dict] = []
         prepass_records: list[dict] = []
+        stress_meta: dict = {}
 
         def write_eval_summary(summary_doc: dict) -> None:
             a.out.mkdir(parents=True, exist_ok=True)
@@ -3160,7 +3210,7 @@ def execute(
             )
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
-            nonlocal prepass_records
+            nonlocal prepass_records, stress_meta
             if rollout_only:
                 header_path = a.out / f"s2-{a.path}-prepass-header.json"
                 jsonl_path = a.out / f"s2-{a.path}-prepass.jsonl"
@@ -3206,10 +3256,14 @@ def execute(
                 prepass_records = recs_ro
                 return rows_ro, stop_ro, oom_ro
             if stress_n > 0:
-                longest = max(
-                    prompts,
-                    key=lambda r: (len(bundle["tok"].encode(build_prompt(r))), r["id"]),
-                )
+                stress_pool_rows = stress_prompt_pool(rows, prompts, stress_pool)
+                longest, stress_prompt_tokens = select_stress_prompt(stress_pool_rows, bundle["tok"])
+                stress_meta = {
+                    "stress_pool": stress_pool,
+                    "stress_prompt_id": str(longest["id"]),
+                    "stress_prompt_tokens": int(stress_prompt_tokens),
+                    "stress_width": int(stress_prompt_tokens + a.max_new),
+                }
                 render_fn = bundle.get("render")
 
                 def stress_rollout(text: str, g_cnt: int, max_n: int, temp: float):
@@ -3288,7 +3342,7 @@ def execute(
         eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
-        flags_in_use = active_flags(a)
+        flags_in_use = {**active_flags(a), **stress_meta}
         prepass_summary_doc = (
             prepass_summary(
                 prepass_records,
@@ -3451,7 +3505,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--prompt-lengths",
         action="store_true",
-        help="CPU only: tokenize the 32 selected prompts and write count, min, median, p90 and max",
+        help="CPU only: tokenize the selected or tune prompts and write count, min, median, p90 and max",
     )
     ap.add_argument(
         "--stress-prefix",
@@ -3461,6 +3515,12 @@ def build_parser() -> argparse.ArgumentParser:
             "extra full steps before the registered steps on the longest prompt with min_new=max_new. "
             "The prefix always runs with both masks off, so it measures the full-width training forward."
         ),
+    )
+    ap.add_argument(
+        "--stress-pool",
+        choices=STRESS_POOLS,
+        default="selected",
+        help="prompt pool for --stress-prefix and --prompt-lengths: 'selected' (default) or 'tune'",
     )
     ap.add_argument(
         "--zero-variance-mask",
