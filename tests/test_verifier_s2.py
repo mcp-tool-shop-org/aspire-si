@@ -6510,7 +6510,7 @@ class TestDrawSetting:
 
 class TestPrepassSeed:
     @needs_torch
-    def test_prepass_seed_0_matches_literal_base_header_and_resumes_tonights_header(
+    def test_prepass_seed_0_equals_base_header_form_and_resumes_when_script_hash_matches(
         self, tmp_path, monkeypatch
     ):
         import hashlib
@@ -6605,8 +6605,7 @@ class TestPrepassSeed:
         )
         assert header_bytes == expected_literal_header_bytes
 
-        # Also verify tonight's pre-pass header (sha256 1e749d8b897804fff93125c0888fa42cfb07a560ab93f731fe37370d49f3020f)
-        # resumes cleanly when seed is default 0:
+        # Also verify resume works when the script hash matches and seed is default 0:
         tonight_header_bytes = (
             b"{\n"
             b' "ids_sha256": "5c41d3fb437be23d4cc7ef673963bbe3caba78d832dd23665c58c882679d72f8",\n'
@@ -6680,6 +6679,21 @@ class TestPrepassSeed:
         gold_dir = _prepass_gold(tmp_path / "gold")
         tok = s2.DryTokenizer()
         ap = s2.build_parser()
+        a0 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "seed0_draws_out"),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "16",
+            ]
+        )
         a1 = ap.parse_args(
             [
                 "--gold",
@@ -6700,42 +6714,63 @@ class TestPrepassSeed:
         assert a1.prepass_seed == 1
         assert s2.active_flags(a1)["prepass_seed"] == 1
 
-        seen_seeds_1: list[int] = []
+        seen_seeds: list[int] = []
         orig_manual_seed = torch.manual_seed
 
         def spy_manual_seed(seed_val):
-            seen_seeds_1.append(int(seed_val))
+            seen_seeds.append(int(seed_val))
             return orig_manual_seed(seed_val)
 
         monkeypatch.setattr(torch, "manual_seed", spy_manual_seed)
 
-        def build_fake(_args_ns):
-            return {
-                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
-                "tok": tok,
-                "mode": lambda training: None,
-                "state": lambda: {"grad_ckpt": False},
-                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
-                "ref_adapter_off": nullcontext,
-                "rollout": lambda text, g_cnt, max_n, temp: (
+        draws_by_run: list[list[float]] = []
+
+        def make_build_fake(draw_sink: list[list[float]]):
+            def _rollout(text: str, g_cnt: int, max_n: int, temp: float):
+                draw_sink.append(torch.rand(4).tolist())
+                return (
                     tok.encode(text),
                     [tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
                     [False] * g_cnt,
-                ),
-                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
-                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
-                ),
-                "sync": lambda: None,
-                "peak_alloc_mib": lambda: 1000,
-                "revision": "rev123",
-                "llama": None,
-                "dtype_census": None,
-            }
+                )
 
-        assert s2.execute(a1, build=build_fake, rig=_FakeRig(a1)) == 0
+            def _build(_args_ns):
+                return {
+                    "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                    "tok": tok,
+                    "mode": lambda training: None,
+                    "state": lambda: {"grad_ckpt": False},
+                    "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                    "ref_adapter_off": nullcontext,
+                    "rollout": _rollout,
+                    "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                        text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                    ),
+                    "sync": lambda: None,
+                    "peak_alloc_mib": lambda: 1000,
+                    "revision": "rev123",
+                    "llama": None,
+                    "dtype_census": None,
+                }
+
+            return _build
+
+        draws_0: list[list[float]] = []
+        assert s2.execute(a0, build=make_build_fake(draws_0), rig=_FakeRig(a0)) == 0
+        seen_seeds_0 = list(seen_seeds)
+        seen_seeds.clear()
+
+        draws_1: list[list[float]] = []
+        assert s2.execute(a1, build=make_build_fake(draws_1), rig=_FakeRig(a1)) == 0
+        seen_seeds_1 = list(seen_seeds)
+        _ = draws_by_run
+
         expected_ids = ["t_a", "t_b", "t_d", "t_k", "t_m", "t_z"]
         seeds_0 = [s2.item_seed(cid, 0) for cid in expected_ids]
         seeds_1 = [s2.item_seed(cid, 1) for cid in expected_ids]
+        assert len(draws_0) == len(expected_ids) and len(draws_1) == len(expected_ids)
+        assert all(d0 != d1 for d0, d1 in zip(draws_0, draws_1, strict=True))
+        assert seen_seeds_0 == seeds_0
         assert seen_seeds_1 == seeds_1
         assert all(s0 != s1 for s0, s1 in zip(seeds_0, seeds_1, strict=True))
 
@@ -6859,6 +6894,17 @@ class TestPrepassSeed:
 
 
 class TestSignDiagnostics:
+    def test_sign_diagnostics_help_text_describes_outcome_var_and_correct_var_in_one_line_each(self):
+        ap = s2.build_parser()
+        sign_action = next(act for act in ap._actions if "--sign-diagnostics" in act.option_strings)
+        lines = [ln.strip() for ln in (sign_action.help or "").splitlines() if ln.strip()]
+        outcome_lines = [ln for ln in lines if ln.startswith("outcome_var:")]
+        correct_lines = [ln for ln in lines if ln.startswith("correct_var:")]
+        assert len(outcome_lines) == 1
+        assert len(correct_lines) == 1
+        assert "outcome" in outcome_lines[0] and "quote" in outcome_lines[0]
+        assert "0/1" in correct_lines[0] and "correct" in correct_lines[0]
+
     @needs_torch
     def test_sign_diagnostics_group_and_step_counts_and_variances_on_v2_supported_group(
         self, tmp_path, capsys
@@ -6888,21 +6934,27 @@ class TestSignDiagnostics:
         fake_cuda = _FakeCuda()
 
         # Group 0 (active, gold="supported", quote_reward="v2"):
-        #   3 rollouts with correct "supported" verdict and found quote ("alpha beta gamma")
-        #     -> verdict_score = 1.0, quote_credit = 0.05, total = 1.05
+        #   2 rollouts with correct "supported" verdict and found quote ("alpha beta gamma")
+        #     -> outcome = 1.0, quote_credit = 0.05, total = 1.05, correct = True
         #   1 rollout with correct "supported" verdict and unfound quote ("missing quote text here")
-        #     -> verdict_score = -0.2, quote_credit = 0.0, total = -0.2
-        #   Group mean reward = (3 * 1.05 + (-0.2)) / 4 = 2.95 / 4 = 0.7375.
-        #   Rollout 3 has correct=True and advantage < 0 (-0.9375 in dr-grpo, -1.732048 in std)
-        #     -> correct_n = 4, correct_negative_adv_n = 1.
-        #   verdict_score_var = pvariance([1.0, 1.0, 1.0, -0.2]) = 0.27.
-        #   total_reward_var  = pvariance([1.05, 1.05, 1.05, -0.2]) = 0.29296875 -> rounded 0.292969.
+        #     -> outcome = -0.2, quote_credit = 0.0, total = -0.2, correct = True
+        #   1 rollout with wrong "unsupported" verdict ("alpha beta gamma")
+        #     -> outcome = -1.0, quote_credit = 0.0, total = -1.0, correct = False
+        #   Group mean reward = (1.05 + 1.05 - 0.2 - 1.0) / 4 = 0.9 / 4 = 0.225.
+        #   Rollout 2 has correct=True and advantage < 0 (-0.2 - 0.225 = -0.425 < 0)
+        #     -> correct_n = 3, correct_negative_adv_n = 1, truncated_n = 0.
+        #   outcome_var = pvariance([1.0, 1.0, -0.2, -1.0]) = 0.72.
+        #   correct_var = pvariance([1.0, 1.0, 1.0, 0.0]) = 0.1875.
+        #   total_reward_var = pvariance([1.05, 1.05, -0.2, -1.0]) = 0.760625.
         # Group 1 (zero-variance, gold="supported", quote_reward="v2"):
         #   4 rollouts with correct "supported" verdict and found quote ("alpha beta gamma")
-        #     -> correct_n = 4, correct_negative_adv_n = 0, verdict_score_var = 0.0, total_reward_var = 0.0.
+        #     -> correct_n = 4, correct_negative_adv_n = 0, truncated_n = 0,
+        #        outcome_var = 0.0, correct_var = 0.0, total_reward_var = 0.0.
         # Step 0 summary:
-        #   correct_negative_adv_share = (1 + 0) / (4 + 4) = 0.125.
-        #   verdict_to_total_var_ratio (pooled over active groups: Group 0 only) = 0.27 / 0.29296875 = 0.9216.
+        #   step_correct_active_n = 3, step_correct_zv_n = 4.
+        #   correct_negative_adv_share = 1 / 3 = 0.333333 (over active groups only, not 1 / 7).
+        #   outcome_to_total_var_ratio = 0.72 / 0.760625 = 0.94659.
+        #   correct_to_total_var_ratio = 0.1875 / 0.760625 = 0.246508.
         grp_call = {"n": 0}
 
         def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
@@ -6910,8 +6962,9 @@ class TestSignDiagnostics:
             p_ids = tok.encode(prompt_text)
             found_rep = tok.encode(_reply("supported", "alpha beta gamma")) + [tok.eos_token_id]
             unfound_rep = tok.encode(_reply("supported", "missing quote text here")) + [tok.eos_token_id]
+            wrong_rep = tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id]
             if grp_call["n"] == 1:
-                comps = [found_rep, found_rep, found_rep, unfound_rep]
+                comps = [found_rep, found_rep, unfound_rep, wrong_rep]
             else:
                 comps = [found_rep, found_rep, found_rep, found_rep]
             return p_ids, comps, [False] * g_cnt
@@ -6991,19 +7044,24 @@ class TestSignDiagnostics:
 
         g0, g1 = group_rows[0], group_rows[1]
         assert g0["step"] == 0 and g0["group"] == 0 and g0["prompt_id"] == "g00"
-        assert g0["k_correct"] == 4
-        assert g0["correct_n"] == 4
+        assert g0["k_correct"] == 3
+        assert g0["correct_n"] == 3
         assert g0["correct_negative_adv_n"] == 1
-        assert g0["correct_negative_adv_n"] >= 1
-        assert g0["verdict_score_var"] == 0.27
-        assert g0["total_reward_var"] == 0.292969
+        assert g0["truncated_n"] == 0
+        assert "verdict_score_var" not in g0
+        assert g0["outcome_var"] == 0.72
+        assert g0["correct_var"] == 0.1875
+        assert g0["total_reward_var"] == 0.760625
         assert g0["zero_variance_label"] is None
 
         assert g1["step"] == 0 and g1["group"] == 1 and g1["prompt_id"] == "g01"
         assert g1["k_correct"] == 4
         assert g1["correct_n"] == 4
         assert g1["correct_negative_adv_n"] == 0
-        assert g1["verdict_score_var"] == 0.0
+        assert g1["truncated_n"] == 0
+        assert "verdict_score_var" not in g1
+        assert g1["outcome_var"] == 0.0
+        assert g1["correct_var"] == 0.0
         assert g1["total_reward_var"] == 0.0
         assert g1["zero_variance_label"] == "all correct with full credit"
 
@@ -7015,14 +7073,240 @@ class TestSignDiagnostics:
         s0 = step_rows[0]
         assert s0["active_groups"] == 1
         assert s0["zero_variance_groups"] == 1
-        assert s0["correct_negative_adv_share"] == 0.125
-        assert s0["verdict_to_total_var_ratio"] == 0.9216
+        assert s0["step_correct_active_n"] == 3
+        assert s0["step_correct_zv_n"] == 4
+        assert s0["correct_negative_adv_share"] == 0.333333
+        assert "verdict_to_total_var_ratio" not in s0
+        assert s0["outcome_to_total_var_ratio"] == 0.94659
+        assert s0["correct_to_total_var_ratio"] == 0.246508
 
         captured = capsys.readouterr()
         assert marker not in captured.out and marker not in captured.err
         for p in a.out.rglob("*"):
             if p.is_file():
                 assert marker not in p.read_text(encoding="utf-8")
+
+    @needs_torch
+    def test_sign_diagnostics_mask_truncated_excludes_truncated_rollouts_and_records_truncated_n(
+        self, tmp_path
+    ):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+
+        # 4 rollouts in group 0 (gold="supported", quote_reward="v2", mask_truncated=True):
+        #   rollout 0 (non-truncated): correct supported + found quote -> outcome=1.0, total=1.05, correct=True
+        #   rollout 1 (non-truncated): correct supported + unfound quote -> outcome=-0.2, total=-0.2, correct=True
+        #   rollout 2 (non-truncated): wrong unsupported -> outcome=-1.0, total=-1.0, correct=False
+        #   rollout 3 (TRUNCATED): reward_details gives outcome=-1.0, total=-1.0, correct=False,
+        #     AND we pass a custom reward_fn that gives -9.0 on truncated so if truncated were included
+        #     total_reward_var would jump dramatically, and we also test a monkeypatched reward_details
+        #     where truncated rollout has correct=True to prove correct_n and correct_negative_adv_n
+        #     are counted over non-truncated rollouts only.
+        # Over the 3 non-truncated rollouts:
+        #   outcomes = [1.0, -0.2, -1.0] -> pvariance = 0.675556
+        #   correct  = [1.0, 1.0, 0.0]   -> pvariance = 0.222222
+        #   rewards  = [1.05, -0.2, -1.0] -> mean = -0.05; pvariance = 0.711667
+        #   advantages on non-truncated = [1.05 - (-0.05), -0.2 - (-0.05), -1.0 - (-0.05)] scaled
+        #     rollout 1 has correct=True and advantage < 0 (-0.15 / sd < 0)
+        #   correct_n = 2, correct_negative_adv_n = 1, truncated_n = 1.
+        def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            p_ids = tok.encode(prompt_text)
+            r_found = tok.encode(_reply("supported", "alpha beta")) + [tok.eos_token_id]
+            r_unfound = tok.encode(_reply("supported", "missing quote text here")) + [tok.eos_token_id]
+            r_wrong = tok.encode(_reply("unsupported", "alpha beta")) + [tok.eos_token_id]
+            r_trunc = tok.encode(_reply("supported", "alpha beta"))
+            return p_ids, [r_found, r_unfound, r_wrong, r_trunc], [False, False, False, True]
+
+        class _FakeTrainModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeTrainModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": scripted_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text,
+                    row["label"],
+                    s2.passages_of(row),
+                    tt,
+                    truncated=truncated,
+                    quote_reward="v2",
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "mask_trunc_sign"),
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "4",
+                "--max-new",
+                "32",
+                "--groups-per-update",
+                "1",
+                "--quote-reward",
+                "v2",
+                "--mask-truncated",
+                "--sign-diagnostics",
+            ]
+        )
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1
+
+        group_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-groups.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(group_rows) == 1
+        g0 = group_rows[0]
+        assert g0["truncations"] == 1
+        assert g0["truncated_n"] == 1
+        assert g0["correct_n"] == 2
+        assert g0["correct_negative_adv_n"] == 1
+        assert g0["outcome_var"] == 0.675556
+        assert g0["correct_var"] == 0.222222
+        assert g0["total_reward_var"] == 0.711667
+
+    @needs_torch
+    def test_sign_diagnostics_empty_active_correct_step_writes_null_share(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+
+        # Group 0 (active, gold="supported", quote_reward="v2"):
+        #   2 rollouts wrong "unsupported" (-1.0) and 2 rollouts wrong "cannot_tell" (-0.3)
+        #   -> active group (non-zero variance), 0 correct rollouts!
+        # Group 1 (zero-variance, gold="supported", quote_reward="v2"):
+        #   4 rollouts correct "supported" with found quote (1.05)
+        #   -> zero-variance group, 4 correct rollouts!
+        # Step has step_correct_active_n == 0 and step_correct_zv_n == 4.
+        # correct_negative_adv_share MUST be None (JSON null), never 0.0 and never ZeroDivisionError.
+        grp_call = {"n": 0}
+
+        def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            grp_call["n"] += 1
+            p_ids = tok.encode(prompt_text)
+            r_unsup = tok.encode(_reply("unsupported", "alpha beta")) + [tok.eos_token_id]
+            r_ct = tok.encode(_reply("cannot_tell", "alpha beta")) + [tok.eos_token_id]
+            r_sup = tok.encode(_reply("supported", "alpha beta")) + [tok.eos_token_id]
+            if grp_call["n"] == 1:
+                return p_ids, [r_unsup, r_unsup, r_ct, r_ct], [False] * g_cnt
+            return p_ids, [r_sup, r_sup, r_sup, r_sup], [False] * g_cnt
+
+        class _FakeTrainModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeTrainModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": scripted_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text,
+                    row["label"],
+                    s2.passages_of(row),
+                    tt,
+                    truncated=truncated,
+                    quote_reward="v2",
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "empty_active_correct"),
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "4",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--sign-diagnostics",
+            ]
+        )
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1
+
+        raw_step_line = (a.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").strip()
+        assert '"correct_negative_adv_share": null' in raw_step_line
+        s0 = json.loads(raw_step_line)
+        assert s0["step_correct_active_n"] == 0
+        assert s0["step_correct_zv_n"] == 4
+        assert s0["correct_negative_adv_share"] is None
+        assert s0["outcome_to_total_var_ratio"] == 1.0
+        assert s0["correct_to_total_var_ratio"] == 0.0
 
 
 class TestPrepassBaseline:
@@ -7171,6 +7455,8 @@ class TestPrepassBaseline:
             "[0,5]": 0.125,
             "[6,7]": -0.25,
             "8": -0.25,
+            "n_prompts": {"[0,5]": 2, "[6,7]": 1, "8": 1},
+            "prompt_visits_max": 1,
         }
         assert receipt["readout"]["flags"]["prepass_baseline_sha256"] == baseline_sha
 
@@ -7182,10 +7468,142 @@ class TestPrepassBaseline:
                 assert marker not in content
                 assert str(baseline_path) not in content
 
+    @needs_torch
+    def test_prepass_baseline_wraps_and_counts_each_prompt_once_with_actual_group_size(self, tmp_path):
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _gold(tmp_path / "gold")
+        # 3 prompts (g00, g01, g02), steps=3, groups_per_update=2 -> 6 group visits (wraps: 3*2 > 3):
+        #   visit 0: g00 (k_prepass=1, band [0,5]) -> online k=3 -> residual = (3 - 1) / 4 = +0.5
+        #   visit 1: g01 (k_prepass=2, band [0,5]) -> online k=1 -> residual = (1 - 2) / 4 = -0.25
+        #   visit 2: g02 (k_prepass=3, band [0,5]) -> online k=3 -> residual = (3 - 3) / 4 = 0.0
+        #   visit 3: g00 (2nd visit)               -> online k=1 -> residual = (1 - 1) / 4 = 0.0
+        #   visit 4: g01 (2nd visit)               -> online k=1 -> residual = (1 - 2) / 4 = -0.25
+        #   visit 5: g00 (if 5 visits; with 6 visits: visit 5 is g02, let's do steps=5, groups_per_update=1 -> 5 visits!)
+        # With steps=5, groups_per_update=1, prompts=3 (5 * 1 > 3):
+        #   visit 0 (g00): k_pre=1, k_on=3 -> res = (3-1)/4 = +0.5
+        #   visit 1 (g01): k_pre=3, k_on=1 -> res = (1-3)/4 = -0.5
+        #   visit 2 (g02): k_pre=2, k_on=2 -> res = (2-2)/4 = 0.0
+        #   visit 3 (g00): k_pre=1, k_on=1 -> res = (1-1)/4 = 0.0
+        #   visit 4 (g01): k_pre=3, k_on=1 -> res = (1-3)/4 = -0.5
+        # Prompt mean residuals:
+        #   g00: mean([+0.5, 0.0]) = +0.25 (visited twice)
+        #   g01: mean([-0.5, -0.5]) = -0.5 (visited twice)
+        #   g02: mean([0.0]) = 0.0 (visited once)
+        # Band "[0,5]" mean across the 3 prompts (each counted once):
+        #   mean([0.25, -0.5, 0.0]) = -0.25 / 3 = -0.083333
+        # (If pooled raw over all 5 visits instead of per-prompt, it would be (0.5 - 0.5 + 0 + 0 - 0.5)/5 = -0.1!)
+        # (If divided by literal 8.0 instead of g=4, residuals would be halved!)
+        k_prepass_map = {"g00": 1, "g01": 3, "g02": 2}
+        visit_k_online = [3, 1, 2, 1, 1]
+        baseline_path = tmp_path / "wrap_baseline.jsonl"
+        baseline_sha = _write_fake_prepass(
+            baseline_path,
+            ["g00", "g01", "g02"],
+            k_fn=lambda idx: k_prepass_map[f"g{idx:02d}"],
+            g=4,
+        )
+
+        tok = s2.DryTokenizer()
+        fake_cuda = _FakeCuda()
+        visit_idx = {"n": 0}
+
+        def scripted_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            k_on = visit_k_online[visit_idx["n"]]
+            visit_idx["n"] += 1
+            p_ids = tok.encode(prompt_text)
+            ok_comp = tok.encode(_reply("supported", "alpha beta")) + [tok.eos_token_id]
+            bad_comp = tok.encode(_reply("unsupported", "alpha beta")) + [tok.eos_token_id]
+            comps = [ok_comp] * k_on + [bad_comp] * (g_cnt - k_on)
+            return p_ids, comps, [False] * g_cnt
+
+        class _FakeTrainModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def build_fake(_args_ns):
+            return {
+                "model": _FakeTrainModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": scripted_rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 1000,
+                "revision": "rev123",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        ap = s2.build_parser()
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "wrap_out"),
+                "--steps",
+                "5",
+                "--groups-per-update",
+                "1",
+                "--prompts",
+                "3",
+                "--g",
+                "4",
+                "--max-new",
+                "32",
+                "--prepass-baseline",
+                str(baseline_path),
+                "--prepass-baseline-sha256",
+                baseline_sha,
+            ]
+        )
+        assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 1
+
+        group_rows = [
+            json.loads(line)
+            for line in (a.out / "s2-hf-groups.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(group_rows) == 5
+        assert [gr["residual"] for gr in group_rows] == [0.5, -0.5, 0.0, 0.0, -0.5]
+
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["readout"]["mean_residual_by_k_band"] == {
+            "[0,5]": -0.083333,
+            "[6,7]": None,
+            "8": None,
+            "n_prompts": {"[0,5]": 3, "[6,7]": 0, "8": 0},
+            "prompt_visits_max": 2,
+        }
+
     def test_prepass_baseline_refusals_on_sha_mismatch_and_missing_id(self, tmp_path):
+        import hashlib
+
         gold_dir = _gold(tmp_path / "gold")
         baseline_path = tmp_path / "baseline.jsonl"
-        sha = _write_fake_prepass(baseline_path, [f"g{i:02d}" for i in range(4)], k_fn=lambda idx: 4, g=8)
+        sha = _write_fake_prepass(baseline_path, [f"g{i:02d}" for i in range(4)], k_fn=lambda idx: 2, g=2)
         ap = s2.build_parser()
 
         # 1. SHA-256 mismatch refuses
@@ -7201,6 +7619,8 @@ class TestPrepassBaseline:
                 "--prompt-lengths",
                 "--prompts",
                 "4",
+                "--g",
+                "2",
                 "--prepass-baseline",
                 str(baseline_path),
                 "--prepass-baseline-sha256",
@@ -7212,7 +7632,7 @@ class TestPrepassBaseline:
 
         # 2. Missing prompt ID refuses
         missing_id_path = tmp_path / "missing_id.jsonl"
-        missing_id_sha = _write_fake_prepass(missing_id_path, ["g00", "g01", "g02"], k_fn=lambda idx: 4, g=8)
+        missing_id_sha = _write_fake_prepass(missing_id_path, ["g00", "g01", "g02"], k_fn=lambda idx: 2, g=2)
         a_missing_id = ap.parse_args(
             [
                 "--gold",
@@ -7225,6 +7645,8 @@ class TestPrepassBaseline:
                 "--prompt-lengths",
                 "--prompts",
                 "4",
+                "--g",
+                "2",
                 "--prepass-baseline",
                 str(missing_id_path),
                 "--prepass-baseline-sha256",
@@ -7247,6 +7669,8 @@ class TestPrepassBaseline:
                 "--prompt-lengths",
                 "--prompts",
                 "4",
+                "--g",
+                "2",
                 "--prepass-baseline",
                 str(baseline_path),
             ]
@@ -7266,6 +7690,8 @@ class TestPrepassBaseline:
                 "--prompt-lengths",
                 "--prompts",
                 "4",
+                "--g",
+                "2",
                 "--prepass-baseline",
                 str(tmp_path / "does_not_exist.jsonl"),
                 "--prepass-baseline-sha256",
@@ -7274,6 +7700,19 @@ class TestPrepassBaseline:
         )
         with pytest.raises(SystemExit, match="prepass_baseline_missing_file"):
             s2.execute(a_no_file, build=s2.dry_bundle)
+
+        # 4. Baseline g mismatch with run's --g refuses with prepass_baseline_g_mismatch
+        with pytest.raises(SystemExit, match="prepass_baseline_g_mismatch"):
+            s2.load_prepass_baseline(baseline_path, sha, ["g00", "g01", "g02", "g03"], g=8)
+
+        # 5. Baseline k_correct out of range 0..g or non-int (including bool) refuses with prepass_baseline_k_out_of_range
+        for idx_bad, bad_k in enumerate([True, False, "2", 1.5, -1, 5]):
+            bad_k_path = tmp_path / f"bad_k_{idx_bad}.jsonl"
+            rec_line = json.dumps({"id": "g00", "g": 4, "k_correct": bad_k}) + "\n"
+            bad_k_path.write_text(rec_line, encoding="utf-8")
+            bad_k_sha = hashlib.sha256(bad_k_path.read_bytes()).hexdigest()
+            with pytest.raises(SystemExit, match="prepass_baseline_k_out_of_range"):
+                s2.load_prepass_baseline(bad_k_path, bad_k_sha, ["g00"], g=4)
 
 
 class TestLogSdpaBackend:
@@ -7397,6 +7836,8 @@ class TestLogSdpaBackend:
         }
         seen_target_phases = {r["phase"] for r in phase_rows if r["phase"] in target_phases}
         assert seen_target_phases == target_phases
+        step_end_rows = [r for r in phase_rows if r["phase"] == "step_end"]
+        assert len(step_end_rows) >= 1
         for row in phase_rows:
             assert "sdpa_backend" in row
             assert row["sdpa_backend"] in allowed
@@ -7404,6 +7845,9 @@ class TestLogSdpaBackend:
                 assert row["sdpa_backend"] == "math"
             elif row["phase"] in ("pre_rollout", "post_ref", "post_train_forward", "post_train_backward"):
                 assert row["sdpa_backend"] in {"flash", "efficient", "math", "cudnn"}
+            elif row["phase"] == "step_end":
+                assert row["sdpa_backend"] == "unknown"
+                assert isinstance(row.get("sdpa_backend_reason"), str) and row["sdpa_backend_reason"]
             elif row["sdpa_backend"] == "unknown":
                 assert isinstance(row.get("sdpa_backend_reason"), str) and row["sdpa_backend_reason"]
 

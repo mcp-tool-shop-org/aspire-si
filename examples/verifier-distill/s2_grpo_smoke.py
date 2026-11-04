@@ -638,7 +638,7 @@ def readout(
     items_completed: int | None = None,
     prepass_summary_record: dict | None = None,
     quote_reward: str | None = None,
-    mean_residual_by_k_band_record: dict[str, float | None] | None = None,
+    mean_residual_by_k_band_record: dict[str, object] | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -1550,7 +1550,9 @@ class GroupLogger:
         zero_variance_label: str | None,
         correct_n: int | None = None,
         correct_negative_adv_n: int | None = None,
-        verdict_score_var: float | None = None,
+        truncated_n: int | None = None,
+        outcome_var: float | None = None,
+        correct_var: float | None = None,
         total_reward_var: float | None = None,
         k_prepass: int | None = None,
         residual: float | None = None,
@@ -1573,7 +1575,9 @@ class GroupLogger:
         if correct_n is not None:
             line["correct_n"] = int(correct_n)
             line["correct_negative_adv_n"] = int(correct_negative_adv_n or 0)
-            line["verdict_score_var"] = round(float(verdict_score_var or 0.0), 6)
+            line["truncated_n"] = int(truncated_n if truncated_n is not None else truncations)
+            line["outcome_var"] = round(float(outcome_var or 0.0), 6)
+            line["correct_var"] = round(float(correct_var or 0.0), 6)
             line["total_reward_var"] = round(float(total_reward_var or 0.0), 6)
         if k_prepass is not None:
             line["k_prepass"] = int(k_prepass)
@@ -1993,7 +1997,7 @@ def run_steps(
     on_eval: Callable[[dict], None] | None = None,
     sign_diagnostics: bool = False,
     prepass_baseline_k: dict[str, int] | None = None,
-    group_residuals: list[tuple[int, float]] | None = None,
+    group_residuals: list[tuple[str, int, float]] | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -2027,9 +2031,11 @@ def run_steps(
             last_comp_lens: list[int] = []
             step_loss_sum = 0.0
             ckpt_train = ckpt_rollout = None
-            step_correct_total = 0
+            step_correct_active_n = 0
+            step_correct_zv_n = 0
             step_correct_neg_adv = 0
-            active_verdict_var_sum = 0.0
+            active_outcome_var_sum = 0.0
+            active_correct_var_sum = 0.0
             active_total_var_sum = 0.0
             need_details = (
                 (group_logger is not None and group_logger.enabled)
@@ -2131,22 +2137,43 @@ def run_steps(
                     active_groups += 1
                 rewards_all += rewards
 
-                grp_correct_n = sum(1 for s in group_samples if s.get("correct")) if need_details else 0
+                grp_k_correct = sum(1 for s in group_samples if s.get("correct")) if need_details else 0
+                grp_trunc_n = sum(1 for tr in truncs if tr)
+                grp_correct_n: int | None = None
                 grp_correct_neg_adv_n: int | None = None
-                grp_verdict_var: float | None = None
+                grp_outcome_var: float | None = None
+                grp_correct_var: float | None = None
                 grp_total_var: float | None = None
                 if sign_diagnostics:
+                    if mask_truncated:
+                        diag_samples = [s for s, tr in zip(group_samples, truncs, strict=True) if not tr]
+                        diag_outcomes = [v for v, tr in zip(verdict_scores, truncs, strict=True) if not tr]
+                        diag_rewards = [r for r, tr in zip(rewards, truncs, strict=True) if not tr]
+                        diag_advs = [a for a, tr in zip(adv_list, truncs, strict=True) if not tr]
+                    else:
+                        diag_samples = group_samples
+                        diag_outcomes = verdict_scores
+                        diag_rewards = rewards
+                        diag_advs = adv_list
+                    diag_correct_flags = [1.0 if s.get("correct") else 0.0 for s in diag_samples]
+                    grp_correct_n = sum(1 for s in diag_samples if s.get("correct"))
                     grp_correct_neg_adv_n = sum(
                         1
-                        for s, a_val in zip(group_samples, adv_list, strict=True)
+                        for s, a_val in zip(diag_samples, diag_advs, strict=True)
                         if s.get("correct") and float(a_val) < 0.0
                     )
-                    grp_verdict_var = float(statistics.pvariance(verdict_scores)) if verdict_scores else 0.0
-                    grp_total_var = float(statistics.pvariance(rewards)) if rewards else 0.0
-                    step_correct_total += grp_correct_n
-                    step_correct_neg_adv += grp_correct_neg_adv_n
-                    if not is_zv:
-                        active_verdict_var_sum += grp_verdict_var
+                    grp_outcome_var = float(statistics.pvariance(diag_outcomes)) if diag_outcomes else 0.0
+                    grp_correct_var = (
+                        float(statistics.pvariance(diag_correct_flags)) if diag_correct_flags else 0.0
+                    )
+                    grp_total_var = float(statistics.pvariance(diag_rewards)) if diag_rewards else 0.0
+                    if is_zv:
+                        step_correct_zv_n += grp_correct_n
+                    else:
+                        step_correct_active_n += grp_correct_n
+                        step_correct_neg_adv += grp_correct_neg_adv_n
+                        active_outcome_var_sum += grp_outcome_var
+                        active_correct_var_sum += grp_correct_var
                         active_total_var_sum += grp_total_var
 
                 grp_k_prepass: int | None = None
@@ -2159,9 +2186,9 @@ def run_steps(
                             f"prompt {pid_key!r} has no baseline record"
                         )
                     grp_k_prepass = int(prepass_baseline_k[pid_key])
-                    grp_residual = (grp_correct_n - grp_k_prepass) / 8.0
+                    grp_residual = (grp_k_correct - grp_k_prepass) / float(len(comps))
                     if group_residuals is not None:
-                        group_residuals.append((grp_k_prepass, grp_residual))
+                        group_residuals.append((pid_key, grp_k_prepass, grp_residual))
 
                 if group_logger is not None and group_logger.enabled:
                     zv_label = classify_zero_variance_group(group_samples) if is_zv else None
@@ -2170,16 +2197,18 @@ def run_steps(
                         group=k,
                         prompt_id=str(row.get("id", k)),
                         prompt_tokens=len(prompt_ids),
-                        k_correct=grp_correct_n,
+                        k_correct=grp_k_correct,
                         g=len(comps),
                         reward_std=statistics.pstdev(rewards) if rewards else 0.0,
                         verdict_reward_std=statistics.pstdev(verdict_scores) if verdict_scores else 0.0,
-                        truncations=sum(1 for tr in truncs if tr),
+                        truncations=grp_trunc_n,
                         mean_thinking_tokens=statistics.fmean(think_counts) if think_counts else 0.0,
                         zero_variance_label=zv_label,
                         correct_n=grp_correct_n if sign_diagnostics else None,
                         correct_negative_adv_n=grp_correct_neg_adv_n if sign_diagnostics else None,
-                        verdict_score_var=grp_verdict_var if sign_diagnostics else None,
+                        truncated_n=grp_trunc_n if sign_diagnostics else None,
+                        outcome_var=grp_outcome_var if sign_diagnostics else None,
+                        correct_var=grp_correct_var if sign_diagnostics else None,
                         total_reward_var=grp_total_var if sign_diagnostics else None,
                         k_prepass=grp_k_prepass,
                         residual=grp_residual,
@@ -2345,11 +2374,20 @@ def run_steps(
                 "grad_ckpt_rollout": ckpt_rollout,
             }
             if sign_diagnostics:
+                rec["step_correct_active_n"] = step_correct_active_n
+                rec["step_correct_zv_n"] = step_correct_zv_n
                 rec["correct_negative_adv_share"] = (
-                    round(step_correct_neg_adv / step_correct_total, 6) if step_correct_total > 0 else 0.0
+                    round(step_correct_neg_adv / step_correct_active_n, 6)
+                    if step_correct_active_n > 0
+                    else None
                 )
-                rec["verdict_to_total_var_ratio"] = (
-                    round(active_verdict_var_sum / active_total_var_sum, 6)
+                rec["outcome_to_total_var_ratio"] = (
+                    round(active_outcome_var_sum / active_total_var_sum, 6)
+                    if active_total_var_sum > 0.0
+                    else None
+                )
+                rec["correct_to_total_var_ratio"] = (
+                    round(active_correct_var_sum / active_total_var_sum, 6)
                     if active_total_var_sum > 0.0
                     else None
                 )
@@ -3304,6 +3342,8 @@ def load_prepass_baseline(
     baseline_path: Path | None,
     baseline_sha256: str | None,
     required_ids: Sequence[str],
+    *,
+    g: int = G,
 ) -> tuple[dict[str, int] | None, str | None]:
     """Load and SHA-check a pre-pass baseline JSONL. Never records item text or full file paths."""
     if baseline_path is None and baseline_sha256 is None:
@@ -3326,6 +3366,7 @@ def load_prepass_baseline(
             f"refusing to start (prepass_baseline_sha_mismatch): "
             f"expected sha256 {expected_sha}, got {actual_sha}"
         )
+    expected_g = int(g)
     k_by_id: dict[str, int] = {}
     for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
         line = raw_line.strip()
@@ -3348,7 +3389,19 @@ def load_prepass_baseline(
                 f"refusing to start (prepass_baseline_duplicate_id): "
                 f"duplicate baseline record for id {rec_id!r}"
             )
-        k_by_id[rec_id] = int(obj["k_correct"])
+        g_val = obj.get("g")
+        if isinstance(g_val, bool) or not isinstance(g_val, int) or g_val != expected_g:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_g_mismatch): "
+                f"baseline record for id {rec_id!r} has g={g_val!r}, expected {expected_g}"
+            )
+        k_val = obj["k_correct"]
+        if isinstance(k_val, bool) or not isinstance(k_val, int) or k_val < 0 or k_val > expected_g:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_k_out_of_range): "
+                f"baseline record for id {rec_id!r} has k_correct={k_val!r} outside 0..{expected_g}"
+            )
+        k_by_id[rec_id] = k_val
     missing = [str(cid) for cid in required_ids if str(cid) not in k_by_id]
     if missing:
         raise SystemExit(
@@ -3358,17 +3411,32 @@ def load_prepass_baseline(
     return k_by_id, actual_sha
 
 
-def mean_residual_by_k_band(pairs: Sequence[tuple[int, float]]) -> dict[str, float | None]:
-    """Mean of ``residual = (k_online - k_prepass) / 8`` grouped by ``k_prepass`` band: [0,5], [6,7] and 8."""
+def mean_residual_by_k_band(
+    entries: Sequence[tuple[str, int, float]],
+) -> dict[str, object]:
+    """Mean of ``residual = (k_online - k_prepass) / g`` by ``k_prepass`` band, one residual per prompt id."""
+    by_prompt: dict[str, tuple[int, list[float]]] = {}
+    for pid_raw, k_pre_raw, res_raw in entries:
+        pid, k_pre, res = str(pid_raw), int(k_pre_raw), float(res_raw)
+        if pid not in by_prompt:
+            by_prompt[pid] = (k_pre, [res])
+        else:
+            by_prompt[pid][1].append(res)
     bands: dict[str, list[float]] = {"[0,5]": [], "[6,7]": [], "8": []}
-    for k_pre, res in pairs:
+    for k_pre, res_list in by_prompt.values():
+        prompt_mean_res = float(statistics.fmean(res_list))
         if 0 <= k_pre <= 5:
-            bands["[0,5]"].append(float(res))
+            bands["[0,5]"].append(prompt_mean_res)
         elif 6 <= k_pre <= 7:
-            bands["[6,7]"].append(float(res))
+            bands["[6,7]"].append(prompt_mean_res)
         elif k_pre == 8:
-            bands["8"].append(float(res))
-    return {band: (round(float(statistics.fmean(vals)), 6) if vals else None) for band, vals in bands.items()}
+            bands["8"].append(prompt_mean_res)
+    out: dict[str, object] = {
+        band: (round(float(statistics.fmean(vals)), 6) if vals else None) for band, vals in bands.items()
+    }
+    out["n_prompts"] = {band: len(vals) for band, vals in bands.items()}
+    out["prompt_visits_max"] = max((len(v[1]) for v in by_prompt.values()), default=0)
+    return out
 
 
 def active_flags(a: argparse.Namespace) -> dict:
@@ -3486,6 +3554,7 @@ def execute(
         getattr(a, "prepass_baseline", None),
         getattr(a, "prepass_baseline_sha256", None),
         [r["id"] for r in prompts],
+        g=a.g,
     )
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
@@ -3555,7 +3624,7 @@ def execute(
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
         eval_records: list[dict] = []
         prepass_records: list[dict] = []
-        group_residuals: list[tuple[int, float]] = []
+        group_residuals: list[tuple[str, int, float]] = []
         stress_meta: dict = {}
 
         def write_eval_summary(summary_doc: dict) -> None:
@@ -3969,13 +4038,17 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--sign-diagnostics",
         action="store_true",
-        help="record sign-disagreement and verdict-vs-total variance diagnostics in group and step logs",
+        help=(
+            "record sign-disagreement and variance diagnostics in group and step logs:\n"
+            "outcome_var: population variance of outcome (verdict + m/k quote match under v2);\n"
+            "correct_var: population variance of the 0/1 correct-verdict indicator"
+        ),
     )
     ap.add_argument(
         "--prepass-baseline",
         type=Path,
         default=None,
-        help="independent pre-pass JSONL file for per-group k_prepass and residual=(k_online-k_prepass)/8",
+        help="independent pre-pass JSONL file for per-group k_prepass and residual=(k_online-k_prepass)/g",
     )
     ap.add_argument(
         "--prepass-baseline-sha256",
