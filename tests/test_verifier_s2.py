@@ -4838,13 +4838,20 @@ class TestRolloutOnlyPrepass:
 
         a = _args(tmp_path / "llama_run", gold_dir, path="llamacpp", rollout_only=True, g=2, max_new=16)
         assert s2.execute(a, build=build_fake, rig=_FakeRig(a)) == 0
-        assert (a.out / "s2-llamacpp-prepass-header.json").exists()
+        header_path = a.out / "s2-llamacpp-prepass-header.json"
+        jsonl_path = a.out / "s2-llamacpp-prepass.jsonl"
+        assert header_path.exists()
+        assert jsonl_path.exists()
+        before_header_bytes = header_path.read_bytes()
+        before_jsonl_bytes = jsonl_path.read_bytes()
 
         with pytest.raises(
             SystemExit,
             match="refusing to resume prepass: --path llamacpp samples are not seeded per item, so a resumed run is not reproducible",
         ):
             s2.execute(a, build=build_fake, rig=_FakeRig(a))
+        assert header_path.read_bytes() == before_header_bytes
+        assert jsonl_path.read_bytes() == before_jsonl_bytes
 
     @needs_torch
     def test_t8_fresh_llamacpp_header_and_summary_reproducible_false(self, tmp_path):
@@ -4884,15 +4891,19 @@ class TestRolloutOnlyPrepass:
         assert s2.execute(a_llama, build=build_fake, rig=_FakeRig(a_llama)) == 0
         header = json.loads((a_llama.out / "s2-llamacpp-prepass-header.json").read_text(encoding="utf-8"))
         summary = json.loads((a_llama.out / "s2-llamacpp-prepass-summary.json").read_text(encoding="utf-8"))
+        receipt = json.loads((a_llama.out / "s2-llamacpp.json").read_text(encoding="utf-8"))
         assert header["reproducible"] is False
         assert summary["reproducible"] is False
+        assert receipt["readout"]["prepass_summary"]["reproducible"] is False
 
         a_hf = _args(tmp_path / "hf_fresh", gold_dir, path="hf", rollout_only=True, g=2, max_new=16)
         assert s2.execute(a_hf, build=build_fake, rig=_FakeRig(a_hf)) == 0
         hf_header = json.loads((a_hf.out / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
         hf_summary = json.loads((a_hf.out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        hf_receipt = json.loads((a_hf.out / "s2-hf.json").read_text(encoding="utf-8"))
         assert hf_header["reproducible"] is True
         assert hf_summary["reproducible"] is True
+        assert hf_receipt["readout"]["prepass_summary"]["reproducible"] is True
 
     @needs_torch
     def test_t9_hf_header_without_reproducible_key_still_resumes(self, tmp_path):
@@ -4939,8 +4950,25 @@ class TestRolloutOnlyPrepass:
         a = _args(tmp_path / "hf_compat", gold_dir, path="hf", rollout_only=True, g=2, max_new=16)
         assert s2.execute(a, build=make_builder(stop_after=2), rig=_FakeRig(a)) == 1
         header_path = a.out / "s2-hf-prepass-header.json"
-        hdr = json.loads(header_path.read_text(encoding="utf-8"))
-        assert hdr["reproducible"] is True
+        orig_hdr = json.loads(header_path.read_text(encoding="utf-8"))
+        assert orig_hdr["reproducible"] is True
+
+        # Negative case 1: deleting another header key (quote_reward) refuses with header mismatch
+        hdr_missing_qr = dict(orig_hdr)
+        del hdr_missing_qr["quote_reward"]
+        header_path.write_text(json.dumps(hdr_missing_qr, indent=1) + "\n", encoding="utf-8")
+        with pytest.raises(SystemExit, match="refusing to resume prepass: header mismatch on quote_reward"):
+            s2.execute(a, build=make_builder(stop_after=None), rig=_FakeRig(a))
+
+        # Negative case 2: setting reproducible to False in an hf header refuses
+        hdr_repro_false = dict(orig_hdr)
+        hdr_repro_false["reproducible"] = False
+        header_path.write_text(json.dumps(hdr_repro_false, indent=1) + "\n", encoding="utf-8")
+        with pytest.raises(SystemExit, match="refusing to resume prepass: header mismatch on reproducible"):
+            s2.execute(a, build=make_builder(stop_after=None), rig=_FakeRig(a))
+
+        # Positive legacy case: deleting reproducible key on hf still resumes
+        hdr = dict(orig_hdr)
         del hdr["reproducible"]
         header_path.write_text(json.dumps(hdr, indent=1) + "\n", encoding="utf-8")
 
@@ -5030,3 +5058,496 @@ class TestRolloutOnlyPrepass:
             "diagnostic: every evidence quote found in the passages; "
             "not the registered reward (quote rule v1)"
         )
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-04 Stress pool (--stress-pool {selected,tune}): T1..T5
+# ---------------------------------------------------------------------------
+
+
+def _stress_pool_gold(tmp_path: Path, *, tie_outside: bool = False, marker: str = "") -> Path:
+    long_outside = f"outside_selected_longest_prompt {marker} " * 25
+    rows_by_file = {
+        "grounded.jsonl": [
+            _row(f"g{i:02d}", text="short" if i < 19 else "selected_longest_prompt " * 10) for i in range(20)
+        ],
+        "prs/grounded-prs.jsonl": [_row(f"p{i:02d}", text="short") for i in range(20)]
+        + [
+            _row("zz_heldout", split="heldout", text="heldout_even_longer " * 50),
+        ],
+        "diffs/reasoning-diffs.jsonl": [
+            _row(
+                f"r{i:02d}",
+                label="unsupported",
+                claim=f"Claim {marker}" if (not tie_outside and i == 15 and marker) else "Claim.",
+                text=(
+                    long_outside
+                    if (tie_outside and i in (5, 10)) or (not tie_outside and i == 15)
+                    else "short"
+                ),
+            )
+            for i in (range(19, -1, -1) if tie_outside else range(20))
+        ],
+    }
+    return _gold(tmp_path, rows_by_file)
+
+
+def _make_stress_pool_fake_bundle(tok, seen_prefix_prompts: list[str], seen_reg_prompts: list[str]):
+    from contextlib import nullcontext
+
+    import torch
+
+    class _FakeModel:
+        device = torch.device("cpu")
+
+        def __init__(self) -> None:
+            self._param = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+        def parameters(self):
+            return [self._param]
+
+        def generate(self, input_ids, **kwargs):
+            row0_ids = input_ids[0].tolist()
+            seen_prefix_prompts.append(tok.decode(row0_ids))
+            max_n = int(kwargs["max_new_tokens"])
+            cap_fill = torch.full((input_ids.shape[0], max_n), 10, dtype=torch.long)
+            return torch.cat([input_ids, cap_fill], dim=1)
+
+        def __call__(self, input_ids, attention_mask=None, logits_to_keep=None, **kwargs):
+            logits = (
+                torch.zeros(
+                    (input_ids.shape[0], input_ids.shape[1], tok.vocab_size),
+                    dtype=torch.float32,
+                )
+                + self._param * 0.0
+            )
+            return Namespace(logits=logits)
+
+    fake_model = _FakeModel()
+
+    def fake_reg_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+        seen_reg_prompts.append(prompt_text)
+        p_ids = tok.encode(prompt_text)
+        comps = [[20, 21, 22, tok.eos_token_id] for _ in range(g_cnt)]
+        if g_cnt >= 2:
+            comps[0] = [30, 31, 32, tok.eos_token_id]
+        truncs = [False] * g_cnt
+        return p_ids, comps, truncs
+
+    def fake_reward(text: str, row: dict, tt: int, truncated: bool = False) -> float:
+        if truncated:
+            return -1.0
+        if text == tok.decode([30, 31, 32]):
+            return 1.0
+        return -0.3
+
+    def build_fake(_args_ns):
+        return {
+            "model": fake_model,
+            "tok": tok,
+            "mode": lambda training: None,
+            "state": lambda: {"grad_ckpt": True},
+            "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            "ref_adapter_off": nullcontext,
+            "rollout": fake_reg_rollout,
+            "reward_fn": fake_reward,
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: 1000,
+            "revision": None,
+            "llama": None,
+            "dtype_census": None,
+        }
+
+    return build_fake
+
+
+class TestStressPool:
+    @needs_torch
+    def test_t1_tune_picks_longer_prompt_outside_selected_and_prompt_lengths_tune(self, tmp_path):
+        gold_dir = _stress_pool_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        rows, _ = s2.read_gold(gold_dir)
+        selected_32 = s2.select_prompts(rows, 32)
+        assert all(not r["id"].startswith("r") for r in selected_32)
+
+        # Full fake run with --stress-prefix 1 --stress-pool tune
+        seen_prefix: list[str] = []
+        seen_reg: list[str] = []
+        a_run = s2.apply_dry_defaults(
+            _args(
+                tmp_path / "run_tune",
+                gold_dir,
+                dry=True,
+                steps=1,
+                g=2,
+                max_new=8,
+                stress_prefix=1,
+                stress_pool="tune",
+            )
+        )
+        assert s2.execute(a_run, build=_make_stress_pool_fake_bundle(tok, seen_prefix, seen_reg)) == 0
+        assert len(seen_prefix) == 2
+        assert all("[src@r15]" in p for p in seen_prefix)
+        # Registered steps still use select_prompts (g00, g01)
+        assert len(seen_reg) == 2
+        assert "[src@g00]" in seen_reg[0] and "[src@g01]" in seen_reg[1]
+
+        # --prompt-lengths --stress-pool tune stays CPU only and covers all 60 tune rows
+        a_pl = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pl_tune"),
+                "--dry",
+                "--prompt-lengths",
+                "--stress-pool",
+                "tune",
+            ]
+        )
+        assert (
+            s2.execute(
+                a_pl,
+                build=lambda _: (_ for _ in ()).throw(AssertionError("model build must not run")),
+                rig=None,
+            )
+            == 0
+        )
+        pl_doc = json.loads((a_pl.out / "s2-hf-prompt-lengths.json").read_text(encoding="utf-8"))
+        assert pl_doc["count"] == 60
+        assert pl_doc["stress_pool"] == "tune"
+        assert pl_doc["stress_prompt_id"] == "r15"
+        r15_row = next(r for r in rows if r["id"] == "r15")
+        r15_tokens = len(tok.encode(s2.build_prompt(r15_row)))
+        assert pl_doc["stress_prompt_tokens"] == r15_tokens == pl_doc["max"]
+
+    @needs_torch
+    def test_t2_ties_break_by_larger_id(self, tmp_path):
+        rows_by_file = {
+            "grounded.jsonl": [
+                _row(
+                    f"g{i:02d}",
+                    text="tied_longest_selected " * 15 if i in (2, 9) else "short",
+                )
+                for i in range(19, -1, -1)
+            ],
+            "prs/grounded-prs.jsonl": [_row(f"p{i:02d}", text="short") for i in range(20)],
+            "diffs/reasoning-diffs.jsonl": [
+                _row(
+                    f"r{i:02d}",
+                    label="unsupported",
+                    text="tied_longest_tune " * 25 if i in (5, 10) else "short",
+                )
+                for i in range(19, -1, -1)
+            ],
+        }
+        gold_dir = _gold(tmp_path / "gold", rows_by_file)
+        tok = s2.DryTokenizer()
+
+        # Check selected pool tie break (g02 vs g09 -> g09 wins by larger id)
+        seen_sel_prefix: list[str] = []
+        seen_sel_reg: list[str] = []
+        a_sel = s2.apply_dry_defaults(
+            _args(
+                tmp_path / "tie_sel",
+                gold_dir,
+                dry=True,
+                steps=1,
+                g=2,
+                max_new=8,
+                stress_prefix=1,
+                stress_pool="selected",
+            )
+        )
+        assert s2.execute(a_sel, build=_make_stress_pool_fake_bundle(tok, seen_sel_prefix, seen_sel_reg)) == 0
+        assert all("[src@g09]" in p for p in seen_sel_prefix)
+
+        # Check tune pool tie break (r05 vs r10 -> r10 wins by larger id)
+        seen_tune_prefix: list[str] = []
+        seen_tune_reg: list[str] = []
+        a_tune = s2.apply_dry_defaults(
+            s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "tie_tune"),
+                    "--dry",
+                    "--steps",
+                    "1",
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--stress-prefix",
+                    "1",
+                    "--stress-pool",
+                    "tune",
+                ]
+            )
+        )
+        assert (
+            s2.execute(a_tune, build=_make_stress_pool_fake_bundle(tok, seen_tune_prefix, seen_tune_reg)) == 0
+        )
+        assert all("[src@r10]" in p for p in seen_tune_prefix)
+        receipt = json.loads((a_tune.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["readout"]["flags"]["stress_prompt_id"] == "r10"
+
+    def test_t2b_select_stress_prompt_matches_base_max_expression(self):
+        tok = s2.DryTokenizer()
+        pool = [
+            _row("id_03", text="tied_maximum_text " * 12),
+            _row("id_01", text="short"),
+            _row("id_09", text="tied_maximum_text " * 12),
+            _row("id_05", text="tied_maximum_text " * 12),
+        ]
+        expected_row = max(pool, key=lambda r: (len(tok.encode(s2.build_prompt(r))), r["id"]))
+        expected_tok = len(tok.encode(s2.build_prompt(expected_row)))
+        chosen_row, chosen_tok = s2.select_stress_prompt(pool, tok)
+        assert chosen_row == expected_row
+        assert chosen_row["id"] == "id_09"
+        assert chosen_tok == expected_tok
+
+    @needs_torch
+    def test_t3_default_path_unchanged(self, tmp_path):
+        gold_dir = _stress_pool_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        rows, _ = s2.read_gold(gold_dir)
+        g19_row = next(r for r in rows if r["id"] == "g19")
+        g19_tokens = len(tok.encode(s2.build_prompt(g19_row)))
+        expected_reg_prompts = [
+            s2.build_prompt(next(r for r in rows if r["id"] == pid)) for pid in ("g00", "g01")
+        ]
+
+        # Independent baseline run at --stress-prefix 0
+        pref_no_prefix: list[str] = []
+        reg_no_prefix: list[str] = []
+        a_no_prefix = s2.apply_dry_defaults(
+            s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "no_prefix_run"),
+                    "--dry",
+                    "--steps",
+                    "1",
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--stress-prefix",
+                    "0",
+                ]
+            )
+        )
+        assert (
+            s2.execute(
+                a_no_prefix,
+                build=_make_stress_pool_fake_bundle(tok, pref_no_prefix, reg_no_prefix),
+            )
+            == 0
+        )
+        assert pref_no_prefix == []
+        assert reg_no_prefix == expected_reg_prompts
+        step_rows_no_prefix = [
+            json.loads(x)
+            for x in (a_no_prefix.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+
+        # Run default (no --stress-pool passed -> defaults to "selected")
+        pref_def: list[str] = []
+        reg_def: list[str] = []
+        a_def = s2.apply_dry_defaults(
+            s2.build_parser().parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "def_run"),
+                    "--dry",
+                    "--steps",
+                    "1",
+                    "--g",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--stress-prefix",
+                    "1",
+                ]
+            )
+        )
+        assert s2.execute(a_def, build=_make_stress_pool_fake_bundle(tok, pref_def, reg_def)) == 0
+        assert all("[src@g19]" in p for p in pref_def)
+        assert reg_def == expected_reg_prompts == reg_no_prefix
+
+        step_rows_def = [
+            json.loads(x) for x in (a_def.out / "s2-hf-steps.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(step_rows_def) == len(step_rows_no_prefix) == 1
+        for k in (
+            "step",
+            "groups",
+            "active_groups",
+            "zero_variance_groups",
+            "tokens",
+            "mean_reward",
+            "loss",
+            "peak_alloc_mib",
+            "grad_ckpt",
+            "grad_ckpt_rollout",
+        ):
+            assert [r[k] for r in step_rows_def] == [r[k] for r in step_rows_no_prefix]
+
+        receipt_def = json.loads((a_def.out / "s2-hf.json").read_text(encoding="utf-8"))
+        receipt_no_prefix = json.loads((a_no_prefix.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert (
+            receipt_def["prompt_ids"]
+            == receipt_no_prefix["prompt_ids"]
+            == [r["id"] for r in s2.select_prompts(rows, 32)]
+        )
+        readout_def = receipt_def["readout"]
+
+        assert readout_def["flags"]["stress_pool"] == "selected"
+        assert readout_def["flags"]["stress_prompt_id"] == "g19"
+        assert readout_def["flags"]["stress_prompt_tokens"] == g19_tokens
+        assert readout_def["flags"]["stress_width"] == g19_tokens + 8
+
+        # Compare readout against base readout from independent --stress-prefix 0 step rows
+        aligned_no_prefix_steps = [
+            {
+                **r,
+                "rollout_s": d["rollout_s"],
+                "train_s": d["train_s"],
+                "step_s": d["step_s"],
+            }
+            for r, d in zip(step_rows_no_prefix, step_rows_def, strict=True)
+        ]
+        expected_base_readout = s2.readout(
+            aligned_no_prefix_steps,
+            peak_mib=None,
+            steps_requested=1,
+            stopped=None,
+            oom=False,
+            cut=True,
+            dry=True,
+            flags={"stress_prefix": 1, "stress_prefix_masks": "off"},
+            eval_summary_record=json.loads((a_no_prefix.out / "s2-hf-eval-summary.json").read_text()),
+        )
+        stripped_readout = {
+            **readout_def,
+            "flags": {
+                k: v
+                for k, v in readout_def["flags"].items()
+                if k not in ("stress_pool", "stress_prompt_id", "stress_prompt_tokens", "stress_width")
+            },
+        }
+        assert stripped_readout == expected_base_readout
+
+    @needs_torch
+    def test_t4_recorded_fields_present_and_text_free(self, tmp_path, capsys):
+        marker = "SECRET_STRESS_" + "POOL_MARKER_991"
+        gold_dir = _stress_pool_gold(tmp_path / "gold", marker=marker)
+        tok = s2.DryTokenizer()
+        rows, _ = s2.read_gold(gold_dir)
+        r15_row = next(r for r in rows if r["id"] == "r15")
+        r15_tokens = len(tok.encode(s2.build_prompt(r15_row)))
+
+        seen_prefix: list[str] = []
+        seen_reg: list[str] = []
+        a = s2.apply_dry_defaults(
+            _args(
+                tmp_path / "text_free",
+                gold_dir,
+                dry=True,
+                steps=1,
+                g=2,
+                max_new=12,
+                stress_prefix=1,
+                stress_pool="tune",
+            )
+        )
+        assert s2.execute(a, build=_make_stress_pool_fake_bundle(tok, seen_prefix, seen_reg)) == 0
+        receipt = json.loads((a.out / "s2-hf.json").read_text(encoding="utf-8"))
+        for container in (receipt["readout"]["flags"], receipt["run"], receipt):
+            assert container["stress_pool"] == "tune"
+            assert container["stress_prompt_id"] == "r15"
+            assert container["stress_prompt_tokens"] == r15_tokens
+            assert container["stress_width"] == r15_tokens + 12
+
+        captured = capsys.readouterr()
+        assert marker not in captured.out
+        assert marker not in captured.err
+        for p in a.out.rglob("*"):
+            if p.is_file():
+                assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p.name}"
+
+        # Also run --prompt-lengths --stress-pool tune on the marker gold
+        a_pl = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pl_text_free"),
+                "--dry",
+                "--prompt-lengths",
+                "--stress-pool",
+                "tune",
+            ]
+        )
+        assert (
+            s2.execute(
+                a_pl,
+                build=lambda _: (_ for _ in ()).throw(AssertionError("model build must not run")),
+                rig=None,
+            )
+            == 0
+        )
+        captured_pl = capsys.readouterr()
+        assert marker not in captured_pl.out
+        assert marker not in captured_pl.err
+        for p in a_pl.out.rglob("*"):
+            if p.is_file():
+                assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p.name}"
+
+    def test_t5_rollout_only_with_stress_prefix_still_refuses(self, tmp_path):
+        gold_dir = _stress_pool_gold(tmp_path / "gold")
+        ap = s2.build_parser()
+        for pool in ("selected", "tune"):
+            a = ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / f"refuse_{pool}"),
+                    "--rollout-only",
+                    "--stress-prefix",
+                    "1",
+                    "--stress-pool",
+                    pool,
+                ]
+            )
+            with pytest.raises(
+                SystemExit,
+                match="refusing to start: --rollout-only cannot be used with --stress-prefix > 0",
+            ):
+                s2.execute(a, build=s2.dry_bundle)
+        with pytest.raises(SystemExit, match="unknown --stress-pool 'invalid'"):
+            s2.stress_prompt_pool([], [], "invalid")
+        empty_stats = s2.compute_prompt_lengths([], s2.DryTokenizer(), stress_pool="tune")
+        assert empty_stats["count"] == 0
+        assert empty_stats["stress_pool"] == "tune"
+        assert empty_stats["stress_prompt_id"] is None
+        assert empty_stats["stress_prompt_tokens"] == 0
