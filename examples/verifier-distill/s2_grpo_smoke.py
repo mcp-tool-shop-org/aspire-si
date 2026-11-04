@@ -64,6 +64,26 @@ HEARTBEAT_ENV = "WATCHDOG_HEARTBEAT"
 PROMPT_SPLIT = "tune"
 GOLD_FILES = ("grounded.jsonl", "prs/grounded-prs.jsonl", "diffs/reasoning-diffs.jsonl")
 VERDICTS = ("supported", "unsupported", "cannot_tell")
+DRY_PREPASS_ITEMS = 4
+PREPASS_BASE_SEED = 0
+PREPASS_RECORD_KEYS = (
+    "id",
+    "gold_file",
+    "gold_verdict",
+    "g",
+    "k_correct",
+    "supported",
+    "unsupported",
+    "cannot_tell",
+    "malformed",
+    "truncations",
+    "quote_pass",
+    "reward_mean",
+    "reward_std",
+    "zero_variance",
+    "prompt_tokens",
+    "completion_tokens_mean",
+)
 ENVIRONMENT_FIELDS = (
     "python",
     "python_executable",
@@ -89,13 +109,21 @@ def read_gold(gold_dir: Path) -> tuple[list[dict], dict[str, str]]:
     for name in GOLD_FILES:
         data = (gold_dir / name).read_bytes()
         hashes[name] = hashlib.sha256(data).hexdigest()
-        rows += [json.loads(x) for x in data.decode("utf-8").splitlines() if x.strip()]
+        for x in data.decode("utf-8").splitlines():
+            if x.strip():
+                row = json.loads(x)
+                row.setdefault("gold_file", name)
+                rows.append(row)
     return rows, hashes
 
 
-def select_prompts(rows: list[dict], n: int = PROMPTS, split: str = PROMPT_SPLIT) -> list[dict]:
-    """The rule: the first n rows of the tune split by sorted claim id. A gold with fewer stops the run."""
+def select_prompts(rows: list[dict], n: int | None = PROMPTS, split: str = PROMPT_SPLIT) -> list[dict]:
+    """The rule: the first n rows of the tune split by sorted claim id (every row when n is None)."""
     mine = sorted((r for r in rows if r.get("split") == split), key=lambda r: r["id"])
+    if n is None:
+        if not mine:
+            raise SystemExit(f"the gold has 0 {split} claims; S2 needs at least 1")
+        return mine
     if len(mine) < n:
         raise SystemExit(f"the gold has {len(mine)} {split} claims; S2 needs {n}")
     return mine[:n]
@@ -578,6 +606,10 @@ def readout(
     flags: dict | None = None,
     phase_logger: PhaseLogger | None = None,
     eval_summary_record: dict | None = None,
+    rollout_only: bool = False,
+    items_requested: int | None = None,
+    items_completed: int | None = None,
+    prepass_summary_record: dict | None = None,
 ) -> dict:
     """The pass decision, per path. A run that was cut, stopped or dry never passes.
 
@@ -586,7 +618,7 @@ def readout(
     """
 
     completed = len(steps)
-    whole = not cut and not dry and steps_requested == STEPS
+    whole = not cut and not dry and steps_requested == STEPS and not rollout_only
     step_s = [s["step_s"] for s in steps]
     tokens = sum(s["tokens"] for s in steps)
     rollout_s = sum(s["rollout_s"] for s in steps)
@@ -624,6 +656,20 @@ def readout(
         out["flags"] = dict(flags)
         if out["flags"].get("stress_prefix", 0) > 0:
             out["flags"]["stress_prefix_masks"] = "off"
+    if rollout_only or (isinstance(out.get("flags"), dict) and out["flags"].get("rollout_only")):
+        req_items = items_requested if items_requested is not None else steps_requested
+        comp_items = items_completed if items_completed is not None else completed
+        out["items_requested"] = req_items
+        out["items_completed"] = comp_items
+        out["ignored_flags"] = ["prompts", "steps"]
+        out["prompts_ignored"] = True
+        out["steps_ignored"] = True
+        out["complete"] = bool(comp_items == req_items and stopped is None and not oom)
+        out["pass"] = False
+        out.setdefault("flags", {})["rollout_only"] = True
+        out["flags"]["ignored_flags"] = ["prompts", "steps"]
+        if prepass_summary_record is not None:
+            out["prepass_summary"] = prepass_summary_record
     if eval_summary_record is not None:
         qr_rel = eval_summary_record.get("quote_relevance") or {}
         out["eval_summary"] = {
@@ -642,8 +688,24 @@ def readout(
     return out
 
 
-def verdict_line(result: dict, *, stopped: dict | None, cut: bool, dry: bool) -> str:
-    """S2-OK only for a whole run that fits. S2-DRY: a rehearsal. S2-LIMITED: a cut. S2-STOPPED: a stop."""
+def verdict_line(
+    result: dict, *, stopped: dict | None, cut: bool, dry: bool, rollout_only: bool = False
+) -> str:
+    """S2-OK only for a whole run that fits. S2-DRY: a rehearsal. S2-LIMITED: a cut. S2-STOPPED: a stop.
+    S2-PREPASS: a finished rollout-only pre-pass.
+    """
+    if rollout_only or (isinstance(result.get("flags"), dict) and result["flags"].get("rollout_only")):
+        if stopped:
+            return "S2-STOPPED"
+        req = result.get("items_requested", result.get("steps_requested"))
+        comp = result.get("items_completed", result.get("steps_completed"))
+        if (
+            result.get("oom")
+            or comp != req
+            or (not dry and result.get("peak_vram_mib_sampler") is not None and not result.get("fits"))
+        ):
+            return "S2-STOPPED" if dry else "S2-FAIL"
+        return "S2-PREPASS"
     if dry:
         return (
             "S2-DRY"
@@ -660,8 +722,8 @@ def verdict_line(result: dict, *, stopped: dict | None, cut: bool, dry: bool) ->
 
 
 def exit_status(line: str) -> int:
-    """0 for S2-OK and for a finished rehearsal; anything else is non-zero."""
-    return 0 if line in ("S2-OK", "S2-DRY") else 1
+    """0 for S2-OK, S2-PREPASS and for a finished rehearsal; anything else is non-zero."""
+    return 0 if line in ("S2-OK", "S2-DRY", "S2-PREPASS") else 1
 
 
 # -- the environment, the guards and the receipt -------------------------------------------------------------
@@ -2117,6 +2179,7 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         "revision": None,
         "llama": None,
         "dtype_census": census,
+        "dry_prepass_cap": DRY_PREPASS_ITEMS,
     }
 
 
@@ -2529,6 +2592,397 @@ def run_probe_memory(
     return 0
 
 
+# -- rollout-only pre-pass -----------------------------------------------------------------------------------
+def item_seed(item_id: str, base_seed: int = PREPASS_BASE_SEED) -> int:
+    """Stable 63-bit seed from (base_seed, item_id) so a resumed item is sampled identically."""
+    digest = hashlib.sha256(f"{base_seed}:{item_id}".encode()).digest()
+    return int.from_bytes(digest[:8], "big") & 0x7FFF_FFFF_FFFF_FFFF
+
+
+def script_sha256() -> str:
+    return hashlib.sha256(Path(__file__).resolve().read_bytes()).hexdigest()
+
+
+def ids_sha256(ids: Sequence[str]) -> str:
+    return hashlib.sha256("\n".join(ids).encode()).hexdigest()
+
+
+def build_prepass_header(
+    *,
+    prompt_ids: Sequence[str],
+    gold_hashes: dict[str, str],
+    g: int,
+    max_new: int,
+    quote_reward: str,
+    seed: int = PREPASS_BASE_SEED,
+    model_revision: str | None,
+    script_hash: str | None = None,
+) -> dict:
+    return {
+        "ids_sha256": ids_sha256(prompt_ids),
+        "script_sha256": script_hash if script_hash is not None else script_sha256(),
+        "gold_files_sha256": dict(gold_hashes),
+        "g": int(g),
+        "max_new": int(max_new),
+        "quote_reward": str(quote_reward),
+        "seed": int(seed),
+        "model_revision": model_revision,
+    }
+
+
+def prepass_item_record(
+    *,
+    row: dict,
+    prompt_ids: Sequence[int],
+    comps: Sequence[Sequence[int]],
+    truncs: Sequence[bool],
+    tok,
+    reward_fn: Callable,
+    quote_reward: str = "v1",
+) -> tuple[dict, list[dict]]:
+    """Score one item's G completions and return (the text-free JSONL record, eval rollout outcomes)."""
+    gold_verdict = str(row.get("label", "supported"))
+    gold_file = str(row.get("gold_file") or "")
+    passages = passages_of(row) if "context" in row else as_passages(row.get("passages") or ())
+    rewards: list[float] = []
+    verdict_counts = {"supported": 0, "unsupported": 0, "cannot_tell": 0, "malformed": 0}
+    k_correct = 0
+    quote_pass = 0
+    trunc_count = 0
+    rollout_outcomes: list[dict] = []
+
+    for c, trunc in zip(comps, truncs, strict=True):
+        is_trunc = bool(trunc)
+        if is_trunc:
+            trunc_count += 1
+        text = tok.decode(c, skip_special_tokens=True)
+        think, _ = split_reply(text)
+        tt = len(tok.encode(think)) if think else 0
+        r_val = _call_reward_fn(reward_fn, text, row, tt, is_trunc)
+        rewards.append(r_val)
+        det = reward_details(
+            text,
+            gold_verdict,
+            passages,
+            tt,
+            truncated=is_trunc,
+            quote_reward=quote_reward,
+        )
+        v = det.get("verdict")
+        if v in VERDICTS:
+            verdict_counts[v] += 1
+        else:
+            verdict_counts["malformed"] += 1
+        if det.get("correct"):
+            k_correct += 1
+        if not is_trunc:
+            parsed = parse_reply(text)
+            if parsed is not None:
+                parts = parsed["evidence_quotes"]
+                if parts and all(quote_found(p["quote"], passages) for p in parts):
+                    quote_pass += 1
+        rollout_outcomes.append(completion_eval_outcome(text, row, truncated=is_trunc, reward_val=r_val))
+
+    comp_lens = [len(c) for c in comps]
+    rec = {
+        "id": str(row["id"]),
+        "gold_file": gold_file,
+        "gold_verdict": gold_verdict,
+        "g": len(comps),
+        "k_correct": k_correct,
+        "supported": verdict_counts["supported"],
+        "unsupported": verdict_counts["unsupported"],
+        "cannot_tell": verdict_counts["cannot_tell"],
+        "malformed": verdict_counts["malformed"],
+        "truncations": trunc_count,
+        "quote_pass": quote_pass,
+        "reward_mean": round(float(statistics.fmean(rewards)), 6) if rewards else 0.0,
+        "reward_std": round(float(statistics.pstdev(rewards)), 6) if rewards else 0.0,
+        "zero_variance": bool(zero_variance(rewards)),
+        "prompt_tokens": len(prompt_ids),
+        "completion_tokens_mean": round(float(statistics.fmean(comp_lens)), 2) if comp_lens else 0.0,
+    }
+    return rec, rollout_outcomes
+
+
+def _k_correct_hist(records: Sequence[dict], g: int) -> dict[str, int]:
+    hist = {str(k): 0 for k in range(g + 1)}
+    for r in records:
+        k_val = str(int(r["k_correct"]))
+        hist[k_val] = hist.get(k_val, 0) + 1
+    return hist
+
+
+def prepass_summary(records: Sequence[dict], *, g: int) -> dict:
+    """Summary of a rollout-only pre-pass: counts, histograms (0..G), and ratios only."""
+    n = len(records)
+    hist = _k_correct_hist(records, g)
+    all_correct = sum(1 for r in records if int(r["k_correct"]) == g)
+    zv_count = sum(1 for r in records if bool(r["zero_variance"]))
+    by_file: dict[str, dict[str, int]] = {}
+    for gf in GOLD_FILES:
+        by_file[gf] = _k_correct_hist([r for r in records if r.get("gold_file") == gf], g)
+    by_verdict: dict[str, dict[str, int]] = {}
+    for gv in VERDICTS:
+        by_verdict[gv] = _k_correct_hist([r for r in records if r.get("gold_verdict") == gv], g)
+    total_truncs = sum(int(r["truncations"]) for r in records)
+    gold_sup_completions = sum(int(r["g"]) for r in records if r.get("gold_verdict") == "supported")
+    ct_on_gold_sup = sum(int(r["cannot_tell"]) for r in records if r.get("gold_verdict") == "supported")
+    p_ct_given_sup = (ct_on_gold_sup / gold_sup_completions) if gold_sup_completions > 0 else 0.0
+    return {
+        "item_count": n,
+        "g": int(g),
+        "k_correct_histogram": hist,
+        "all_correct_count": all_correct,
+        "all_correct_share": (all_correct / n) if n > 0 else 0.0,
+        "zero_variance_count": zv_count,
+        "zero_variance_share": (zv_count / n) if n > 0 else 0.0,
+        "by_gold_file": by_file,
+        "by_gold_verdict": by_verdict,
+        "total_truncations": total_truncs,
+        "p_cannot_tell_given_gold_supported": p_ct_given_sup,
+    }
+
+
+def _prepare_prepass_resume(
+    header_path: Path,
+    jsonl_path: Path,
+    expected_header: dict,
+    *,
+    fsync: Callable[[int], None] = os.fsync,
+) -> list[dict]:
+    """Verify or write the prepass header, truncate any trailing partial line, and return done records."""
+    if header_path.exists():
+        try:
+            existing_header = json.loads(header_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise SystemExit(
+                f"refusing to resume prepass: header {header_path} is not valid JSON ({exc})"
+            ) from exc
+        if not isinstance(existing_header, dict):
+            raise SystemExit(f"refusing to resume prepass: header {header_path} is not a JSON object")
+        mismatched = [
+            k
+            for k in sorted(set(expected_header) | set(existing_header))
+            if existing_header.get(k) != expected_header.get(k)
+        ]
+        if mismatched:
+            raise SystemExit(f"refusing to resume prepass: header mismatch on {', '.join(mismatched)}")
+    elif jsonl_path.exists():
+        raise SystemExit(f"refusing to resume prepass: {jsonl_path} exists without {header_path}")
+    else:
+        header_path.parent.mkdir(parents=True, exist_ok=True)
+        with header_path.open("w", encoding="utf-8", newline="\n") as hfh:
+            hfh.write(json.dumps(expected_header, indent=1) + "\n")
+            hfh.flush()
+            fsync(hfh.fileno())
+        return []
+
+    if not jsonl_path.exists():
+        return []
+
+    raw = jsonl_path.read_bytes()
+    raw_lines = raw.splitlines(keepends=True)
+    completed: list[dict] = []
+    valid_bytes = 0
+    for idx, line_bytes in enumerate(raw_lines):
+        is_last = idx == len(raw_lines) - 1
+        has_nl = line_bytes.endswith(b"\n")
+        try:
+            text_line = line_bytes.decode("utf-8").strip()
+            obj = json.loads(text_line) if text_line else None
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            if is_last:
+                break
+            raise SystemExit(f"refusing to resume prepass: corrupt line {idx + 1} in {jsonl_path}") from exc
+        if not has_nl or not isinstance(obj, dict) or not set(PREPASS_RECORD_KEYS).issubset(obj.keys()):
+            if is_last:
+                break
+            raise SystemExit(
+                f"refusing to resume prepass: incomplete record on line {idx + 1} in {jsonl_path}"
+            )
+        completed.append(obj)
+        valid_bytes += len(line_bytes)
+
+    if valid_bytes < len(raw):
+        with jsonl_path.open("r+b") as tfh:
+            tfh.truncate(valid_bytes)
+            tfh.flush()
+            fsync(tfh.fileno())
+    return completed
+
+
+def run_prepass(
+    *,
+    a: argparse.Namespace,
+    prompts: list[dict],
+    gold_hashes: dict[str, str],
+    bundle: dict,
+    phase_logger: PhaseLogger | None = None,
+    eval_records: list[dict] | None = None,
+    base_seed: int = PREPASS_BASE_SEED,
+    stop_after_new: int | None = None,
+    fsync: Callable[[int], None] = os.fsync,
+) -> tuple[list[dict], list[dict], dict | None, bool]:
+    """Run the rollout-only pre-pass over ``prompts`` with resume support.
+
+    Returns (timing rows, completed prepass item records, stopped record or None, oom bool).
+    Never calls optimiser, reference forward, training forward, or backward.
+    """
+    torch = require_torch()
+    tok = bundle["tok"]
+    rollout = bundle["rollout"]
+    reward_fn = bundle["reward_fn"]
+    device_sync = bundle["sync"]
+    peak_alloc_mib = bundle["peak_alloc_mib"]
+    before_step = bundle.get("before_step")
+    mode = bundle.get("mode")
+    state = bundle.get("state")
+    empty_cache_phases = bool(getattr(a, "empty_cache_phases", False))
+    cuda_mod = getattr(torch, "cuda", None)
+    empty_cache = getattr(cuda_mod, "empty_cache", lambda: None)
+    quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
+    adv_mode = str(getattr(a, "advantage", "std") or "std")
+    model_rev = (
+        bundle.get("revision")
+        if bundle.get("revision") is not None
+        else str(getattr(a, "revision", STUDENT_REVISION))
+    )
+    expected_header = build_prepass_header(
+        prompt_ids=[r["id"] for r in prompts],
+        gold_hashes=gold_hashes,
+        g=a.g,
+        max_new=a.max_new,
+        quote_reward=quote_rew,
+        seed=base_seed,
+        model_revision=model_rev,
+    )
+    a.out.mkdir(parents=True, exist_ok=True)
+    header_path = a.out / f"s2-{a.path}-prepass-header.json"
+    jsonl_path = a.out / f"s2-{a.path}-prepass.jsonl"
+    summary_path = a.out / f"s2-{a.path}-prepass-summary.json"
+
+    completed_records = _prepare_prepass_resume(header_path, jsonl_path, expected_header, fsync=fsync)
+    done_ids = {str(r["id"]) for r in completed_records}
+
+    if mode:
+        mode(False)
+    if before_step:
+        before_step(0)
+
+    eos_ids = _eos_token_ids(tok)
+    oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
+    step_rows: list[dict] = []
+    new_count = 0
+
+    with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
+        for item_idx, row in enumerate(prompts):
+            item_id = str(row["id"])
+            if item_id in done_ids:
+                continue
+            if stop_after_new is not None and new_count >= stop_after_new:
+                break
+            try:
+                started = time.time()
+                torch.manual_seed(item_seed(item_id, base_seed))
+                prompt_text = build_prompt(row)
+                ckpt_rollout = state()["grad_ckpt"] if state else None
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=0,
+                        group=item_idx,
+                        phase="pre_rollout",
+                        prompt_tokens=len(tok.encode(prompt_text)),
+                        completion_lengths=(),
+                    )
+                t0 = time.time()
+                roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
+                if len(roll_out) == 3:
+                    prompt_ids, comps, truncs = roll_out
+                    truncs = [bool(t) for t in truncs]
+                else:
+                    prompt_ids, comps = roll_out
+                    truncs = [
+                        len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
+                        for c in comps
+                    ]
+                device_sync()
+                roll_s = time.time() - t0
+                comp_lens = [len(c) for c in comps]
+                if empty_cache_phases and empty_cache is not None:
+                    empty_cache()
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=0,
+                        group=item_idx,
+                        phase="post_rollout",
+                        prompt_tokens=len(prompt_ids),
+                        completion_lengths=comp_lens,
+                    )
+                rec, rollout_outcomes = prepass_item_record(
+                    row=row,
+                    prompt_ids=prompt_ids,
+                    comps=comps,
+                    truncs=truncs,
+                    tok=tok,
+                    reward_fn=reward_fn,
+                    quote_reward=quote_rew,
+                )
+                if eval_records is not None:
+                    rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
+                    adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
+                    for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
+                        ro_item["advantage"] = float(adv_val)
+                    eval_records.append(
+                        {
+                            "step": 0,
+                            "group": item_idx,
+                            "gold": str(row.get("label", "supported")),
+                            "rollouts": rollout_outcomes,
+                        }
+                    )
+                jfh.write(json.dumps(rec) + "\n")
+                jfh.flush()
+                fsync(jfh.fileno())
+                completed_records.append(rec)
+                done_ids.add(item_id)
+                new_count += 1
+                is_zv = bool(rec["zero_variance"])
+                step_rows.append(
+                    {
+                        "step": item_idx,
+                        "groups": 1,
+                        "active_groups": int(not is_zv),
+                        "zero_variance_groups": int(is_zv),
+                        "tokens": sum(comp_lens),
+                        "rollout_s": round(roll_s, 4),
+                        "train_s": 0.0,
+                        "step_s": round(time.time() - started, 4),
+                        "mean_reward": rec["reward_mean"],
+                        "loss": 0.0,
+                        "peak_alloc_mib": (
+                            phase_logger.peak_alloc_mib()
+                            if phase_logger is not None and phase_logger.max_memory_allocated is not None
+                            else peak_alloc_mib()
+                        ),
+                        "grad_ckpt": None,
+                        "grad_ckpt_rollout": ckpt_rollout,
+                    }
+                )
+            except oom_types:
+                return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
+            except TimeoutError as exc:
+                return step_rows, completed_records, {"step": item_idx, "error": f"timeout: {exc}"}, False
+
+    if len(completed_records) == len(prompts):
+        summary_doc = prepass_summary(completed_records, g=a.g)
+        with summary_path.open("w", encoding="utf-8", newline="\n") as sfh:
+            sfh.write(json.dumps(summary_doc, indent=1) + "\n")
+            sfh.flush()
+            fsync(sfh.fileno())
+    return step_rows, completed_records, None, False
+
+
 # -- the run -------------------------------------------------------------------------------------------------
 def active_flags(a: argparse.Namespace) -> dict:
     """Return a dict of memory/probe/stress/loss/reward flags that are enabled on ``a``."""
@@ -2556,11 +3010,15 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["mask_truncated"] = True
     if getattr(a, "quote_reward", "v1") != "v1":
         flags["quote_reward"] = a.quote_reward
+    if getattr(a, "rollout_only", False):
+        flags["rollout_only"] = True
     return flags
 
 
 def is_cut(a: argparse.Namespace) -> bool:
     """Whether the run is not the registered shape: --steps, --prompts, --g or --max-new changed."""
+    if getattr(a, "rollout_only", False):
+        return a.g != G or a.max_new != MAX_NEW_TOKENS
     return a.steps != STEPS or a.prompts != PROMPTS or a.g != G or a.max_new != MAX_NEW_TOKENS
 
 
@@ -2581,9 +3039,12 @@ def execute(
         raise SystemExit(f"--stress-prefix must be >= 0, got {a.stress_prefix}")
     if getattr(a, "groups_per_update", GROUPS_PER_STEP) < 1:
         raise SystemExit(f"--groups-per-update must be >= 1, got {a.groups_per_update}")
+    rollout_only = bool(getattr(a, "rollout_only", False))
+    if rollout_only and getattr(a, "stress_prefix", 0) > 0:
+        raise SystemExit("refusing to start: --rollout-only cannot be used with --stress-prefix > 0")
 
     rows, gold_hashes = read_gold(a.gold)
-    prompts = select_prompts(rows, a.prompts)
+    prompts = select_prompts(rows, None if rollout_only else a.prompts)
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -2607,6 +3068,8 @@ def execute(
         gpu = rig.preflight()
         guard = gpu.get("guard")
     bundle = build(a)
+    if rollout_only and a.dry and bundle.get("dry_prepass_cap") is not None:
+        prompts = prompts[: int(bundle["dry_prepass_cap"])]
     phase_logger: PhaseLogger | None = None
     group_logger: GroupLogger | None = None
     try:
@@ -2631,7 +3094,7 @@ def execute(
         )
         group_logger = GroupLogger(
             a.out / f"s2-{a.path}-groups.jsonl",
-            enabled=rig is not None and not a.dry,
+            enabled=rig is not None and not a.dry and not rollout_only,
             cuda=cuda_mod,
         )
         stress_n = int(getattr(a, "stress_prefix", 0) or 0)
@@ -2644,6 +3107,7 @@ def execute(
         mask_trunc = bool(getattr(a, "mask_truncated", False))
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
         eval_records: list[dict] = []
+        prepass_records: list[dict] = []
 
         def write_eval_summary(summary_doc: dict) -> None:
             a.out.mkdir(parents=True, exist_ok=True)
@@ -2652,6 +3116,51 @@ def execute(
             )
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
+            nonlocal prepass_records
+            if rollout_only:
+                header_path = a.out / f"s2-{a.path}-prepass-header.json"
+                jsonl_path = a.out / f"s2-{a.path}-prepass.jsonl"
+                exercise_dry_resume = (
+                    a.dry
+                    and bundle.get("dry_prepass_cap") is not None
+                    and not header_path.exists()
+                    and not jsonl_path.exists()
+                    and len(prompts) >= 2
+                )
+                if exercise_dry_resume:
+                    half = len(prompts) // 2
+                    rows_p1, _, _, _ = run_prepass(
+                        a=a,
+                        prompts=prompts,
+                        gold_hashes=gold_hashes,
+                        bundle=bundle,
+                        phase_logger=phase_logger,
+                        eval_records=eval_records,
+                        stop_after_new=half,
+                    )
+                    with jsonl_path.open("a", encoding="utf-8", newline="\n") as pfh:
+                        pfh.write('{"id": "dry_partial_line"')
+                        pfh.flush()
+                    rows_p2, recs_p2, stop_p2, oom_p2 = run_prepass(
+                        a=a,
+                        prompts=prompts,
+                        gold_hashes=gold_hashes,
+                        bundle=bundle,
+                        phase_logger=phase_logger,
+                        eval_records=eval_records,
+                    )
+                    prepass_records = recs_p2
+                    return rows_p1 + rows_p2, stop_p2, oom_p2
+                rows_ro, recs_ro, stop_ro, oom_ro = run_prepass(
+                    a=a,
+                    prompts=prompts,
+                    gold_hashes=gold_hashes,
+                    bundle=bundle,
+                    phase_logger=phase_logger,
+                    eval_records=eval_records,
+                )
+                prepass_records = recs_ro
+                return rows_ro, stop_ro, oom_ro
             if stress_n > 0:
                 longest = max(
                     prompts,
@@ -2736,10 +3245,13 @@ def execute(
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
         flags_in_use = active_flags(a)
+        prepass_summary_doc = (
+            prepass_summary(prepass_records, g=a.g) if rollout_only and prepass_records else None
+        )
         result = readout(
             steps,
             peak_mib=peak,
-            steps_requested=a.steps,
+            steps_requested=len(prompts) if rollout_only else a.steps,
             stopped=stopped,
             oom=oom,
             cut=cut,
@@ -2748,8 +3260,12 @@ def execute(
             flags=flags_in_use or None,
             phase_logger=phase_logger,
             eval_summary_record=eval_summary_doc,
+            rollout_only=rollout_only,
+            items_requested=len(prompts) if rollout_only else None,
+            items_completed=len(prepass_records) if rollout_only else None,
+            prepass_summary_record=prepass_summary_doc,
         )
-        line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry)
+        line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
         env = environment(
             gpu=gpu,
             dtype="float32 (dry, CPU)" if a.dry else "bfloat16 compute on a 4-bit base",
@@ -2766,6 +3282,8 @@ def execute(
             "dry": a.dry,
             **flags_in_use,
         }
+        if rollout_only:
+            run_args["ignored_flags"] = ["prompts", "steps"]
         receipt = build_receipt(
             path=a.path,
             dry=a.dry,
@@ -2785,9 +3303,10 @@ def execute(
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )
-        (a.out / f"s2-{a.path}-steps.jsonl").write_text(
-            "".join(json.dumps(r) + "\n" for r in steps), encoding="utf-8", newline="\n"
-        )
+        if not rollout_only:
+            (a.out / f"s2-{a.path}-steps.jsonl").write_text(
+                "".join(json.dumps(r) + "\n" for r in steps), encoding="utf-8", newline="\n"
+            )
         keys = (
             "steps_completed",
             "peak_vram_mib_sampler",
@@ -2796,7 +3315,11 @@ def execute(
             "zero_variance_groups",
             "oom",
         )
-        print(json.dumps({"path": a.path, "stopped": stopped, **{k: result[k] for k in keys}}))
+        summary_out = {"path": a.path, "stopped": stopped, **{k: result[k] for k in keys}}
+        if rollout_only:
+            summary_out["items_completed"] = result["items_completed"]
+            summary_out["ignored_flags"] = result["ignored_flags"]
+        print(json.dumps(summary_out))
         print(line)
         return exit_status(line)
     finally:
@@ -2914,6 +3437,14 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("v1", "v2"),
         default="v1",
         help="quote reward schedule: 'v1' (default) or 'v2' (partial credit + span-disjoint anti-farming)",
+    )
+    ap.add_argument(
+        "--rollout-only",
+        action="store_true",
+        help=(
+            "rollout-only pre-pass over every tune item (sorted by id; --prompts and --steps are ignored): "
+            "it trains nothing and writes counts per item."
+        ),
     )
     return ap
 
