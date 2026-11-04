@@ -13,21 +13,21 @@ import random
 from collections.abc import Sequence
 from pathlib import Path
 
+PROMPTS = 32
 PROMPT_SPLIT = "tune"
 DRAW_MODES = ("first", "uniform", "kband")
 
 
-def _select_prompts(rows: list[dict], n: int | None = 32, split: str = PROMPT_SPLIT) -> list[dict]:
-    """Import and call ``s2_grpo_smoke.select_prompts(rows, n, split=split)`` directly."""
-    try:
-        from s2_grpo_smoke import select_prompts
-    except ModuleNotFoundError:  # pragma: no cover
-        import sys
-
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        from s2_grpo_smoke import select_prompts
-
-    return select_prompts(rows, n, split=split)
+def select_prompts(rows: list[dict], n: int | None = PROMPTS, split: str = PROMPT_SPLIT) -> list[dict]:
+    """The rule: the first n rows of the tune split by sorted claim id (every row when n is None)."""
+    mine = sorted((r for r in rows if r.get("split") == split), key=lambda r: r["id"])
+    if n is None:
+        if not mine:
+            raise SystemExit(f"the gold has 0 {split} claims; S2 needs at least 1")
+        return mine
+    if len(mine) < n:
+        raise SystemExit(f"the gold has {len(mine)} {split} claims; S2 needs {n}")
+    return mine[:n]
 
 
 def ids_sha256(ids: Sequence[str]) -> str:
@@ -37,6 +37,35 @@ def ids_sha256(ids: Sequence[str]) -> str:
 
 def _refuse(reason: str, detail: str) -> None:
     raise SystemExit(f"refusing draw ({reason}): {detail}")
+
+
+def _check_unused_draw_flags(
+    mode: str,
+    *,
+    seed: int | None,
+    prepass,
+    k_min: int | None,
+    k_max: int | None,
+) -> None:
+    unused: list[str] = []
+    if mode == "first" and seed is not None:
+        unused.append("--draw-seed")
+    if mode in ("first", "uniform"):
+        if isinstance(prepass, (tuple, list)) and len(prepass) == 2:
+            if prepass[0] is not None:
+                unused.append("--prepass-jsonl")
+            if prepass[1] is not None:
+                unused.append("--prepass-sha256")
+            if prepass[0] is None and prepass[1] is None:
+                unused.append("--prepass")
+        elif prepass is not None:
+            unused.append("--prepass")
+        if k_min is not None:
+            unused.append("--k-min")
+        if k_max is not None:
+            unused.append("--k-max")
+    if unused:
+        _refuse("unused_draw_flags", f"--draw {mode} cannot be used with {', '.join(unused)}")
 
 
 def _parse_prepass_spec(prepass) -> tuple[Path, str]:
@@ -126,8 +155,10 @@ def draw_prompts(
     if not isinstance(n, int) or isinstance(n, bool) or n < 1:
         _refuse("invalid_draw_n", f"n must be an integer >= 1, got {n!r}")
 
+    _check_unused_draw_flags(mode, seed=seed, prepass=prepass, k_min=k_min, k_max=k_max)
+
     if mode == "first":
-        picked = _select_prompts(rows, n, split=split)
+        picked = select_prompts(rows, n, split=split)
         picked_ids = [str(r["id"]) for r in picked]
         return picked, {
             "draw_mode": "first",
@@ -182,11 +213,16 @@ def draw_prompts(
             )
         g_values.add(g_val)
 
-    max_g = max(g_values) if g_values else 8
-    if k_min < 0 or k_max < 0 or k_min > max_g or k_max > max_g:
+    if len(g_values) > 1:
+        _refuse(
+            "prepass_mixed_g",
+            f"pre-pass records have inconsistent g values: {sorted(g_values)}",
+        )
+    g_limit = next(iter(g_values), 8)
+    if k_min < 0 or k_max < 0 or k_min > g_limit or k_max > g_limit:
         _refuse(
             "k_out_of_range",
-            f"k_min={k_min}, k_max={k_max} outside valid range [0, {max_g}]",
+            f"k_min={k_min}, k_max={k_max} outside valid range [0, {g_limit}]",
         )
     if k_min > k_max:
         _refuse("k_min_gt_k_max", f"k_min ({k_min}) > k_max ({k_max})")

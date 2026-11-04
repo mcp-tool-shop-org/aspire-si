@@ -118,18 +118,6 @@ def read_gold(gold_dir: Path) -> tuple[list[dict], dict[str, str]]:
     return rows, hashes
 
 
-def select_prompts(rows: list[dict], n: int | None = PROMPTS, split: str = PROMPT_SPLIT) -> list[dict]:
-    """The rule: the first n rows of the tune split by sorted claim id (every row when n is None)."""
-    mine = sorted((r for r in rows if r.get("split") == split), key=lambda r: r["id"])
-    if n is None:
-        if not mine:
-            raise SystemExit(f"the gold has 0 {split} claims; S2 needs at least 1")
-        return mine
-    if len(mine) < n:
-        raise SystemExit(f"the gold has {len(mine)} {split} claims; S2 needs {n}")
-    return mine[:n]
-
-
 def evidence_of(row: dict) -> str:
     return "\n".join(f"[{c.get('source', '')}]\n{c.get('text', '')}" for c in row["context"])
 
@@ -195,7 +183,7 @@ try:
         quote_is_relevant,
         strip_markers,
     )
-    from s2_draw import DRAW_MODES, draw_prompts  # noqa: F401
+    from s2_draw import DRAW_MODES, draw_prompts, select_prompts  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from quote_rule import (  # noqa: F401
@@ -212,7 +200,7 @@ except ModuleNotFoundError:  # pragma: no cover
         quote_is_relevant,
         strip_markers,
     )
-    from s2_draw import DRAW_MODES, draw_prompts  # noqa: F401
+    from s2_draw import DRAW_MODES, draw_prompts, select_prompts  # noqa: F401
 
 
 def split_reply(text: str) -> tuple[str, str]:
@@ -3149,8 +3137,24 @@ def execute(
     if rollout_only and getattr(a, "stress_prefix", 0) > 0:
         raise SystemExit("refusing to start: --rollout-only cannot be used with --stress-prefix > 0")
     draw_mode = str(getattr(a, "draw", "first") or "first")
-    if rollout_only and draw_mode != "first":
-        raise SystemExit(f"refusing to start: --rollout-only cannot be used with --draw {draw_mode}")
+    if rollout_only:
+        ro_draw_flags: list[str] = []
+        if draw_mode != "first":
+            ro_draw_flags.append(f"--draw {draw_mode}")
+        for flag, attr in (
+            ("--draw-seed", "draw_seed"),
+            ("--prepass-jsonl", "prepass_jsonl"),
+            ("--prepass-sha256", "prepass_sha256"),
+            ("--k-min", "k_min"),
+            ("--k-max", "k_max"),
+        ):
+            if getattr(a, attr, None) is not None:
+                ro_draw_flags.append(flag)
+        if ro_draw_flags:
+            joined_flags = ", ".join(ro_draw_flags)
+            raise SystemExit(
+                f"refusing to start (unused_draw_flags): --rollout-only cannot be used with {joined_flags}"
+            )
     stress_pool = str(getattr(a, "stress_pool", "selected") or "selected")
 
     rows, gold_hashes = read_gold(a.gold)
