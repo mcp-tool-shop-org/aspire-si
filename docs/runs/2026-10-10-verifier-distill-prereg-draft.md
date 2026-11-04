@@ -583,6 +583,18 @@ Ma et al. 2025, *S²R: Teaching LLMs to Self-verify and Self-correct via Reinfor
    - each item's paired residual (k_online − k_baseline)/8, reported by k band (0–5, 6–7, 8).
 
    The sign-disagreement on "supported" (a correct verdict whose quotes aren't all found can get a negative advantage) is intended by quote rule v2. It is measured in the next smoke test before anything about it is changed.
+7. **The payoff asymmetry is deliberate.**
+   - **The asymmetry:** a false "supported" scores −3.0, and a false "unsupported" on a supported claim scores −1.0.
+   - **What follows:** predicting "unsupported" has the higher expected reward whenever the model's probability that a claim is supported is below about 63–67% (63.5% with full quote credit, 66.7% without).
+   - **Why it is kept:** false accepts are the primary measure, so a confident "supported" must be earned.
+   - **The expected side-effect:** supported recall may fall on borderline items.
+   - **How it is reported:** verdict accuracy and mean reward by gold class (supported, unsupported, cannot tell) inside each pre-pass k band, so a raised threshold for "supported" is told apart from better discrimination.
+   - On gold "cannot tell", "unsupported" and "cannot tell" both count as correct (the reward table above), matching offrig's default rule, which treats "unsupported" as the safe answer on undecidable claims.
+8. **The trainer draws without replacement within each epoch** (shuffled passes over the pool). Drawing with replacement over two epochs' worth of draws would leave about 13.5% of items (e^−2) never visited in a run.
+9. **Power across 3 seeds,** for the arm comparison, paired by item (paired standard errors from the pre-pass counts):
+   - **Full pool:** a difference in verdict accuracy of at least 0.98% is significant at p < 0.05 (1.40% at 80% power).
+   - **Items at pre-pass k 1–7:** at least 2.31% (3.30% at 80% power).
+   - **The 34 cannot-tell items:** too few to resolve changes under about 5–10%.
 
 ### The worst-case training memory on the longest tune prompt, measured (2026-11-04, from smoke test S2 v6)
 
