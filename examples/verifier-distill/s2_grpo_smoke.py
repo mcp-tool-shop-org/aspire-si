@@ -1374,6 +1374,10 @@ def build_receipt(
     save_all: bool | None = None,
     save_all_sha256: str | None = None,
     save_all_off_reason: str | None = None,
+    checkpoint_sha256: str | None = None,
+    checkpoint_files_sha256: Mapping[str, str] | None = None,
+    adapter_sha256: str | None = None,
+    adapter_files_sha256: Mapping[str, str] | None = None,
 ) -> dict:
     out = {
         "test": "S2",
@@ -1413,6 +1417,14 @@ def build_receipt(
         out["save_all_sha256"] = save_all_sha256
         if not save_all and save_all_off_reason is not None:
             out["save_all_off_reason"] = save_all_off_reason
+    if checkpoint_sha256 is not None:
+        out["checkpoint_sha256"] = checkpoint_sha256
+    if checkpoint_files_sha256 is not None:
+        out["checkpoint_files_sha256"] = dict(checkpoint_files_sha256)
+    if adapter_sha256 is not None:
+        out["adapter_sha256"] = adapter_sha256
+    if adapter_files_sha256 is not None:
+        out["adapter_files_sha256"] = dict(adapter_files_sha256)
     for k in (
         "stress_pool",
         "stress_prompt_id",
@@ -2845,7 +2857,6 @@ def dry_reward(text: str, row: dict, thinking_tokens: int) -> float:
 def dry_bundle(a: argparse.Namespace) -> dict:
     """A 2-layer Llama with the real LoRA targets (q/k/v/o), random weights, on the CPU."""
     torch = require_torch()
-    from peft import LoraConfig, get_peft_model
     from transformers import LlamaConfig, LlamaForCausalLM
 
     torch.manual_seed(0)
@@ -2861,12 +2872,21 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         pad_token_id=tok.pad_token_id,
         eos_token_id=tok.eos_token_id,
     )
-    model = get_peft_model(
-        LlamaForCausalLM(cfg),
-        LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0),
+    for_pass = bool(
+        getattr(a, "rollout_only", False)
+        or getattr(a, "logging_pass", False)
+        or getattr(a, "postpass", False)
+    )
+    model, adapter_loaded, ckpt_files_sha, ckpt_sha = attach_or_load_adapter(
+        LlamaForCausalLM(cfg), getattr(a, "checkpoint", None), for_pass=for_pass
     )
     census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     params = [p for p in model.parameters() if p.requires_grad]
+    optimiser = (
+        torch.optim.AdamW(params, lr=LEARNING_RATE)
+        if params
+        else argparse.Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None)
+    )
     mode, state = make_mode(model)
     pass_att = bool(getattr(a, "attention_mask", False))
     return {
@@ -2874,7 +2894,7 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         "tok": tok,
         "mode": mode,
         "state": state,
-        "optimiser": torch.optim.AdamW(params, lr=LEARNING_RATE),
+        "optimiser": optimiser,
         "ref_adapter_off": model.disable_adapter,
         "rollout": lambda text, g, max_new, temp: hf_rollout(
             model, tok, text, g, max_new, temp, pass_attention_mask=pass_att
@@ -2886,6 +2906,9 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         "llama": None,
         "dtype_census": census,
         "dry_prepass_cap": DRY_PREPASS_ITEMS,
+        "adapter_loaded": adapter_loaded,
+        "checkpoint_sha256": ckpt_sha,
+        "checkpoint_files_sha256": ckpt_files_sha,
     }
 
 
@@ -2935,7 +2958,7 @@ class Rig:
 def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 5090 and the model
     """Qwen3-8B on a 4-bit base with a LoRA (r 16, alpha 32, q/k/v/o); path (a) samples with the same copy."""
     torch = require_torch()
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from peft import prepare_model_for_kbit_training
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
     quant = BitsAndBytesConfig(
@@ -2954,13 +2977,23 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
     )
     revision = getattr(base.config, "_commit_hash", None)
     base = prepare_model_for_kbit_training(base, use_gradient_checkpointing=True)
-    model = get_peft_model(
-        base, LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0)
+    for_pass = bool(
+        getattr(a, "rollout_only", False)
+        or getattr(a, "logging_pass", False)
+        or getattr(a, "postpass", False)
+    )
+    model, adapter_loaded, ckpt_files_sha, ckpt_sha = attach_or_load_adapter(
+        base, getattr(a, "checkpoint", None), for_pass=for_pass
     )
     census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     model.print_trainable_parameters()
     torch.cuda.reset_peak_memory_stats()
-    optimiser = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=LEARNING_RATE)
+    params = [p for p in model.parameters() if p.requires_grad]
+    optimiser = (
+        torch.optim.AdamW(params, lr=LEARNING_RATE)
+        if params
+        else argparse.Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None)
+    )
 
     def render(text: str) -> str:
         return tok.apply_chat_template(
@@ -2994,6 +3027,9 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         "revision": revision,
         "llama": None,
         "dtype_census": census,
+        "adapter_loaded": adapter_loaded,
+        "checkpoint_sha256": ckpt_sha,
+        "checkpoint_files_sha256": ckpt_files_sha,
     }
     if a.path == "hf":
         # generation runs with checkpointing off and the cache on, and training with it on: run_steps switches
@@ -3336,8 +3372,8 @@ def k_band_name(k_correct: int) -> str:
     return "8"
 
 
-def checkpoint_sha256(checkpoint_path: Path | None) -> str | None:
-    """Return a deterministic sha256 digest of a checkpoint file or directory, or None when omitted."""
+def checkpoint_file_shas(checkpoint_path: Path | None) -> dict[str, str] | None:
+    """Return a sorted ``{rel_posix_path: sha256}`` map for every file in ``checkpoint_path``, or None."""
     if checkpoint_path is None:
         return None
     cp = Path(checkpoint_path)
@@ -3346,16 +3382,61 @@ def checkpoint_sha256(checkpoint_path: Path | None) -> str | None:
             f"refusing to start (checkpoint_missing): checkpoint does not exist: {cp.name}"
         )
     if cp.is_file():
-        return hashlib.sha256(cp.read_bytes()).hexdigest()
+        return {cp.name: hashlib.sha256(cp.read_bytes()).hexdigest()}
     files = sorted(p for p in cp.rglob("*") if p.is_file())
     if not files:
         raise SystemExit(
             f"refusing to start (checkpoint_empty): checkpoint directory has no files: {cp.name}"
         )
-    entries = [
-        f"{p.relative_to(cp).as_posix()}:{hashlib.sha256(p.read_bytes()).hexdigest()}" for p in files
-    ]
+    return {
+        p.relative_to(cp).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in files
+    }
+
+
+def checkpoint_sha256(checkpoint_path: Path | None) -> str | None:
+    """Return a deterministic sha256 digest of a checkpoint file or directory, or None when omitted."""
+    file_shas = checkpoint_file_shas(checkpoint_path)
+    if file_shas is None:
+        return None
+    cp = Path(checkpoint_path)
+    if cp.is_file():
+        return next(iter(file_shas.values()))
+    entries = [f"{rel}:{sha}" for rel, sha in file_shas.items()]
     return hashlib.sha256("\n".join(entries).encode("utf-8")).hexdigest()
+
+
+def attach_or_load_adapter(
+    base,
+    checkpoint_path: Path | None,
+    *,
+    for_pass: bool = False,
+) -> tuple[Any, bool, dict[str, str] | None, str | None]:
+    """Attach a fresh LoRA adapter or load an existing PEFT checkpoint into ``base``."""
+    from peft import LoraConfig, PeftModel, get_peft_model
+
+    if checkpoint_path is None:
+        model = get_peft_model(
+            base,
+            LoraConfig(
+                r=LORA_R,
+                lora_alpha=LORA_ALPHA,
+                target_modules=list(LORA_TARGETS),
+                lora_dropout=0.0,
+            ),
+        )
+        return model, False, None, None
+    cp = Path(checkpoint_path)
+    files_sha = checkpoint_file_shas(cp)
+    combined_sha = checkpoint_sha256(cp)
+    try:
+        model = PeftModel.from_pretrained(base, str(cp), is_trainable=not for_pass)
+    except Exception as exc:
+        raise SystemExit(
+            f"refusing to start (checkpoint_adapter_not_loaded): "
+            f"failed to load adapter from {cp.name}: {exc}"
+        ) from exc
+    return model, True, files_sha, combined_sha
 
 
 def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str | None]:
@@ -3402,6 +3483,11 @@ def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str
                 f"post-pass for a trained checkpoint refuses seed {eff_seed} "
                 f"(seeds 0 and 1 are reserved for pre-pass and starting-policy logging pass)"
             )
+        if postpass and ckpt_path is None:
+            raise SystemExit(
+                "refusing to start (postpass_requires_checkpoint): "
+                "--postpass requires --checkpoint"
+            )
         descriptive = False
     else:
         eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
@@ -3425,6 +3511,7 @@ def build_prepass_header(
     save_all: bool = True,
     descriptive: bool = False,
     checkpoint_sha: str | None = None,
+    checkpoint_files_sha: Mapping[str, str] | None = None,
     pass_a_sha: str | None = None,
 ) -> dict:
     hdr: dict = {
@@ -3444,6 +3531,8 @@ def build_prepass_header(
         hdr["descriptive"] = True
     if checkpoint_sha is not None:
         hdr["checkpoint_sha256"] = checkpoint_sha
+    if checkpoint_files_sha is not None:
+        hdr["checkpoint_files_sha256"] = dict(checkpoint_files_sha)
     if pass_a_sha is not None:
         hdr["pass_a_sha256"] = pass_a_sha
     return hdr
@@ -3775,6 +3864,7 @@ def prepass_summary(
     descriptive: bool = False,
     pass_a_k: dict[str, int] | None = None,
     checkpoint_sha: str | None = None,
+    checkpoint_files_sha: Mapping[str, str] | None = None,
 ) -> dict:
     """Summary of a rollout-only pre-pass: counts, histograms (0..G), per-band truncations, and ratios."""
     n = len(records)
@@ -3839,6 +3929,8 @@ def prepass_summary(
         out["descriptive"] = True
     if checkpoint_sha is not None:
         out["checkpoint_sha256"] = checkpoint_sha
+    if checkpoint_files_sha is not None:
+        out["checkpoint_files_sha256"] = dict(checkpoint_files_sha)
     return out
 
 
@@ -3931,6 +4023,7 @@ def run_prepass(
     stop_after_new: int | None = None,
     descriptive: bool = False,
     checkpoint_sha: str | None = None,
+    checkpoint_files_sha: Mapping[str, str] | None = None,
     pass_a_k: dict[str, int] | None = None,
     pass_a_sha: str | None = None,
     fsync: Callable[[int], None] = os.fsync,
@@ -3983,6 +4076,7 @@ def run_prepass(
         save_all=save_all_on,
         descriptive=descriptive,
         checkpoint_sha=checkpoint_sha,
+        checkpoint_files_sha=checkpoint_files_sha,
         pass_a_sha=pass_a_sha,
     )
     a.out.mkdir(parents=True, exist_ok=True)
@@ -4135,6 +4229,7 @@ def run_prepass(
             descriptive=descriptive,
             pass_a_k=pass_a_k,
             checkpoint_sha=checkpoint_sha,
+            checkpoint_files_sha=checkpoint_files_sha,
         )
         with summary_path.open("w", encoding="utf-8", newline="\n") as sfh:
             sfh.write(json.dumps(summary_doc, indent=1) + "\n")
@@ -4367,6 +4462,7 @@ def execute(
         configure_alloc_conf(a.alloc_conf)
     save_all_on, save_all_reason = validate_save_all_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
+    ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
     require_frozen = bool(getattr(a, "require_frozen_stack", False))
     if frozen_pip_freeze is not None or require_frozen:
@@ -4493,6 +4589,12 @@ def execute(
         gpu = rig.preflight()
         guard = gpu.get("guard")
     bundle = build(a)
+    if bool(getattr(a, "postpass", False)) or getattr(a, "checkpoint", None) is not None:
+        if not bundle.get("adapter_loaded"):
+            raise SystemExit(
+                "refusing to start (checkpoint_adapter_not_loaded): "
+                "--postpass / --checkpoint requires the adapter to be loaded into the model"
+            )
     if rollout_only and a.dry and bundle.get("dry_prepass_cap") is not None:
         prompts = prompts[: int(bundle["dry_prepass_cap"])]
     phase_logger: PhaseLogger | None = None
@@ -4571,6 +4673,7 @@ def execute(
                         stop_after_new=half,
                         descriptive=descriptive_pass,
                         checkpoint_sha=ckpt_sha,
+                        checkpoint_files_sha=ckpt_files_sha,
                         pass_a_k=pass_a_k,
                         pass_a_sha=pass_a_sha,
                     )
@@ -4587,6 +4690,7 @@ def execute(
                         base_seed=prepass_seed_val,
                         descriptive=descriptive_pass,
                         checkpoint_sha=ckpt_sha,
+                        checkpoint_files_sha=ckpt_files_sha,
                         pass_a_k=pass_a_k,
                         pass_a_sha=pass_a_sha,
                     )
@@ -4602,6 +4706,7 @@ def execute(
                     base_seed=prepass_seed_val,
                     descriptive=descriptive_pass,
                     checkpoint_sha=ckpt_sha,
+                    checkpoint_files_sha=ckpt_files_sha,
                     pass_a_k=pass_a_k,
                     pass_a_sha=pass_a_sha,
                 )
@@ -4728,6 +4833,7 @@ def execute(
                 descriptive=descriptive_pass,
                 pass_a_k=pass_a_k,
                 checkpoint_sha=ckpt_sha,
+                checkpoint_files_sha=ckpt_files_sha,
             )
             if rollout_only and prepass_records
             else None
@@ -4773,6 +4879,15 @@ def execute(
         }
         if rollout_only:
             run_args["ignored_flags"] = ["prompts", "steps"]
+        a.out.mkdir(parents=True, exist_ok=True)
+        adapter_sha: str | None = None
+        adapter_files_sha: dict[str, str] | None = None
+        if not rollout_only and callable(getattr(bundle.get("model"), "save_pretrained", None)):
+            adapter_dir = a.out / "adapter"
+            adapter_dir.mkdir(parents=True, exist_ok=True)
+            bundle["model"].save_pretrained(str(adapter_dir))
+            adapter_files_sha = checkpoint_file_shas(adapter_dir)
+            adapter_sha = checkpoint_sha256(adapter_dir)
         receipt = build_receipt(
             path=a.path,
             dry=a.dry,
@@ -4790,8 +4905,11 @@ def execute(
             save_all=save_all_on,
             save_all_sha256=save_all_sha,
             save_all_off_reason=save_all_reason,
+            checkpoint_sha256=ckpt_sha,
+            checkpoint_files_sha256=ckpt_files_sha,
+            adapter_sha256=adapter_sha,
+            adapter_files_sha256=adapter_files_sha,
         )
-        a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )

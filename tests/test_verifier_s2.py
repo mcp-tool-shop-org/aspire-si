@@ -8844,6 +8844,7 @@ class TestLoggingPassAndPostpass:
                 "revision": "rev_pass_test",
                 "llama": None,
                 "dtype_census": None,
+                "adapter_loaded": getattr(_args_ns, "checkpoint", None) is not None,
             }
 
         # 1. Run starting-policy --logging-pass (uses seed 1, sets descriptive: true)
@@ -10137,6 +10138,170 @@ class TestInterviewAndTagging:
             assert "model" not in row
             assert "item_id" not in row
             assert row["blind_source_code"].startswith("BLIND_")
+
+
+class TestFix1Items:
+    @needs_torch
+    def test_item_01_load_checkpoint_into_peft_model(self, tmp_path: Path) -> None:
+        import torch
+
+        assert hasattr(s2, "attach_or_load_adapter")
+        gold_dir = _prepass_gold(tmp_path / "gold")
+
+        # 1. Build a dry PEFT model, perturb its LoRA weights, and save the adapter to ckpt_dir
+        a_init = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "init_out"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+            ]
+        )
+        b_init = s2.dry_bundle(a_init)
+        assert b_init["adapter_loaded"] is False
+        assert b_init["checkpoint_sha256"] is None
+        assert b_init["checkpoint_files_sha256"] is None
+        with torch.no_grad():
+            for name, p in b_init["model"].named_parameters():
+                if "lora_" in name:
+                    p.fill_(0.125)
+        ckpt_dir = tmp_path / "saved_lora_ckpt"
+        b_init["model"].save_pretrained(str(ckpt_dir))
+
+        # 2. Load the saved adapter via dry_bundle in --postpass mode and verify weights + file shas
+        a_post = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "post_out"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+            ]
+        )
+        b_loaded = s2.dry_bundle(a_post)
+        assert b_loaded["adapter_loaded"] is True
+        assert b_loaded["checkpoint_sha256"] == s2.checkpoint_sha256(ckpt_dir)
+        assert b_loaded["checkpoint_files_sha256"] == s2.checkpoint_file_shas(ckpt_dir)
+        assert all(not p.requires_grad for p in b_loaded["model"].parameters())
+        lora_b_vals = [
+            float(p.abs().mean().item())
+            for name, p in b_loaded["model"].named_parameters()
+            if "lora_B" in name
+        ]
+        assert lora_b_vals and all(abs(v - 0.125) < 1e-5 for v in lora_b_vals)
+
+        # 3. Refuse --postpass without --checkpoint (postpass_requires_checkpoint)
+        a_no_ckpt = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "no_ckpt"),
+                "--rnd-commit",
+                "deadbee",
+                "--postpass",
+                "--pass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="postpass_requires_checkpoint"):
+            s2.validate_pass_mode_args(a_no_ckpt)
+
+        # 4. Refuse corrupt/unloaded adapter in attach_or_load_adapter and in execute
+        bad_ckpt = tmp_path / "bad_ckpt"
+        bad_ckpt.mkdir(parents=True, exist_ok=True)
+        (bad_ckpt / "not_an_adapter.txt").write_text("corrupt\n", encoding="utf-8")
+        a_bad = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "bad_out"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--checkpoint",
+                str(bad_ckpt),
+                "--pass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            s2.dry_bundle(a_bad)
+
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            s2.execute(a_post, build=lambda _a: {**b_init, "adapter_loaded": False})
+
+    @needs_torch
+    def test_item_02_save_adapter_at_end_of_training(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        out_dir = tmp_path / "train_save_adapter"
+        a = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(out_dir),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "1",
+                "--g",
+                "2",
+            ]
+        )
+        assert s2.execute(a, build=s2.dry_bundle) == 0
+        adapter_dir = out_dir / "adapter"
+        assert adapter_dir.is_dir()
+        receipt = json.loads((out_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["adapter_sha256"] == s2.checkpoint_sha256(adapter_dir)
+        assert receipt["adapter_files_sha256"] == s2.checkpoint_file_shas(adapter_dir)
+
+        # Verify the saved adapter can be loaded into a subsequent --postpass run
+        post_out = tmp_path / "post_from_saved"
+        a_post = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(post_out),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(adapter_dir),
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+            ]
+        )
+        assert s2.execute(a_post, build=s2.dry_bundle) == 0
+        post_hdr = json.loads((post_out / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        post_sum = json.loads((post_out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        post_rec = json.loads((post_out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert post_hdr["checkpoint_sha256"] == receipt["adapter_sha256"]
+        assert post_hdr["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+        assert post_sum["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+        assert post_rec["checkpoint_sha256"] == receipt["adapter_sha256"]
+        assert post_rec["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+
 
 
 
