@@ -10494,6 +10494,7 @@ class TestFix1Items:
     @needs_torch
     def test_item_06_guard_halts_before_optimiser_step_and_records_all_groups_in_step(self) -> None:
         from contextlib import nullcontext
+
         import torch
 
         class _TinyModel(torch.nn.Module):
@@ -10564,6 +10565,7 @@ class TestFix1Items:
     @needs_torch
     def test_item_07_guard_computes_ct_pos_adv_on_unclamped_advantages(self) -> None:
         from contextlib import nullcontext
+
         import torch
 
         class _TinyModel(torch.nn.Module):
@@ -10940,6 +10942,7 @@ class TestFix1Items:
     def test_item_13_interview_seed_uses_item_id_and_question_id_only(self):
         import hashlib
         import inspect
+
         import s2_interview as s2i
 
         s_base = s2i.interview_seed("item_42", "Q1", base_seed=7)
@@ -11196,6 +11199,160 @@ class TestFix1Items:
         # supported recall is 1/2 = 0.5 (unparsed counts in denominator), unsupported recall is 1/1 = 1.0 -> bal_acc = 0.75
         assert summary["decidable_supported_acc"] == pytest.approx(0.5)
         assert summary["balanced_accuracy"] == pytest.approx(0.75)
+
+    @needs_torch
+    def test_item_21_tagger_tags_q2_requires_turn1_thinking_truly_empty_controls_and_hash_only_tags_jsonl(
+        self, tmp_path
+    ):
+        import s2_interview as s2i
+        import s2_interview_tag as s2t
+
+        # 1. All 15 empty_thinking controls must have truly empty thinking (thinking.strip() == "")
+        controls = s2t.build_judge_controls([])
+        assert len(controls["empty_thinking"]) == 15
+        assert all(c["thinking"].strip() == "" for c in controls["empty_thinking"])
+
+        # 2. InterviewModelRunner.ask_question stores turn1_thinking on non-cold records
+        model, tok = s2i.build_cpu_qwen3_stub()
+        runner = s2i.InterviewModelRunner(model, tok)
+        row = _row("tag_item_1", claim="The cache size is 16 MB.", text="A local cache is configured.")
+        t1 = (
+            "<think>Original Turn-1 secret thinking about 16 MB cache size.</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "size missing",
+                    "evidence_quotes": [{"part": "cache size is 16 MB", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        q2_turn = runner.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q2",
+            policy="baseline",
+            base_seed=5,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert q2_turn.get("turn1_thinking") == "Original Turn-1 secret thinking about 16 MB cache size."
+
+        # 3. build_tagging_prompt compares Turn 1 thinking against Turn 2 Q2 answer
+        prompt_str = s2t.build_tagging_prompt("turn 1 trace", "Q2 missing fact answer")
+        assert "Turn 1 <think>" in prompt_str
+        assert "Turn 2 Q2 answer" in prompt_str
+
+        def accurate_judge(thinking: str, q2_answer: str) -> dict[str, str]:
+            t_clean = thinking.strip()
+            if not t_clean:
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if (
+                t_clean in q2_answer
+                or (
+                    "release date" in t_clean
+                    and "release date" in q2_answer
+                    and t_clean.split()[-1].rstrip(".") in q2_answer
+                )
+            ):
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        # 4. Refuses when turn1_thinking is missing (never falls back to Turn 2's thinking)
+        with pytest.raises(SystemExit, match="missing_turn1_thinking"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=[
+                    {
+                        "item_id": "bad_1",
+                        "policy": "baseline",
+                        "question_id": "Q2",
+                        "thinking": "Turn 2 thinking only",
+                        "answer": "MISSING_FACT: x",
+                    }
+                ],
+                judge_a_name="llama-3.3-70b",
+                judge_b_name="mistral-large",
+                judge_a_fn=accurate_judge,
+                judge_b_fn=accurate_judge,
+                out_dir=tmp_path / "bad_no_t1",
+                controls=controls,
+            )
+
+        with pytest.raises(SystemExit, match="missing_turn1_thinking"):
+            s2t.export_blinded_human_audit(
+                [{"item_id": "bad_1", "policy": "baseline", "q2_answer": "x"}],
+                tmp_path / "bad_audit",
+            )
+
+        with pytest.raises(SystemExit, match="missing_q2_records"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=[
+                    {
+                        "item_id": "only_q1",
+                        "policy": "baseline",
+                        "question_id": "Q1",
+                        "turn1_thinking": "trace",
+                        "answer": "part",
+                    }
+                ],
+                judge_a_name="llama-3.3-70b",
+                judge_b_name="mistral-large",
+                judge_a_fn=accurate_judge,
+                judge_b_fn=accurate_judge,
+                out_dir=tmp_path / "bad_no_q2",
+                controls=controls,
+            )
+
+        # 5. Tags Q2 records (filtering out Q1/cold records when passed a mixed save-all list)
+        # and writes ONLY ids, tags, token counts, and sha256 hashes (no raw text) to s2-interview-tags.jsonl
+        mixed_records = [
+            {
+                "item_id": "item_01",
+                "policy": "baseline",
+                "question_id": "Q1",
+                "turn1_thinking": "RAW_TURN1_THINKING_SECRET_TEXT",
+                "answer": "RAW_Q1_ANSWER_SHOULD_NOT_BE_TAGGED",
+                "original_turn1_thinking_tokens": 12,
+            },
+            {
+                "item_id": "item_01",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "turn1_thinking": "RAW_TURN1_THINKING_SECRET_TEXT",
+                "answer": "As noted in the reasoning, RAW_TURN1_THINKING_SECRET_TEXT\nMISSING_FACT: fact",
+                "original_turn1_thinking_tokens": 12,
+            },
+            {
+                "item_id": "item_01",
+                "policy": "cold_control:baseline",
+                "question_id": "Q2",
+                "cold_control": True,
+                "turn1_thinking": None,
+                "answer": "COLD_Q2_SHOULD_BE_SKIPPED",
+                "original_turn1_thinking_tokens": 0,
+            },
+        ]
+        out_ok = tmp_path / "tag_ok"
+        res = s2t.run_two_judge_tagging(
+            interview_q2_records=mixed_records,
+            judge_a_name="llama-3.3-70b",
+            judge_b_name="mistral-large",
+            judge_a_fn=accurate_judge,
+            judge_b_fn=accurate_judge,
+            out_dir=out_ok,
+            controls=controls,
+        )
+        assert res["tagged_question_id"] == "Q2"
+        assert res["agreement_missing_element_match"]["n"] == 1
+        tags_raw = (out_ok / "s2-interview-tags.jsonl").read_text(encoding="utf-8")
+        assert "RAW_TURN1_THINKING_SECRET_TEXT" not in tags_raw
+        assert "MISSING_FACT: fact" not in tags_raw
+        tag_row = json.loads(tags_raw.splitlines()[0])
+        assert tag_row["question_id"] == "Q2"
+        assert "turn1_thinking_sha256" in tag_row
+        assert "q2_answer_sha256" in tag_row
+        assert "turn1_thinking" not in tag_row
+        assert "q1_answer" not in tag_row
+        assert "q2_answer" not in tag_row
 
 
 

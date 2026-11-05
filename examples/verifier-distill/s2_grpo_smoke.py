@@ -4050,15 +4050,18 @@ def _load_verified_pass_entry(entry: Mapping[str, Any], role: str) -> tuple[list
 
 
 def run_paired_estimators_from_spec(spec_path: Path, out_dir: Path) -> dict[str, Any]:
-    """Read Pass A, Pass B, and seed post-pass pairs from ``spec_path`` and write ``s2-paired-estimators.json``."""
+    """Read Pass A, Pass B, and seed post-pass pairs from ``spec_path`` and write estimator report."""
     spath = Path(spec_path)
     if not spath.is_file():
         raise SystemExit(
-            f"refusing paired estimators (paired_estimator_missing_spec): spec file does not exist: {spath.name}"
+            f"refusing paired estimators (paired_estimator_missing_spec): "
+            f"spec file does not exist: {spath.name}"
         )
     spec = json.loads(spath.read_text(encoding="utf-8"))
     if not isinstance(spec, dict):
-        raise SystemExit("refusing paired estimators (paired_estimator_invalid_spec): spec must be a JSON object")
+        raise SystemExit(
+            "refusing paired estimators (paired_estimator_invalid_spec): spec must be a JSON object"
+        )
     if "pass_a" not in spec or "pass_b" not in spec or "seed_postpasses" not in spec:
         raise SystemExit(
             "refusing paired estimators (paired_estimator_invalid_spec): "
@@ -4821,11 +4824,12 @@ def execute(
         )
         hold_frac = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
         hold_seed_raw = getattr(a, "holdout_seed", None)
-        hold_seed = (
-            str(hold_seed_raw)
-            if (hold_seed_raw is not None and not isinstance(hold_seed_raw, bool) and str(hold_seed_raw).strip())
-            else None
+        hold_seed_valid = (
+            hold_seed_raw is not None
+            and not isinstance(hold_seed_raw, bool)
+            and str(hold_seed_raw).strip()
         )
+        hold_seed = str(hold_seed_raw) if hold_seed_valid else None
         if draw_mode == "class_stratified":
             total_groups_needed = int(a.steps) * int(
                 getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP
@@ -4835,7 +4839,8 @@ def execute(
             elif int(a.prompts) < total_groups_needed:
                 raise SystemExit(
                     f"refusing to start (prompts_smaller_than_total_groups): "
-                    f"--draw class_stratified requires --prompts ({a.prompts}) >= steps * groups_per_update ({total_groups_needed})"
+                    f"--draw class_stratified requires --prompts ({a.prompts}) >= "
+                    f"steps * groups_per_update ({total_groups_needed})"
                 )
         if getattr(a, "holdout", False):
             hold_spec = prepass_spec or (
@@ -4903,7 +4908,8 @@ def execute(
     if getattr(a, "ct_guard", False) and not pass_a_k:
         raise SystemExit(
             "refusing to start (ct_guard_requires_pass_a_k): "
-            "--ct-guard requires Pass-A k_correct (--pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256)"
+            "--ct-guard requires Pass-A k_correct "
+            "(--pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256)"
         )
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:

@@ -2,18 +2,19 @@
 
 Implements the descriptive tagging layer of DESIGN-ct-interview-v2-2026-11-05.md:
 - Two non-Qwen judges (refusing any judge whose name contains 'qwen', case-insensitive).
-- Tags Q1 and <think> on:
+- Tags Turn 2 Q2's answer against the original Turn 1 <think> trace on:
   - missing_element_match: 'same' | 'different' | 'none'
   - reason_type: 'lacks' | 'conflicts' | 'generic_or_none'
+- Requires explicit ``turn1_thinking`` on every record (never falls back to Turn 2's own thinking).
 - Positive and negative judge controls:
   - 30 shuffled pairs (expect 'different')
   - 30 verbatim positives (expect 'same')
-  - 15 empty-thinking controls (expect 'none')
+  - 15 empty-thinking controls with truly empty thinking (expect 'none')
   - Gated at >= 90% (0.90) accuracy on each control set.
 - Inter-judge agreement: raw agreement, Cohen's kappa, and Gwet's AC1.
 - 30-item blinded human audit export (10 disagreements + 20 stratified by label, model identifiers
   replaced with blind codes and separate key file).
-- Original thinking token length confound log.
+- Hash-only ``s2-interview-tags.jsonl`` (ids, tags, token counts, and sha256 hashes only; no raw text).
 """
 
 from __future__ import annotations
@@ -70,6 +71,42 @@ def validate_tag_record(tag: Mapping[str, Any]) -> dict[str, str]:
 
 
 # -- Positive and negative judge controls (30 shuffled, 30 verbatim, 15 empty-thinking) ----------------------
+def build_tagging_prompt(turn1_thinking: str, q2_answer: str) -> str:
+    """Build the judge prompt comparing the original Turn 1 ``<think>`` trace against Turn 2 Q2's answer."""
+    return (
+        "Compare the verifier's original Turn 1 <think> trace against its Turn 2 Q2 answer "
+        "(which states why the evidence was insufficient and names MISSING_FACT).\n\n"
+        f"Original Turn 1 <think>:\n{turn1_thinking}\n\n"
+        f"Turn 2 Q2 answer:\n{q2_answer}\n\n"
+        "Respond with JSON: "
+        '{"missing_element_match": "same" | "different" | "none", '
+        '"reason_type": "lacks" | "conflicts" | "generic_or_none"}'
+    )
+
+
+def extract_interview_q2_records(
+    interview_records: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Select non-cold Turn 2 ``Q2`` records for two-judge tagging against ``turn1_thinking``."""
+    has_qid = any("question_id" in r for r in interview_records)
+    selected: list[dict[str, Any]] = []
+    for r in interview_records:
+        if r.get("cold_control") is True or str(r.get("policy", "")).startswith("cold_control"):
+            continue
+        if has_qid and r.get("question_id") != "Q2":
+            continue
+        rec_copy = dict(r)
+        if "q2_answer" not in rec_copy:
+            rec_copy["q2_answer"] = str(rec_copy.get("answer", rec_copy.get("q1_answer", "")))
+        selected.append(rec_copy)
+    if has_qid and not selected and interview_records:
+        raise SystemExit(
+            "refusing interview tagging (missing_q2_records): "
+            "interview tagging requires Q2 turn records, but none were found"
+        )
+    return selected
+
+
 def build_judge_controls(
     items: Sequence[Mapping[str, Any]],
     *,
@@ -79,22 +116,31 @@ def build_judge_controls(
     n_empty: int = 15,
 ) -> dict[str, list[dict[str, Any]]]:
     """Construct the pre-registered positive and negative judge control sets:
-    - ``shuffled`` (30): Turn 2 answer paired with a different item's ``<think>`` -> expect ``different``.
-    - ``verbatim`` (30): ``<think>`` missing-element sentence + faithful paraphrase -> expect ``same``.
-    - ``empty_thinking`` (15): empty or generic boilerplate ``<think>`` trace -> expect ``none``.
+    - ``shuffled`` (30): Q2 answer paired with a different item's Turn 1 ``<think>`` -> ``different``.
+    - ``verbatim`` (30): Turn 1 ``<think>`` missing-element sentence + Q2 paraphrase -> ``same``.
+    - ``empty_thinking`` (15): truly empty ``<think>`` trace -> expect ``none``.
     """
     rng = random.Random(seed)
-    pool = [
-        dict(x)
-        for x in items
-        if str(x.get("thinking", "")).strip() and str(x.get("q1_answer", "")).strip()
-    ]
+    pool: list[dict[str, Any]] = []
+    for x in items:
+        t_val = str(x.get("turn1_thinking", x.get("thinking", ""))).strip()
+        a_val = str(x.get("q2_answer", x.get("q1_answer", x.get("answer", "")))).strip()
+        if t_val and a_val:
+            pool.append(
+                {
+                    "item_id": x.get("item_id"),
+                    "thinking": t_val,
+                    "q2_answer": a_val,
+                    "q1_answer": a_val,
+                }
+            )
     if len(pool) < 2:
         # Synthesize distinct base items if fewer than 2 items are provided
         pool = [
             {
                 "item_id": f"ctrl_src_{i:03d}",
                 "thinking": f"The passage does not state the release date for module {i} in version {i}.",
+                "q2_answer": f"The evidence lacks the specific release date for module {i}.",
                 "q1_answer": f"The evidence lacks the specific release date for module {i}.",
             }
             for i in range(max(n_shuffled, n_verbatim, 4))
@@ -112,12 +158,14 @@ def build_judge_controls(
             "item_id": f"other_{idx}",
             "thinking": f"Unrelated thinking trace about topic {idx + 1000}.",
         }
+        ans_a = str(src_a["q2_answer"])
         shuffled_controls.append(
             {
                 "control_id": f"ctrl_shuffled_{idx:02d}",
                 "control_type": "shuffled",
                 "thinking": str(src_b["thinking"]),
-                "q1_answer": str(src_a["q1_answer"]),
+                "q2_answer": ans_a,
+                "q1_answer": ans_a,
                 "expected_missing_element_match": "different",
             }
         )
@@ -126,32 +174,29 @@ def build_judge_controls(
     for idx in range(n_verbatim):
         src = pool[idx % len(pool)]
         think_txt = str(src["thinking"]).strip()
+        verb_ans = f"As noted in the reasoning, {think_txt}\nMISSING_FACT: {think_txt}"
         verbatim_controls.append(
             {
                 "control_id": f"ctrl_verbatim_{idx:02d}",
                 "control_type": "verbatim",
                 "thinking": think_txt,
-                "q1_answer": f"As noted in the reasoning, {think_txt}",
+                "q2_answer": verb_ans,
+                "q1_answer": verb_ans,
                 "expected_missing_element_match": "same",
             }
         )
 
-    empty_templates = (
-        "",
-        "   ",
-        "Let me check the evidence carefully. There is not enough information to decide.",
-        "I am not sure whether the claim holds given the text above.",
-        "Cannot tell from the provided context.",
-    )
     empty_controls: list[dict[str, Any]] = []
     for idx in range(n_empty):
         src = pool[idx % len(pool)]
+        ans_src = str(src["q2_answer"])
         empty_controls.append(
             {
                 "control_id": f"ctrl_empty_{idx:02d}",
                 "control_type": "empty_thinking",
-                "thinking": empty_templates[idx % len(empty_templates)],
-                "q1_answer": str(src["q1_answer"]),
+                "thinking": "",
+                "q2_answer": ans_src,
+                "q1_answer": ans_src,
                 "expected_missing_element_match": "none",
             }
         )
@@ -170,7 +215,7 @@ def evaluate_judge_controls(
     min_accuracy: float = CONTROL_GATE_MIN_ACCURACY,
     enforce_gate: bool = True,
 ) -> dict[str, Any]:
-    """Run ``judge_fn(thinking, q1_answer)`` over the 3 control sets and gate at ``>= min_accuracy``."""
+    """Run ``judge_fn(thinking, q2_answer)`` over the 3 control sets and gate at ``>= min_accuracy``."""
     accuracies: dict[str, float] = {}
     counts: dict[str, dict[str, int]] = {}
     failed_sets: list[str] = []
@@ -181,7 +226,8 @@ def evaluate_judge_controls(
             raise ValueError(f"Control set {set_name!r} is empty")
         correct = 0
         for item in ctrl_list:
-            pred = validate_tag_record(judge_fn(str(item["thinking"]), str(item["q1_answer"])))
+            ans_txt = str(item.get("q2_answer", item.get("q1_answer", "")))
+            pred = validate_tag_record(judge_fn(str(item["thinking"]), ans_txt))
             if pred["missing_element_match"] == item["expected_missing_element_match"]:
                 correct += 1
         acc = correct / float(len(ctrl_list))
@@ -372,11 +418,17 @@ def export_blinded_human_audit(
         blind_hash = hashlib.sha256(f"{seed}:{audit_id}:{raw_id}:{raw_pol}".encode()).hexdigest()[:12]
         blind_code = f"BLIND_{blind_hash}"
 
+        if "turn1_thinking" not in rec or rec.get("turn1_thinking") is None:
+            raise SystemExit(
+                f"refusing blinded audit export (missing_turn1_thinking): "
+                f"item {raw_id!r} is missing required turn1_thinking"
+            )
+        q2_txt = str(rec.get("q2_answer", rec.get("q1_answer", rec.get("answer", ""))))
         blinded_row = {
             "audit_id": audit_id,
             "blind_source_code": blind_code,
-            "thinking": str(rec.get("turn1_thinking", rec.get("thinking", ""))),
-            "q1_answer": str(rec.get("q1_answer", rec.get("answer", ""))),
+            "thinking": str(rec["turn1_thinking"]),
+            "q2_answer": q2_txt,
             "original_turn1_thinking_tokens": int(rec.get("original_turn1_thinking_tokens", 0)),
         }
         assert not any(k in blinded_row for k in _FORBIDDEN_AUDIT_KEYS)
@@ -424,7 +476,8 @@ def export_blinded_human_audit(
 # -- Full two-judge tagging pipeline -------------------------------------------------------------------------
 def run_two_judge_tagging(
     *,
-    interview_q1_records: Sequence[Mapping[str, Any]],
+    interview_q2_records: Sequence[Mapping[str, Any]] | None = None,
+    interview_q1_records: Sequence[Mapping[str, Any]] | None = None,
     judge_a_name: str,
     judge_b_name: str,
     judge_a_fn: Callable[[str, str], Mapping[str, Any]],
@@ -434,15 +487,29 @@ def run_two_judge_tagging(
     min_control_accuracy: float = CONTROL_GATE_MIN_ACCURACY,
     audit_seed: int = 20261105,
 ) -> dict[str, Any]:
-    """Validate two non-Qwen judges on the 3 control sets (>=90% gate), tag all Q1 records,
-    compute raw agreement + Cohen's kappa + Gwet's AC1, log thinking-length confound, and export
-    the 30-item blinded human audit sample.
+    """Validate two non-Qwen judges on the 3 control sets (>=90% gate), tag all Q2 records against
+    ``turn1_thinking`` (requiring ``turn1_thinking`` with no fallback to Turn 2's thinking),
+    compute raw agreement + Cohen's kappa + Gwet's AC1, log thinking-length confound, export
+    the 30-item blinded human audit sample, and write hash-only ``s2-interview-tags.jsonl``.
     """
+    raw_input = interview_q2_records if interview_q2_records is not None else interview_q1_records
+    if raw_input is None:
+        raise ValueError("interview_q2_records is required")
+    q2_records = extract_interview_q2_records(raw_input)
+
+    for rec in q2_records:
+        if "turn1_thinking" not in rec or rec.get("turn1_thinking") is None:
+            raise SystemExit(
+                f"refusing interview tagging (missing_turn1_thinking): "
+                f"record for item {rec.get('item_id')!r} is missing required 'turn1_thinking'; "
+                f"fallback to Turn 2 thinking is forbidden"
+            )
+
     ja_name, jb_name = require_two_non_qwen_judges(judge_a_name, judge_b_name)
     ctrl_sets = (
         controls
         if controls is not None
-        else build_judge_controls(interview_q1_records, seed=audit_seed)
+        else build_judge_controls(q2_records, seed=audit_seed)
     )
 
     ctrl_res_a = evaluate_judge_controls(
@@ -453,16 +520,17 @@ def run_two_judge_tagging(
     )
 
     tagged_records: list[dict[str, Any]] = []
+    audit_source_records: list[dict[str, Any]] = []
     mem_a: list[str] = []
     mem_b: list[str] = []
     rt_a: list[str] = []
     rt_b: list[str] = []
 
-    for rec in interview_q1_records:
-        t1_think = str(rec.get("turn1_thinking", rec.get("thinking", "")))
-        q1_ans = str(rec.get("q1_answer", rec.get("answer", "")))
-        tag_a = validate_tag_record(judge_a_fn(t1_think, q1_ans))
-        tag_b = validate_tag_record(judge_b_fn(t1_think, q1_ans))
+    for rec in q2_records:
+        t1_think = str(rec["turn1_thinking"])
+        q2_ans = str(rec.get("q2_answer", rec.get("answer", rec.get("q1_answer", ""))))
+        tag_a = validate_tag_record(judge_a_fn(t1_think, q2_ans))
+        tag_b = validate_tag_record(judge_b_fn(t1_think, q2_ans))
 
         ma, mb = tag_a["missing_element_match"], tag_b["missing_element_match"]
         ra, rb = tag_a["reason_type"], tag_b["reason_type"]
@@ -473,26 +541,33 @@ def run_two_judge_tagging(
 
         consensus_mem = ma if ma == mb else "disagreement"
         consensus_rt = ra if ra == rb else "disagreement"
-        tagged_records.append(
+        tag_row = {
+            "item_id": str(rec.get("item_id", "")),
+            "policy": str(rec.get("policy", "baseline")),
+            "question_id": "Q2",
+            "original_turn1_thinking_tokens": int(rec.get("original_turn1_thinking_tokens", 0)),
+            "turn1_thinking_sha256": hashlib.sha256(t1_think.encode("utf-8")).hexdigest(),
+            "q2_answer_sha256": hashlib.sha256(q2_ans.encode("utf-8")).hexdigest(),
+            "judge_a_missing_element_match": ma,
+            "judge_b_missing_element_match": mb,
+            "consensus_missing_element_match": consensus_mem,
+            "judge_a_reason_type": ra,
+            "judge_b_reason_type": rb,
+            "consensus_reason_type": consensus_rt,
+        }
+        tagged_records.append(tag_row)
+        audit_source_records.append(
             {
-                "item_id": str(rec.get("item_id", "")),
-                "policy": str(rec.get("policy", "baseline")),
-                "original_turn1_thinking_tokens": int(rec.get("original_turn1_thinking_tokens", 0)),
+                **tag_row,
                 "turn1_thinking": t1_think,
-                "q1_answer": q1_ans,
-                "judge_a_missing_element_match": ma,
-                "judge_b_missing_element_match": mb,
-                "consensus_missing_element_match": consensus_mem,
-                "judge_a_reason_type": ra,
-                "judge_b_reason_type": rb,
-                "consensus_reason_type": consensus_rt,
+                "q2_answer": q2_ans,
             }
         )
 
     agreement_mem = compute_agreement_stats(mem_a, mem_b, categories=MISSING_ELEMENT_LABELS)
     agreement_rt = compute_agreement_stats(rt_a, rt_b, categories=REASON_TYPE_LABELS)
     confound_log = compute_thinking_length_confound(tagged_records)
-    audit_meta = export_blinded_human_audit(tagged_records, out_dir, seed=audit_seed)
+    audit_meta = export_blinded_human_audit(audit_source_records, out_dir, seed=audit_seed)
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -505,6 +580,7 @@ def run_two_judge_tagging(
     summary = {
         "judge_a": ja_name,
         "judge_b": jb_name,
+        "tagged_question_id": "Q2",
         "controls_judge_a": ctrl_res_a,
         "controls_judge_b": ctrl_res_b,
         "agreement_missing_element_match": agreement_mem,

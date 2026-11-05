@@ -533,8 +533,8 @@ def score_part_match(
     - ``unspecific_full_claim_copy`` (and ``whole_claim_copy`` alias): True when Q1 covers > 85% of claim
       tokens while JSON part covers < 70%.
     - ``ct_part_fallback``: True when no ``evidence_quotes`` entry had ``verdict == "cannot_tell"``.
-    - Separate threshold flags for ``token_f1`` and ``containment`` (plus ``max_overlap``) at ``0.3``, ``0.5``,
-      ``0.7`` (gated off when ``unspecific_full_claim_copy`` is True).
+    - Separate threshold flags for ``token_f1`` and ``containment`` (plus ``max_overlap``) at ``0.3``,
+      ``0.5``, ``0.7`` (gated off when ``unspecific_full_claim_copy`` is True).
     """
     claim_toks = set(_normalised_tokens(claim_text))
     q1_toks = set(_normalised_tokens(q1_answer))
@@ -855,17 +855,18 @@ class InterviewModelRunner:
         cold = bool(cold_control or policy == "cold_control" or policy.startswith("cold_control:"))
         if cold:
             messages = build_cold_control_messages(row, question_id)
+            orig_think: str | None = None
             orig_think_tokens = 0
         else:
             if turn1_completion_text is None:
                 raise ValueError("turn1_completion_text is required when policy is not 'cold_control'")
-            orig_think, _ = split_reply(turn1_completion_text)
+            orig_think_raw, _ = split_reply(turn1_completion_text)
+            orig_think = orig_think_raw or ""
             orig_think_tokens = len(self.tok.encode(orig_think)) if orig_think else 0
             messages = build_interview_messages(row, turn1_completion_text, question_id)
 
         rendered_text, prompt_ids = render_interview_prompt(self.tok, messages)
         if not cold and turn1_completion_text is not None:
-            orig_think, _ = split_reply(turn1_completion_text)
             verify_turn1_thinking_stripped(rendered_text, prompt_ids, orig_think)
 
         q_seed = interview_seed(cid, question_id, base_seed=base_seed)
@@ -885,6 +886,7 @@ class InterviewModelRunner:
             "cold_control": cold,
             "prompt_text": rendered_text,
             "prompt_tokens": len(prompt_ids),
+            "turn1_thinking": orig_think,
             "original_turn1_thinking_tokens": int(orig_think_tokens),
             **gen_res,
         }
@@ -898,7 +900,7 @@ class InterviewModelRunner:
         thinking_cap: int = THINKING_CAP_TOKENS,
         answer_cap: int = ANSWER_CAP_TOKENS,
     ) -> str:
-        """Run the normal verification task under ``policy`` with fixed ``seed`` and return raw completion text."""
+        """Run the normal verification task under ``policy`` with ``seed`` and return raw text."""
         messages = [{"role": "user", "content": build_prompt(dict(row))}]
         _, prompt_ids = render_interview_prompt(self.tok, messages)
         with self._policy_context(policy):
@@ -1147,9 +1149,15 @@ def run_interview_for_cohort(
             "f1_rate_0_7": round(sum(1 for s in scored if s.get("f1_at_0_7")) / n_scored, 6),
             "mean_containment": round(float(statistics.fmean(conts)), 6),
             "median_containment": round(float(statistics.median(conts)), 6),
-            "containment_rate_0_3": round(sum(1 for s in scored if s.get("containment_at_0_3")) / n_scored, 6),
-            "containment_rate_0_5": round(sum(1 for s in scored if s.get("containment_at_0_5")) / n_scored, 6),
-            "containment_rate_0_7": round(sum(1 for s in scored if s.get("containment_at_0_7")) / n_scored, 6),
+            "containment_rate_0_3": round(
+                sum(1 for s in scored if s.get("containment_at_0_3")) / n_scored, 6
+            ),
+            "containment_rate_0_5": round(
+                sum(1 for s in scored if s.get("containment_at_0_5")) / n_scored, 6
+            ),
+            "containment_rate_0_7": round(
+                sum(1 for s in scored if s.get("containment_at_0_7")) / n_scored, 6
+            ),
             "mean_overlap": round(float(statistics.fmean(overlaps)), 6),
             "median_overlap": round(float(statistics.median(overlaps)), 6),
             "match_rate_0_3": round(sum(1 for s in scored if s["match_at_0_3"]) / n_scored, 6),
