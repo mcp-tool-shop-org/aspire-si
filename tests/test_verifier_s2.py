@@ -927,10 +927,11 @@ class TestReviewJoOnTheDryBundle:
 
             return build
 
-        a = s2.apply_dry_defaults(_args(tmp_path, gold, dry=True))
+        a = s2.apply_dry_defaults(_args(tmp_path / "run_ok", gold, dry=True))
         assert s2.execute(a, build=build_with(False)) == 0 and closed == [1]
+        a_err = s2.apply_dry_defaults(_args(tmp_path / "run_err", gold, dry=True))
         with pytest.raises(RuntimeError, match="fell over"):
-            s2.execute(a, build=build_with(True))
+            s2.execute(a_err, build=build_with(True))
         assert closed == [1, 1]
 
     def test_the_series_the_python_path_and_the_environment_land_in_the_receipt(self, tmp_path):
@@ -12702,10 +12703,1685 @@ class TestFix3Items:
         assert ans_b["policy"] == "checkpoint:adapter_b"
 
 
+class _SimulatedHardKill(BaseException):
+    """Simulates a hard process kill (taskkill /T /F) that aborts execution immediately."""
 
 
+class TestSaveAllCrashSafeAndStopAfterNew:
+    @needs_torch
+    def test_crashsafe_01_kill_and_resume_pass(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        out_dir = tmp_path / "pass_kill_resume"
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "pass_kill_test",
+            ]
+        )
+        rows, gold_hashes = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, None)
+        assert len(prompts) == 6
 
+        calls = 0
+        kill_after = 2
+        sa_path = s2.save_all_file_path(out_dir, "hf")
+        sa_bytes_at_kill: bytes | None = None
 
+        def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            nonlocal calls, sa_bytes_at_kill
+            calls += 1
+            if calls == kill_after + 1:
+                sa_bytes_at_kill = sa_path.read_bytes() if sa_path.exists() else None
+                raise _SimulatedHardKill("taskkill /T /F after 2 items")
+            p_ids = tok.encode(prompt_text)
+            c_ok = tok.encode(_reply("supported", "alpha beta gamma", think=f"thought_{calls}")) + [
+                tok.eos_token_id
+            ]
+            c_ct = tok.encode(_reply("cannot_tell", "", think=f"ct_{calls}")) + [tok.eos_token_id]
+            return p_ids, [c_ok, c_ct][:g_cnt], [False, False][:g_cnt]
+
+        bundle = {
+            "tok": tok,
+            "rollout": rollout,
+            "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: 300,
+            "revision": s2.STUDENT_FULL_REVISION,
+        }
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.run_prepass(a=a, prompts=prompts, gold_hashes=gold_hashes, bundle=bundle)
+
+        # At the exact instant of the hard kill (before any finally block could ever run),
+        # save-all on disk must already hold the K=2 completed items (4 records).
+        assert sa_bytes_at_kill is not None
+        sa_path.write_bytes(sa_bytes_at_kill)
+        partial_records = s2.read_save_all(sa_path)
+        assert len(partial_records) == kill_after * 2
+        assert [r["item_id"] for r in partial_records] == [
+            prompts[0]["id"],
+            prompts[0]["id"],
+            prompts[1]["id"],
+            prompts[1]["id"],
+        ]
+
+        # Also simulate a duplicate record and a truncated trailing gzip member on disk from a kill mid-write, then resume:
+        dup_rec = dict(partial_records[0], text="duplicate text that must go to dropped")
+        s2.append_save_all(sa_path, [dup_rec])
+        sa_with_dup = sa_path.read_bytes()
+        torn_tail = b"\x1f\x8b\x08\x00truncated_gzip"
+        sa_path.write_bytes(sa_with_dup + torn_tail)
+        _, completed, stopped, oom = s2.run_prepass(
+            a=a, prompts=prompts, gold_hashes=gold_hashes, bundle=bundle
+        )
+        assert stopped is None and not oom
+        assert len(completed) == len(prompts)
+
+        # Verify dropped archive holds both the duplicate record and the torn member
+        dropped_path = s2.dropped_archive_path(sa_path)
+        assert dropped_path.is_file()
+        dropped_rows = s2.read_save_all(dropped_path)
+        assert [r["reason"] for r in dropped_rows] == ["duplicate_record", "torn_member"]
+        assert dropped_rows[0]["text"] == "duplicate text that must go to dropped"
+        assert dropped_rows[1]["raw_bytes_b64"]
+
+        # Verify the main archive is byte-identical to a straight run
+        straight_dir = tmp_path / "pass_straight_ref"
+        a_straight = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(straight_dir),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "pass_kill_test",
+            ]
+        )
+        straight_calls = 0
+
+        def straight_rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            nonlocal straight_calls
+            straight_calls += 1
+            # Match thought numbering of the resumed run (items 1, 2 were calls 1, 2; items 3..6 were calls 4..7)
+            eff_c = straight_calls if straight_calls <= 2 else straight_calls + 1
+            p_ids = tok.encode(prompt_text)
+            c_ok = tok.encode(_reply("supported", "alpha beta gamma", think=f"thought_{eff_c}")) + [
+                tok.eos_token_id
+            ]
+            c_ct = tok.encode(_reply("cannot_tell", "", think=f"ct_{eff_c}")) + [tok.eos_token_id]
+            return p_ids, [c_ok, c_ct][:g_cnt], [False, False][:g_cnt]
+
+        straight_bundle = {**bundle, "rollout": straight_rollout}
+        s2.run_prepass(a=a_straight, prompts=prompts, gold_hashes=gold_hashes, bundle=straight_bundle)
+        assert sa_path.read_bytes() == s2.save_all_file_path(straight_dir, "hf").read_bytes()
+
+        final_records = s2.read_save_all(sa_path)
+        assert len(final_records) == len(prompts) * 2
+        seen_pairs = [(r["item_id"], r["sample_index"]) for r in final_records]
+        expected_pairs = [(p["id"], s_idx) for p in prompts for s_idx in range(2)]
+        assert seen_pairs == expected_pairs
+
+    @needs_torch
+    def test_crashsafe_02_no_duplicates_kill_mid_item_before_jsonl(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        out_dir = tmp_path / "pass_mid_item_kill"
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        rows, gold_hashes = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, None)
+        sa_path = s2.save_all_file_path(out_dir, "hf")
+        jsonl_path = out_dir / "s2-hf-prepass.jsonl"
+
+        def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            p_ids = tok.encode(prompt_text)
+            c0 = tok.encode(_reply("supported", "alpha beta gamma", think="t0")) + [tok.eos_token_id]
+            c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="t1")) + [tok.eos_token_id]
+            return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+        bundle = {
+            "tok": tok,
+            "rollout": rollout,
+            "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated
+            ),
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: 300,
+            "revision": s2.STUDENT_FULL_REVISION,
+        }
+
+        # Kill on the 2nd item right after append_save_all fsyncs the 2nd item's save-all records,
+        # BEFORE jfh.write writes the 2nd item's line to s2-hf-prepass.jsonl.
+        sa_fsync_count = 0
+
+        def kill_after_second_save_all_fsync(fd: int) -> None:
+            nonlocal sa_fsync_count
+            os.fsync(fd)
+            if sa_path.exists() and jsonl_path.exists():
+                sa_rows_now = s2.read_save_all(sa_path)
+                jsonl_lines_now = [
+                    ln for ln in jsonl_path.read_text(encoding="utf-8").splitlines() if ln.strip()
+                ]
+                # When item 2's save-all member has just been fsynced (4 records total),
+                # but jsonl_path still only has item 1 (1 line): kill!
+                if len(sa_rows_now) == 4 and len(jsonl_lines_now) == 1:
+                    sa_fsync_count += 1
+                    raise _SimulatedHardKill("killed after save-all write before jsonl write")
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.run_prepass(
+                a=a,
+                prompts=prompts,
+                gold_hashes=gold_hashes,
+                bundle=bundle,
+                fsync=kill_after_second_save_all_fsync,
+            )
+
+        assert sa_fsync_count == 1
+        # At this point save-all has 4 records (items 0 and 1), while prepass.jsonl has 1 line (item 0).
+        assert len(s2.read_save_all(sa_path)) == 4
+        assert len(jsonl_path.read_text(encoding="utf-8").splitlines()) == 1
+
+        # Now resume to completion: item 1 must be moved to .dropped.jsonl.gz and rewritten cleanly on its redo with zero duplicate records.
+        _, completed, stopped, oom = s2.run_prepass(
+            a=a, prompts=prompts, gold_hashes=gold_hashes, bundle=bundle
+        )
+        assert stopped is None and not oom
+        assert len(completed) == len(prompts)
+        dropped_uncomm = s2.read_save_all(s2.dropped_archive_path(sa_path))
+        assert len(dropped_uncomm) == 2
+        assert all(r["reason"] == "uncommitted_member" for r in dropped_uncomm)
+        assert [r["item_id"] for r in dropped_uncomm] == [prompts[1]["id"], prompts[1]["id"]]
+        final_sa = s2.read_save_all(sa_path)
+        assert len(final_sa) == len(prompts) * 2
+        assert [(r["item_id"], r["sample_index"]) for r in final_sa] == [
+            (p["id"], s_idx) for p in prompts for s_idx in range(2)
+        ]
+
+    @needs_torch
+    def test_crashsafe_03_replay_check_survives_resume(self, tmp_path: Path) -> None:
+        import hashlib
+        from contextlib import nullcontext
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        rows, _ = s2.read_gold(gold_dir)
+        prompts = s2.select_prompts(rows, None)
+        tune_ids = [r["id"] for r in prompts]
+        assert len(tune_ids) == 6
+
+        # Plant a B2 k_correct mismatch on item index 3 (the 4th item, which runs in chunk 2 after resume).
+        b2_dir = tmp_path / "b2_ref"
+        b2_dir.mkdir(parents=True, exist_ok=True)
+        b2_jsonl = b2_dir / "s2-hf-prepass.jsonl"
+        b2_records = []
+        for idx, p_row in enumerate(prompts):
+            tid = p_row["id"]
+            gv = str(p_row.get("label", "supported"))
+            expected_k = 8 if gv == "supported" else 0
+            b2_records.append(
+                {
+                    "id": tid,
+                    "gold_file": "grounded.jsonl",
+                    "gold_verdict": gv,
+                    "g": 8,
+                    "k_correct": expected_k if idx != 3 else (0 if expected_k == 8 else 8),
+                    "supported": 8,
+                    "unsupported": 0,
+                    "cannot_tell": 0,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "quote_pass": 8,
+                    "reward_mean": 1.0,
+                    "reward_std": 0.0,
+                    "zero_variance": True,
+                    "prompt_tokens": 12,
+                    "completion_tokens_mean": 10.0,
+                    "descriptive": False,
+                    "pass_seed": 1,
+                }
+            )
+        b2_jsonl.write_text("".join(json.dumps(r) + "\n" for r in b2_records), encoding="utf-8", newline="\n")
+        b2_sha = hashlib.sha256(b2_jsonl.read_bytes()).hexdigest()
+
+        def make_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c_ok = tok.encode(_reply("supported", "alpha beta gamma", think="b2 thought")) + [
+                    tok.eos_token_id
+                ]
+                return p_ids, [list(c_ok) for _ in range(g_cnt)], [False] * g_cnt
+
+            return {
+                "model": Namespace(device="cpu"),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: 1.0,
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 400,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        out_dir = tmp_path / "logging_chunked_mismatch"
+        common_flags = [
+            "--gold",
+            str(gold_dir),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(out_dir),
+            "--logging-pass",
+            "--path",
+            "hf",
+            "--revision",
+            s2.STUDENT_FULL_REVISION,
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--quote-reward",
+            "v2",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+            "--replay-check",
+            str(b2_jsonl),
+            "--replay-check-sha256",
+            b2_sha,
+        ]
+
+        # Chunk 1: run first 2 items cleanly via --stop-after-new 2
+        a_chunk1 = ap.parse_args([*common_flags, "--stop-after-new", "2"])
+        assert s2.execute(a_chunk1, build=make_bundle, rig=_FakeRig(a_chunk1)) == 1
+        sa_path = out_dir / "s2-hf-save-all.jsonl.gz"
+        assert len(s2.read_save_all(sa_path)) == 2 * 8
+
+        # Chunk 2: resume with --stop-after-new 3; item index 3 (the 4th item) triggers LOGGING_PASS_REPLAY_MISMATCH
+        a_chunk2 = ap.parse_args([*common_flags, "--stop-after-new", "3"])
+        with pytest.raises(SystemExit, match="LOGGING_PASS_REPLAY_MISMATCH"):
+            s2.execute(a_chunk2, build=make_bundle, rig=_FakeRig(a_chunk2))
+
+        # Verify the first 4 items (including the mismatching 4th item) are all preserved in save-all on disk
+        assert len(s2.read_save_all(sa_path)) == 4 * 8
+        summary = json.loads((out_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert summary["stopped"]["reason"] == "LOGGING_PASS_REPLAY_MISMATCH"
+        assert summary["stopped"]["item_id"] == tune_ids[3]
+
+    @needs_torch
+    def test_crashsafe_04_chunking_byte_equal_to_straight_through(self, tmp_path: Path) -> None:
+        from contextlib import nullcontext
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+
+        def make_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="chunk test 0")) + [
+                    tok.eos_token_id
+                ]
+                c1 = tok.encode(_reply("cannot_tell", "", think="chunk test 1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": Namespace(device="cpu"),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 350,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        straight_dir = tmp_path / "straight"
+        chunked_dir = tmp_path / "chunked"
+        base_args = [
+            "--gold",
+            str(gold_dir),
+            "--rnd-commit",
+            "e48cc90c",
+            "--rollout-only",
+            "--g",
+            "2",
+            "--max-new",
+            "32",
+            "--quote-reward",
+            "v2",
+            "--pass-id",
+            "replay_eq_pass",
+        ]
+
+        # 1. Run straight through
+        a_straight = ap.parse_args([*base_args, "--out", str(straight_dir)])
+        assert s2.execute(a_straight, build=make_bundle, rig=_FakeRig(a_straight)) == 0
+
+        # 2. Run in 3 chunks of --stop-after-new 2 (6 items total)
+        for chunk_idx in range(3):
+            a_chunk = ap.parse_args([*base_args, "--out", str(chunked_dir), "--stop-after-new", "2"])
+            rc = s2.execute(a_chunk, build=make_bundle, rig=_FakeRig(a_chunk))
+            if chunk_idx < 2:
+                assert rc == 1
+                assert (chunked_dir / "s2-hf-prepass-summary.json").is_file()
+                assert (chunked_dir / "s2-hf.json").is_file()
+            else:
+                assert rc == 0
+
+        # Assert byte-equal s2-hf-prepass.jsonl, s2-hf-prepass-summary.json, and s2-hf-save-all.jsonl.gz!
+        assert (straight_dir / "s2-hf-prepass.jsonl").read_bytes() == (
+            chunked_dir / "s2-hf-prepass.jsonl"
+        ).read_bytes()
+        assert (straight_dir / "s2-hf-prepass-summary.json").read_bytes() == (
+            chunked_dir / "s2-hf-prepass-summary.json"
+        ).read_bytes()
+        assert (straight_dir / "s2-hf-save-all.jsonl.gz").read_bytes() == (
+            chunked_dir / "s2-hf-save-all.jsonl.gz"
+        ).read_bytes()
+        assert s2.read_save_all(straight_dir / "s2-hf-save-all.jsonl.gz") == s2.read_save_all(
+            chunked_dir / "s2-hf-save-all.jsonl.gz"
+        )
+
+    @needs_torch
+    def test_crashsafe_05_all_item2_writers_crash_safe(self, tmp_path: Path) -> None:
+        from contextlib import nullcontext
+
+        import s2_interview as s2i
+        import s2_interview_tag as s2t
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+
+        # (A) Training-rollout save-all writer + steps.jsonl writer in s2_grpo_smoke.py
+        train_dir = tmp_path / "train_kill"
+        a_train = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(train_dir),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        train_rollout_calls = 0
+
+        def make_train_bundle(_args_ns):
+            class _TinyModel:
+                device = torch.device("cpu")
+
+                def __init__(self) -> None:
+                    self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+                def parameters(self):
+                    return [self._p]
+
+                def __call__(self, input_ids, attention_mask=None, **kwargs):
+                    logits = (
+                        torch.zeros(
+                            (input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32
+                        )
+                        + self._p * 0.0
+                    )
+                    return Namespace(logits=logits)
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                nonlocal train_rollout_calls
+                train_rollout_calls += 1
+                # Step 0 has 2 groups (calls 1 and 2). Step 1 has 2 groups (calls 3 and 4).
+                # Kill on call 4 (after step 0 committed and step 1 group 0 wrote save-all, before step 1 finishes).
+                if train_rollout_calls == 4:
+                    raise _SimulatedHardKill("kill mid step 1 in training")
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="tr0")) + [tok.eos_token_id]
+                c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="tr1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": _TinyModel(),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 250,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.execute(a_train, build=make_train_bundle, rig=_FakeRig(a_train))
+
+        sa_train_path = train_dir / "s2-hf-save-all.jsonl.gz"
+        assert sa_train_path.is_file()
+        prior_partial_bytes = sa_train_path.read_bytes()
+        # Step 0 (2 groups * 2 samples = 4) + Step 1 Group 0 (2 samples) = 6 records on disk at kill
+        assert len(s2.read_save_all(sa_train_path)) == 6
+
+        # Starting training with an existing partial archive refuses with TRAINING_RESUME_UNSUPPORTED and never deletes it
+        with pytest.raises(SystemExit, match="TRAINING_RESUME_UNSUPPORTED"):
+            s2.execute(a_train, build=make_train_bundle, rig=_FakeRig(a_train))
+        assert sa_train_path.is_file()
+        assert sa_train_path.read_bytes() == prior_partial_bytes
+
+        # Complete training in a fresh directory, then verify starting again refuses with OUT_DIR_HAS_ARCHIVE and never deletes it
+        train_complete_dir = tmp_path / "train_complete"
+        a_train_ok = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(train_complete_dir),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        assert s2.execute(a_train_ok, build=make_train_bundle, rig=_FakeRig(a_train_ok)) == 1
+        sa_train_ok_path = train_complete_dir / "s2-hf-save-all.jsonl.gz"
+        prior_complete_bytes = sa_train_ok_path.read_bytes()
+        final_train_sa = s2.read_save_all(sa_train_ok_path)
+        assert len(final_train_sa) == 2 * 2 * 2  # 2 steps * 2 groups * 2 samples = 8
+        assert [(r["step"], r["group"], r["sample_index"]) for r in final_train_sa] == [
+            (s_i, g_i, samp_i) for s_i in range(2) for g_i in range(2) for samp_i in range(2)
+        ]
+        with pytest.raises(SystemExit, match="OUT_DIR_HAS_ARCHIVE"):
+            s2.execute(a_train_ok, build=make_train_bundle, rig=_FakeRig(a_train_ok))
+        assert sa_train_ok_path.is_file()
+        assert sa_train_ok_path.read_bytes() == prior_complete_bytes
+
+        # (B) Post-pass writer in s2_grpo_smoke.py
+        ckpt_dir = tmp_path / "ckpt_post"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        (ckpt_dir / "adapter_model.safetensors").write_bytes(b"postpass-ckpt-bytes")
+        post_dir = tmp_path / "postpass_kill"
+        a_post = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(post_dir),
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        post_calls = 0
+
+        def make_post_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                nonlocal post_calls
+                post_calls += 1
+                if post_calls == 3:
+                    raise _SimulatedHardKill("kill postpass on item 3")
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="p0")) + [tok.eos_token_id]
+                c1 = tok.encode(_reply("cannot_tell", "", think="p1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": Namespace(device="cpu"),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 300,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "adapter_loaded": True,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.execute(a_post, build=make_post_bundle, rig=_FakeRig(a_post))
+        sa_post_path = post_dir / "s2-hf-save-all.jsonl.gz"
+        assert len(s2.read_save_all(sa_post_path)) == 2 * 2
+        assert s2.execute(a_post, build=make_post_bundle, rig=_FakeRig(a_post)) == 0
+        assert len(s2.read_save_all(sa_post_path)) == 6 * 2
+
+        # (C) s2_interview.py writer (run_interview_for_cohort)
+        rows_by_id = {
+            f"iv_{i}": _row(f"iv_{i}", claim=f"Claim {i} has 64 bytes.", text="Passage text.")
+            for i in range(3)
+        }
+        t1_ct = "<think>missing bytes</think>" + json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        cohort = [
+            {
+                "item_id": f"iv_{i}",
+                "cohort": "unresolved_ct",
+                "baseline_ct_rate": 0.5,
+                "baseline_majority_ct": True,
+                "checkpoint_ct_rate": 0.0,
+                "checkpoint_majority_ct": False,
+                "baseline_first_ct": {"text": t1_ct, "sample_index": 0},
+                "checkpoint_first_ct": None,
+            }
+            for i in range(3)
+        ]
+
+        class _StubInterviewRunner:
+            def __init__(self, fail_on_item: str | None = None) -> None:
+                self.fail_on_item = fail_on_item
+
+            def ask_question(self, **kw) -> dict:
+                cid = str(kw["row"]["id"])
+                if self.fail_on_item == cid and kw["question_id"] == "Q2":
+                    raise _SimulatedHardKill(f"kill interview on {cid}")
+                q_id = kw["question_id"]
+                ans = (
+                    "64 bytes"
+                    if q_id == "Q1"
+                    else "NONE"
+                    if q_id == "Q4"
+                    else "Need size.\nMISSING_FACT: The buffer size is 64 bytes."
+                    if q_id == "Q2"
+                    else "I choose supported because of context."
+                )
+                return {
+                    "item_id": cid,
+                    "policy": kw["policy"],
+                    "question_id": q_id,
+                    "cold_control": bool(kw.get("cold_control", False)),
+                    "seed": 1,
+                    "turn1_ stripped_in_prompt": True,
+                    "original_turn1_thinking_tokens": 5,
+                    "turn1_thinking": "missing bytes",
+                    "prompt_tokens": 20,
+                    "thinking_tokens": 4,
+                    "answer_tokens": 6,
+                    "think_truncated": False,
+                    "answer_truncated": False,
+                    "thinking": "short thought",
+                    "answer": ans,
+                    "text": f"<think>short thought</think>{ans}",
+                    "ngram_repetition_rate_4": 0.0,
+                }
+
+            def run_verifier(self, cf_row, cf_seed, **kw) -> str:
+                return _reply("supported", "Passage text.", think="cf ok")
+
+        iv_kill_dir = tmp_path / "interview_kill"
+        with pytest.raises(_SimulatedHardKill):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubInterviewRunner(fail_on_item="iv_1"),
+                out_dir=iv_kill_dir,
+                include_cold_control=False,
+            )
+        iv_sa_path = iv_kill_dir / "s2-interview-save-all.jsonl.gz"
+        assert iv_sa_path.is_file()
+        assert len(s2.read_save_all(iv_sa_path)) == 4  # item iv_0's 4 questions already on disk!
+
+        # Resume interview to completion and compare against a clean straight-through run
+        receipt_resumed = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubInterviewRunner(fail_on_item=None),
+            out_dir=iv_kill_dir,
+            include_cold_control=False,
+        )
+        iv_clean_dir = tmp_path / "interview_clean"
+        receipt_clean = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubInterviewRunner(fail_on_item=None),
+            out_dir=iv_clean_dir,
+            include_cold_control=False,
+        )
+        assert receipt_resumed == receipt_clean
+        assert s2.read_save_all(iv_sa_path) == s2.read_save_all(
+            iv_clean_dir / "s2-interview-save-all.jsonl.gz"
+        )
+
+        # (D) s2_interview_tag.py writer (run_two_judge_tagging)
+        q2_recs = [
+            {
+                "item_id": f"tag_{i}",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "cold_control": False,
+                "original_turn1_thinking_tokens": 10 + i,
+                "turn1_thinking": f"missing fact {i} in evidence",
+                "answer": f"MISSING_FACT: missing fact {i} in evidence",
+            }
+            for i in range(4)
+        ]
+        controls = s2t.build_judge_controls(q2_recs, seed=123)
+
+        def make_judge(fail_on_call: int | None = None):
+            call_n = 0
+
+            def _judge(t1_think: str, q2_ans: str) -> dict[str, str]:
+                nonlocal call_n
+                if not t1_think.strip():
+                    return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+                if t1_think.strip() in q2_ans:
+                    # Only count non-control tagging calls if we want, or count all calls after controls (75 controls)
+                    call_n += 1
+                    if fail_on_call is not None and call_n == fail_on_call:
+                        raise _SimulatedHardKill("kill tagging mid-loop")
+                    return {"missing_element_match": "same", "reason_type": "lacks"}
+                return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+            return _judge
+
+        tag_kill_dir = tmp_path / "tag_kill"
+        # 30 verbatim controls have t1_think in q2_ans, so fail_on_call=33 fails on the 3rd real Q2 item (after 2 items written)
+        with pytest.raises(_SimulatedHardKill):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=make_judge(fail_on_call=33),
+                judge_b_fn=make_judge(fail_on_call=None),
+                out_dir=tag_kill_dir,
+                controls=controls,
+            )
+        tags_path = tag_kill_dir / "s2-interview-tags.jsonl"
+        assert tags_path.is_file()
+        partial_tags = [json.loads(line) for line in tags_path.read_text(encoding="utf-8").splitlines() if line]
+        assert len(partial_tags) == 2
+
+        # Resume tagging to completion and compare against clean run
+        sum_resumed = s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=make_judge(fail_on_call=None),
+            judge_b_fn=make_judge(fail_on_call=None),
+            out_dir=tag_kill_dir,
+            controls=controls,
+        )
+        tag_clean_dir = tmp_path / "tag_clean"
+        sum_clean = s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=make_judge(fail_on_call=None),
+            judge_b_fn=make_judge(fail_on_call=None),
+            out_dir=tag_clean_dir,
+            controls=controls,
+        )
+        assert sum_resumed == sum_clean
+        assert tags_path.read_bytes() == (tag_clean_dir / "s2-interview-tags.jsonl").read_bytes()
+
+    def test_crashsafe_06_stop_after_new_zero_refuses(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        ap = s2.build_parser()
+        help_text = ap.format_help()
+        assert "--stop-after-new" in help_text
+
+        for bad_n in ("0", "-1"):
+            a_bad = ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / f"bad_{bad_n}"),
+                    "--rollout-only",
+                    "--stop-after-new",
+                    bad_n,
+                ]
+            )
+            with pytest.raises(SystemExit, match="invalid_stop_after_new"):
+                s2.validate_pass_mode_args(a_bad)
+            with pytest.raises(SystemExit, match="invalid_stop_after_new"):
+                s2.execute(a_bad, build=s2.dry_bundle)
+
+    @needs_torch
+    def test_fix1_01_training_start_with_existing_archive_refuses_and_preserves_archive(
+        self, tmp_path: Path
+    ) -> None:
+        from contextlib import nullcontext
+
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+
+        class _TinyModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        def make_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="t0")) + [tok.eos_token_id]
+                c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="t1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": _TinyModel(),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 250,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        # 1. Partial archive in --out refuses with TRAINING_RESUME_UNSUPPORTED and is not modified/deleted
+        partial_dir = tmp_path / "train_partial"
+        sa_partial = partial_dir / "s2-hf-save-all.jsonl.gz"
+        s2.append_save_all(
+            sa_partial,
+            [{"kind": "rollout", "item_id": "c0", "step": 0, "group": 0, "sample_index": 0, "reward": 1.0}],
+        )
+        partial_bytes_before = sa_partial.read_bytes()
+        a_partial = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(partial_dir),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        with pytest.raises(SystemExit, match="TRAINING_RESUME_UNSUPPORTED"):
+            s2.execute(a_partial, build=make_bundle, rig=_FakeRig(a_partial))
+        assert sa_partial.is_file()
+        assert sa_partial.read_bytes() == partial_bytes_before
+
+        # 2. Complete archive in --out refuses with OUT_DIR_HAS_ARCHIVE and is never unlinked or overwritten
+        complete_dir = tmp_path / "train_complete"
+        a_complete = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(complete_dir),
+                "--steps",
+                "1",
+                "--prompts",
+                "4",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        assert s2.execute(a_complete, build=make_bundle, rig=_FakeRig(a_complete)) == 1
+        sa_complete = complete_dir / "s2-hf-save-all.jsonl.gz"
+        complete_bytes_before = sa_complete.read_bytes()
+        with pytest.raises(SystemExit, match="OUT_DIR_HAS_ARCHIVE"):
+            s2.execute(a_complete, build=make_bundle, rig=_FakeRig(a_complete))
+        assert sa_complete.is_file()
+        assert sa_complete.read_bytes() == complete_bytes_before
+
+    def test_fix1_02_interview_resume_different_checkpoint_sha_refuses(self, tmp_path: Path) -> None:
+        import s2_interview as s2i
+
+        rows_by_id = {"iv_0": _row("iv_0", claim="Claim 0 has 64 bytes.", text="Passage text.")}
+        t1_ct = "<think>missing bytes</think>" + json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        cohort = [
+            {
+                "item_id": "iv_0",
+                "cohort": "unresolved_ct",
+                "baseline_ct_rate": 0.5,
+                "baseline_majority_ct": True,
+                "checkpoint_ct_rate": 0.5,
+                "checkpoint_majority_ct": True,
+                "baseline_first_ct": {"text": t1_ct, "sample_index": 0},
+                "checkpoint_first_ct": {"text": t1_ct, "sample_index": 0},
+            }
+        ]
+
+        class _StubRunner:
+            def ask_question(self, **kw) -> dict:
+                q_id = kw["question_id"]
+                ans = (
+                    "64 bytes"
+                    if q_id == "Q1"
+                    else "NONE"
+                    if q_id == "Q4"
+                    else "MISSING_FACT: 64 bytes."
+                    if q_id == "Q2"
+                    else "I choose supported."
+                )
+                return {
+                    "item_id": str(kw["row"]["id"]),
+                    "policy": kw["policy"],
+                    "question_id": q_id,
+                    "cold_control": bool(kw.get("cold_control", False)),
+                    "seed": 1,
+                    "turn1_stripped_in_prompt": True,
+                    "original_turn1_thinking_tokens": 5,
+                    "turn1_thinking": "missing bytes",
+                    "prompt_tokens": 20,
+                    "thinking_tokens": 4,
+                    "answer_tokens": 6,
+                    "think_truncated": False,
+                    "answer_truncated": False,
+                    "thinking": "short thought",
+                    "answer": ans,
+                    "text": f"<think>short thought</think>{ans}",
+                    "ngram_repetition_rate_4": 0.0,
+                }
+
+            def run_verifier(self, cf_row, cf_seed, **kw) -> str:
+                return _reply("supported", "Passage text.", think="cf ok")
+
+        out_dir = tmp_path / "iv_ckpt_mismatch"
+        s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubRunner(),
+            out_dir=out_dir,
+            include_cold_control=True,
+            checkpoint_sha256="aaaa" * 16,
+        )
+        # Resume with a different checkpoint_sha256 -> refuses with RESUME_HEADER_MISMATCH
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubRunner(),
+                out_dir=out_dir,
+                include_cold_control=True,
+                checkpoint_sha256="bbbb" * 16,
+            )
+        # Also test settings / turn1 text mismatch and missing/corrupt header
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubRunner(),
+                out_dir=out_dir,
+                base_seed=99,
+                include_cold_control=True,
+                checkpoint_sha256="aaaa" * 16,
+            )
+        cohort_changed_t1 = [
+            {
+                **cohort[0],
+                "baseline_first_ct": {"text": t1_ct.replace("missing bytes", "other thought"), "sample_index": 0},
+            }
+        ]
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2i.run_interview_for_cohort(
+                cohort=cohort_changed_t1,
+                rows_by_id=rows_by_id,
+                runner=_StubRunner(),
+                out_dir=out_dir,
+                include_cold_control=True,
+                checkpoint_sha256="aaaa" * 16,
+            )
+        hdr_path = out_dir / "s2-interview-header.json"
+        hdr_bytes = hdr_path.read_bytes()
+        hdr_path.write_text("{corrupt", encoding="utf-8")
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubRunner(),
+                out_dir=out_dir,
+                include_cold_control=True,
+                checkpoint_sha256="aaaa" * 16,
+            )
+        hdr_path.write_text("[]", encoding="utf-8")
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubRunner(),
+                out_dir=out_dir,
+                include_cold_control=True,
+                checkpoint_sha256="aaaa" * 16,
+            )
+        hdr_path.unlink()
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubRunner(),
+                out_dir=out_dir,
+                include_cold_control=True,
+                checkpoint_sha256="aaaa" * 16,
+            )
+        hdr_path.write_bytes(hdr_bytes)
+
+    def test_fix1_03_tag_resume_changed_turn1_thinking_sha256_refuses(self, tmp_path: Path) -> None:
+        import s2_interview_tag as s2t
+
+        q2_recs = [
+            {
+                "item_id": f"tag_{i}",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "cold_control": False,
+                "original_turn1_thinking_tokens": 10 + i,
+                "turn1_thinking": f"missing fact {i} in evidence",
+                "answer": f"MISSING_FACT: missing fact {i} in evidence",
+            }
+            for i in range(3)
+        ]
+        controls = s2t.build_judge_controls(q2_recs, seed=123)
+
+        def judge_fn(t1_think: str, q2_ans: str) -> dict[str, str]:
+            if not t1_think.strip():
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if t1_think.strip() in q2_ans:
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        out_dir = tmp_path / "tag_sha_mismatch"
+        s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=out_dir,
+            controls=controls,
+            checkpoint_sha256="1111" * 16,
+        )
+
+        # Mutate turn1_thinking on item 0 -> refuses with RESUME_HEADER_MISMATCH
+        q2_recs_changed_t1 = [
+            {**q2_recs[0], "turn1_thinking": "altered turn 1 thinking text"},
+            *q2_recs[1:],
+        ]
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs_changed_t1,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="1111" * 16,
+            )
+
+        # Also test judge name / checkpoint_sha256 mismatch and row sha mismatch in tags file
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-7-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="1111" * 16,
+            )
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="2222" * 16,
+            )
+
+        # Even if header rows matched, if a row in s2-interview-tags.jsonl has a tampered turn1_thinking_sha256, refuse!
+        tags_path = out_dir / "s2-interview-tags.jsonl"
+        orig_tags_bytes = tags_path.read_bytes()
+        tag_lines = [json.loads(ln) for ln in tags_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        tag_lines[0]["turn1_thinking_sha256"] = "0" * 64
+        tags_path.write_text("".join(json.dumps(r) + "\n" for r in tag_lines), encoding="utf-8", newline="\n")
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="1111" * 16,
+            )
+        tags_path.write_bytes(orig_tags_bytes)
+
+        # Corrupt / non-dict / missing header file also refuses with RESUME_HEADER_MISMATCH
+        hdr_path = out_dir / "s2-interview-tags-header.json"
+        hdr_bytes = hdr_path.read_bytes()
+        hdr_path.write_text("{corrupt", encoding="utf-8")
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="1111" * 16,
+            )
+        hdr_path.write_text("[]", encoding="utf-8")
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="1111" * 16,
+            )
+        hdr_path.unlink()
+        with pytest.raises(SystemExit, match="RESUME_HEADER_MISMATCH"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=out_dir,
+                controls=controls,
+                checkpoint_sha256="1111" * 16,
+            )
+        hdr_path.write_bytes(hdr_bytes)
+
+    def test_fix1_04_out_of_cohort_records_survive_on_resume(self, tmp_path: Path) -> None:
+        import s2_interview as s2i
+        import s2_interview_tag as s2t
+
+        rows_by_id = {
+            f"iv_{i}": _row(f"iv_{i}", claim=f"Claim {i} has 64 bytes.", text="Passage text.")
+            for i in range(3)
+        }
+        t1_ct = "<think>missing bytes</think>" + json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        cohort_all = [
+            {
+                "item_id": f"iv_{i}",
+                "cohort": "unresolved_ct",
+                "baseline_ct_rate": 0.5,
+                "baseline_majority_ct": True,
+                "checkpoint_ct_rate": 0.0,
+                "checkpoint_majority_ct": False,
+                "baseline_first_ct": {"text": t1_ct, "sample_index": 0},
+                "checkpoint_first_ct": None,
+            }
+            for i in range(3)
+        ]
+
+        class _StubRunner:
+            def ask_question(self, **kw) -> dict:
+                q_id = kw["question_id"]
+                ans = (
+                    "64 bytes"
+                    if q_id == "Q1"
+                    else "NONE"
+                    if q_id == "Q4"
+                    else "MISSING_FACT: 64 bytes."
+                    if q_id == "Q2"
+                    else "I choose supported."
+                )
+                return {
+                    "item_id": str(kw["row"]["id"]),
+                    "policy": kw["policy"],
+                    "question_id": q_id,
+                    "cold_control": bool(kw.get("cold_control", False)),
+                    "seed": 1,
+                    "turn1_stripped_in_prompt": True,
+                    "original_turn1_thinking_tokens": 5,
+                    "turn1_thinking": "missing bytes",
+                    "prompt_tokens": 20,
+                    "thinking_tokens": 4,
+                    "answer_tokens": 6,
+                    "think_truncated": False,
+                    "answer_truncated": False,
+                    "thinking": "short thought",
+                    "answer": ans,
+                    "text": f"<think>short thought</think>{ans}",
+                    "ngram_repetition_rate_4": 0.0,
+                }
+
+            def run_verifier(self, cf_row, cf_seed, **kw) -> str:
+                return _reply("supported", "Passage text.", think="cf ok")
+
+        iv_dir = tmp_path / "iv_out_of_cohort"
+        # Run first with items iv_0 and iv_1
+        s2i.run_interview_for_cohort(
+            cohort=cohort_all[:2],
+            rows_by_id=rows_by_id,
+            runner=_StubRunner(),
+            out_dir=iv_dir,
+            include_cold_control=False,
+        )
+        iv_sa = iv_dir / "s2-interview-save-all.jsonl.gz"
+        assert {r["item_id"] for r in s2.read_save_all(iv_sa)} == {"iv_0", "iv_1"}
+
+        # Now resume with cohort [iv_1, iv_2] (so iv_0 is outside the current cohort)
+        s2i.run_interview_for_cohort(
+            cohort=cohort_all[1:],
+            rows_by_id=rows_by_id,
+            runner=_StubRunner(),
+            out_dir=iv_dir,
+            include_cold_control=False,
+        )
+        surviving_iv_ids = {r["item_id"] for r in s2.read_save_all(iv_sa)}
+        assert "iv_0" in surviving_iv_ids
+        assert surviving_iv_ids == {"iv_0", "iv_1", "iv_2"}
+
+        # Also verify out-of-cohort survival for s2_interview_tag.py
+        q2_all = [
+            {
+                "item_id": f"tag_{i}",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "cold_control": False,
+                "original_turn1_thinking_tokens": 10 + i,
+                "turn1_thinking": f"missing fact {i} in evidence",
+                "answer": f"MISSING_FACT: missing fact {i} in evidence",
+            }
+            for i in range(3)
+        ]
+        controls = s2t.build_judge_controls(q2_all, seed=123)
+
+        def judge_fn(t1_think: str, q2_ans: str) -> dict[str, str]:
+            if not t1_think.strip():
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if t1_think.strip() in q2_ans:
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        tag_dir = tmp_path / "tag_out_of_cohort"
+        s2t.run_two_judge_tagging(
+            interview_q2_records=q2_all[:2],
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=tag_dir,
+            controls=controls,
+        )
+        s2t.run_two_judge_tagging(
+            interview_q2_records=q2_all[1:],
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=tag_dir,
+            controls=controls,
+        )
+        tags_path = tag_dir / "s2-interview-tags.jsonl"
+        surviving_tag_ids = {
+            json.loads(ln)["item_id"] for ln in tags_path.read_text(encoding="utf-8").splitlines() if ln.strip()
+        }
+        assert "tag_0" in surviving_tag_ids
+        assert surviving_tag_ids == {"tag_0", "tag_1", "tag_2"}
+
+    @needs_torch
+    def test_fix1_05_torn_member_and_duplicate_moved_to_dropped_across_all_writers(
+        self, tmp_path: Path
+    ) -> None:
+        import gzip
+
+        import s2_interview as s2i
+        import s2_interview_tag as s2t
+
+        # 1. Interview writer: inject a duplicate record, an incomplete in-cohort turn, and a torn gzip member
+        rows_by_id = {
+            f"iv_{i}": _row(f"iv_{i}", claim=f"Claim {i} has 64 bytes.", text="Passage text.")
+            for i in range(2)
+        }
+        t1_ct = "<think>missing bytes</think>" + json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        cohort = [
+            {
+                "item_id": f"iv_{i}",
+                "cohort": "unresolved_ct",
+                "baseline_ct_rate": 0.5,
+                "baseline_majority_ct": True,
+                "checkpoint_ct_rate": 0.0,
+                "checkpoint_majority_ct": False,
+                "baseline_first_ct": {"text": t1_ct, "sample_index": 0},
+                "checkpoint_first_ct": None,
+            }
+            for i in range(2)
+        ]
+
+        class _StubRunner:
+            def ask_question(self, **kw) -> dict:
+                q_id = kw["question_id"]
+                ans = (
+                    "64 bytes"
+                    if q_id == "Q1"
+                    else "NONE"
+                    if q_id == "Q4"
+                    else "MISSING_FACT: 64 bytes."
+                    if q_id == "Q2"
+                    else "I choose supported."
+                )
+                return {
+                    "item_id": str(kw["row"]["id"]),
+                    "policy": kw["policy"],
+                    "question_id": q_id,
+                    "cold_control": bool(kw.get("cold_control", False)),
+                    "seed": 1,
+                    "turn1_stripped_in_prompt": True,
+                    "original_turn1_thinking_tokens": 5,
+                    "turn1_thinking": "missing bytes",
+                    "prompt_tokens": 20,
+                    "thinking_tokens": 4,
+                    "answer_tokens": 6,
+                    "think_truncated": False,
+                    "answer_truncated": False,
+                    "thinking": "short thought",
+                    "answer": ans,
+                    "text": f"<think>short thought</think>{ans}",
+                    "ngram_repetition_rate_4": 0.0,
+                }
+
+            def run_verifier(self, cf_row, cf_seed, **kw) -> str:
+                return _reply("supported", "Passage text.", think="cf ok")
+
+        iv_straight_dir = tmp_path / "iv_straight"
+        s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubRunner(),
+            out_dir=iv_straight_dir,
+            include_cold_control=True,
+        )
+        iv_resume_dir = tmp_path / "iv_resume"
+        s2i.run_interview_for_cohort(
+            cohort=cohort[:1],
+            rows_by_id=rows_by_id,
+            runner=_StubRunner(),
+            out_dir=iv_resume_dir,
+            include_cold_control=True,
+        )
+        iv_sa = iv_resume_dir / "s2-interview-save-all.jsonl.gz"
+        iv_first_recs = s2.read_save_all(iv_sa)
+        # Append a duplicate of iv_0 Q1, an uncommitted single turn for iv_1, and a torn gzip tail
+        dup_iv = dict(iv_first_recs[0], text="dup_iv_text")
+        uncomm_iv = dict(iv_first_recs[0], item_id="iv_1", text="partial_iv_1_turn")
+        s2.append_save_all(iv_sa, [dup_iv, uncomm_iv])
+        iv_sa.write_bytes(iv_sa.read_bytes() + b"\x1f\x8b\x08\x00torn_interview_bytes")
+
+        s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubRunner(),
+            out_dir=iv_resume_dir,
+            include_cold_control=True,
+        )
+        assert iv_sa.read_bytes() == (iv_straight_dir / "s2-interview-save-all.jsonl.gz").read_bytes()
+        iv_dropped = s2.read_save_all(s2.dropped_archive_path(iv_sa))
+        iv_reasons = [r["reason"] for r in iv_dropped]
+        assert "duplicate_record" in iv_reasons
+        assert "uncommitted_member" in iv_reasons
+        assert "torn_member" in iv_reasons
+
+        # 2. Tag writer: inject a duplicate line and a torn trailing line, verify .dropped.jsonl.gz and byte-identity
+        q2_recs = [
+            {
+                "item_id": f"tag_{i}",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "cold_control": False,
+                "original_turn1_thinking_tokens": 10 + i,
+                "turn1_thinking": f"missing fact {i} in evidence",
+                "answer": f"MISSING_FACT: missing fact {i} in evidence",
+            }
+            for i in range(3)
+        ]
+        controls = s2t.build_judge_controls(q2_recs, seed=123)
+
+        def judge_fn(t1_think: str, q2_ans: str) -> dict[str, str]:
+            if not t1_think.strip():
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if t1_think.strip() in q2_ans:
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        tag_straight_dir = tmp_path / "tag_straight"
+        s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=tag_straight_dir,
+            controls=controls,
+        )
+        tag_resume_dir = tmp_path / "tag_resume"
+        s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs[:1],
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=tag_resume_dir,
+            controls=controls,
+        )
+        tags_p = tag_resume_dir / "s2-interview-tags.jsonl"
+        first_line = tags_p.read_text(encoding="utf-8")
+        # Append duplicate of first line + torn trailing line
+        tags_p.write_text(first_line + first_line + '{"item_id": "tag_1", "torn": ', encoding="utf-8", newline="\n")
+        s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=tag_resume_dir,
+            controls=controls,
+        )
+        assert tags_p.read_bytes() == (tag_straight_dir / "s2-interview-tags.jsonl").read_bytes()
+        tag_dropped = s2.read_save_all(s2.dropped_archive_path(tags_p))
+        assert [r["reason"] for r in tag_dropped] == ["duplicate_record", "torn_member"]
+
+        # 3. Direct edge cases in _prepare_save_all_resume and _prepare_tags_resume (corrupt UTF-8, unterminated line, bad JSON, non-dict JSON, empty member)
+        edge_sa = tmp_path / "edge-save-all.jsonl.gz"
+        assert s2._prepare_save_all_resume(edge_sa) == []
+        edge_sa.write_bytes(b"")
+        assert s2._prepare_save_all_resume(edge_sa) == []
+        assert s2.read_save_all(edge_sa) == []
+        # Empty gzip member followed by valid member, followed by member with blank line + non-dict JSON
+        s2.append_save_all(edge_sa, ())
+        s2.append_save_all(edge_sa, [{"item_id": "ok1", "sample_index": 0}])
+        bad_json_gz = gzip.compress(b"\n[1, 2, 3]\n", mtime=0)
+        edge_sa.write_bytes(edge_sa.read_bytes() + bad_json_gz)
+        kept = s2._prepare_save_all_resume(edge_sa)
+        assert kept == [{"item_id": "ok1", "sample_index": 0}]
+
+        # Unterminated line in gzip member & invalid UTF-8 in gzip member & invalid JSON syntax
+        for payload in (b'{"item_id": "no_newline"}', b"\xff\xfe\xfd\n", b"{bad_json}\n"):
+            p_case = tmp_path / f"case_{len(payload)}.jsonl.gz"
+            p_case.write_bytes(gzip.compress(payload, mtime=0))
+            assert s2._prepare_save_all_resume(p_case) == []
+            assert s2.dropped_archive_path(p_case).is_file()
+
+        # _prepare_tags_resume edge cases: empty file, incomplete last dict, corrupt non-last line
+        empty_tags = tmp_path / "empty-tags.jsonl"
+        empty_tags.write_bytes(b"")
+        assert s2t._prepare_tags_resume(empty_tags) == []
+        incomp_tags = tmp_path / "incomp-tags.jsonl"
+        incomp_tags.write_text('{"item_id": "x"}\n', encoding="utf-8", newline="\n")
+        assert s2t._prepare_tags_resume(incomp_tags) == []
+        assert s2.dropped_archive_path(incomp_tags).is_file()
+        corrupt_mid = tmp_path / "corrupt-mid-tags.jsonl"
+        corrupt_mid.write_text("{bad_line_1}\n" + first_line, encoding="utf-8", newline="\n")
+        with pytest.raises(SystemExit, match="corrupt line 1"):
+            s2t._prepare_tags_resume(corrupt_mid)
+        incomp_mid = tmp_path / "incomp-mid-tags.jsonl"
+        incomp_mid.write_text('{"item_id": "x"}\n' + first_line, encoding="utf-8", newline="\n")
+        with pytest.raises(SystemExit, match="incomplete record on line 1"):
+            s2t._prepare_tags_resume(incomp_mid)
+
+        # Additional coverage of changed lines across s2_grpo_smoke, s2_interview, s2_interview_tag, s2_draw
+        import s2_draw as s2d
+
+        assert s2.dropped_archive_path(tmp_path / "plain_name") == tmp_path / "plain_name.dropped.jsonl.gz"
+        ws_gz = tmp_path / "ws.jsonl.gz"
+        ws_gz.write_bytes(gzip.compress(b"   \n", mtime=0))
+        assert s2._prepare_save_all_resume(ws_gz) == []
+        # Incomplete gzip stream (header + partial deflate without trailer -> dobj.eof is False)
+        full_gz = gzip.compress(b'{"item_id": "x"}\n', mtime=0)
+        incomp_gz = tmp_path / "incomp_eof.jsonl.gz"
+        incomp_gz.write_bytes(full_gz[:-4])
+        assert s2._prepare_save_all_resume(incomp_gz) == []
+        assert s2.dropped_archive_path(incomp_gz).is_file()
+
+        # write_save_all helper
+        w_sa = tmp_path / "write_sa.jsonl.gz"
+        w_sha = s2.write_save_all(w_sa, [{"item_id": "w0", "sample_index": 0}])
+        assert len(w_sha) == 64 and s2.read_save_all(w_sa) == [{"item_id": "w0", "sample_index": 0}]
+
+        # run_steps with steps=0 and save_all_path creates empty archive;run_prepass with prompts=[] creates empty archive
+        gold_dir = _prepass_gold(tmp_path / "gold_empty")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        zero_sa = tmp_path / "zero_steps" / "s2-hf-save-all.jsonl.gz"
+        s2.run_steps(
+            model=Namespace(device="cpu"),
+            ref_adapter_off=lambda: None,
+            tok=tok,
+            optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            prompts=[],
+            rollout=lambda *_: ([], [], []),
+            steps=0,
+            g=2,
+            max_new=16,
+            reward_fn=lambda *_: 0.0,
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            save_all_path=zero_sa,
+        )
+        assert zero_sa.is_file() and s2.read_save_all(zero_sa) == []
+
+        empty_pp_dir = tmp_path / "empty_pp"
+        a_empty_pp = ap.parse_args(
+            ["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(empty_pp_dir), "--rollout-only"]
+        )
+        _, gold_hashes = s2.read_gold(gold_dir)
+        s2.run_prepass(
+            a=a_empty_pp,
+            prompts=[],
+            gold_hashes=gold_hashes,
+            bundle={
+                "tok": tok,
+                "rollout": lambda *_: ([], [], []),
+                "reward_fn": lambda *_: 0.0,
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 100,
+                "revision": s2.STUDENT_FULL_REVISION,
+            },
+        )
+        assert (empty_pp_dir / "s2-hf-save-all.jsonl.gz").is_file()
+
+        # run_interview_for_cohort with empty cohort and cold_control resumed records
+        empty_iv_dir = tmp_path / "empty_iv"
+        s2i.run_interview_for_cohort(
+            cohort=[],
+            rows_by_id={},
+            runner=_StubRunner(),
+            out_dir=empty_iv_dir,
+            include_cold_control=False,
+        )
+        assert (empty_iv_dir / "s2-interview-save-all.jsonl.gz").is_file()
+
+        # run_two_judge_tagging with empty q2_records and missing interview_q2_records
+        with pytest.raises(ValueError, match="interview_q2_records is required"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=None,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=judge_fn,
+                judge_b_fn=judge_fn,
+                out_dir=tmp_path / "no_q2",
+                controls=controls,
+            )
+        empty_tag_dir = tmp_path / "empty_tags_run"
+        s2t.run_two_judge_tagging(
+            interview_q2_records=[],
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=judge_fn,
+            judge_b_fn=judge_fn,
+            out_dir=empty_tag_dir,
+            controls=controls,
+        )
+        assert (empty_tag_dir / "s2-interview-tags.jsonl").is_file()
+
+        # s2_draw edge cases
+        with pytest.raises(SystemExit, match="unused_draw_flags"):
+            s2d._check_unused_draw_flags(
+                "uniform", seed=1, prepass=(None, None), k_min=None, k_max=None, holdout_seed=None
+            )
+        with pytest.raises(SystemExit, match="unused_draw_flags"):
+            s2d._check_unused_draw_flags(
+                "class_stratified", seed=1, prepass=None, k_min=0, k_max=5, holdout_seed="h1"
+            )
+        assert s2d.build_class_stratified_epoch([], seed=1, epoch=0) == []
+        with pytest.raises(SystemExit, match="invalid_draw_n"):
+            s2d.build_class_stratified_schedule([{"id": "x"}], 0, seed=1)
+        with pytest.raises(SystemExit, match="empty_pool"):
+            s2d.build_class_stratified_schedule([], 1, seed=1)
+        with pytest.raises(SystemExit, match="invalid_holdout_fraction"):
+            s2d.split_stratified_holdout([{"id": "x", "split": "tune"}], {"x": 1}, holdout_fraction=1.5, holdout_seed="s")
+        with pytest.raises(SystemExit, match="empty_pool"):
+            s2d.split_stratified_holdout([], {}, holdout_fraction=0.2, holdout_seed="s")
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            s2d._extract_k_by_id({"x": {"k_correct": 4, "pass_seed": 2}}, {"x"})
+        with pytest.raises(SystemExit, match="prepass_missing_split_id"):
+            s2d._extract_k_by_id({}, {"x"})
 
 
 

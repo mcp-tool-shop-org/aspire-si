@@ -119,7 +119,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["aspire", "integrations"]
+source = ["aspire", "integrations", "examples/verifier-distill"]
 branch = true
 omit = [
     "*/tests/*",
