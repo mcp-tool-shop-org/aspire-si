@@ -61,9 +61,11 @@ GUARD_WINDOW_UPDATES = 10
 GUARD_WINDOW_GROUPS = 40
 FROZEN_PIP_FREEZE_SHA256 = "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
 FROZEN_STACK_VERSIONS = {
-    "torch": "2.5.1+cu121",
-    "transformers": "4.57.6",
-    "bitsandbytes": "0.49.2",
+    "torch": "2.14.1+cu130",
+    "transformers": "5.19.0",
+    "bitsandbytes": "0.50.2",
+    "peft": "0.21.2",
+    "accelerate": "1.15.0",
 }
 MAX_NEW_TOKENS = 2048
 VRAM_LINE_MIB = 31_200  # the rig's watchdog line
@@ -989,20 +991,25 @@ def environment(
 def check_frozen_env(
     pip_freeze_path: Path | None = None,
     *,
-    expected_sha256: str = FROZEN_PIP_FREEZE_SHA256,
+    expected_sha256: str | None = None,
     installed_versions: Mapping[str, str | None] | None = None,
     require_exact_versions: bool = False,
 ) -> dict:
-    """Record torch, transformers, bitsandbytes versions and check the frozen pip-freeze.txt sha256."""
+    """Record frozen stack versions and check the frozen pip-freeze.txt sha256."""
     versions = (
-        {k: installed_versions.get(k) for k in ("torch", "transformers", "bitsandbytes")}
+        {k: installed_versions.get(k) for k in FROZEN_STACK_VERSIONS}
         if installed_versions is not None
-        else {k: package_version(k) for k in ("torch", "transformers", "bitsandbytes")}
+        else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
     )
     actual_sha: str | None = None
-    exp_sha = str(expected_sha256).strip().lower()
-    if pip_freeze_path is not None:
-        pf_path = Path(pip_freeze_path)
+    exp_sha = str(FROZEN_PIP_FREEZE_SHA256 if expected_sha256 is None else expected_sha256).strip().lower()
+    eff_freeze_path = pip_freeze_path
+    if eff_freeze_path is None:
+        candidate_freeze = Path(sys.prefix) / "FROZEN-pip-freeze-2026-11-05.txt"
+        if candidate_freeze.is_file():
+            eff_freeze_path = candidate_freeze
+    if eff_freeze_path is not None:
+        pf_path = Path(eff_freeze_path)
         if not pf_path.is_file():
             raise SystemExit(
                 f"refusing to start (frozen_env_missing_file): pip-freeze file does not exist: {pf_path.name}"
@@ -1378,6 +1385,8 @@ def build_receipt(
     checkpoint_files_sha256: Mapping[str, str] | None = None,
     adapter_sha256: str | None = None,
     adapter_files_sha256: Mapping[str, str] | None = None,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
 ) -> dict:
     out = {
         "test": "S2",
@@ -1404,6 +1413,12 @@ def build_receipt(
         "prompt_split": PROMPT_SPLIT,
         "prompt_ids": prompt_ids,
         "environment": env,
+        "stack_versions": (
+            dict(stack_versions)
+            if stack_versions is not None
+            else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+        ),
+        "pip_freeze_sha256": pip_freeze_sha256,
         "llama_cpp": llama,
         "pass_line": {"vram_line_mib": VRAM_LINE_MIB, "steps": STEPS, "oom": False},
         "stopped": stopped,
@@ -3513,6 +3528,8 @@ def build_prepass_header(
     checkpoint_sha: str | None = None,
     checkpoint_files_sha: Mapping[str, str] | None = None,
     pass_a_sha: str | None = None,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
 ) -> dict:
     hdr: dict = {
         "ids_sha256": ids_sha256(prompt_ids),
@@ -3524,6 +3541,12 @@ def build_prepass_header(
         "seed": int(seed),
         "model_revision": model_revision,
         "reproducible": bool(reproducible),
+        "stack_versions": (
+            dict(stack_versions)
+            if stack_versions is not None
+            else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+        ),
+        "pip_freeze_sha256": pip_freeze_sha256,
     }
     if not save_all:
         hdr["save_all"] = False
@@ -3637,6 +3660,8 @@ def prepass_item_record(
     }
     if descriptive:
         rec["descriptive"] = True
+    if int(pass_seed) != 0:
+        rec["pass_seed"] = int(pass_seed)
     item_id_key = str(row["id"])
     if pass_a_k is not None and item_id_key in pass_a_k:
         rec["pass_a_k"] = int(pass_a_k[item_id_key])
@@ -3716,6 +3741,59 @@ def compute_hedge_flag(
     }
 
 
+def _verify_pass_provenance(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    role: str,
+    header: Mapping[str, Any] | None = None,
+    expected_seed: int | None = None,
+    forbid_seeds: Sequence[int] = (),
+    require_seeds: bool = False,
+) -> int | None:
+    """Verify pass records and optional header are not descriptive and have the expected seed provenance."""
+    if header is not None and header.get("descriptive") is True:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_descriptive): "
+            f"{role} header has descriptive=true"
+        )
+    observed_seed: int | None = None
+    if header is not None and "seed" in header and not isinstance(header["seed"], bool):
+        observed_seed = int(header["seed"])
+    for r in records:
+        if r.get("descriptive") is True:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_descriptive): "
+                f"{role} record {r.get('id')!r} has descriptive=true"
+            )
+        rec_seed_raw = r.get("pass_seed", r.get("seed"))
+        if rec_seed_raw is not None and not isinstance(rec_seed_raw, bool):
+            rec_seed = int(rec_seed_raw)
+            if observed_seed is None:
+                observed_seed = rec_seed
+            elif observed_seed != rec_seed:
+                raise SystemExit(
+                    f"refusing paired estimators (paired_estimator_wrong_seed): "
+                    f"{role} has inconsistent seeds ({observed_seed} vs {rec_seed})"
+                )
+    if require_seeds and observed_seed is None:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_wrong_seed): "
+            f"{role} is missing seed metadata"
+        )
+    if observed_seed is not None:
+        if expected_seed is not None and observed_seed != int(expected_seed):
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_wrong_seed): "
+                f"{role} requires seed {int(expected_seed)}, got {observed_seed}"
+            )
+        if observed_seed in {int(s) for s in forbid_seeds}:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_wrong_seed): "
+                f"{role} has reserved seed {observed_seed}"
+            )
+    return observed_seed
+
+
 def compute_paired_arm_estimators(
     pass_a_records: Sequence[Mapping[str, Any]],
     pass_b_records: Sequence[Mapping[str, Any]],
@@ -3723,6 +3801,10 @@ def compute_paired_arm_estimators(
     *,
     holdout_ids: Sequence[str] | set[str] | None = None,
     baseline_ct_share: float = 0.42,
+    pass_a_header: Mapping[str, Any] | None = None,
+    pass_b_header: Mapping[str, Any] | None = None,
+    postpass_headers: Sequence[tuple[Mapping[str, Any] | None, Mapping[str, Any] | None]] | None = None,
+    require_seeds: bool = False,
 ) -> dict[str, Any]:
     """Compute paired item-level estimators across 2 post-passes per seed and multiple training seeds.
 
@@ -3735,6 +3817,45 @@ def compute_paired_arm_estimators(
     """
     if not seed_postpasses:
         raise ValueError("seed_postpasses must contain at least one (post1, post2) pair")
+    _verify_pass_provenance(
+        pass_a_records,
+        role="Pass A",
+        header=pass_a_header,
+        expected_seed=0,
+        require_seeds=require_seeds,
+    )
+    _verify_pass_provenance(
+        pass_b_records,
+        role="Pass B",
+        header=pass_b_header,
+        expected_seed=1,
+        require_seeds=require_seeds,
+    )
+    for pair_idx, (post1, post2) in enumerate(seed_postpasses):
+        hdr1, hdr2 = (
+            postpass_headers[pair_idx]
+            if postpass_headers is not None and pair_idx < len(postpass_headers)
+            else (None, None)
+        )
+        s1 = _verify_pass_provenance(
+            post1,
+            role=f"seed_postpasses[{pair_idx}][0]",
+            header=hdr1,
+            forbid_seeds=(0, 1),
+            require_seeds=require_seeds,
+        )
+        s2_seed = _verify_pass_provenance(
+            post2,
+            role=f"seed_postpasses[{pair_idx}][1]",
+            header=hdr2,
+            forbid_seeds=(0, 1),
+            require_seeds=require_seeds,
+        )
+        if s1 is not None and s2_seed is not None and s1 == s2_seed:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_wrong_seed): "
+                f"seed_postpasses[{pair_idx}] post1 and post2 have identical seed {s1}"
+            )
     a_by_id = {str(r["id"]): r for r in pass_a_records}
     b_by_id = {str(r["id"]): r for r in pass_b_records}
     item_ids = sorted(a_by_id.keys())
@@ -3960,6 +4081,9 @@ def _prepare_prepass_resume(
         existing_cmp = dict(existing_header)
         if "reproducible" not in existing_cmp and expected_header.get("reproducible") is True:
             existing_cmp["reproducible"] = True
+        for k_opt in ("stack_versions", "pip_freeze_sha256"):
+            if k_opt not in existing_cmp and k_opt in expected_header:
+                existing_cmp[k_opt] = expected_header[k_opt]
         mismatched = [
             k
             for k in sorted(set(expected_header) | set(existing_cmp))
@@ -4026,6 +4150,8 @@ def run_prepass(
     checkpoint_files_sha: Mapping[str, str] | None = None,
     pass_a_k: dict[str, int] | None = None,
     pass_a_sha: str | None = None,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> tuple[list[dict], list[dict], dict | None, bool]:
     """Run the rollout-only pre-pass over ``prompts`` with resume support.
@@ -4078,6 +4204,8 @@ def run_prepass(
         checkpoint_sha=checkpoint_sha,
         checkpoint_files_sha=checkpoint_files_sha,
         pass_a_sha=pass_a_sha,
+        stack_versions=stack_versions,
+        pip_freeze_sha256=pip_freeze_sha256,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
@@ -4238,8 +4366,13 @@ def run_prepass(
     return step_rows, completed_records, None, False
 
 
-def _check_header_not_descriptive(baseline_path: Path) -> None:
-    """Refuse if any companion header beside ``baseline_path`` has ``descriptive: true``."""
+def _check_header_not_descriptive(
+    baseline_path: Path,
+    *,
+    expected_seeds: Sequence[int] = (0,),
+) -> None:
+    """Refuse if any companion header beside ``baseline_path`` has ``descriptive: true`` or wrong seed."""
+    allowed_seeds = {int(s) for s in expected_seeds}
     candidates = [
         baseline_path.with_name(baseline_path.stem + "-header.json"),
         baseline_path.parent / "s2-hf-prepass-header.json",
@@ -4254,12 +4387,21 @@ def _check_header_not_descriptive(baseline_path: Path) -> None:
             hdr_obj = json.loads(hdr_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-        if isinstance(hdr_obj, dict) and hdr_obj.get("descriptive") is True:
+        if not isinstance(hdr_obj, dict):
+            continue
+        if hdr_obj.get("descriptive") is True:
             raise SystemExit(
                 "refusing to start (prepass_baseline_descriptive): "
                 "pass header has descriptive=true; the starting-policy logging pass "
                 "is never accepted as --prepass-baseline"
             )
+        if "seed" in hdr_obj:
+            hdr_seed = hdr_obj.get("seed")
+            if isinstance(hdr_seed, bool) or not isinstance(hdr_seed, int) or hdr_seed not in allowed_seeds:
+                raise SystemExit(
+                    f"refusing to start (prepass_baseline_wrong_seed): "
+                    f"pass header has seed={hdr_seed!r}, expected one of {sorted(allowed_seeds)}"
+                )
 
 
 # -- the run -------------------------------------------------------------------------------------------------
@@ -4269,6 +4411,7 @@ def load_prepass_baseline(
     required_ids: Sequence[str],
     *,
     g: int = G,
+    expected_seeds: Sequence[int] = (0,),
 ) -> tuple[dict[str, int] | None, str | None]:
     """Load and SHA-check a pre-pass baseline JSONL. Never records item text or full file paths."""
     if baseline_path is None and baseline_sha256 is None:
@@ -4283,7 +4426,8 @@ def load_prepass_baseline(
         raise SystemExit(
             f"refusing to start (prepass_baseline_missing_file): baseline file does not exist: {path.name}"
         )
-    _check_header_not_descriptive(path)
+    allowed_seeds = {int(s) for s in expected_seeds}
+    _check_header_not_descriptive(path, expected_seeds=expected_seeds)
     raw_bytes = path.read_bytes()
     actual_sha = hashlib.sha256(raw_bytes).hexdigest()
     expected_sha = str(baseline_sha256).strip().lower()
@@ -4310,6 +4454,13 @@ def load_prepass_baseline(
                 "record has descriptive=true; the starting-policy logging pass "
                 "is never accepted as --prepass-baseline"
             )
+        if isinstance(obj, dict) and ("pass_seed" in obj or "seed" in obj):
+            rec_seed = obj.get("pass_seed", obj.get("seed"))
+            if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed not in allowed_seeds:
+                raise SystemExit(
+                    f"refusing to start (prepass_baseline_wrong_seed): "
+                    f"record on line {line_no} has seed={rec_seed!r}, expected one of {sorted(allowed_seeds)}"
+                )
         if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
             raise SystemExit(
                 f"refusing to start (prepass_baseline_invalid_record): "
@@ -4464,9 +4615,28 @@ def execute(
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
-    require_frozen = bool(getattr(a, "require_frozen_stack", False))
-    if frozen_pip_freeze is not None or require_frozen:
-        check_frozen_env(frozen_pip_freeze, require_exact_versions=require_frozen)
+    require_frozen = bool(
+        getattr(a, "require_frozen_stack", False)
+        or (
+            not a.dry
+            and (
+                build is real_bundle
+                or frozen_pip_freeze is not None
+                or any(
+                    v is not None and not str(package_version(k) or "").startswith(str(v).split("+")[0])
+                    for k, v in FROZEN_STACK_VERSIONS.items()
+                    if package_version(k) is not None
+                )
+            )
+        )
+    )
+    if not a.dry or frozen_pip_freeze is not None or require_frozen:
+        frozen_env = check_frozen_env(frozen_pip_freeze, require_exact_versions=require_frozen)
+    else:
+        frozen_env = {
+            "stack_versions": {k: package_version(k) for k in FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
+        }
     if getattr(a, "logprob_microbatch", None) is not None and a.logprob_microbatch < 1:
         raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
     if getattr(a, "stress_prefix", 0) < 0:
@@ -4676,6 +4846,8 @@ def execute(
                         checkpoint_files_sha=ckpt_files_sha,
                         pass_a_k=pass_a_k,
                         pass_a_sha=pass_a_sha,
+                        stack_versions=frozen_env["stack_versions"],
+                        pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                     )
                     with jsonl_path.open("a", encoding="utf-8", newline="\n") as pfh:
                         pfh.write('{"id": "dry_partial_line"')
@@ -4693,6 +4865,8 @@ def execute(
                         checkpoint_files_sha=ckpt_files_sha,
                         pass_a_k=pass_a_k,
                         pass_a_sha=pass_a_sha,
+                        stack_versions=frozen_env["stack_versions"],
+                        pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                     )
                     prepass_records = recs_p2
                     return rows_p1 + rows_p2, stop_p2, oom_p2
@@ -4709,6 +4883,8 @@ def execute(
                     checkpoint_files_sha=ckpt_files_sha,
                     pass_a_k=pass_a_k,
                     pass_a_sha=pass_a_sha,
+                    stack_versions=frozen_env["stack_versions"],
+                    pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                 )
                 prepass_records = recs_ro
                 return rows_ro, stop_ro, oom_ro
@@ -4909,6 +5085,8 @@ def execute(
             checkpoint_files_sha256=ckpt_files_sha,
             adapter_sha256=adapter_sha,
             adapter_files_sha256=adapter_files_sha,
+            stack_versions=frozen_env["stack_versions"],
+            pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
         )
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"

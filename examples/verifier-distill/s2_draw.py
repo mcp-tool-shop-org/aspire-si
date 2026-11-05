@@ -105,14 +105,56 @@ def _parse_prepass_spec(prepass) -> tuple[Path, str]:
     return Path(raw_path), raw_sha.strip().lower()
 
 
+def _check_prepass_companion_headers(
+    path: Path,
+    allowed_seeds: set[int],
+) -> None:
+    """Refuse if any companion header beside ``path`` has ``descriptive: true`` or wrong ``seed``."""
+    candidates = [
+        path.with_name(path.stem + "-header.json"),
+        path.parent / "s2-hf-prepass-header.json",
+        path.parent / "s2-llamacpp-prepass-header.json",
+    ]
+    seen: set[Path] = set()
+    for hdr_path in candidates:
+        if hdr_path in seen or not hdr_path.is_file():
+            continue
+        seen.add(hdr_path)
+        try:
+            hdr_obj = json.loads(hdr_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(hdr_obj, dict):
+            continue
+        if hdr_obj.get("descriptive") is True:
+            _refuse(
+                "prepass_descriptive",
+                "pre-pass header has descriptive=true; descriptive passes cannot be used",
+            )
+        if "seed" in hdr_obj and hdr_obj["seed"] is not None:
+            if int(hdr_obj["seed"]) not in allowed_seeds:
+                _refuse(
+                    "prepass_wrong_seed",
+                    f"pre-pass header has seed={hdr_obj['seed']!r}, expected {sorted(allowed_seeds)}",
+                )
+
+
 def _load_and_verify_prepass(
     prepass_spec,
     split_ids: set[str],
+    *,
+    expected_seed: int | Sequence[int] = 0,
 ) -> tuple[dict[str, dict], str]:
     """Load pre-pass JSONL, verify SHA-256 and split id coverage, and return ``(records_by_id, sha256)``."""
     path, expected_sha = _parse_prepass_spec(prepass_spec)
     if not path.is_file():
         _refuse("prepass_missing_file", f"pre-pass file does not exist: {path.name}")
+    allowed_seeds = (
+        {int(expected_seed)}
+        if isinstance(expected_seed, int)
+        else {int(s) for s in expected_seed}
+    )
+    _check_prepass_companion_headers(path, allowed_seeds)
     raw_bytes = path.read_bytes()
     actual_sha = hashlib.sha256(raw_bytes).hexdigest()
     if actual_sha != expected_sha:
@@ -131,6 +173,17 @@ def _load_and_verify_prepass(
             _refuse("prepass_corrupt_json", f"invalid JSON on line {line_no}")
         if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
             _refuse("prepass_invalid_record", f"line {line_no} is missing 'id' or 'k_correct'")
+        if obj.get("descriptive") is True:
+            _refuse(
+                "prepass_descriptive",
+                f"line {line_no} has descriptive=true; descriptive passes cannot be used",
+            )
+        for sk in ("pass_seed", "seed"):
+            if sk in obj and obj[sk] is not None and int(obj[sk]) not in allowed_seeds:
+                _refuse(
+                    "prepass_wrong_seed",
+                    f"line {line_no} has {sk}={obj[sk]!r}, expected {sorted(allowed_seeds)}",
+                )
         rec_id = str(obj["id"])
         if rec_id in records_by_id:
             _refuse("prepass_duplicate_id", f"duplicate pre-pass record for id {rec_id!r}")
@@ -159,6 +212,17 @@ def _extract_k_by_id(
         for k_id, val in prepass_records_or_spec.items():
             cid = str(k_id)
             if isinstance(val, Mapping):
+                if val.get("descriptive") is True:
+                    _refuse(
+                        "prepass_descriptive",
+                        f"record {cid!r} has descriptive=true; descriptive passes cannot be used",
+                    )
+                for sk in ("pass_seed", "seed"):
+                    if sk in val and val[sk] is not None and int(val[sk]) != 0:
+                        _refuse(
+                            "prepass_wrong_seed",
+                            f"record {cid!r} has {sk}={val[sk]!r}, expected 0",
+                        )
                 k_by_id[cid] = int(val["k_correct"])
             else:
                 k_by_id[cid] = int(val)
@@ -169,7 +233,9 @@ def _extract_k_by_id(
                 f"split row {missing[0]!r} has no pre-pass record ({len(missing)} missing)",
             )
         return k_by_id, None
-    records_by_id, actual_sha = _load_and_verify_prepass(prepass_records_or_spec, split_ids)
+    records_by_id, actual_sha = _load_and_verify_prepass(
+        prepass_records_or_spec, split_ids, expected_seed=0
+    )
     return {cid: int(rec["k_correct"]) for cid, rec in records_by_id.items()}, actual_sha
 
 

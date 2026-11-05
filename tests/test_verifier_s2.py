@@ -6242,6 +6242,8 @@ class TestDrawSetting:
             "verdict",
             "save_all",
             "save_all_sha256",
+            "stack_versions",
+            "pip_freeze_sha256",
         }
         expected_run_keys = {"steps", "prompts", "g", "max_new", "dry"}
         expected_readout_keys = {
@@ -6346,6 +6348,8 @@ class TestDrawSetting:
             "prompt_split": "tune",
             "prompt_ids": [f"t{i:02d}" for i in range(10)],
             "environment": base_env,
+            "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
             "llama_cpp": None,
             "pass_line": {"vram_line_mib": 31200, "steps": 20, "oom": False},
             "stopped": None,
@@ -6591,23 +6595,24 @@ class TestPrepassSeed:
         assert seen_seeds == [s2.item_seed(cid, 0) for cid in expected_ids]
 
         header_bytes = (a0.out / "s2-hf-prepass-header.json").read_bytes()
-        expected_literal_header_bytes = (
-            b"{\n"
-            b' "ids_sha256": "1faaea262a971c66357c551cd28fbe6c8f94b922cc36fa1a8ac041e3fd7373ca",\n'
-            b' "script_sha256": "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a",\n'
-            b' "gold_files_sha256": {\n'
-            b'  "grounded.jsonl": "9cdc8be6611000289f539cb41573173827e3a4417249964496614a69fe4a8c31",\n'
-            b'  "prs/grounded-prs.jsonl": "2ad0462e5bb52f899dd802ea505cd62514a93690393d05401e8971924a1ba2e9",\n'
-            b'  "diffs/reasoning-diffs.jsonl": "aa66a79b4276ef90e68856ea30427d53d2058cc9c56e685f87bb92f259c2858d"\n'
-            b" },\n"
-            b' "g": 2,\n'
-            b' "max_new": 16,\n'
-            b' "quote_reward": "v2",\n'
-            b' "seed": 0,\n'
-            b' "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",\n'
-            b' "reproducible": true\n'
-            b"}\n"
-        )
+        expected_header_dict = {
+            "ids_sha256": "1faaea262a971c66357c551cd28fbe6c8f94b922cc36fa1a8ac041e3fd7373ca",
+            "script_sha256": "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a",
+            "gold_files_sha256": {
+                "grounded.jsonl": "9cdc8be6611000289f539cb41573173827e3a4417249964496614a69fe4a8c31",
+                "prs/grounded-prs.jsonl": "2ad0462e5bb52f899dd802ea505cd62514a93690393d05401e8971924a1ba2e9",
+                "diffs/reasoning-diffs.jsonl": "aa66a79b4276ef90e68856ea30427d53d2058cc9c56e685f87bb92f259c2858d",
+            },
+            "g": 2,
+            "max_new": 16,
+            "quote_reward": "v2",
+            "seed": 0,
+            "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            "reproducible": True,
+            "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
+        }
+        expected_literal_header_bytes = (json.dumps(expected_header_dict, indent=1) + "\n").encode("utf-8")
         assert header_bytes == expected_literal_header_bytes
 
         # Also verify resume works when the script hash matches and seed is default 0:
@@ -8199,6 +8204,8 @@ class TestDefaultPathLiteralExpectation:
             "prompt_split": "tune",
             "prompt_ids": ["g00", "g01"],
             "environment": expected_env,
+            "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
             "llama_cpp": None,
             "pass_line": {"vram_line_mib": 31200, "steps": 20, "oom": False},
             "stopped": None,
@@ -8975,9 +8982,11 @@ class TestTrainingSideRulesPartC:
 
         # Build a synthetic pip-freeze text and verify check_frozen_env against its sha256 and versions
         freeze_lines = [
-            "bitsandbytes==0.49.2\n",
-            "torch==2.5.1+cu121\n",
-            "transformers==4.57.6\n",
+            "accelerate==1.15.0\n",
+            "bitsandbytes==0.50.2\n",
+            "peft==0.21.2\n",
+            "torch==2.14.1+cu130\n",
+            "transformers==5.19.0\n",
         ]
         pf_path = tmp_path / "pip-freeze.txt"
         pf_bytes = "".join(freeze_lines).encode("utf-8")
@@ -9007,7 +9016,10 @@ class TestTrainingSideRulesPartC:
 
         # Version mismatch inside pip-freeze -> frozen_env_version_mismatch
         bad_pf = tmp_path / "bad-freeze.txt"
-        bad_bytes = b"torch==2.6.0\ntransformers==4.57.6\nbitsandbytes==0.49.2\n"
+        bad_bytes = (
+            b"accelerate==1.15.0\nbitsandbytes==0.50.2\npeft==0.21.2\n"
+            b"torch==2.6.0\ntransformers==5.19.0\n"
+        )
         bad_pf.write_bytes(bad_bytes)
         bad_sha = hashlib.sha256(bad_bytes).hexdigest()
         with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
@@ -9017,9 +9029,11 @@ class TestTrainingSideRulesPartC:
         with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
             s2.check_frozen_env(
                 installed_versions={
-                    "torch": "2.5.1+cu121",
+                    "torch": "2.14.1+cu130",
                     "transformers": "4.50.0",
-                    "bitsandbytes": "0.49.2",
+                    "bitsandbytes": "0.50.2",
+                    "peft": "0.21.2",
+                    "accelerate": "1.15.0",
                 },
                 require_exact_versions=True,
             )
@@ -10301,6 +10315,181 @@ class TestFix1Items:
         assert post_sum["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
         assert post_rec["checkpoint_sha256"] == receipt["adapter_sha256"]
         assert post_rec["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+
+    def test_item_03_frozen_stack_versions_match_aspire_gpu(self) -> None:
+        assert s2.FROZEN_STACK_VERSIONS == {
+            "torch": "2.14.1+cu130",
+            "transformers": "5.19.0",
+            "bitsandbytes": "0.50.2",
+            "peft": "0.21.2",
+            "accelerate": "1.15.0",
+        }
+        assert (
+            s2.FROZEN_PIP_FREEZE_SHA256
+            == "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
+        )
+
+    @needs_torch
+    def test_item_04_always_check_frozen_env_on_non_dry_and_record_in_headers_and_receipts(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        # 1. Non-dry run without --require-frozen-env still calls check_frozen_env and refuses version mismatch
+        a_nondry = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "nondry_mismatch"),
+                "--rnd-commit",
+                "deadbee",
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+            ]
+        )
+        monkeypatch.setattr(
+            s2,
+            "FROZEN_STACK_VERSIONS",
+            {**s2.FROZEN_STACK_VERSIONS, "transformers": "999.0.0"},
+        )
+        with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
+            s2.execute(a_nondry, build=s2.dry_bundle, rig=_FakeRig(a_nondry))
+
+        # 2. Restore FROZEN_STACK_VERSIONS and verify stack_versions + pip_freeze_sha256 in header and receipt
+        monkeypatch.undo()
+        freeze_lines = [f"{pkg}=={ver}\n" for pkg, ver in sorted(s2.FROZEN_STACK_VERSIONS.items())]
+        pf_path = tmp_path / "FROZEN-pip-freeze-2026-11-05.txt"
+        pf_bytes = "".join(freeze_lines).encode("utf-8")
+        pf_path.write_bytes(pf_bytes)
+        pf_sha = s2.hashlib.sha256(pf_bytes).hexdigest()
+        monkeypatch.setattr(s2, "FROZEN_PIP_FREEZE_SHA256", pf_sha)
+        monkeypatch.setattr(s2, "package_version", lambda k: s2.FROZEN_STACK_VERSIONS.get(k))
+
+        out_ro = tmp_path / "ro_with_freeze"
+        a_ro = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(out_ro),
+                "--rnd-commit",
+                "deadbee",
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+                "--frozen-pip-freeze",
+                str(pf_path),
+            ]
+        )
+        assert s2.execute(a_ro, build=s2.dry_bundle, rig=_FakeRig(a_ro)) == 0
+        hdr = json.loads((out_ro / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        rec = json.loads((out_ro / "s2-hf.json").read_text(encoding="utf-8"))
+        assert hdr["pip_freeze_sha256"] == pf_sha
+        assert rec["pip_freeze_sha256"] == pf_sha
+        assert set(hdr["stack_versions"].keys()) == set(s2.FROZEN_STACK_VERSIONS.keys())
+        assert set(rec["stack_versions"].keys()) == set(s2.FROZEN_STACK_VERSIONS.keys())
+
+    def test_item_05_prepass_and_paired_estimators_refuse_descriptive_and_wrong_seeds(
+        self, tmp_path: Path
+    ) -> None:
+        from s2_draw import draw_prompts, split_stratified_holdout
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+
+        # 1. Prepass file with seed=1 header or record is refused by draw_prompts, split_stratified_holdout, and load_prepass_baseline
+        seed1_dir = tmp_path / "seed1_pass"
+        seed1_dir.mkdir(parents=True, exist_ok=True)
+        seed1_jsonl = seed1_dir / "s2-hf-prepass.jsonl"
+        seed1_sha = _write_fake_prepass(seed1_jsonl, tune_ids, k_fn=lambda i: i % 9, g=8)
+        (seed1_dir / "s2-hf-prepass-header.json").write_text(
+            json.dumps({"seed": 1, "g": 8}) + "\n", encoding="utf-8"
+        )
+
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            draw_prompts(
+                rows,
+                8,
+                mode="kband",
+                seed=42,
+                prepass=(seed1_jsonl, seed1_sha),
+                k_min=0,
+                k_max=5,
+            )
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            split_stratified_holdout(
+                rows,
+                (seed1_jsonl, seed1_sha),
+                holdout_seed="pr79-holdout-v1",
+            )
+        with pytest.raises(SystemExit, match="prepass_baseline_wrong_seed"):
+            s2.load_prepass_baseline(seed1_jsonl, seed1_sha, tune_ids[:4], g=8)
+
+        # Also check record-level pass_seed != 0 without header
+        rec_seed2_jsonl = tmp_path / "rec_seed2.jsonl"
+        rec_lines = [
+            json.dumps({"id": cid, "g": 8, "k_correct": 4, "pass_seed": 2}) + "\n"
+            for cid in tune_ids
+        ]
+        rec_bytes = "".join(rec_lines).encode("utf-8")
+        rec_seed2_jsonl.write_bytes(rec_bytes)
+        rec_seed2_sha = s2.hashlib.sha256(rec_bytes).hexdigest()
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            draw_prompts(
+                rows,
+                8,
+                mode="kband",
+                seed=42,
+                prepass=(rec_seed2_jsonl, rec_seed2_sha),
+                k_min=0,
+                k_max=5,
+            )
+        with pytest.raises(SystemExit, match="prepass_baseline_wrong_seed"):
+            s2.load_prepass_baseline(rec_seed2_jsonl, rec_seed2_sha, tune_ids[:4], g=8)
+
+        # 2. compute_paired_arm_estimators checks Pass A seed=0, Pass B seed=1, and post-passes non-reserved & not descriptive
+        base_rec = {
+            "id": "t00",
+            "gold_verdict": "supported",
+            "g": 8,
+            "k_correct": 4,
+            "supported": 4,
+            "unsupported": 2,
+            "cannot_tell": 2,
+            "malformed": 0,
+            "truncations": 0,
+            "reward_mean": 0.2,
+        }
+        pa_ok = [{**base_rec, "pass_seed": 0}]
+        pb_ok = [{**base_rec, "pass_seed": 1}]
+        post2_ok = [{**base_rec, "pass_seed": 2}]
+        post3_ok = [{**base_rec, "pass_seed": 3}]
+
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                [{**base_rec, "pass_seed": 1}], pb_ok, [(post2_ok, post3_ok)]
+            )
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                pa_ok, [{**base_rec, "pass_seed": 0}], [(post2_ok, post3_ok)]
+            )
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                pa_ok, pb_ok, [([{**base_rec, "pass_seed": 1}], post3_ok)]
+            )
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(pa_ok, pb_ok, [(post2_ok, post2_ok)])
+        with pytest.raises(SystemExit, match="paired_estimator_descriptive"):
+            s2.compute_paired_arm_estimators(
+                pa_ok, pb_ok, [([{**base_rec, "pass_seed": 2, "descriptive": True}], post3_ok)]
+            )
+
 
 
 
