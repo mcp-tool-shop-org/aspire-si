@@ -20,6 +20,7 @@ import argparse
 import csv
 import fnmatch
 import gc
+import gzip
 import hashlib
 import importlib.metadata as metadata
 import json
@@ -1131,6 +1132,9 @@ def build_receipt(
     stopped: dict | None,
     verdict: str,
     dtype_census_record: dict | None = None,
+    save_all: bool | None = None,
+    save_all_sha256: str | None = None,
+    save_all_off_reason: str | None = None,
 ) -> dict:
     out = {
         "test": "S2",
@@ -1165,6 +1169,11 @@ def build_receipt(
     }
     if dtype_census_record is not None:
         out["dtype_census"] = dtype_census_record
+    if save_all is not None:
+        out["save_all"] = bool(save_all)
+        out["save_all_sha256"] = save_all_sha256
+        if not save_all and save_all_off_reason is not None:
+            out["save_all_off_reason"] = save_all_off_reason
     for k in (
         "stress_pool",
         "stress_prompt_id",
@@ -1182,6 +1191,57 @@ def build_receipt(
         if k in args:
             out[k] = args[k]
     return out
+
+
+def save_all_file_path(out_dir: Path, path: str = "hf") -> Path:
+    """Path to the gzip-compressed JSONL completion archive beside the run's outputs."""
+    return Path(out_dir) / f"s2-{path}-save-all.jsonl.gz"
+
+
+def write_save_all(
+    path: Path,
+    records: Sequence[dict],
+    *,
+    fsync: Callable[[int], None] = os.fsync,
+) -> str:
+    """Write ``records`` as deterministic gzip-compressed JSONL (mtime=0) and return its sha256 hex digest."""
+    raw_bytes = "".join(json.dumps(r) + "\n" for r in records).encode("utf-8")
+    gz_bytes = gzip.compress(raw_bytes, mtime=0)
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("wb") as fh:
+        fh.write(gz_bytes)
+        fh.flush()
+        fsync(fh.fileno())
+    return hashlib.sha256(gz_bytes).hexdigest()
+
+
+def read_save_all(path: Path) -> list[dict]:
+    """Read completion records from a ``.jsonl.gz`` (or plain ``.jsonl``) save-all archive."""
+    in_path = Path(path)
+    raw = in_path.read_bytes()
+    text = gzip.decompress(raw).decode("utf-8") if in_path.name.endswith(".gz") else raw.decode("utf-8")
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def validate_save_all_args(a: argparse.Namespace) -> tuple[bool, str | None]:
+    """Validate ``--save-all`` / ``--no-save-all`` and ``--save-all-off-reason``."""
+    save_all_on = bool(getattr(a, "save_all", True))
+    raw_reason = getattr(a, "save_all_off_reason", None)
+    reason = raw_reason.strip() if isinstance(raw_reason, str) else None
+    if not save_all_on:
+        if not reason:
+            raise SystemExit(
+                "refusing to start (save_all_off_reason_required): "
+                "--no-save-all requires a non-empty --save-all-off-reason"
+            )
+        return False, reason
+    if raw_reason is not None:
+        raise SystemExit(
+            "refusing to start (save_all_off_reason_unused): "
+            "--save-all-off-reason cannot be used unless --no-save-all is set"
+        )
+    return True, None
 
 
 # -- the VRAM sampler (nvidia-smi, once a second) ------------------------------------------------------------
@@ -1998,6 +2058,8 @@ def run_steps(
     sign_diagnostics: bool = False,
     prepass_baseline_k: dict[str, int] | None = None,
     group_residuals: list[tuple[str, int, float]] | None = None,
+    save_all_records: list[dict] | None = None,
+    base_seed: int = 0,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -2087,13 +2149,16 @@ def run_steps(
                 group_samples: list[dict] = []
                 verdict_scores: list[float] = []
                 rollout_outcomes: list[dict] = []
+                group_decoded: list[tuple[str, str, str, bool]] = []
                 for c, trunc in zip(comps, truncs, strict=True):
                     text = tok.decode(c, skip_special_tokens=True)
-                    think, _ = split_reply(text)
+                    think, answer = split_reply(text)
                     tt = len(tok.encode(think)) if think else 0
                     think_counts.append(tt)
                     r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
                     rewards.append(r_val)
+                    if save_all_records is not None:
+                        group_decoded.append((text, think, answer, bool(trunc)))
                     if eval_records is not None:
                         rollout_outcomes.append(
                             completion_eval_outcome(text, row, truncated=trunc, reward_val=r_val)
@@ -2119,6 +2184,40 @@ def run_steps(
                 else:
                     is_zv = zero_variance(rewards)
                     adv_list = advantages(rewards, mode=advantage_mode)
+
+                if save_all_records is not None:
+                    grp_item_id = str(row.get("id", k))
+                    grp_seed = item_seed(grp_item_id, base_seed + step * groups_per_update + k)
+                    for sample_idx, ((text, think, answer, is_trunc), r_val, adv_val) in enumerate(
+                        zip(group_decoded, rewards, adv_list, strict=True)
+                    ):
+                        parsed_obj = None if is_trunc else parse_reply(text)
+                        parse_status = (
+                            "truncated" if is_trunc else ("malformed" if parsed_obj is None else "ok")
+                        )
+                        eff_verdict = (
+                            None
+                            if parsed_obj is None
+                            else ("cannot_tell" if loop_detected(text) else parsed_obj["verdict"])
+                        )
+                        save_all_records.append(
+                            {
+                                "kind": "rollout",
+                                "item_id": grp_item_id,
+                                "seed": int(grp_seed),
+                                "step": int(step),
+                                "group": int(k),
+                                "sample_index": int(sample_idx),
+                                "text": text,
+                                "thinking": think,
+                                "answer": answer.strip(),
+                                "parse_status": parse_status,
+                                "verdict": eff_verdict,
+                                "reward": round(float(r_val), 6),
+                                "advantage": round(float(adv_val), 6),
+                                "truncated": bool(is_trunc),
+                            }
+                        )
 
                 if eval_records is not None:
                     for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
@@ -2943,8 +3042,9 @@ def build_prepass_header(
     model_revision: str | None,
     script_hash: str | None = None,
     reproducible: bool = True,
+    save_all: bool = True,
 ) -> dict:
-    return {
+    hdr = {
         "ids_sha256": ids_sha256(prompt_ids),
         "script_sha256": script_hash if script_hash is not None else script_sha256(),
         "gold_files_sha256": dict(gold_hashes),
@@ -2955,6 +3055,9 @@ def build_prepass_header(
         "model_revision": model_revision,
         "reproducible": bool(reproducible),
     }
+    if not save_all:
+        hdr["save_all"] = False
+    return hdr
 
 
 def prepass_item_record(
@@ -2966,6 +3069,10 @@ def prepass_item_record(
     tok,
     reward_fn: Callable,
     quote_reward: str = "v1",
+    save_all_out: list[dict] | None = None,
+    pass_id: str = "prepass_seed0",
+    item_seed_val: int = 0,
+    pass_seed: int = 0,
 ) -> tuple[dict, list[dict]]:
     """Score one item's G completions and return (the text-free JSONL record, eval rollout outcomes)."""
     gold_verdict = str(row.get("label", "supported"))
@@ -2978,12 +3085,12 @@ def prepass_item_record(
     trunc_count = 0
     rollout_outcomes: list[dict] = []
 
-    for c, trunc in zip(comps, truncs, strict=True):
+    for sample_idx, (c, trunc) in enumerate(zip(comps, truncs, strict=True)):
         is_trunc = bool(trunc)
         if is_trunc:
             trunc_count += 1
         text = tok.decode(c, skip_special_tokens=True)
-        think, _ = split_reply(text)
+        think, answer = split_reply(text)
         tt = len(tok.encode(think)) if think else 0
         r_val = _call_reward_fn(reward_fn, text, row, tt, is_trunc)
         rewards.append(r_val)
@@ -3002,12 +3109,31 @@ def prepass_item_record(
             verdict_counts["malformed"] += 1
         if det.get("correct"):
             k_correct += 1
-        if not is_trunc:
-            parsed = parse_reply(text)
-            if parsed is not None:
-                parts = parsed["evidence_quotes"]
-                if parts and all(quote_found(p["quote"], passages) for p in parts):
-                    quote_pass += 1
+        parsed = None if is_trunc else parse_reply(text)
+        if parsed is not None:
+            parts = parsed["evidence_quotes"]
+            if parts and all(quote_found(p["quote"], passages) for p in parts):
+                quote_pass += 1
+        if save_all_out is not None:
+            parse_status = "truncated" if is_trunc else ("malformed" if parsed is None else "ok")
+            save_all_out.append(
+                {
+                    "kind": "pass",
+                    "item_id": str(row["id"]),
+                    "pass_id": str(pass_id),
+                    "seed": int(item_seed_val),
+                    "pass_seed": int(pass_seed),
+                    "sample_index": int(sample_idx),
+                    "text": text,
+                    "thinking": think,
+                    "answer": answer.strip(),
+                    "parse_status": parse_status,
+                    "verdict": v,
+                    "correct": bool(det.get("correct")),
+                    "reward": round(float(r_val), 6),
+                    "truncated": bool(is_trunc),
+                }
+            )
         rollout_outcomes.append(completion_eval_outcome(text, row, truncated=is_trunc, reward_val=r_val))
 
     comp_lens = [len(c) for c in comps]
@@ -3197,6 +3323,8 @@ def run_prepass(
     )
     path_name = str(getattr(a, "path", "hf") or "hf")
     reproducible = path_name != "llamacpp"
+    save_all_on = bool(getattr(a, "save_all", True))
+    pass_id_str = str(getattr(a, "pass_id", None) or f"prepass_seed{eff_seed}")
     expected_header = build_prepass_header(
         prompt_ids=[r["id"] for r in prompts],
         gold_hashes=gold_hashes,
@@ -3206,16 +3334,23 @@ def run_prepass(
         seed=eff_seed,
         model_revision=model_rev,
         reproducible=reproducible,
+        save_all=save_all_on,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
     jsonl_path = a.out / f"s2-{a.path}-prepass.jsonl"
     summary_path = a.out / f"s2-{a.path}-prepass-summary.json"
+    save_all_path = save_all_file_path(a.out, path_name)
 
     completed_records = _prepare_prepass_resume(
         header_path, jsonl_path, expected_header, path=path_name, fsync=fsync
     )
     done_ids = {str(r["id"]) for r in completed_records}
+    pass_save_records: list[dict] = []
+    if save_all_on and done_ids and save_all_path.exists():
+        pass_save_records = [
+            r for r in read_save_all(save_all_path) if str(r.get("item_id")) in done_ids
+        ]
 
     if mode:
         mode(False)
@@ -3227,104 +3362,118 @@ def run_prepass(
     step_rows: list[dict] = []
     new_count = 0
 
-    with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
-        for item_idx, row in enumerate(prompts):
-            item_id = str(row["id"])
-            if item_id in done_ids:
-                continue
-            if stop_after_new is not None and new_count >= stop_after_new:
-                break
-            try:
-                started = time.time()
-                torch.manual_seed(item_seed(item_id, eff_seed))
-                prompt_text = build_prompt(row)
-                ckpt_rollout = state()["grad_ckpt"] if state else None
-                if phase_logger is not None:
-                    phase_logger.record(
-                        step=0,
-                        group=item_idx,
-                        phase="pre_rollout",
-                        prompt_tokens=len(tok.encode(prompt_text)),
-                        completion_lengths=(),
+    try:
+        with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
+            for item_idx, row in enumerate(prompts):
+                item_id = str(row["id"])
+                if item_id in done_ids:
+                    continue
+                if stop_after_new is not None and new_count >= stop_after_new:
+                    break
+                try:
+                    started = time.time()
+                    seed_for_item = item_seed(item_id, eff_seed)
+                    torch.manual_seed(seed_for_item)
+                    prompt_text = build_prompt(row)
+                    ckpt_rollout = state()["grad_ckpt"] if state else None
+                    if phase_logger is not None:
+                        phase_logger.record(
+                            step=0,
+                            group=item_idx,
+                            phase="pre_rollout",
+                            prompt_tokens=len(tok.encode(prompt_text)),
+                            completion_lengths=(),
+                        )
+                    t0 = time.time()
+                    roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
+                    if len(roll_out) == 3:
+                        prompt_ids, comps, truncs = roll_out
+                        truncs = [bool(t) for t in truncs]
+                    else:
+                        prompt_ids, comps = roll_out
+                        truncs = [
+                            len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
+                            for c in comps
+                        ]
+                    device_sync()
+                    roll_s = time.time() - t0
+                    comp_lens = [len(c) for c in comps]
+                    if empty_cache_phases and empty_cache is not None:
+                        empty_cache()
+                    if phase_logger is not None:
+                        phase_logger.record(
+                            step=0,
+                            group=item_idx,
+                            phase="post_rollout",
+                            prompt_tokens=len(prompt_ids),
+                            completion_lengths=comp_lens,
+                        )
+                    rec, rollout_outcomes = prepass_item_record(
+                        row=row,
+                        prompt_ids=prompt_ids,
+                        comps=comps,
+                        truncs=truncs,
+                        tok=tok,
+                        reward_fn=reward_fn,
+                        quote_reward=quote_rew,
+                        save_all_out=pass_save_records if save_all_on else None,
+                        pass_id=pass_id_str,
+                        item_seed_val=seed_for_item,
+                        pass_seed=eff_seed,
                     )
-                t0 = time.time()
-                roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
-                if len(roll_out) == 3:
-                    prompt_ids, comps, truncs = roll_out
-                    truncs = [bool(t) for t in truncs]
-                else:
-                    prompt_ids, comps = roll_out
-                    truncs = [
-                        len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
-                        for c in comps
-                    ]
-                device_sync()
-                roll_s = time.time() - t0
-                comp_lens = [len(c) for c in comps]
-                if empty_cache_phases and empty_cache is not None:
-                    empty_cache()
-                if phase_logger is not None:
-                    phase_logger.record(
-                        step=0,
-                        group=item_idx,
-                        phase="post_rollout",
-                        prompt_tokens=len(prompt_ids),
-                        completion_lengths=comp_lens,
-                    )
-                rec, rollout_outcomes = prepass_item_record(
-                    row=row,
-                    prompt_ids=prompt_ids,
-                    comps=comps,
-                    truncs=truncs,
-                    tok=tok,
-                    reward_fn=reward_fn,
-                    quote_reward=quote_rew,
-                )
-                if eval_records is not None:
-                    rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
-                    adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
-                    for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
-                        ro_item["advantage"] = float(adv_val)
-                    eval_records.append(
+                    if eval_records is not None:
+                        rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
+                        adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
+                        for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
+                            ro_item["advantage"] = float(adv_val)
+                        eval_records.append(
+                            {
+                                "step": 0,
+                                "group": item_idx,
+                                "gold": str(row.get("label", "supported")),
+                                "rollouts": rollout_outcomes,
+                            }
+                        )
+                    jfh.write(json.dumps(rec) + "\n")
+                    jfh.flush()
+                    fsync(jfh.fileno())
+                    completed_records.append(rec)
+                    done_ids.add(item_id)
+                    new_count += 1
+                    is_zv = bool(rec["zero_variance"])
+                    step_rows.append(
                         {
-                            "step": 0,
-                            "group": item_idx,
-                            "gold": str(row.get("label", "supported")),
-                            "rollouts": rollout_outcomes,
+                            "step": item_idx,
+                            "groups": 1,
+                            "active_groups": int(not is_zv),
+                            "zero_variance_groups": int(is_zv),
+                            "tokens": sum(comp_lens),
+                            "rollout_s": round(roll_s, 4),
+                            "train_s": 0.0,
+                            "step_s": round(time.time() - started, 4),
+                            "mean_reward": rec["reward_mean"],
+                            "loss": 0.0,
+                            "peak_alloc_mib": (
+                                phase_logger.peak_alloc_mib()
+                                if phase_logger is not None and phase_logger.max_memory_allocated is not None
+                                else peak_alloc_mib()
+                            ),
+                            "grad_ckpt": None,
+                            "grad_ckpt_rollout": ckpt_rollout,
                         }
                     )
-                jfh.write(json.dumps(rec) + "\n")
-                jfh.flush()
-                fsync(jfh.fileno())
-                completed_records.append(rec)
-                done_ids.add(item_id)
-                new_count += 1
-                is_zv = bool(rec["zero_variance"])
-                step_rows.append(
-                    {
-                        "step": item_idx,
-                        "groups": 1,
-                        "active_groups": int(not is_zv),
-                        "zero_variance_groups": int(is_zv),
-                        "tokens": sum(comp_lens),
-                        "rollout_s": round(roll_s, 4),
-                        "train_s": 0.0,
-                        "step_s": round(time.time() - started, 4),
-                        "mean_reward": rec["reward_mean"],
-                        "loss": 0.0,
-                        "peak_alloc_mib": (
-                            phase_logger.peak_alloc_mib()
-                            if phase_logger is not None and phase_logger.max_memory_allocated is not None
-                            else peak_alloc_mib()
-                        ),
-                        "grad_ckpt": None,
-                        "grad_ckpt_rollout": ckpt_rollout,
-                    }
-                )
-            except oom_types:
-                return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
-            except TimeoutError as exc:
-                return step_rows, completed_records, {"step": item_idx, "error": f"timeout: {exc}"}, False
+                except oom_types:
+                    return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
+                except TimeoutError as exc:
+                    return (
+                        step_rows,
+                        completed_records,
+                        {"step": item_idx, "error": f"timeout: {exc}"},
+                        False,
+                    )
+    finally:
+        if save_all_on:
+            write_save_all(save_all_path, pass_save_records, fsync=fsync)
 
     if len(completed_records) == len(prompts):
         summary_doc = prepass_summary(
@@ -3476,6 +3625,11 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["prepass_baseline_sha256"] = str(a.prepass_baseline_sha256).strip().lower()
     if getattr(a, "log_sdpa_backend", False):
         flags["log_sdpa_backend"] = True
+    if not bool(getattr(a, "save_all", True)):
+        flags["save_all"] = False
+        flags["save_all_off_reason"] = (getattr(a, "save_all_off_reason", None) or "").strip()
+    if getattr(a, "pass_id", None):
+        flags["pass_id"] = str(a.pass_id)
     return flags
 
 
@@ -3497,6 +3651,7 @@ def execute(
     machine's side (the GPU query, the heartbeat, the sampler), None for a dry rehearsal."""
     if getattr(a, "alloc_conf", None) is not None:
         configure_alloc_conf(a.alloc_conf)
+    save_all_on, save_all_reason = validate_save_all_args(a)
     if getattr(a, "logprob_microbatch", None) is not None and a.logprob_microbatch < 1:
         raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
     if getattr(a, "stress_prefix", 0) < 0:
@@ -3624,6 +3779,7 @@ def execute(
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
         eval_records: list[dict] = []
         prepass_records: list[dict] = []
+        rollout_save_records: list[dict] = []
         group_residuals: list[tuple[str, int, float]] = []
         stress_meta: dict = {}
 
@@ -3762,6 +3918,8 @@ def execute(
                 sign_diagnostics=sign_diag,
                 prepass_baseline_k=prepass_baseline_k,
                 group_residuals=group_residuals if prepass_baseline_k is not None else None,
+                save_all_records=rollout_save_records if save_all_on else None,
+                base_seed=int(getattr(a, "draw_seed", None) or 0),
             )
 
         if sampler is not None:
@@ -3769,6 +3927,13 @@ def execute(
                 steps, stopped, oom = run_it()
         else:
             steps, stopped, oom = run_it()
+        save_all_sha: str | None = None
+        if save_all_on:
+            sa_path = save_all_file_path(a.out, a.path)
+            if rollout_only:
+                save_all_sha = hashlib.sha256(sa_path.read_bytes()).hexdigest()
+            else:
+                save_all_sha = write_save_all(sa_path, rollout_save_records)
         eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
@@ -3838,6 +4003,9 @@ def execute(
             stopped=stopped,
             verdict=line,
             dtype_census_record=bundle.get("dtype_census"),
+            save_all=save_all_on,
+            save_all_sha256=save_all_sha,
+            save_all_off_reason=save_all_reason,
         )
         a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}.json").write_text(
@@ -4059,6 +4227,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--log-sdpa-backend",
         action="store_true",
         help="record sdpa_backend ('flash', 'efficient', 'math', 'cudnn', or 'unknown') in each phase row",
+    )
+    ap.add_argument(
+        "--save-all",
+        dest="save_all",
+        action="store_true",
+        default=True,
+        help="write every pass completion and rollout to compressed JSONL beside outputs (default: on)",
+    )
+    ap.add_argument(
+        "--no-save-all",
+        dest="save_all",
+        action="store_false",
+        help="disable save-all completion logging (requires --save-all-off-reason)",
+    )
+    ap.add_argument(
+        "--save-all-off-reason",
+        default=None,
+        help="required non-empty reason when --no-save-all is passed",
+    )
+    ap.add_argument(
+        "--pass-id",
+        default=None,
+        help="optional pass identifier recorded in save-all completion rows",
     )
     return ap
 

@@ -4525,8 +4525,9 @@ class TestRolloutOnlyPrepass:
         captured = capsys.readouterr()
         assert marker not in captured.out
         assert marker not in captured.err
+        assert (a.out / "s2-hf-save-all.jsonl.gz").is_file()
         for path in a.out.rglob("*"):
-            if path.is_file():
+            if path.is_file() and not path.name.endswith(".jsonl.gz"):
                 assert marker not in path.read_text(encoding="utf-8"), f"marker leaked into {path.name}"
 
     @needs_torch
@@ -5487,7 +5488,7 @@ class TestStressPool:
         assert marker not in captured.out
         assert marker not in captured.err
         for p in a.out.rglob("*"):
-            if p.is_file():
+            if p.is_file() and not p.name.endswith(".jsonl.gz"):
                 assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p.name}"
 
         # Also run --prompt-lengths --stress-pool tune on the marker gold
@@ -6239,6 +6240,8 @@ class TestDrawSetting:
             "stopped",
             "readout",
             "verdict",
+            "save_all",
+            "save_all_sha256",
         }
         expected_run_keys = {"steps", "prompts", "g", "max_new", "dry"}
         expected_readout_keys = {
@@ -6348,6 +6351,8 @@ class TestDrawSetting:
             "stopped": None,
             "readout": base_readout,
             "verdict": "S2-DRY",
+            "save_all": True,
+            "save_all_sha256": s2.hashlib.sha256((a.out / "s2-hf-save-all.jsonl.gz").read_bytes()).hexdigest(),
         }
         expected_bytes = json.dumps(base_receipt, indent=1).encode("utf-8")
         actual_bytes = (a.out / "s2-hf.json").read_bytes()
@@ -6499,7 +6504,7 @@ class TestDrawSetting:
         assert marker not in captured.err
         for out_dir in (a_u.out, a_k.out):
             for p in out_dir.rglob("*"):
-                if p.is_file():
+                if p.is_file() and not p.name.endswith(".jsonl.gz"):
                     assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p}"
 
 
@@ -7083,7 +7088,7 @@ class TestSignDiagnostics:
         captured = capsys.readouterr()
         assert marker not in captured.out and marker not in captured.err
         for p in a.out.rglob("*"):
-            if p.is_file():
+            if p.is_file() and not p.name.endswith(".jsonl.gz"):
                 assert marker not in p.read_text(encoding="utf-8")
 
     @needs_torch
@@ -7463,7 +7468,7 @@ class TestPrepassBaseline:
         captured = capsys.readouterr()
         assert marker not in captured.out and marker not in captured.err
         for p in a.out.rglob("*"):
-            if p.is_file():
+            if p.is_file() and not p.name.endswith(".jsonl.gz"):
                 content = p.read_text(encoding="utf-8")
                 assert marker not in content
                 assert str(baseline_path) not in content
@@ -8199,6 +8204,428 @@ class TestDefaultPathLiteralExpectation:
             "stopped": None,
             "readout": expected_readout,
             "verdict": "S2-LIMITED",
+            "save_all": True,
+            "save_all_sha256": s2.hashlib.sha256((a.out / "s2-hf-save-all.jsonl.gz").read_bytes()).hexdigest(),
         }
         expected_receipt_bytes = json.dumps(expected_receipt, indent=1).encode("utf-8")
         assert (a.out / "s2-hf.json").read_bytes() == expected_receipt_bytes
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-05 Part A: Save-All
+# ---------------------------------------------------------------------------
+
+
+class TestSaveAll:
+    def test_save_all_is_on_by_default_and_refuses_no_save_all_without_reason(self, tmp_path):
+        gold_dir = _gold(tmp_path / "gold")
+        ap = s2.build_parser()
+        a_def = ap.parse_args(
+            ["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(tmp_path / "out_def")]
+        )
+        assert a_def.save_all is True
+        assert a_def.save_all_off_reason is None
+        assert s2.validate_save_all_args(a_def) == (True, None)
+        assert "save_all" not in s2.active_flags(a_def)
+
+        a_no_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_no_reason"),
+                "--no-save-all",
+            ]
+        )
+        assert a_no_reason.save_all is False
+        with pytest.raises(SystemExit, match="save_all_off_reason_required"):
+            s2.validate_save_all_args(a_no_reason)
+        with pytest.raises(SystemExit, match="save_all_off_reason_required"):
+            s2.execute(
+                a_no_reason,
+                build=lambda _: (_ for _ in ()).throw(AssertionError("build must not run")),
+            )
+
+        a_blank_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_blank"),
+                "--no-save-all",
+                "--save-all-off-reason",
+                "   ",
+            ]
+        )
+        with pytest.raises(SystemExit, match="save_all_off_reason_required"):
+            s2.validate_save_all_args(a_blank_reason)
+
+        a_unused_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_unused"),
+                "--save-all-off-reason",
+                "accidental reason while save-all is on",
+            ]
+        )
+        with pytest.raises(SystemExit, match="save_all_off_reason_unused"):
+            s2.validate_save_all_args(a_unused_reason)
+
+        a_valid_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_valid_off"),
+                "--no-save-all",
+                "--save-all-off-reason",
+                "  write-only equivalence test  ",
+                "--pass-id",
+                "custom_pass_01",
+            ]
+        )
+        assert s2.validate_save_all_args(a_valid_off) == (False, "write-only equivalence test")
+        flags = s2.active_flags(a_valid_off)
+        assert flags["save_all"] is False
+        assert flags["save_all_off_reason"] == "write-only equivalence test"
+        assert flags["pass_id"] == "custom_pass_01"
+
+        # Also test read_save_all on plain .jsonl as well as .jsonl.gz
+        plain_path = tmp_path / "plain.jsonl"
+        plain_path.write_text('{"item_id": "x1", "kind": "pass"}\n', encoding="utf-8")
+        assert s2.read_save_all(plain_path) == [{"item_id": "x1", "kind": "pass"}]
+
+    @needs_torch
+    def test_save_all_pass_and_training_write_only_equivalence_and_sha256(self, tmp_path, monkeypatch):
+        import hashlib
+        from contextlib import nullcontext
+
+        import torch
+
+        monkeypatch.setattr(s2.time, "time", lambda: 1000.0)
+        monkeypatch.setattr(s2.time, "monotonic", lambda: 500.0)
+        monkeypatch.setitem(s2.PhaseLogger.__init__.__kwdefaults__, "now", lambda: 500.0)
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def make_pass_bundle(_args_ns):
+            fake_cuda = _FakeCuda()
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c_ok = tok.encode(_reply("supported", "alpha beta gamma", think="careful thought")) + [
+                    tok.eos_token_id
+                ]
+                c_mal = tok.encode("<think>bad json</think>{not valid json") + [tok.eos_token_id]
+                c_trunc = tok.encode("<think>unclosed thinking without eos")
+                comps = [c_ok, c_mal, c_trunc][:g_cnt]
+                truncs = [False, False, True][:g_cnt]
+                return p_ids, comps, truncs
+
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 500,
+                "revision": "rev_pass_1",
+                "llama": None,
+                "dtype_census": None,
+                "dry_prepass_cap": 4,
+            }
+
+        ap = s2.build_parser()
+        # 1. Pass run with save-all ON (including dry resume across two halves) vs save-all OFF
+        a_pass_on = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pass_on"),
+                "--rollout-only",
+                "--dry",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "passA_seed0",
+            ]
+        )
+        a_pass_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pass_off"),
+                "--rollout-only",
+                "--dry",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "passA_seed0",
+                "--no-save-all",
+                "--save-all-off-reason",
+                "testing write-only equivalence on pass",
+            ]
+        )
+        assert s2.execute(a_pass_on, build=make_pass_bundle) == 0
+        assert s2.execute(a_pass_off, build=make_pass_bundle) == 0
+
+        sa_pass_path = a_pass_on.out / "s2-hf-save-all.jsonl.gz"
+        assert sa_pass_path.is_file()
+        assert not (a_pass_off.out / "s2-hf-save-all.jsonl.gz").exists()
+
+        rec_pass_on = json.loads((a_pass_on.out / "s2-hf.json").read_text(encoding="utf-8"))
+        rec_pass_off = json.loads((a_pass_off.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec_pass_on["save_all"] is True
+        assert (
+            rec_pass_on["save_all_sha256"]
+            == hashlib.sha256(sa_pass_path.read_bytes()).hexdigest()
+        )
+        assert "save_all_off_reason" not in rec_pass_on
+        assert rec_pass_off["save_all"] is False
+        assert rec_pass_off["save_all_sha256"] is None
+        assert rec_pass_off["save_all_off_reason"] == "testing write-only equivalence on pass"
+
+        saved_pass_rows = s2.read_save_all(sa_pass_path)
+        assert len(saved_pass_rows) == 4 * 3  # 4 items * g=3 completions
+        for idx, row_sa in enumerate(saved_pass_rows):
+            assert row_sa["kind"] == "pass"
+            assert row_sa["pass_id"] == "passA_seed0"
+            assert row_sa["pass_seed"] == 0
+            assert row_sa["sample_index"] == idx % 3
+            assert row_sa["seed"] == s2.item_seed(row_sa["item_id"], 0)
+            if idx % 3 == 0:
+                assert row_sa["parse_status"] == "ok"
+                assert row_sa["thinking"] == "careful thought"
+                assert row_sa["answer"].startswith("{")
+                assert row_sa["verdict"] == "supported"
+                assert row_sa["truncated"] is False
+            elif idx % 3 == 1:
+                assert row_sa["parse_status"] == "malformed"
+                assert row_sa["verdict"] is None
+                assert row_sa["truncated"] is False
+            else:
+                assert row_sa["parse_status"] == "truncated"
+                assert row_sa["verdict"] is None
+                assert row_sa["truncated"] is True
+
+        # Byte-identical prepass.jsonl, prepass-summary.json, eval-summary.json
+        for fname in (
+            "s2-hf-prepass.jsonl",
+            "s2-hf-prepass-summary.json",
+            "s2-hf-eval-summary.json",
+        ):
+            assert (a_pass_on.out / fname).read_bytes() == (a_pass_off.out / fname).read_bytes(), fname
+
+        # Resuming a save-all=False directory with save-all=True refuses on header mismatch
+        a_mismatch_resume = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pass_off"),
+                "--rollout-only",
+                "--dry",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="header mismatch on save_all"):
+            s2.execute(a_mismatch_resume, build=make_pass_bundle)
+
+        # 2. Training run with save-all ON vs save-all OFF: byte-identical steps, groups, eval_summary, and receipt
+        def make_train_bundle(_args_ns):
+            torch.manual_seed(42)
+            fake_cuda = _FakeCuda()
+
+            class _TinyModel:
+                device = torch.device("cpu")
+
+                def __init__(self) -> None:
+                    self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+                def parameters(self):
+                    return [self._p]
+
+                def __call__(self, input_ids, attention_mask=None, **kwargs):
+                    logits = (
+                        torch.zeros(
+                            (input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32
+                        )
+                        + self._p * 0.0
+                    )
+                    return Namespace(logits=logits)
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="step thought")) + [
+                    tok.eos_token_id
+                ]
+                c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="alt thought")) + [
+                    tok.eos_token_id
+                ]
+                c2 = tok.encode("<think>truncated rollout")
+                return p_ids, [c0, c1, c2][:g_cnt], [False, False, True][:g_cnt]
+
+            return {
+                "model": _TinyModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 250,
+                "revision": "rev_train_1",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        a_train_on = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "train_on"),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+            ]
+        )
+        a_train_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "train_off"),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--no-save-all",
+                "--save-all-off-reason",
+                "testing write-only equivalence on training",
+            ]
+        )
+        assert s2.execute(a_train_on, build=make_train_bundle, rig=_FakeRig(a_train_on)) == 1
+        assert s2.execute(a_train_off, build=make_train_bundle, rig=_FakeRig(a_train_off)) == 1
+
+        sa_train_path = a_train_on.out / "s2-hf-save-all.jsonl.gz"
+        assert sa_train_path.is_file()
+        assert not (a_train_off.out / "s2-hf-save-all.jsonl.gz").exists()
+
+        saved_rollouts = s2.read_save_all(sa_train_path)
+        assert len(saved_rollouts) == 2 * 2 * 3  # 2 steps * 2 groups/step * 3 samples/group = 12
+        for r_item in saved_rollouts:
+            assert r_item["kind"] == "rollout"
+            assert set(r_item.keys()) == {
+                "kind",
+                "item_id",
+                "seed",
+                "step",
+                "group",
+                "sample_index",
+                "text",
+                "thinking",
+                "answer",
+                "parse_status",
+                "verdict",
+                "reward",
+                "advantage",
+                "truncated",
+            }
+
+        for fname in ("s2-hf-steps.jsonl", "s2-hf-groups.jsonl", "s2-hf-eval-summary.json"):
+            assert (a_train_on.out / fname).read_bytes() == (a_train_off.out / fname).read_bytes(), fname
+
+        rec_tr_on = json.loads((a_train_on.out / "s2-hf.json").read_text(encoding="utf-8"))
+        rec_tr_off = json.loads((a_train_off.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec_tr_on["save_all"] is True
+        assert (
+            rec_tr_on["save_all_sha256"]
+            == hashlib.sha256(sa_train_path.read_bytes()).hexdigest()
+        )
+        assert rec_tr_off["save_all"] is False
+        assert rec_tr_off["save_all_sha256"] is None
+        assert rec_tr_off["save_all_off_reason"] == "testing write-only equivalence on training"
+
+        def strip_save_all_fields(doc: dict) -> dict:
+            out = {
+                k: v
+                for k, v in doc.items()
+                if k not in ("save_all", "save_all_sha256", "save_all_off_reason")
+            }
+            out["run"] = {
+                k: v for k, v in doc["run"].items() if k not in ("save_all", "save_all_off_reason")
+            }
+            out["readout"] = dict(doc["readout"])
+            if "flags" in out["readout"]:
+                out["readout"]["flags"] = {
+                    k: v
+                    for k, v in out["readout"]["flags"].items()
+                    if k not in ("save_all", "save_all_off_reason")
+                }
+            return out
+
+        assert strip_save_all_fields(rec_tr_on) == strip_save_all_fields(rec_tr_off)
+        assert strip_save_all_fields(rec_pass_on) == strip_save_all_fields(rec_pass_off)
+
