@@ -8968,3 +8968,704 @@ class TestLoggingPassAndPostpass:
         assert all(r["pass_id"] == "postpass_seed2" and r["pass_seed"] == 2 for r in sa_post_recs)
 
 
+class TestTrainingSideRulesPartC:
+    def test_frozen_env_check_and_refusals(self, tmp_path: Path) -> None:
+        import hashlib
+
+        # Build a synthetic pip-freeze text and verify check_frozen_env against its sha256 and versions
+        freeze_lines = [
+            "bitsandbytes==0.49.2\n",
+            "torch==2.5.1+cu121\n",
+            "transformers==4.57.6\n",
+        ]
+        pf_path = tmp_path / "pip-freeze.txt"
+        pf_bytes = "".join(freeze_lines).encode("utf-8")
+        pf_path.write_bytes(pf_bytes)
+        pf_sha = hashlib.sha256(pf_bytes).hexdigest()
+
+        res = s2.check_frozen_env(
+            pf_path,
+            expected_sha256=pf_sha,
+            installed_versions=s2.FROZEN_STACK_VERSIONS,
+            require_exact_versions=True,
+        )
+        assert res["pip_freeze_sha256"] == pf_sha
+        assert res["stack_versions"] == s2.FROZEN_STACK_VERSIONS
+        assert (
+            s2.FROZEN_PIP_FREEZE_SHA256
+            == "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
+        )
+
+        # Missing file -> frozen_env_missing_file
+        with pytest.raises(SystemExit, match="frozen_env_missing_file"):
+            s2.check_frozen_env(tmp_path / "missing-freeze.txt")
+
+        # SHA mismatch -> frozen_env_sha_mismatch
+        with pytest.raises(SystemExit, match="frozen_env_sha_mismatch"):
+            s2.check_frozen_env(pf_path, expected_sha256="00" * 32)
+
+        # Version mismatch inside pip-freeze -> frozen_env_version_mismatch
+        bad_pf = tmp_path / "bad-freeze.txt"
+        bad_bytes = b"torch==2.6.0\ntransformers==4.57.6\nbitsandbytes==0.49.2\n"
+        bad_pf.write_bytes(bad_bytes)
+        bad_sha = hashlib.sha256(bad_bytes).hexdigest()
+        with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
+            s2.check_frozen_env(bad_pf, expected_sha256=bad_sha)
+
+        # Installed version mismatch when require_exact_versions=True -> frozen_env_version_mismatch
+        with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
+            s2.check_frozen_env(
+                installed_versions={
+                    "torch": "2.5.1+cu121",
+                    "transformers": "4.50.0",
+                    "bitsandbytes": "0.49.2",
+                },
+                require_exact_versions=True,
+            )
+
+    def test_stratified_20_percent_holdout_and_class_stratified_epoch_draw(self, tmp_path: Path) -> None:
+        import hashlib
+        import random
+        from collections import Counter
+
+        from s2_draw import (
+            build_class_stratified_epoch,
+            build_class_stratified_schedule,
+            draw_prompts,
+            split_stratified_holdout,
+        )
+
+        # Build a 493-item synthetic tune split with the exact 9-cell Pass-A band x gold class counts:
+        # ('[0,5]', 'cannot_tell'): 11, ('[0,5]', 'supported'): 37, ('[0,5]', 'unsupported'): 57
+        # ('[6,7]', 'cannot_tell'): 6,  ('[6,7]', 'supported'): 53, ('[6,7]', 'unsupported'): 59
+        # ('8', 'cannot_tell'): 17,     ('8', 'supported'): 139,    ('8', 'unsupported'): 114
+        cell_specs = [
+            ("[0,5]", "cannot_tell", 11, 3),
+            ("[0,5]", "supported", 37, 4),
+            ("[0,5]", "unsupported", 57, 5),
+            ("[6,7]", "cannot_tell", 6, 6),
+            ("[6,7]", "supported", 53, 7),
+            ("[6,7]", "unsupported", 59, 6),
+            ("8", "cannot_tell", 17, 8),
+            ("8", "supported", 139, 8),
+            ("8", "unsupported", 114, 8),
+        ]
+        rows_493: list[dict] = []
+        prepass_recs: list[dict] = []
+        idx = 0
+        for _band, gold_cls, count, k_val in cell_specs:
+            for _ in range(count):
+                cid = f"item_{idx:03d}"
+                rows_493.append(
+                    {
+                        "id": cid,
+                        "split": "tune",
+                        "label": gold_cls,
+                        "claim": f"claim {cid}",
+                        "context": [{"source": "s", "text": "alpha beta gamma"}],
+                    }
+                )
+                prepass_recs.append({"id": cid, "g": 8, "k_correct": k_val, "gold_verdict": gold_cls})
+                idx += 1
+        assert len(rows_493) == 493
+
+        prepass_path = tmp_path / "pass_a_493.jsonl"
+        prepass_path.write_text(
+            "".join(json.dumps(r) + "\n" for r in prepass_recs),
+            encoding="utf-8",
+            newline="\n",
+        )
+        prepass_sha = hashlib.sha256(prepass_path.read_bytes()).hexdigest()
+
+        train_rows, holdout_rows, meta = split_stratified_holdout(
+            rows_493,
+            (prepass_path, prepass_sha),
+            holdout_fraction=0.20,
+            holdout_seed="pr79-holdout-v1",
+        )
+        assert len(holdout_rows) == 99
+        assert len(train_rows) == 394
+        assert meta["holdout_count"] == 99
+        assert meta["train_count"] == 394
+        holdout_ids = {r["id"] for r in holdout_rows}
+        train_ids = {r["id"] for r in train_rows}
+        assert holdout_ids.isdisjoint(train_ids)
+        assert len(holdout_ids | train_ids) == 493
+
+        # Verify each of the 9 cells has proportional 20% holdout within 1 item of exact quota
+        for band, gold_cls, count, _ in cell_specs:
+            cell_info = meta["cells"][f"{band}:{gold_cls}"]
+            assert cell_info["total"] == count
+            assert abs(cell_info["holdout"] - (0.20 * count)) < 1.0
+
+        # Determinism across shuffled input rows and dictionary input
+        shuffled_rows = list(rows_493)
+        random.Random(99).shuffle(shuffled_rows)
+        train_2, holdout_2, meta_2 = split_stratified_holdout(
+            shuffled_rows,
+            {r["id"]: r["k_correct"] for r in prepass_recs},
+            holdout_fraction=0.20,
+            holdout_seed="pr79-holdout-v1",
+        )
+        assert [r["id"] for r in holdout_2] == [r["id"] for r in holdout_rows]
+        assert [r["id"] for r in train_2] == [r["id"] for r in train_rows]
+        assert meta_2["holdout_ids_sha256"] == meta["holdout_ids_sha256"]
+
+        # Class-stratified epoch draw without replacement:
+        # 1. Exact class counts per epoch, zero repeats within an epoch, reshuffled per epoch
+        expected_train_class_counts = Counter(r["label"] for r in train_rows)
+        ep0 = build_class_stratified_epoch(train_rows, seed=101, epoch=0)
+        ep1 = build_class_stratified_epoch(train_rows, seed=101, epoch=1)
+        assert len(ep0) == 394 and len(ep1) == 394
+        assert len({r["id"] for r in ep0}) == 394
+        assert len({r["id"] for r in ep1}) == 394
+        assert Counter(r["label"] for r in ep0) == expected_train_class_counts
+        assert Counter(r["label"] for r in ep1) == expected_train_class_counts
+        assert [r["id"] for r in ep0] != [r["id"] for r in ep1]
+        assert {r["id"] for r in ep0}.isdisjoint(holdout_ids)
+
+        # Prefix of 50 items is also class-stratified within 1 item of exact class share
+        prefix_50 = ep0[:50]
+        prefix_counts = Counter(r["label"] for r in prefix_50)
+        for cls, total_cls in expected_train_class_counts.items():
+            expected_prefix_cls = 50.0 * (total_cls / 394.0)
+            assert abs(prefix_counts[cls] - expected_prefix_cls) <= 1.0
+
+        # Multi-epoch schedule (800 groups = 2+ epochs over 394 training items) via draw_prompts
+        sched_800, sched_rec = draw_prompts(
+            rows_493,
+            800,
+            mode="class_stratified",
+            seed=101,
+            prepass=(prepass_path, prepass_sha),
+        )
+        assert len(sched_800) == 800
+        assert sched_rec["draw_mode"] == "class_stratified"
+        assert sched_rec["holdout_count"] == 99
+        assert sched_rec["holdout_ids_sha256"] == meta["holdout_ids_sha256"]
+        assert {r["id"] for r in sched_800}.isdisjoint(holdout_ids)
+        # First 394 and second 394 are each a full permutation of train_rows without replacement
+        assert {r["id"] for r in sched_800[:394]} == train_ids
+        assert {r["id"] for r in sched_800[394:788]} == train_ids
+        assert [r["id"] for r in sched_800[:394]] != [r["id"] for r in sched_800[394:788]]
+
+        # Refusal when a holdout item is in the training pool
+        with pytest.raises(SystemExit, match="holdout_item_in_training"):
+            build_class_stratified_schedule(
+                train_rows + [holdout_rows[0]],
+                10,
+                seed=101,
+                holdout_ids=holdout_ids,
+            )
+
+    def test_ct_collapse_guard_s1_s2_u1_u2_and_run_steps_halt(self, tmp_path: Path) -> None:
+        from contextlib import nullcontext
+
+        torch = pytest.importorskip("torch")
+
+        # 1. S1: >= 3 distinct gold-supported items in window have CT AND >= 2 have positive CT advantage.
+        # Same item repeated 3 times does NOT trigger S1 (distinct item count = 1).
+        guard_s1 = s2.CtCollapseGuard(window_groups=4)
+        assert (
+            guard_s1.record_group(
+                step=0,
+                group=0,
+                item_id="sup_1",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+        assert (
+            guard_s1.record_group(
+                step=0,
+                group=1,
+                item_id="sup_1",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+        assert (
+            guard_s1.record_group(
+                step=1,
+                group=0,
+                item_id="sup_1",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+        # 4th group completes window: only 2 distinct items (sup_1, sup_2) -> does NOT halt
+        assert (
+            guard_s1.record_group(
+                step=1,
+                group=1,
+                item_id="sup_2",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+
+        # Next window of 4 groups: 3 distinct gold-supported items with CT, 2 with positive CT adv -> halts S1!
+        guard_s1.record_group(
+            step=2,
+            group=0,
+            item_id="sup_1",
+            gold_verdict="supported",
+            verdicts=["cannot_tell", "unsupported"],
+            correct_flags=[False, False],
+            advantages_list=[0.8, -0.8],
+        )
+        guard_s1.record_group(
+            step=2,
+            group=1,
+            item_id="sup_2",
+            gold_verdict="supported",
+            verdicts=["cannot_tell", "unsupported"],
+            correct_flags=[False, False],
+            advantages_list=[0.8, -0.8],
+        )
+        guard_s1.record_group(
+            step=3,
+            group=0,
+            item_id="sup_3",
+            gold_verdict="supported",
+            verdicts=["cannot_tell", "supported"],
+            correct_flags=[False, True],
+            advantages_list=[-0.5, 0.5],
+        )
+        # 4th group is a zero-variance cannot_tell group (counted in the 4-group window, no guard on gold CT)
+        stop_s1 = guard_s1.record_group(
+            step=3,
+            group=1,
+            item_id="ct_1",
+            gold_verdict="cannot_tell",
+            verdicts=["cannot_tell", "cannot_tell"],
+            correct_flags=[True, True],
+            advantages_list=[0.0, 0.0],
+            is_zero_variance=True,
+        )
+        assert stop_s1 is not None
+        assert stop_s1["triggered_rules"] == ["S1"]
+        assert stop_s1["reason"] == "ct_guard_s1"
+
+        # 2. S2 (cumulative): CT > 1.5% once >= 600 gold-supported answers have accrued across >= 4 distinct items
+        guard_s2 = s2.CtCollapseGuard(window_groups=4)
+        # Feed 76 groups of 8 answers = 608 gold-supported answers across 4 distinct items with 10 CTs (1.64%)
+        stop_s2 = None
+        for idx in range(76):
+            cid = f"sup_item_{idx % 4}"
+            # Put 1 CT in each of the first 10 windows across all 4 distinct items (idx % 4 = 0,1,2,3)
+            has_ct = idx in (0, 5, 10, 15, 20, 25, 30, 35, 40, 45)
+            v_list = (["cannot_tell"] + ["supported"] * 7) if has_ct else (["supported"] * 8)
+            c_list = ([False] + [True] * 7) if has_ct else ([True] * 8)
+            a_list = ([-0.8] + [0.11] * 7) if has_ct else ([0.0] * 8)
+            res = guard_s2.record_group(
+                step=idx // 2,
+                group=idx % 2,
+                item_id=cid,
+                gold_verdict="supported",
+                verdicts=v_list,
+                correct_flags=c_list,
+                advantages_list=a_list,
+                is_zero_variance=not has_ct,
+            )
+            if res is not None:
+                stop_s2 = res
+                break
+        assert stop_s2 is not None
+        assert stop_s2["triggered_rules"] == ["S2"]
+        assert stop_s2["guard_metrics"]["s2_cum_sup_answers"] == 608
+        assert stop_s2["guard_metrics"]["s2_cum_distinct_ct_items"] == 4
+
+        # 3. U1: >= 4 distinct gold-unsupported items in window have CT AND window correct rate < 78%
+        guard_u1 = s2.CtCollapseGuard(window_groups=4)
+        for g_idx in range(3):
+            assert (
+                guard_u1.record_group(
+                    step=0,
+                    group=g_idx,
+                    item_id=f"u_{g_idx}",
+                    gold_verdict="unsupported",
+                    verdicts=["cannot_tell", "cannot_tell", "unsupported", "unsupported"],
+                    correct_flags=[False, False, True, True],
+                    advantages_list=[-0.5, -0.5, 0.5, 0.5],
+                )
+                is None
+            )
+        stop_u1 = guard_u1.record_group(
+            step=1,
+            group=1,
+            item_id="u_3",
+            gold_verdict="unsupported",
+            verdicts=["cannot_tell", "cannot_tell", "unsupported", "unsupported"],
+            correct_flags=[False, False, True, True],
+            advantages_list=[-0.5, -0.5, 0.5, 0.5],
+        )
+        assert stop_u1 is not None
+        assert stop_u1["triggered_rules"] == ["U1"]
+        assert stop_u1["guard_metrics"]["u1_correct_rate"] == 0.5
+
+        # 4. U2: >= 2 distinct gold-unsupported items with Pass-A k >= 6 have any CT in one window
+        guard_u2 = s2.CtCollapseGuard(
+            window_groups=2,
+            pass_a_k={"u_easy_1": 6, "u_easy_2": 8, "u_hard": 3},
+        )
+        assert (
+            guard_u2.record_group(
+                step=0,
+                group=0,
+                item_id="u_easy_1",
+                gold_verdict="unsupported",
+                verdicts=["cannot_tell"] + ["unsupported"] * 7,
+                correct_flags=[False] + [True] * 7,
+                advantages_list=[-0.5] + [0.07] * 7,
+            )
+            is None
+        )
+        stop_u2 = guard_u2.record_group(
+            step=0,
+            group=1,
+            item_id="u_easy_2",
+            gold_verdict="unsupported",
+            verdicts=["cannot_tell"] + ["unsupported"] * 7,
+            correct_flags=[False] + [True] * 7,
+            advantages_list=[-0.5] + [0.07] * 7,
+        )
+        assert stop_u2 is not None
+        assert stop_u2["triggered_rules"] == ["U2"]
+
+        # 5. End-to-end run_steps halts on U2 at window boundary and refuses holdout items
+        tok = s2.DryTokenizer()
+
+        class _TinyModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        prompts_u = [
+            {
+                "id": "u_easy_1",
+                "label": "unsupported",
+                "claim": "c1",
+                "context": [{"source": "s", "text": "alpha beta gamma"}],
+            },
+            {
+                "id": "u_easy_2",
+                "label": "unsupported",
+                "claim": "c2",
+                "context": [{"source": "s", "text": "alpha beta gamma"}],
+            },
+        ]
+        # Refuses if any prompt is in holdout_ids
+        with pytest.raises(SystemExit, match="holdout_item_in_training"):
+            s2.run_steps(
+                model=_TinyModel(),
+                ref_adapter_off=nullcontext,
+                tok=tok,
+                optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                prompts=prompts_u,
+                rollout=lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                steps=2,
+                g=2,
+                max_new=32,
+                reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                device_sync=lambda: None,
+                peak_alloc_mib=lambda: 100,
+                holdout_ids={"u_easy_2"},
+            )
+
+        # Halts at end of step 0 (2 groups = 1 window of 2 groups) when U2 triggers
+        steps_out, stopped_out, oom_out = s2.run_steps(
+            model=_TinyModel(),
+            ref_adapter_off=nullcontext,
+            tok=tok,
+            optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            prompts=prompts_u,
+            rollout=lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [
+                    tok.encode(_reply("cannot_tell", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                ][:g_cnt],
+                [False] * g_cnt,
+            ),
+            steps=5,
+            g=2,
+            max_new=32,
+            reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            ct_guard=s2.CtCollapseGuard(window_groups=2, pass_a_k={"u_easy_1": 7, "u_easy_2": 8}),
+        )
+        assert not oom_out
+        assert len(steps_out) == 1
+        assert stopped_out is not None
+        assert stopped_out["triggered_rules"] == ["U2"]
+
+    def test_mask_wrong_positive_advantage_dual_clip_and_truncation_out_of_group_mean(self) -> None:
+        torch = pytest.importorskip("torch")
+
+        # 1. Masking fallback: wrong-label completions with positive advantage are clamped to <= 0
+        # after mean-centring, with NO re-centring after the clamp.
+        # Suppose on a gold-supported item:
+        # - 1 completion is 'supported' (+1.0, correct=True)
+        # - 2 completions are 'cannot_tell' (-0.3, correct=False)
+        # - 5 completions are 'supported' with unfound quote on gold unsupported? Or suppose on gold supported:
+        #   5 completions are malformed (-1.0, correct=False), 2 are cannot_tell (-0.3, correct=False), 1 is supported (+1.0, correct=True)
+        rewards = [1.0, -0.3, -0.3, -1.0, -1.0, -1.0, -1.0, -1.0]
+        correct_flags = [True, False, False, False, False, False, False, False]
+        raw_adv = s2.advantages(rewards, mode="dr-grpo")
+        # Mean is -0.575, so cannot_tell (-0.3) gets positive advantage +0.275 before clamping!
+        assert raw_adv[0] == pytest.approx(1.575)
+        assert raw_adv[1] == pytest.approx(0.275)
+        assert raw_adv[3] == pytest.approx(-0.425)
+
+        clamped_adv = s2.clamp_wrong_positive_advantages(raw_adv, correct_flags)
+        # Wrong-label positive advantages (indices 1, 2) are clamped to 0.0;
+        # right-label positive (index 0) and wrong-label negative (indices 3..7) are UNCHANGED (no re-centring!)
+        assert clamped_adv[0] == pytest.approx(1.575)
+        assert clamped_adv[1] == 0.0
+        assert clamped_adv[2] == 0.0
+        for idx in range(3, 8):
+            assert clamped_adv[idx] == pytest.approx(-0.425)
+        assert sum(clamped_adv) != pytest.approx(0.0)
+
+        # 2. Dual-clip c = 3.0 caps the policy surrogate on negative advantages when ratio > 3.0
+        old_logp = torch.zeros((1, 4), dtype=torch.float32)
+        ref_logp = torch.zeros((1, 4), dtype=torch.float32)
+        # logp = log(10.0) -> ratio = 10.0 > c = 3.0
+        logp_high = torch.full((1, 4), float(torch.log(torch.tensor(10.0))), dtype=torch.float32)
+        adv_neg = torch.tensor([-2.0], dtype=torch.float32)
+        mask = torch.ones((1, 4), dtype=torch.float32)
+
+        loss_unclipped = s2.grpo_loss(logp_high, old_logp, ref_logp, adv_neg, mask, beta=0.0, dual_clip_c=None)
+        loss_dual_clipped = s2.grpo_loss(
+            logp_high, old_logp, ref_logp, adv_neg, mask, beta=0.0, dual_clip_c=3.0
+        )
+        # Unclipped policy term is -ratio * adv = -10.0 * (-2.0) = +20.0
+        # Dual-clipped policy term at c=3.0 is -c * adv = -3.0 * (-2.0) = +6.0
+        assert float(loss_unclipped) == pytest.approx(20.0, rel=1e-5)
+        assert float(loss_dual_clipped) == pytest.approx(6.0, rel=1e-5)
+
+        # 3. Truncation out of the group mean:
+        # When 2 of 8 completions are truncated (-1.0) and the 6 survivors all score +1.0:
+        # - Without mask_truncated, survivors get positive advantage against the -1.0 truncations.
+        # - With mask_truncated, truncated completions are excluded from the group mean & std BEFORE
+        #   computing advantages, so the 6 identical survivors have zero variance and 0.0 advantage!
+        r_group = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0]
+        truncs = [False, False, False, False, False, False, True, True]
+        active_r = [r for r, tr in zip(r_group, truncs, strict=True) if not tr]
+        assert s2.zero_variance(active_r) is True
+        active_adv = s2.advantages(active_r, mode="dr-grpo")
+        it = iter(active_adv)
+        masked_adv = [0.0 if tr else next(it) for tr in truncs]
+        assert masked_adv == [0.0] * 8
+
+        # Even when survivors vary (e.g. three +1.0 and three +0.8), their mean is 0.9 (not pulled down by -1.0)
+        r_varied = [1.0, 1.0, 1.0, 0.8, 0.8, 0.8, -1.0, -1.0]
+        active_varied = [r for r, tr in zip(r_varied, truncs, strict=True) if not tr]
+        adv_varied = s2.advantages(active_varied, mode="dr-grpo")
+        it_v = iter(adv_varied)
+        masked_varied = [0.0 if tr else next(it_v) for tr in truncs]
+        assert masked_varied[:3] == [pytest.approx(0.1)] * 3
+        assert masked_varied[3:6] == [pytest.approx(-0.1)] * 3
+        assert masked_varied[6:] == [0.0, 0.0]
+
+    def test_postpass_confident_errors_confusion_matrix_hedge_flag_and_paired_estimators(self) -> None:
+        # Build Pass A, Pass B, and 3 seeds x 2 post-passes over 3 items (1 per band & gold class)
+        pass_a = [
+            {
+                "id": "i_sup_b0",
+                "gold_verdict": "supported",
+                "g": 8,
+                "k_correct": 4,
+                "supported": 4,
+                "unsupported": 3,
+                "cannot_tell": 1,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.2,
+            },
+            {
+                "id": "i_unsup_b1",
+                "gold_verdict": "unsupported",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 2,
+                "unsupported": 6,
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.4,
+            },
+            {
+                "id": "i_ct_b2",
+                "gold_verdict": "cannot_tell",
+                "g": 8,
+                "k_correct": 8,
+                "supported": 0,
+                "unsupported": 4,
+                "cannot_tell": 4,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 1.0,
+            },
+        ]
+        pass_b = [
+            {
+                "id": "i_sup_b0",
+                "gold_verdict": "supported",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 6,
+                "unsupported": 2,
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.5,
+            },
+            {
+                "id": "i_unsup_b1",
+                "gold_verdict": "unsupported",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 2,
+                "unsupported": 6,
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.4,
+            },
+            {
+                "id": "i_ct_b2",
+                "gold_verdict": "cannot_tell",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 2,
+                "unsupported": 3,
+                "cannot_tell": 3,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.4,
+            },
+        ]
+
+        # Confident errors on Pass A:
+        # i_sup_b0 (gold supported): unsupported = 3
+        # i_unsup_b1 (gold unsupported): supported = 2
+        # i_ct_b2 (gold cannot_tell): supported = 0
+        assert [s2.item_confident_errors(r) for r in pass_a] == [3, 2, 0]
+        assert [s2.item_confident_errors(r) for r in pass_b] == [2, 2, 2]
+
+        # Post-passes for 3 seeds:
+        # Make CT share on gold cannot_tell drop to 1/8 = 12.5% (< 21% threshold) so hedge_flag triggers
+        def make_post(k_sup: int, unsup_on_sup: int, ct_on_ct: int):
+            return [
+                {
+                    "id": "i_sup_b0",
+                    "gold_verdict": "supported",
+                    "g": 8,
+                    "k_correct": k_sup,
+                    "supported": k_sup,
+                    "unsupported": unsup_on_sup,
+                    "cannot_tell": 8 - k_sup - unsup_on_sup,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "reward_mean": 0.8,
+                },
+                {
+                    "id": "i_unsup_b1",
+                    "gold_verdict": "unsupported",
+                    "g": 8,
+                    "k_correct": 7,
+                    "supported": 1,
+                    "unsupported": 7,
+                    "cannot_tell": 0,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "reward_mean": 0.7,
+                },
+                {
+                    "id": "i_ct_b2",
+                    "gold_verdict": "cannot_tell",
+                    "g": 8,
+                    "k_correct": 8,
+                    "supported": 0,
+                    "unsupported": 8 - ct_on_ct,
+                    "cannot_tell": ct_on_ct,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "reward_mean": 1.0,
+                },
+            ]
+
+        seed_postpasses = [
+            (make_post(7, 1, 1), make_post(8, 0, 1)),  # seed 1 post_mean k on i_sup_b0 = 7.5, ce = 0.5
+            (make_post(7, 1, 1), make_post(7, 1, 1)),  # seed 2 post_mean k on i_sup_b0 = 7.0, ce = 1.0
+            (make_post(8, 0, 1), make_post(7, 1, 1)),  # seed 3 post_mean k on i_sup_b0 = 7.5, ce = 0.5
+        ]
+        # Across the 3 seeds, i_sup_b0 has post_mean_k = (7.5 + 7.0 + 7.5)/3 = 7.333333, ce = 2.0/3 = 0.666667
+        est = s2.compute_paired_arm_estimators(
+            pass_a,
+            pass_b,
+            seed_postpasses,
+            holdout_ids={"i_ct_b2"},
+            baseline_ct_share=0.42,
+        )
+        assert est["n_items"] == 3
+        assert est["n_seeds"] == 3
+        assert est["per_item_post_mean_k"]["i_sup_b0"] == pytest.approx(22.0 / 3.0, abs=1e-5)
+        assert est["per_item_post_mean_confident_errors"]["i_sup_b0"] == pytest.approx(2.0 / 3.0, abs=1e-5)
+
+        # Band [0,5] (i_sup_b0): estimator is post_mean - B (B has k=6, ce=2)
+        b0 = est["by_pass_a_band"]["[0,5]"]
+        assert b0["estimator"] == "post_mean - B"
+        assert b0["k_diff"] == pytest.approx((22.0 / 3.0) - 6.0, abs=1e-5)
+        assert b0["confident_error_diff"] == pytest.approx((2.0 / 3.0) - 2.0, abs=1e-5)
+
+        # Unbanded holdout (i_ct_b2): estimator is post_mean - (A + B) / 2
+        # A has k=8, B has k=6 -> (A+B)/2 = 7.0; post_mean k = 8.0 -> diff = +1.0
+        # A has ce=0, B has ce=2 -> (A+B)/2 = 1.0; post_mean ce = 0.0 -> diff = -1.0
+        hold_est = est["unbanded"]["holdout"]
+        assert hold_est["estimator"] == "post_mean - (A + B) / 2"
+        assert hold_est["k_diff"] == pytest.approx(1.0, abs=1e-5)
+        assert hold_est["confident_error_diff"] == pytest.approx(-1.0, abs=1e-5)
+
+        # Hedge flag triggered because ct_share_of_correct = 1/8 = 0.125 < 0.21
+        assert est["hedge_flag_after"]["ct_share_of_correct"] == pytest.approx(0.125)
+        assert est["hedge_flag_after"]["triggered"] is True
+        assert est["confusion_matrix_after"]["cannot_tell"]["cannot_tell"] == 6
+        assert est["confusion_matrix_after"]["cannot_tell"]["unsupported"] == 42
+
+
+

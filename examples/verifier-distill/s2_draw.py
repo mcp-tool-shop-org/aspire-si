@@ -10,12 +10,26 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 PROMPTS = 32
 PROMPT_SPLIT = "tune"
-DRAW_MODES = ("first", "uniform", "kband")
+DRAW_MODES = ("first", "uniform", "kband", "class_stratified")
+HOLDOUT_DEFAULT_SEED = "pr79-holdout-v1"
+HOLDOUT_DEFAULT_FRACTION = 0.20
+GOLD_CLASSES = ("supported", "unsupported", "cannot_tell")
+PASS_A_BANDS = ("[0,5]", "[6,7]", "8")
+
+
+def k_band_of(k_correct: int) -> str:
+    """Return the pre-registered Pass-A difficulty band ('[0,5]', '[6,7]', or '8') for ``k_correct``."""
+    k_val = int(k_correct)
+    if k_val <= 5:
+        return "[0,5]"
+    if k_val <= 7:
+        return "[6,7]"
+    return "8"
 
 
 def select_prompts(rows: list[dict], n: int | None = PROMPTS, split: str = PROMPT_SPLIT) -> list[dict]:
@@ -60,6 +74,11 @@ def _check_unused_draw_flags(
                 unused.append("--prepass")
         elif prepass is not None:
             unused.append("--prepass")
+        if k_min is not None:
+            unused.append("--k-min")
+        if k_max is not None:
+            unused.append("--k-max")
+    elif mode == "class_stratified":
         if k_min is not None:
             unused.append("--k-min")
         if k_max is not None:
@@ -128,6 +147,220 @@ def _load_and_verify_prepass(
     return records_by_id, actual_sha
 
 
+def _extract_k_by_id(
+    prepass_records_or_spec,
+    split_ids: set[str],
+) -> tuple[dict[str, int], str | None]:
+    """Resolve ``prepass_records_or_spec`` into ``(k_by_id, prepass_sha256)``."""
+    if isinstance(prepass_records_or_spec, Mapping) and not (
+        "path" in prepass_records_or_spec or "jsonl" in prepass_records_or_spec
+    ):
+        k_by_id: dict[str, int] = {}
+        for k_id, val in prepass_records_or_spec.items():
+            cid = str(k_id)
+            if isinstance(val, Mapping):
+                k_by_id[cid] = int(val["k_correct"])
+            else:
+                k_by_id[cid] = int(val)
+        missing = sorted(split_ids - set(k_by_id))
+        if missing:
+            _refuse(
+                "prepass_missing_split_id",
+                f"split row {missing[0]!r} has no pre-pass record ({len(missing)} missing)",
+            )
+        return k_by_id, None
+    records_by_id, actual_sha = _load_and_verify_prepass(prepass_records_or_spec, split_ids)
+    return {cid: int(rec["k_correct"]) for cid, rec in records_by_id.items()}, actual_sha
+
+
+def split_stratified_holdout(
+    rows: Sequence[dict],
+    prepass_records_or_spec,
+    *,
+    holdout_fraction: float = HOLDOUT_DEFAULT_FRACTION,
+    holdout_seed: str | int = HOLDOUT_DEFAULT_SEED,
+    split: str = PROMPT_SPLIT,
+) -> tuple[list[dict], list[dict], dict]:
+    """Split ``rows`` in ``split`` into ``(train_rows, holdout_rows, meta)`` by Pass-A band x gold class.
+
+    Deterministic from ``(holdout_seed, item_id, pass_a_band, gold_class)``:
+    - Uses Hamilton / largest-remainder apportionment across the 9 ``(band, gold_class)`` cells so the total
+      holdout count equals ``round(len(pool) * holdout_fraction)`` (99 of 493 items at 20%).
+    - Within each cell, ranks items by ``sha256(f"{holdout_seed}:{band}:{gold_class}:{id}")`` so the held-out
+      IDs are identical across all training runs and seeds.
+    """
+    if not (0.0 < float(holdout_fraction) < 1.0):
+        _refuse("invalid_holdout_fraction", f"holdout_fraction must be in (0, 1), got {holdout_fraction!r}")
+    pool = sorted((r for r in rows if r.get("split") == split), key=lambda r: str(r["id"]))
+    if not pool:
+        _refuse("empty_pool", f"the gold has 0 {split} claims")
+    split_ids = {str(r["id"]) for r in pool}
+    k_by_id, prepass_sha = _extract_k_by_id(prepass_records_or_spec, split_ids)
+
+    cells: dict[tuple[str, str], list[dict]] = {
+        (b, c): [] for b in PASS_A_BANDS for c in GOLD_CLASSES
+    }
+    for r in pool:
+        cid = str(r["id"])
+        band = k_band_of(k_by_id[cid])
+        gold_cls = str(r.get("label", "supported"))
+        key = (band, gold_cls)
+        if key not in cells:
+            cells[key] = []
+        cells[key].append(r)
+
+    target_total = round(len(pool) * float(holdout_fraction))
+    exact_quotas: dict[tuple[str, str], float] = {
+        key: len(cell_rows) * float(holdout_fraction) for key, cell_rows in cells.items()
+    }
+    alloc: dict[tuple[str, str], int] = {key: int(q) for key, q in exact_quotas.items()}
+    remainder_needed = target_total - sum(alloc.values())
+    if remainder_needed > 0:
+        ranked_cells = sorted(
+            cells.keys(),
+            key=lambda key: (-(exact_quotas[key] - alloc[key]), key[0], key[1]),
+        )
+        for key in ranked_cells:
+            if remainder_needed <= 0:
+                break
+            if alloc[key] < len(cells[key]):
+                alloc[key] += 1
+                remainder_needed -= 1
+
+    train_rows: list[dict] = []
+    holdout_rows: list[dict] = []
+    cell_meta: dict[str, dict[str, int]] = {}
+    seed_str = str(holdout_seed)
+    for key in sorted(cells.keys()):
+        band, gold_cls = key
+        cell_items = sorted(cells[key], key=lambda r: str(r["id"]))
+        k_hold = alloc[key]
+        ranked = sorted(
+            cell_items,
+            key=lambda r: (
+                hashlib.sha256(f"{seed_str}:{band}:{gold_cls}:{r['id']}".encode()).hexdigest(),
+                str(r["id"]),
+            ),
+        )
+        holdout_rows.extend(ranked[:k_hold])
+        train_rows.extend(ranked[k_hold:])
+        cell_meta[f"{band}:{gold_cls}"] = {
+            "total": len(cell_items),
+            "holdout": k_hold,
+            "train": len(cell_items) - k_hold,
+        }
+
+    train_rows.sort(key=lambda r: str(r["id"]))
+    holdout_rows.sort(key=lambda r: str(r["id"]))
+    holdout_ids = [str(r["id"]) for r in holdout_rows]
+    train_ids = [str(r["id"]) for r in train_rows]
+    meta: dict = {
+        "holdout_seed": seed_str,
+        "holdout_fraction": float(holdout_fraction),
+        "total_items": len(pool),
+        "holdout_count": len(holdout_rows),
+        "train_count": len(train_rows),
+        "holdout_ids": holdout_ids,
+        "holdout_ids_sha256": ids_sha256(holdout_ids),
+        "train_ids_sha256": ids_sha256(train_ids),
+        "cells": cell_meta,
+    }
+    if prepass_sha is not None:
+        meta["prepass_sha256"] = prepass_sha
+    return train_rows, holdout_rows, meta
+
+
+def build_class_stratified_epoch(
+    train_rows: Sequence[dict],
+    *,
+    seed: int,
+    epoch: int = 0,
+) -> list[dict]:
+    """Return one class-stratified epoch over ``train_rows`` without replacement.
+
+    Every item in ``train_rows`` appears exactly once per epoch (matching the pool's exact class counts
+    with zero repeats within an epoch), reshuffled per ``(seed, epoch)``, and interleaved proportionally
+    across the epoch so any prefix or window preserves class proportions.
+    """
+    pool = sorted(train_rows, key=lambda r: str(r["id"]))
+    if not pool:
+        return []
+    by_class: dict[str, list[dict]] = {}
+    for r in pool:
+        cls = str(r.get("label", "supported"))
+        by_class.setdefault(cls, []).append(r)
+
+    classes = sorted(by_class.keys())
+    shuffled_by_class: dict[str, list[dict]] = {}
+    for cls in classes:
+        cls_items = list(by_class[cls])
+        digest = hashlib.sha256(f"{seed}:epoch:{epoch}:class:{cls}".encode()).digest()
+        cls_rng = random.Random(int.from_bytes(digest[:8], "big"))
+        cls_rng.shuffle(cls_items)
+        shuffled_by_class[cls] = cls_items
+
+    total_n = len(pool)
+    counts = {cls: len(shuffled_by_class[cls]) for cls in classes}
+    taken = {cls: 0 for cls in classes}
+    tie_digest = hashlib.sha256(f"{seed}:epoch:{epoch}:tie".encode()).digest()
+    tie_rng = random.Random(int.from_bytes(tie_digest[:8], "big"))
+
+    epoch_order: list[dict] = []
+    for pos in range(total_n):
+        avail = [cls for cls in classes if taken[cls] < counts[cls]]
+        tie_order = list(avail)
+        tie_rng.shuffle(tie_order)
+        tie_rank = {cls: idx for idx, cls in enumerate(tie_order)}
+        chosen_cls = max(
+            avail,
+            key=lambda cls: (
+                (counts[cls] * (pos + 1) / float(total_n)) - taken[cls],
+                -tie_rank[cls],
+            ),
+        )
+        epoch_order.append(shuffled_by_class[chosen_cls][taken[chosen_cls]])
+        taken[chosen_cls] += 1
+    return epoch_order
+
+
+def build_class_stratified_schedule(
+    train_rows: Sequence[dict],
+    total_draws: int,
+    *,
+    seed: int,
+    holdout_ids: Sequence[str] | set[str] | None = None,
+) -> tuple[list[dict], dict]:
+    """Build a multi-epoch class-stratified schedule of length ``total_draws`` without replacement."""
+    if total_draws < 1:
+        _refuse("invalid_draw_n", f"total_draws must be >= 1, got {total_draws!r}")
+    holdout_set = {str(x) for x in holdout_ids} if holdout_ids is not None else set()
+    pool = sorted(train_rows, key=lambda r: str(r["id"]))
+    if not pool:
+        _refuse("empty_pool", "train_rows is empty")
+    overlap = sorted({str(r["id"]) for r in pool} & holdout_set)
+    if overlap:
+        _refuse(
+            "holdout_item_in_training",
+            f"training pool contains held-out item {overlap[0]!r} ({len(overlap)} overlapping)",
+        )
+    schedule: list[dict] = []
+    epoch_idx = 0
+    while len(schedule) < total_draws:
+        epoch_rows = build_class_stratified_epoch(pool, seed=seed, epoch=epoch_idx)
+        needed = total_draws - len(schedule)
+        schedule.extend(epoch_rows[:needed])
+        epoch_idx += 1
+    drawn_ids = [str(r["id"]) for r in schedule]
+    return schedule, {
+        "draw_mode": "class_stratified",
+        "draw_n": int(total_draws),
+        "draw_seed": int(seed),
+        "train_pool_size": len(pool),
+        "epochs_spanned": epoch_idx,
+        "drawn_ids_sha256": ids_sha256(drawn_ids),
+    }
+
+
 def draw_prompts(
     rows: list[dict],
     n: int,
@@ -138,6 +371,8 @@ def draw_prompts(
     k_min: int | None = None,
     k_max: int | None = None,
     split: str = PROMPT_SPLIT,
+    holdout_fraction: float = HOLDOUT_DEFAULT_FRACTION,
+    holdout_seed: str | int = HOLDOUT_DEFAULT_SEED,
 ) -> tuple[list[dict], dict]:
     """Select ``n`` prompts from ``rows`` in ``split`` according to ``mode`` and return ``(prompts, record)``.
 
@@ -147,6 +382,8 @@ def draw_prompts(
       local ``random.Random(seed)``, returned sorted by ``id``.
     - ``kband``: filters to split rows whose pre-pass ``k_correct`` is in ``[k_min, k_max]``, then takes
       the same seeded sample of ``n`` without replacement using ``random.Random(seed)``, sorted by ``id``.
+    - ``class_stratified``: class-stratified draw without replacement within each epoch over the training
+      pool (excluding the stratified 20% holdout when ``prepass`` is given).
 
     The returned ``record`` never contains item text.
     """
@@ -187,6 +424,31 @@ def draw_prompts(
             "draw_seed": int(seed),
             "drawn_ids_sha256": ids_sha256(sampled_ids),
         }
+
+    if mode == "class_stratified":
+        has_prepass = prepass is not None and prepass != (None, None)
+        if has_prepass:
+            train_pool, _, hold_meta = split_stratified_holdout(
+                rows,
+                prepass,
+                holdout_fraction=holdout_fraction,
+                holdout_seed=holdout_seed,
+                split=split,
+            )
+            schedule, sched_rec = build_class_stratified_schedule(
+                train_pool,
+                n,
+                seed=seed,
+                holdout_ids=hold_meta["holdout_ids"],
+            )
+            sched_rec["holdout_count"] = hold_meta["holdout_count"]
+            sched_rec["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
+            sched_rec["train_ids_sha256"] = hold_meta["train_ids_sha256"]
+            if "prepass_sha256" in hold_meta:
+                sched_rec["prepass_sha256"] = hold_meta["prepass_sha256"]
+            return schedule, sched_rec
+        schedule, sched_rec = build_class_stratified_schedule(pool, n, seed=seed)
+        return schedule, sched_rec
 
     # mode == "kband"
     split_ids = {str(r["id"]) for r in pool}

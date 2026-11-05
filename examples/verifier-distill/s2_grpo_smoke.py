@@ -36,8 +36,9 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 from xml.parsers import expat
 
 # -- the pre-registered numbers (docs/runs/2026-10-10-smoke-s2-prereg.md) ------------------------------------
@@ -55,6 +56,15 @@ LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj")
 LEARNING_RATE = 1e-5
 BETA = 0.04
 EPSILON = 0.2
+DUAL_CLIP_C = 3.0
+GUARD_WINDOW_UPDATES = 10
+GUARD_WINDOW_GROUPS = 40
+FROZEN_PIP_FREEZE_SHA256 = "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
+FROZEN_STACK_VERSIONS = {
+    "torch": "2.5.1+cu121",
+    "transformers": "4.57.6",
+    "bitsandbytes": "0.49.2",
+}
 MAX_NEW_TOKENS = 2048
 VRAM_LINE_MIB = 31_200  # the rig's watchdog line
 SAMPLER_PERIOD_S = 1.0
@@ -184,7 +194,16 @@ try:
         quote_is_relevant,
         strip_markers,
     )
-    from s2_draw import DRAW_MODES, draw_prompts, select_prompts  # noqa: F401
+    from s2_draw import (  # noqa: F401
+        DRAW_MODES,
+        HOLDOUT_DEFAULT_FRACTION,
+        HOLDOUT_DEFAULT_SEED,
+        build_class_stratified_epoch,
+        build_class_stratified_schedule,
+        draw_prompts,
+        select_prompts,
+        split_stratified_holdout,
+    )
 except ModuleNotFoundError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from quote_rule import (  # noqa: F401
@@ -201,7 +220,16 @@ except ModuleNotFoundError:  # pragma: no cover
         quote_is_relevant,
         strip_markers,
     )
-    from s2_draw import DRAW_MODES, draw_prompts, select_prompts  # noqa: F401
+    from s2_draw import (  # noqa: F401
+        DRAW_MODES,
+        HOLDOUT_DEFAULT_FRACTION,
+        HOLDOUT_DEFAULT_SEED,
+        build_class_stratified_epoch,
+        build_class_stratified_schedule,
+        draw_prompts,
+        select_prompts,
+        split_stratified_holdout,
+    )
 
 
 def split_reply(text: str) -> tuple[str, str]:
@@ -433,6 +461,162 @@ def advantages(rewards: Sequence[float], *, mode: str = "std") -> list[float]:
     if mode != "std":
         raise SystemExit(f"unknown --advantage mode {mode!r}")
     return [(r - mean) / (sd + 1e-6) for r in rewards]
+
+
+def clamp_wrong_positive_advantages(
+    adv_list: Sequence[float],
+    correct_flags: Sequence[bool],
+) -> list[float]:
+    """Masking fallback: clamp wrong-label advantages to <= 0.0 after mean-centring, with no re-centring."""
+    return [
+        float(adv) if bool(is_corr) else min(float(adv), 0.0)
+        for adv, is_corr in zip(adv_list, correct_flags, strict=True)
+    ]
+
+
+class CtCollapseGuard:
+    """Two-class CT collapse guard (S1, S2, U1, U2) counted by distinct item over sampled-group windows.
+
+    A window is ``window_groups`` sampled groups (default 40 = 10 updates of 4 groups, including
+    zero-variance groups). Checked at the end of each window:
+    - S1 (gold supported, window): >= 3 distinct gold-supported items in the window have any CT and
+      >= 2 of those groups gave CT a positive advantage (only non-zero-variance groups have positive adv).
+    - S2 (gold supported, cumulative): CT > 1.5% of gold-supported answers once >= 600 gold-supported
+      answers have accrued, across >= 4 distinct gold-supported items.
+    - U1 (gold unsupported, window): >= 4 distinct gold-unsupported items in the window have any CT and
+      the window's correct rate on gold-unsupported is < 78%.
+    - U2 (gold unsupported, easy items, window): >= 2 distinct gold-unsupported items with Pass-A k >= 6
+      have any CT in one window.
+    - No guard on gold cannot_tell items.
+    """
+
+    def __init__(
+        self,
+        *,
+        window_groups: int = GUARD_WINDOW_GROUPS,
+        pass_a_k: Mapping[str, int] | None = None,
+    ) -> None:
+        if window_groups < 1:
+            raise SystemExit(f"--guard-window-groups must be >= 1, got {window_groups}")
+        self.window_groups = int(window_groups)
+        self.pass_a_k = {str(k): int(v) for k, v in pass_a_k.items()} if pass_a_k is not None else {}
+        self.window_index = 0
+        self.total_groups_sampled = 0
+        self._window: list[dict[str, Any]] = []
+        self.cum_sup_answers = 0
+        self.cum_sup_ct_answers = 0
+        self.cum_sup_ct_items: set[str] = set()
+        self.window_history: list[dict[str, Any]] = []
+
+    def record_group(
+        self,
+        *,
+        step: int,
+        group: int,
+        item_id: str,
+        gold_verdict: str,
+        verdicts: Sequence[str | None],
+        correct_flags: Sequence[bool],
+        advantages_list: Sequence[float],
+        is_zero_variance: bool = False,
+    ) -> dict[str, Any] | None:
+        cid = str(item_id)
+        gold = str(gold_verdict)
+        v_list = list(verdicts)
+        c_list = [bool(c) for c in correct_flags]
+        a_list = [float(a) for a in advantages_list]
+        ct_count = sum(1 for v in v_list if v == "cannot_tell")
+        correct_count = sum(1 for c in c_list if c)
+        ct_pos_adv = (not is_zero_variance) and any(
+            v == "cannot_tell" and a > 0.0 for v, a in zip(v_list, a_list, strict=True)
+        )
+        if gold == "supported":
+            self.cum_sup_answers += len(v_list)
+            self.cum_sup_ct_answers += ct_count
+            if ct_count > 0:
+                self.cum_sup_ct_items.add(cid)
+
+        self.total_groups_sampled += 1
+        self._window.append(
+            {
+                "step": int(step),
+                "group": int(group),
+                "item_id": cid,
+                "gold_verdict": gold,
+                "n": len(v_list),
+                "ct_count": ct_count,
+                "correct_count": correct_count,
+                "ct_pos_adv": bool(ct_pos_adv),
+            }
+        )
+        if len(self._window) < self.window_groups:
+            return None
+        return self._evaluate_window(step=int(step))
+
+    def _evaluate_window(self, *, step: int) -> dict[str, Any] | None:
+        self.window_index += 1
+        win = list(self._window)
+        self._window.clear()
+
+        sup_groups = [g_rec for g_rec in win if g_rec["gold_verdict"] == "supported"]
+        s1_ct_items = {g_rec["item_id"] for g_rec in sup_groups if g_rec["ct_count"] > 0}
+        s1_pos_adv_groups = sum(1 for g_rec in sup_groups if g_rec["ct_count"] > 0 and g_rec["ct_pos_adv"])
+
+        cum_sup_ct_rate = (
+            (self.cum_sup_ct_answers / float(self.cum_sup_answers)) if self.cum_sup_answers > 0 else 0.0
+        )
+
+        unsup_groups = [g_rec for g_rec in win if g_rec["gold_verdict"] == "unsupported"]
+        u1_ct_items = {g_rec["item_id"] for g_rec in unsup_groups if g_rec["ct_count"] > 0}
+        u_total = sum(int(g_rec["n"]) for g_rec in unsup_groups)
+        u_correct = sum(int(g_rec["correct_count"]) for g_rec in unsup_groups)
+        u_correct_rate = (u_correct / float(u_total)) if u_total > 0 else 1.0
+
+        u2_easy_ct_items = {
+            g_rec["item_id"]
+            for g_rec in unsup_groups
+            if g_rec["ct_count"] > 0 and self.pass_a_k.get(g_rec["item_id"], -1) >= 6
+        }
+
+        triggered: list[str] = []
+        if len(s1_ct_items) >= 3 and s1_pos_adv_groups >= 2:
+            triggered.append("S1")
+        if (
+            self.cum_sup_answers >= 600
+            and cum_sup_ct_rate > 0.015
+            and len(self.cum_sup_ct_items) >= 4
+        ):
+            triggered.append("S2")
+        if len(u1_ct_items) >= 4 and u_total > 0 and u_correct_rate < 0.78:
+            triggered.append("U1")
+        if len(u2_easy_ct_items) >= 2:
+            triggered.append("U2")
+
+        metrics = {
+            "window_index": self.window_index,
+            "total_groups_sampled": self.total_groups_sampled,
+            "s1_distinct_ct_items": len(s1_ct_items),
+            "s1_pos_adv_groups": s1_pos_adv_groups,
+            "s2_cum_sup_answers": self.cum_sup_answers,
+            "s2_cum_sup_ct_answers": self.cum_sup_ct_answers,
+            "s2_cum_sup_ct_rate": round(cum_sup_ct_rate, 6),
+            "s2_cum_distinct_ct_items": len(self.cum_sup_ct_items),
+            "u1_distinct_ct_items": len(u1_ct_items),
+            "u1_correct_rate": round(u_correct_rate, 6),
+            "u2_distinct_easy_ct_items": len(u2_easy_ct_items),
+            "triggered_rules": list(triggered),
+        }
+        self.window_history.append(metrics)
+        if not triggered:
+            return None
+        return {
+            "step": int(step),
+            "reason": f"ct_guard_{triggered[0].lower()}",
+            "triggered_rules": triggered,
+            "window_index": self.window_index,
+            "total_groups_sampled": self.total_groups_sampled,
+            "guard_metrics": metrics,
+        }
 
 
 def zero_variance(rewards: Sequence[float]) -> bool:
@@ -799,6 +983,61 @@ def environment(
         "batch": batch,
         "gpu_exclusive": exclusive,
         "exclusive_guard": guard,
+    }
+
+
+def check_frozen_env(
+    pip_freeze_path: Path | None = None,
+    *,
+    expected_sha256: str = FROZEN_PIP_FREEZE_SHA256,
+    installed_versions: Mapping[str, str | None] | None = None,
+    require_exact_versions: bool = False,
+) -> dict:
+    """Record torch, transformers, bitsandbytes versions and check the frozen pip-freeze.txt sha256."""
+    versions = (
+        {k: installed_versions.get(k) for k in ("torch", "transformers", "bitsandbytes")}
+        if installed_versions is not None
+        else {k: package_version(k) for k in ("torch", "transformers", "bitsandbytes")}
+    )
+    actual_sha: str | None = None
+    exp_sha = str(expected_sha256).strip().lower()
+    if pip_freeze_path is not None:
+        pf_path = Path(pip_freeze_path)
+        if not pf_path.is_file():
+            raise SystemExit(
+                f"refusing to start (frozen_env_missing_file): pip-freeze file does not exist: {pf_path.name}"
+            )
+        raw_bytes = pf_path.read_bytes()
+        actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+        if actual_sha != exp_sha:
+            raise SystemExit(
+                f"refusing to start (frozen_env_sha_mismatch): "
+                f"expected pip-freeze sha256 {exp_sha}, got {actual_sha}"
+            )
+        freeze_versions: dict[str, str] = {}
+        for raw_line in raw_bytes.decode("utf-8", errors="replace").splitlines():
+            line = raw_line.strip()
+            if "==" in line and not line.startswith("#"):
+                pkg, _, ver = line.partition("==")
+                freeze_versions[pkg.strip().lower()] = ver.strip()
+        for pkg, req_ver in FROZEN_STACK_VERSIONS.items():
+            if pkg in freeze_versions and freeze_versions[pkg] != req_ver:
+                raise SystemExit(
+                    f"refusing to start (frozen_env_version_mismatch): "
+                    f"pip-freeze has {pkg}=={freeze_versions[pkg]}, expected {req_ver}"
+                )
+    if require_exact_versions:
+        for pkg, req_ver in FROZEN_STACK_VERSIONS.items():
+            inst_ver = versions.get(pkg)
+            if inst_ver != req_ver:
+                raise SystemExit(
+                    f"refusing to start (frozen_env_version_mismatch): "
+                    f"installed {pkg}=={inst_ver!r}, expected {req_ver!r}"
+                )
+    return {
+        "stack_versions": versions,
+        "pip_freeze_sha256": actual_sha,
+        "frozen_expected_sha256": exp_sha,
     }
 
 
@@ -1430,6 +1669,7 @@ def grpo_loss(
     eps: float = EPSILON,
     zero_variance_mask: bool = False,
     group_size: int | None = None,
+    dual_clip_c: float | None = None,
 ):
     """The clipped-ratio policy loss plus a k3 KL penalty to the reference, masked, averaged over tokens."""
     torch = require_torch()
@@ -1440,7 +1680,10 @@ def grpo_loss(
             return logp.sum() * 0.0
     ratio = torch.exp(logp - old_logp)
     a = adv.unsqueeze(-1)
-    policy = -torch.min(ratio * a, torch.clamp(ratio, 1 - eps, 1 + eps) * a)
+    surr = torch.min(ratio * a, torch.clamp(ratio, 1 - eps, 1 + eps) * a)
+    if dual_clip_c is not None:
+        surr = torch.where(a < 0, torch.max(surr, float(dual_clip_c) * a), surr)
+    policy = -surr
     delta = ref_logp - logp
     kl = torch.exp(delta) - delta - 1
     return ((policy + beta * kl) * eff_mask).sum() / eff_mask.sum().clamp(min=1)
@@ -1463,6 +1706,7 @@ def grpo_microbatch_backward(
     after_forward: Callable[[], None] | None = None,
     zero_variance_mask: bool = False,
     group_size: int | None = None,
+    dual_clip_c: float | None = None,
 ):
     """Run training forward and backward over ``G`` sequences in micro-batches of ``microbatch`` with
     gradients accumulated, using ``logits_to_keep`` and ``gather - logsumexp``."""
@@ -1496,7 +1740,10 @@ def grpo_microbatch_backward(
         mb_ref = ref_logp[start:end]
         mb_adv = adv[start:end].unsqueeze(-1)
         ratio = torch.exp(mb_logp - mb_old)
-        policy = -torch.min(ratio * mb_adv, torch.clamp(ratio, 1 - eps, 1 + eps) * mb_adv)
+        surr = torch.min(ratio * mb_adv, torch.clamp(ratio, 1 - eps, 1 + eps) * mb_adv)
+        if dual_clip_c is not None:
+            surr = torch.where(mb_adv < 0, torch.max(surr, float(dual_clip_c) * mb_adv), surr)
+        policy = -surr
         delta = mb_ref - mb_logp
         kl = torch.exp(delta) - delta - 1
         mb_loss = ((policy + beta * kl) * mb_mask).sum() / denom
@@ -2060,6 +2307,10 @@ def run_steps(
     group_residuals: list[tuple[str, int, float]] | None = None,
     save_all_records: list[dict] | None = None,
     base_seed: int = 0,
+    holdout_ids: Sequence[str] | set[str] | None = None,
+    mask_wrong_positive_advantage: bool = False,
+    dual_clip_c: float | None = None,
+    ct_guard: CtCollapseGuard | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -2072,6 +2323,20 @@ def run_steps(
     """
     if groups_per_update < 1:
         raise SystemExit(f"--groups-per-update must be >= 1, got {groups_per_update}")
+
+    holdout_set = {str(cid) for cid in holdout_ids} if holdout_ids is not None else set()
+    if holdout_set:
+        overlap = sorted({str(r.get("id", "")) for r in prompts} & holdout_set)
+        if overlap:
+            raise SystemExit(
+                f"refusing to train (holdout_item_in_training): "
+                f"prompt {overlap[0]!r} is in the held-out evaluation set"
+            )
+    eff_dual_clip_c = (
+        float(dual_clip_c)
+        if dual_clip_c is not None
+        else (DUAL_CLIP_C if mask_wrong_positive_advantage else None)
+    )
 
     torch = require_torch()
     if empty_cache is None:
@@ -2099,13 +2364,21 @@ def run_steps(
             active_outcome_var_sum = 0.0
             active_correct_var_sum = 0.0
             active_total_var_sum = 0.0
+            step_guard_stop: dict[str, Any] | None = None
             need_details = (
                 (group_logger is not None and group_logger.enabled)
                 or sign_diagnostics
                 or prepass_baseline_k is not None
+                or mask_wrong_positive_advantage
+                or ct_guard is not None
             )
             for k in range(groups_per_update):
                 row = prompts[(step * groups_per_update + k) % len(prompts)]
+                if holdout_set and str(row.get("id", "")) in holdout_set:
+                    raise SystemExit(
+                        f"refusing to train (holdout_item_in_training): "
+                        f"prompt {row.get('id')!r} is in the held-out evaluation set"
+                    )
                 prompt_text = build_prompt(row)
                 if mode:
                     mode(False)
@@ -2184,6 +2457,24 @@ def run_steps(
                 else:
                     is_zv = zero_variance(rewards)
                     adv_list = advantages(rewards, mode=advantage_mode)
+
+                if mask_wrong_positive_advantage:
+                    correct_flags = [bool(s.get("correct")) for s in group_samples]
+                    adv_list = clamp_wrong_positive_advantages(adv_list, correct_flags)
+
+                if ct_guard is not None and step_guard_stop is None:
+                    guard_stop = ct_guard.record_group(
+                        step=step,
+                        group=k,
+                        item_id=str(row.get("id", k)),
+                        gold_verdict=str(row.get("label", "supported")),
+                        verdicts=[s.get("verdict") for s in group_samples],
+                        correct_flags=[bool(s.get("correct")) for s in group_samples],
+                        advantages_list=adv_list,
+                        is_zero_variance=bool(is_zv),
+                    )
+                    if guard_stop is not None:
+                        step_guard_stop = guard_stop
 
                 if save_all_records is not None:
                     grp_item_id = str(row.get("id", k))
@@ -2370,6 +2661,7 @@ def run_steps(
                         scale=grp_scale,
                         zero_variance_mask=zero_variance_mask,
                         group_size=g,
+                        dual_clip_c=eff_dual_clip_c,
                         after_forward=(
                             (
                                 lambda s=step, grp=k, pt=len(prompt_ids), cl=comp_lens: phase_logger.record(
@@ -2407,6 +2699,7 @@ def run_steps(
                                 mask,
                                 zero_variance_mask=zero_variance_mask,
                                 group_size=g,
+                                dual_clip_c=eff_dual_clip_c,
                             )
                             * grp_scale
                         )
@@ -2495,6 +2788,8 @@ def run_steps(
                 on_step(rec)
             if on_eval is not None and eval_records is not None:
                 on_eval(evaluation_summary(eval_records, advantage_mode=advantage_mode))
+            if step_guard_stop is not None:
+                return rows, step_guard_stop, False
         except oom_types:
             return rows, {"step": step, "error": "out of memory"}, True
         except TimeoutError as exc:
@@ -3268,6 +3563,209 @@ def _k_correct_hist(records: Sequence[dict], g: int) -> dict[str, int]:
     return hist
 
 
+def item_confident_errors(rec: Mapping[str, Any]) -> int:
+    """Count confident errors for one item record:
+    - 'supported' on gold unsupported or gold cannot_tell, plus
+    - 'unsupported' on gold supported.
+    """
+    gold = str(rec.get("gold_verdict", "supported"))
+    if gold == "supported":
+        return int(rec.get("unsupported", 0))
+    return int(rec.get("supported", 0))
+
+
+def build_confusion_matrix_3x3(records: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, int]]:
+    """Build the 3x3 gold_verdict x predicted_verdict matrix plus malformed and truncations per gold class."""
+    matrix: dict[str, dict[str, int]] = {
+        gv: {
+            "supported": 0,
+            "unsupported": 0,
+            "cannot_tell": 0,
+            "malformed": 0,
+            "truncations": 0,
+            "total": 0,
+        }
+        for gv in VERDICTS
+    }
+    for r in records:
+        gv = str(r.get("gold_verdict", "supported"))
+        if gv not in matrix:
+            continue
+        row_m = matrix[gv]
+        row_m["supported"] += int(r.get("supported", 0))
+        row_m["unsupported"] += int(r.get("unsupported", 0))
+        row_m["cannot_tell"] += int(r.get("cannot_tell", 0))
+        row_m["malformed"] += int(r.get("malformed", 0))
+        row_m["truncations"] += int(r.get("truncations", 0))
+        row_m["total"] += int(r.get("g", 0))
+    return matrix
+
+
+def compute_hedge_flag(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    baseline_ct_share: float = 0.42,
+    threshold: float | None = None,
+) -> dict[str, Any]:
+    """Compute the secondary hedge flag on gold cannot_tell items: CT's share of correct answers
+    (cannot_tell / (cannot_tell + unsupported)), firing when it falls below half of baseline (~21%).
+    """
+    eff_threshold = (0.5 * float(baseline_ct_share)) if threshold is None else float(threshold)
+    ct_recs = [r for r in records if str(r.get("gold_verdict")) == "cannot_tell"]
+    ct_n = sum(int(r.get("cannot_tell", 0)) for r in ct_recs)
+    unsup_n = sum(int(r.get("unsupported", 0)) for r in ct_recs)
+    correct_total = ct_n + unsup_n
+    share = (ct_n / float(correct_total)) if correct_total > 0 else 0.0
+    return {
+        "cannot_tell_count": ct_n,
+        "unsupported_count": unsup_n,
+        "correct_total": correct_total,
+        "ct_share_of_correct": round(share, 6),
+        "baseline_ct_share": round(float(baseline_ct_share), 6),
+        "threshold": round(eff_threshold, 6),
+        "triggered": bool(correct_total > 0 and share < eff_threshold),
+    }
+
+
+def compute_paired_arm_estimators(
+    pass_a_records: Sequence[Mapping[str, Any]],
+    pass_b_records: Sequence[Mapping[str, Any]],
+    seed_postpasses: Sequence[tuple[Sequence[Mapping[str, Any]], Sequence[Mapping[str, Any]]]],
+    *,
+    holdout_ids: Sequence[str] | set[str] | None = None,
+    baseline_ct_share: float = 0.42,
+) -> dict[str, Any]:
+    """Compute paired item-level estimators across 2 post-passes per seed and multiple training seeds.
+
+    Rules (Sections 11 & 13):
+    - Per item, average the 2 post-passes first: ``post_mean = (post1 + post2) / 2``.
+    - Then average ``post_mean`` across the training seeds paired by item (``n = items``).
+    - Inside Pass-A bands (``[0,5]``, ``[6,7]``, ``8``): use ``post_mean - B``.
+    - On unbanded sets (all items, held-out, trained, and by gold class): use ``post_mean - (A + B) / 2``.
+    - Co-primary measures: ``k_correct`` and ``confident_errors`` (plus ``reward_mean`` as secondary).
+    """
+    if not seed_postpasses:
+        raise ValueError("seed_postpasses must contain at least one (post1, post2) pair")
+    a_by_id = {str(r["id"]): r for r in pass_a_records}
+    b_by_id = {str(r["id"]): r for r in pass_b_records}
+    item_ids = sorted(a_by_id.keys())
+    if set(b_by_id.keys()) != set(item_ids):
+        raise ValueError("pass_a_records and pass_b_records must cover the exact same item IDs")
+
+    holdout_set = {str(x) for x in holdout_ids} if holdout_ids is not None else set()
+
+    # Per-seed, per-item post_mean = (post1 + post2) / 2
+    per_item_k_seeds: dict[str, list[float]] = {cid: [] for cid in item_ids}
+    per_item_ce_seeds: dict[str, list[float]] = {cid: [] for cid in item_ids}
+    per_item_rew_seeds: dict[str, list[float]] = {cid: [] for cid in item_ids}
+    flat_post_records: list[Mapping[str, Any]] = []
+
+    for post1, post2 in seed_postpasses:
+        p1_by_id = {str(r["id"]): r for r in post1}
+        p2_by_id = {str(r["id"]): r for r in post2}
+        flat_post_records.extend(post1)
+        flat_post_records.extend(post2)
+        for cid in item_ids:
+            r1, r2 = p1_by_id[cid], p2_by_id[cid]
+            per_item_k_seeds[cid].append(0.5 * (float(r1["k_correct"]) + float(r2["k_correct"])))
+            per_item_ce_seeds[cid].append(
+                0.5 * (float(item_confident_errors(r1)) + float(item_confident_errors(r2)))
+            )
+            per_item_rew_seeds[cid].append(
+                0.5 * (float(r1.get("reward_mean", 0.0)) + float(r2.get("reward_mean", 0.0)))
+            )
+
+    post_mean_k = {cid: float(statistics.fmean(per_item_k_seeds[cid])) for cid in item_ids}
+    post_mean_ce = {cid: float(statistics.fmean(per_item_ce_seeds[cid])) for cid in item_ids}
+    post_mean_rew = {cid: float(statistics.fmean(per_item_rew_seeds[cid])) for cid in item_ids}
+
+    def _subset_banded(ids_sub: Sequence[str]) -> dict[str, Any]:
+        """Inside Pass-A bands: estimator is post_mean - B."""
+        if not ids_sub:
+            return {"n_items": 0, "k_diff": None, "confident_error_diff": None, "reward_diff": None}
+        k_diffs = [post_mean_k[cid] - float(b_by_id[cid]["k_correct"]) for cid in ids_sub]
+        ce_diffs = [post_mean_ce[cid] - float(item_confident_errors(b_by_id[cid])) for cid in ids_sub]
+        rew_diffs = [post_mean_rew[cid] - float(b_by_id[cid].get("reward_mean", 0.0)) for cid in ids_sub]
+        return {
+            "n_items": len(ids_sub),
+            "estimator": "post_mean - B",
+            "k_post_mean": round(float(statistics.fmean(post_mean_k[cid] for cid in ids_sub)), 6),
+            "k_diff": round(float(statistics.fmean(k_diffs)), 6),
+            "confident_error_post_mean": round(
+                float(statistics.fmean(post_mean_ce[cid] for cid in ids_sub)), 6
+            ),
+            "confident_error_diff": round(float(statistics.fmean(ce_diffs)), 6),
+            "reward_diff": round(float(statistics.fmean(rew_diffs)), 6),
+        }
+
+    def _subset_unbanded(ids_sub: Sequence[str]) -> dict[str, Any]:
+        """On unbanded sets: estimator is post_mean - (A + B) / 2."""
+        if not ids_sub:
+            return {"n_items": 0, "k_diff": None, "confident_error_diff": None, "reward_diff": None}
+        k_diffs = [
+            post_mean_k[cid] - 0.5 * (float(a_by_id[cid]["k_correct"]) + float(b_by_id[cid]["k_correct"]))
+            for cid in ids_sub
+        ]
+        ce_diffs = [
+            post_mean_ce[cid]
+            - 0.5 * (float(item_confident_errors(a_by_id[cid])) + float(item_confident_errors(b_by_id[cid])))
+            for cid in ids_sub
+        ]
+        rew_diffs = [
+            post_mean_rew[cid]
+            - 0.5
+            * (
+                float(a_by_id[cid].get("reward_mean", 0.0))
+                + float(b_by_id[cid].get("reward_mean", 0.0))
+            )
+            for cid in ids_sub
+        ]
+        return {
+            "n_items": len(ids_sub),
+            "estimator": "post_mean - (A + B) / 2",
+            "k_post_mean": round(float(statistics.fmean(post_mean_k[cid] for cid in ids_sub)), 6),
+            "k_diff": round(float(statistics.fmean(k_diffs)), 6),
+            "confident_error_post_mean": round(
+                float(statistics.fmean(post_mean_ce[cid] for cid in ids_sub)), 6
+            ),
+            "confident_error_diff": round(float(statistics.fmean(ce_diffs)), 6),
+            "reward_diff": round(float(statistics.fmean(rew_diffs)), 6),
+        }
+
+    by_band: dict[str, Any] = {}
+    for band in ("[0,5]", "[6,7]", "8"):
+        band_ids = [cid for cid in item_ids if k_band_name(int(a_by_id[cid]["k_correct"])) == band]
+        by_band[band] = _subset_banded(band_ids)
+
+    by_gold_class: dict[str, Any] = {}
+    for gv in VERDICTS:
+        gv_ids = [cid for cid in item_ids if str(a_by_id[cid].get("gold_verdict")) == gv]
+        by_gold_class[gv] = _subset_unbanded(gv_ids)
+
+    hold_list = [cid for cid in item_ids if cid in holdout_set]
+    train_list = [cid for cid in item_ids if cid not in holdout_set]
+
+    return {
+        "n_items": len(item_ids),
+        "n_seeds": len(seed_postpasses),
+        "unbanded": {
+            "all_items": _subset_unbanded(item_ids),
+            "holdout": _subset_unbanded(hold_list),
+            "trained": _subset_unbanded(train_list),
+        },
+        "by_pass_a_band": by_band,
+        "by_gold_class": by_gold_class,
+        "confusion_matrix_before": {
+            "pass_a": build_confusion_matrix_3x3(pass_a_records),
+            "pass_b": build_confusion_matrix_3x3(pass_b_records),
+        },
+        "confusion_matrix_after": build_confusion_matrix_3x3(flat_post_records),
+        "hedge_flag_after": compute_hedge_flag(flat_post_records, baseline_ct_share=baseline_ct_share),
+        "per_item_post_mean_k": {cid: round(post_mean_k[cid], 6) for cid in item_ids},
+        "per_item_post_mean_confident_errors": {cid: round(post_mean_ce[cid], 6) for cid in item_ids},
+    }
+
+
 def prepass_summary(
     records: Sequence[dict],
     *,
@@ -3291,6 +3789,10 @@ def prepass_summary(
         by_verdict[gv] = _k_correct_hist([r for r in records if r.get("gold_verdict") == gv], g)
     total_truncs = sum(int(r["truncations"]) for r in records)
     truncs_by_band: dict[str, int] = {"[0,5]": 0, "[6,7]": 0, "8": 0}
+    ce_by_band: dict[str, int] = {"[0,5]": 0, "[6,7]": 0, "8": 0}
+    ce_by_verdict: dict[str, int] = {gv: 0 for gv in VERDICTS}
+    total_ce = 0
+    total_completions = sum(int(r.get("g", g)) for r in records)
     for r in records:
         rid = str(r["id"])
         k_ref = (
@@ -3298,7 +3800,14 @@ def prepass_summary(
             if (pass_a_k is not None and rid in pass_a_k)
             else int(r.get("pass_a_k", r["k_correct"]))
         )
-        truncs_by_band[k_band_name(k_ref)] += int(r["truncations"])
+        band_key = k_band_name(k_ref)
+        truncs_by_band[band_key] += int(r["truncations"])
+        ce_val = item_confident_errors(r)
+        total_ce += ce_val
+        ce_by_band[band_key] += ce_val
+        gv_key = str(r.get("gold_verdict", "supported"))
+        if gv_key in ce_by_verdict:
+            ce_by_verdict[gv_key] += ce_val
     total_quote_pass = sum(int(r.get("quote_pass", 0)) for r in records)
     gold_sup_completions = sum(int(r["g"]) for r in records if r.get("gold_verdict") == "supported")
     ct_on_gold_sup = sum(int(r["cannot_tell"]) for r in records if r.get("gold_verdict") == "supported")
@@ -3315,6 +3824,12 @@ def prepass_summary(
         "by_gold_verdict": by_verdict,
         "total_truncations": total_truncs,
         "truncations_by_band": truncs_by_band,
+        "confident_errors": total_ce,
+        "confident_error_rate": (total_ce / total_completions) if total_completions > 0 else 0.0,
+        "confident_errors_by_gold_verdict": ce_by_verdict,
+        "confident_errors_by_band": ce_by_band,
+        "confusion_matrix_3x3": build_confusion_matrix_3x3(records),
+        "hedge_flag": compute_hedge_flag(records),
         "quote_pass": total_quote_pass,
         "quote_pass_role": quote_pass_role_text(quote_reward),
         "p_cannot_tell_given_gold_supported": p_ct_given_sup,
@@ -3817,6 +4332,18 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["save_all_off_reason"] = (getattr(a, "save_all_off_reason", None) or "").strip()
     if getattr(a, "pass_id", None):
         flags["pass_id"] = str(a.pass_id)
+    if getattr(a, "mask_wrong_positive_advantage", False):
+        flags["mask_wrong_positive_advantage"] = True
+        flags["dual_clip_c"] = float(getattr(a, "dual_clip_c", None) or DUAL_CLIP_C)
+    elif getattr(a, "dual_clip_c", None) is not None:
+        flags["dual_clip_c"] = float(a.dual_clip_c)
+    if getattr(a, "ct_guard", False):
+        flags["ct_guard"] = True
+        flags["guard_window_groups"] = int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS))
+    if getattr(a, "holdout", False):
+        flags["holdout"] = True
+        flags["holdout_fraction"] = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
+        flags["holdout_seed"] = str(getattr(a, "holdout_seed", HOLDOUT_DEFAULT_SEED))
     return flags
 
 
@@ -3840,6 +4367,10 @@ def execute(
         configure_alloc_conf(a.alloc_conf)
     save_all_on, save_all_reason = validate_save_all_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
+    frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
+    require_frozen = bool(getattr(a, "require_frozen_stack", False))
+    if frozen_pip_freeze is not None or require_frozen:
+        check_frozen_env(frozen_pip_freeze, require_exact_versions=require_frozen)
     if getattr(a, "logprob_microbatch", None) is not None and a.logprob_microbatch < 1:
         raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
     if getattr(a, "stress_prefix", 0) < 0:
@@ -3871,6 +4402,7 @@ def execute(
 
     rows, gold_hashes = read_gold(a.gold)
     draw_record: dict = {}
+    holdout_ids_list: list[str] = []
     if rollout_only:
         prompts = select_prompts(rows, None)
     else:
@@ -3881,6 +4413,29 @@ def execute(
             if (prepass_jsonl is not None or prepass_sha256 is not None)
             else None
         )
+        hold_frac = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
+        hold_seed = str(getattr(a, "holdout_seed", HOLDOUT_DEFAULT_SEED))
+        if getattr(a, "holdout", False):
+            hold_spec = prepass_spec or (
+                (getattr(a, "pass_a_jsonl", None), getattr(a, "pass_a_sha256", None))
+                if getattr(a, "pass_a_jsonl", None) is not None
+                else None
+            )
+            if hold_spec is None:
+                raise SystemExit(
+                    "refusing to start (holdout_requires_pass_a): "
+                    "--holdout requires --pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256"
+                )
+            _, _, hold_meta = split_stratified_holdout(
+                rows,
+                hold_spec,
+                holdout_fraction=hold_frac,
+                holdout_seed=hold_seed,
+            )
+            holdout_ids_list = list(hold_meta["holdout_ids"])
+            draw_record["holdout_count"] = hold_meta["holdout_count"]
+            draw_record["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
+            draw_record["train_ids_sha256"] = hold_meta["train_ids_sha256"]
         prompts, draw_rec = draw_prompts(
             rows,
             a.prompts,
@@ -3889,9 +4444,19 @@ def execute(
             prepass=prepass_spec,
             k_min=getattr(a, "k_min", None),
             k_max=getattr(a, "k_max", None),
+            holdout_fraction=hold_frac,
+            holdout_seed=hold_seed,
         )
         if draw_mode != "first":
-            draw_record = draw_rec
+            draw_record.update(draw_rec)
+        if draw_mode == "class_stratified" and prepass_spec is not None and not holdout_ids_list:
+            _, _, hold_meta = split_stratified_holdout(
+                rows,
+                prepass_spec,
+                holdout_fraction=hold_frac,
+                holdout_seed=hold_seed,
+            )
+            holdout_ids_list = list(hold_meta["holdout_ids"])
     prepass_baseline_k, _ = load_prepass_baseline(
         getattr(a, "prepass_baseline", None),
         getattr(a, "prepass_baseline_sha256", None),
@@ -4092,6 +4657,14 @@ def execute(
                 )
                 if stress_stopped is not None or stress_oom:
                     return [], stress_stopped, stress_oom
+            ct_guard_obj = (
+                CtCollapseGuard(
+                    window_groups=int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS)),
+                    pass_a_k=pass_a_k or prepass_baseline_k,
+                )
+                if getattr(a, "ct_guard", False)
+                else None
+            )
             return run_steps(
                 model=bundle["model"],
                 ref_adapter_off=bundle["ref_adapter_off"],
@@ -4124,6 +4697,10 @@ def execute(
                 group_residuals=group_residuals if prepass_baseline_k is not None else None,
                 save_all_records=rollout_save_records if save_all_on else None,
                 base_seed=int(getattr(a, "draw_seed", None) or 0),
+                holdout_ids=holdout_ids_list or None,
+                mask_wrong_positive_advantage=bool(getattr(a, "mask_wrong_positive_advantage", False)),
+                dual_clip_c=getattr(a, "dual_clip_c", None),
+                ct_guard=ct_guard_obj,
             )
 
         if sampler is not None:
@@ -4490,6 +5067,55 @@ def build_parser() -> argparse.ArgumentParser:
         "--pass-a-sha256",
         default=None,
         help="expected sha256 hex digest of --pass-a-jsonl",
+    )
+    ap.add_argument(
+        "--frozen-pip-freeze",
+        type=Path,
+        default=None,
+        help="optional path to frozen pip-freeze.txt verified against pre-registered sha256",
+    )
+    ap.add_argument(
+        "--require-frozen-stack",
+        action="store_true",
+        help="verify installed torch, transformers, and bitsandbytes match FROZEN_STACK_VERSIONS",
+    )
+    ap.add_argument(
+        "--holdout",
+        action="store_true",
+        help="hold out a stratified 20% (Pass-A band x gold class) from all training draws",
+    )
+    ap.add_argument(
+        "--holdout-fraction",
+        type=float,
+        default=HOLDOUT_DEFAULT_FRACTION,
+        help="stratified holdout fraction (default 0.20)",
+    )
+    ap.add_argument(
+        "--holdout-seed",
+        default=HOLDOUT_DEFAULT_SEED,
+        help="deterministic seed string for the stratified holdout split",
+    )
+    ap.add_argument(
+        "--ct-guard",
+        action="store_true",
+        help="enable two-class CT collapse guard (S1, S2, U1, U2) over sampled-group windows",
+    )
+    ap.add_argument(
+        "--guard-window-groups",
+        type=int,
+        default=GUARD_WINDOW_GROUPS,
+        help="number of sampled groups per CT collapse guard window (default 40 = 10 updates)",
+    )
+    ap.add_argument(
+        "--mask-wrong-positive-advantage",
+        action="store_true",
+        help="clamp advantages on wrong-label completions to <= 0 after mean-centring (no re-centring)",
+    )
+    ap.add_argument(
+        "--dual-clip-c",
+        type=float,
+        default=None,
+        help="dual-clip coefficient c on negative advantages (default 3.0 when masking wrong positive adv)",
     )
     return ap
 
