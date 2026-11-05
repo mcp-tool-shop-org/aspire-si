@@ -32,6 +32,7 @@ if _HERE not in sys.path:
 
 from quote_rule import as_passages, normalise, quote_found  # noqa: E402
 from s2_grpo_smoke import (  # noqa: E402
+    MAX_NEW_TOKENS,
     build_prompt,
     loop_detected,
     parse_reply,
@@ -63,17 +64,16 @@ INTERVIEW_QUESTIONS = {
         "Copy the exact words of that part from the claim."
     ),
     "Q4": (
-        "Quote the single most relevant sentence or phrase from the evidence for that part, "
-        "or write NONE if the evidence does not touch on it at all."
+        "Copy exactly one line from the evidence that is closest to deciding that part, "
+        "or write NONE."
     ),
     "Q2": (
-        "Did the evidence lack information about that part, or did the evidence conflict with itself? "
-        "Name the one specific missing fact or conflict, then end with one line: "
-        "MISSING_FACT: <one sentence that, if added to the evidence, would decide this part>."
+        "What would the evidence need to say for you to decide it? "
+        "End with one line: MISSING_FACT: <one sentence>."
     ),
     "Q3": (
-        "If you had to choose between {A} and {B} right now without seeing more evidence, "
-        "which would you lean toward, and why in one sentence?"
+        "If you had to choose between {A} and {B}, "
+        "which would you choose, and why?"
     ),
 }
 
@@ -561,11 +561,15 @@ def score_part_match(
 
     eff_f1 = 0.0 if unspecific_full_claim_copy else best_f1
     eff_cont = 0.0 if unspecific_full_claim_copy else best_containment
-    eff_score = max(eff_f1, eff_cont)
+    eff_score = round(max(eff_f1, eff_cont), 6)
+    raw_score = round(max(best_f1, best_containment), 6)
     return {
-        "token_f1": best_f1,
-        "containment": best_containment,
-        "max_overlap": round(max(best_f1, best_containment), 6),
+        "token_f1": eff_f1,
+        "containment": eff_cont,
+        "max_overlap": eff_score,
+        "raw_token_f1": best_f1,
+        "raw_containment": best_containment,
+        "raw_max_overlap": raw_score,
         "q1_claim_coverage": round(q1_claim_cov, 6),
         "json_part_claim_coverage": round(part_claim_cov, 6),
         "unspecific_full_claim_copy": unspecific_full_claim_copy,
@@ -699,10 +703,24 @@ _PROSE_LEAN_RE = re.compile(
     re.IGNORECASE,
 )
 _WORD_LEAN_RE = re.compile(r"\b(supported|unsupported)\b", re.IGNORECASE)
+_Q3_REFUSAL_OR_NEGATION_RE = re.compile(
+    r"\b(?:"
+    r"(?:cannot|can't|can\s+not|could\s+not|couldn't|unable\s+to|refuse\s+to|impossible\s+to)"
+    r"\s+(?:choose|pick|decide|select|lean|say|tell)\b"
+    r"|"
+    r"(?:cannot|can't|can\s+not|could\s+not|couldn't|would\s+not|wouldn't|do\s+not|don't|did\s+not|didn't|"
+    r"will\s+not|won't|refuse\s+to|unable\s+to|impossible\s+to|neither|nor|not)"
+    r"\b[^.!?\n]{0,40}\b(?:choose|pick|lean|select|decide|favor|favour|bet|supported|unsupported)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def parse_q3_lean(q3_answer: str) -> dict[str, Any]:
     """Parse ``supported`` or ``unsupported`` lean from Q3's answer (either ``LEAN:`` or natural prose)."""
+    found_labels = {m.group(1).lower() for m in _WORD_LEAN_RE.finditer(q3_answer)}
+    if len(found_labels) != 1 or _Q3_REFUSAL_OR_NEGATION_RE.search(q3_answer):
+        return {"format_ok": False, "lean": None, "rationale": ""}
     for line in q3_answer.splitlines():
         m = _LEAN_RE.search(line.strip())
         if m:
@@ -831,11 +849,25 @@ class InterviewModelRunner:
                 return disable_fn()
             return nullcontext()
         if eff_policy.startswith("checkpoint"):
+            peft_cfg = getattr(self.model, "peft_config", None)
+            active_adapter = getattr(self.model, "active_adapter", None)
+            if not isinstance(peft_cfg, Mapping) or not peft_cfg or not active_adapter:
+                raise SystemExit(
+                    "refusing interview (checkpoint_adapter_not_loaded): "
+                    f"policy {policy!r} requires a loaded PEFT adapter on model "
+                    "(peft_config / active_adapter missing)"
+                )
             set_adapter_fn = getattr(self.model, "set_adapter", None)
-            if callable(set_adapter_fn) and ":" in eff_policy:
+            if ":" in eff_policy:
                 _, _, adapter_name = eff_policy.partition(":")
                 if adapter_name:
-                    set_adapter_fn(adapter_name)
+                    if adapter_name not in peft_cfg:
+                        raise SystemExit(
+                            "refusing interview (checkpoint_adapter_not_loaded): "
+                            f"adapter {adapter_name!r} is not loaded in peft_config"
+                        )
+                    if callable(set_adapter_fn):
+                        set_adapter_fn(adapter_name)
             return nullcontext()
         raise ValueError(f"Unknown interview policy {policy!r}")
 
@@ -897,8 +929,8 @@ class InterviewModelRunner:
         seed: int,
         *,
         policy: str = "baseline",
-        thinking_cap: int = THINKING_CAP_TOKENS,
-        answer_cap: int = ANSWER_CAP_TOKENS,
+        thinking_cap: int = MAX_NEW_TOKENS,
+        answer_cap: int = MAX_NEW_TOKENS,
     ) -> str:
         """Run the normal verification task under ``policy`` with ``seed`` and return raw text."""
         messages = [{"role": "user", "content": build_prompt(dict(row))}]
@@ -912,7 +944,7 @@ class InterviewModelRunner:
                 thinking_cap=thinking_cap,
                 answer_cap=answer_cap,
             )
-        return str(gen_res["raw_text"])
+        return str(gen_res["text"])
 
 
 # -- CPU Qwen3 stub for fast offline unit testing ------------------------------------------------------------
@@ -981,7 +1013,7 @@ class Qwen3ChatStubTokenizer:
         return "".join(chars)
 
 
-def build_cpu_qwen3_stub():
+def build_cpu_qwen3_stub(*, with_adapter: bool = False):
     """Build a tiny in-memory ``Qwen3ForCausalLM`` on CPU with ``Qwen3ChatStubTokenizer`` (no download)."""
     import torch
     from transformers import Qwen3Config, Qwen3ForCausalLM
@@ -1000,7 +1032,19 @@ def build_cpu_qwen3_stub():
         pad_token_id=tok.pad_token_id,
         eos_token_id=tok.eos_token_id,
     )
-    model = Qwen3ForCausalLM(cfg)
+    model: Any = Qwen3ForCausalLM(cfg)
+    if with_adapter:
+        from peft import LoraConfig, get_peft_model
+
+        model = get_peft_model(
+            model,
+            LoraConfig(
+                r=4,
+                lora_alpha=8,
+                target_modules=["q_proj", "v_proj"],
+                lora_dropout=0.0,
+            ),
+        )
     model.eval()
     return model, tok
 
@@ -1015,6 +1059,7 @@ def run_interview_for_cohort(
     base_seed: int = 0,
     thinking_cap: int = THINKING_CAP_TOKENS,
     answer_cap: int = ANSWER_CAP_TOKENS,
+    verifier_max_new_tokens: int = MAX_NEW_TOKENS,
     verifier_runner: Callable[[dict[str, Any], int], str] | None = None,
     include_cold_control: bool = True,
 ) -> dict[str, Any]:
@@ -1079,8 +1124,8 @@ def run_interview_for_cohort(
                                 cf_row,
                                 cf_seed,
                                 policy=_pol,
-                                thinking_cap=thinking_cap,
-                                answer_cap=answer_cap,
+                                thinking_cap=verifier_max_new_tokens,
+                                answer_cap=verifier_max_new_tokens,
                             )
                         )
                     )
@@ -1131,9 +1176,21 @@ def run_interview_for_cohort(
         primary = [s for s in scores if not s.get("ct_part_fallback", False)]
         scored = primary if primary else list(scores)
         n_scored = float(len(scored))
-        f1s = [float(s["token_f1"]) for s in scored]
-        conts = [float(s["containment"]) for s in scored]
-        overlaps = [float(s["max_overlap"]) for s in scored]
+        f1s = [
+            0.0 if s.get("unspecific_full_claim_copy", False) else float(s["token_f1"])
+            for s in scored
+        ]
+        conts = [
+            0.0 if s.get("unspecific_full_claim_copy", False) else float(s["containment"])
+            for s in scored
+        ]
+        overlaps = [
+            0.0 if s.get("unspecific_full_claim_copy", False) else float(s["max_overlap"])
+            for s in scored
+        ]
+        raw_f1s = [float(s.get("raw_token_f1", s["token_f1"])) for s in scored]
+        raw_conts = [float(s.get("raw_containment", s["containment"])) for s in scored]
+        raw_overlaps = [float(s.get("raw_max_overlap", s["max_overlap"])) for s in scored]
         return {
             "n": len(scores),
             "primary_n": len(primary),
@@ -1144,11 +1201,15 @@ def run_interview_for_cohort(
             "whole_claim_copy_count": sum(1 for s in scores if s.get("whole_claim_copy", False)),
             "mean_token_f1": round(float(statistics.fmean(f1s)), 6),
             "median_token_f1": round(float(statistics.median(f1s)), 6),
+            "raw_mean_token_f1": round(float(statistics.fmean(raw_f1s)), 6),
+            "raw_median_token_f1": round(float(statistics.median(raw_f1s)), 6),
             "f1_rate_0_3": round(sum(1 for s in scored if s.get("f1_at_0_3")) / n_scored, 6),
             "f1_rate_0_5": round(sum(1 for s in scored if s.get("f1_at_0_5")) / n_scored, 6),
             "f1_rate_0_7": round(sum(1 for s in scored if s.get("f1_at_0_7")) / n_scored, 6),
             "mean_containment": round(float(statistics.fmean(conts)), 6),
             "median_containment": round(float(statistics.median(conts)), 6),
+            "raw_mean_containment": round(float(statistics.fmean(raw_conts)), 6),
+            "raw_median_containment": round(float(statistics.median(raw_conts)), 6),
             "containment_rate_0_3": round(
                 sum(1 for s in scored if s.get("containment_at_0_3")) / n_scored, 6
             ),
@@ -1160,6 +1221,8 @@ def run_interview_for_cohort(
             ),
             "mean_overlap": round(float(statistics.fmean(overlaps)), 6),
             "median_overlap": round(float(statistics.median(overlaps)), 6),
+            "raw_mean_overlap": round(float(statistics.fmean(raw_overlaps)), 6),
+            "raw_median_overlap": round(float(statistics.median(raw_overlaps)), 6),
             "match_rate_0_3": round(sum(1 for s in scored if s["match_at_0_3"]) / n_scored, 6),
             "match_rate_0_5": round(sum(1 for s in scored if s["match_at_0_5"]) / n_scored, 6),
             "match_rate_0_7": round(sum(1 for s in scored if s["match_at_0_7"]) / n_scored, 6),

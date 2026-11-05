@@ -60,19 +60,26 @@ def _check_unused_draw_flags(
     prepass,
     k_min: int | None,
     k_max: int | None,
+    holdout_seed: str | int | None = None,
 ) -> None:
     unused: list[str] = []
     if mode == "first" and seed is not None:
         unused.append("--draw-seed")
     if mode in ("first", "uniform"):
+        has_valid_holdout_seed = (
+            holdout_seed is not None
+            and not isinstance(holdout_seed, bool)
+            and bool(str(holdout_seed).strip())
+        )
         if isinstance(prepass, (tuple, list)) and len(prepass) == 2:
-            if prepass[0] is not None:
-                unused.append("--prepass-jsonl")
-            if prepass[1] is not None:
-                unused.append("--prepass-sha256")
-            if prepass[0] is None and prepass[1] is None:
-                unused.append("--prepass")
-        elif prepass is not None:
+            if not (has_valid_holdout_seed and prepass[0] is not None and prepass[1] is not None):
+                if prepass[0] is not None:
+                    unused.append("--prepass-jsonl")
+                if prepass[1] is not None:
+                    unused.append("--prepass-sha256")
+                if prepass[0] is None and prepass[1] is None:
+                    unused.append("--prepass")
+        elif prepass is not None and not has_valid_holdout_seed:
             unused.append("--prepass")
         if k_min is not None:
             unused.append("--k-min")
@@ -108,7 +115,7 @@ def _parse_prepass_spec(prepass) -> tuple[Path, str]:
 def _check_prepass_companion_headers(
     path: Path,
     allowed_seeds: set[int],
-) -> None:
+) -> tuple[bool, bool]:
     """Refuse if any companion header beside ``path`` has ``descriptive: true`` or wrong ``seed``."""
     candidates = [
         path.with_name(path.stem + "-header.json"),
@@ -116,6 +123,8 @@ def _check_prepass_companion_headers(
         path.parent / "s2-llamacpp-prepass-header.json",
     ]
     seen: set[Path] = set()
+    header_has_seed = False
+    header_has_descriptive = False
     for hdr_path in candidates:
         if hdr_path in seen or not hdr_path.is_file():
             continue
@@ -126,17 +135,29 @@ def _check_prepass_companion_headers(
             continue
         if not isinstance(hdr_obj, dict):
             continue
-        if hdr_obj.get("descriptive") is True:
+        if hdr_obj.get("descriptive") is True or (
+            "descriptive" in hdr_obj and not isinstance(hdr_obj["descriptive"], bool)
+        ):
             _refuse(
                 "prepass_descriptive",
                 "pre-pass header has descriptive=true; descriptive passes cannot be used",
             )
+        if "descriptive" in hdr_obj and hdr_obj["descriptive"] is False:
+            header_has_descriptive = True
         if "seed" in hdr_obj and hdr_obj["seed"] is not None:
-            if int(hdr_obj["seed"]) not in allowed_seeds:
+            if (
+                isinstance(hdr_obj["seed"], bool)
+                or not isinstance(hdr_obj["seed"], int)
+                or int(hdr_obj["seed"]) not in allowed_seeds
+            ):
                 _refuse(
                     "prepass_wrong_seed",
                     f"pre-pass header has seed={hdr_obj['seed']!r}, expected {sorted(allowed_seeds)}",
                 )
+            header_has_seed = True
+            if "ids_sha256" in hdr_obj and "descriptive" not in hdr_obj:
+                header_has_descriptive = True
+    return header_has_seed, header_has_descriptive
 
 
 def _load_and_verify_prepass(
@@ -154,7 +175,7 @@ def _load_and_verify_prepass(
         if isinstance(expected_seed, int)
         else {int(s) for s in expected_seed}
     )
-    _check_prepass_companion_headers(path, allowed_seeds)
+    header_has_seed, header_has_descriptive = _check_prepass_companion_headers(path, allowed_seeds)
     raw_bytes = path.read_bytes()
     actual_sha = hashlib.sha256(raw_bytes).hexdigest()
     if actual_sha != expected_sha:
@@ -173,22 +194,42 @@ def _load_and_verify_prepass(
             _refuse("prepass_corrupt_json", f"invalid JSON on line {line_no}")
         if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
             _refuse("prepass_invalid_record", f"line {line_no} is missing 'id' or 'k_correct'")
-        if obj.get("descriptive") is True:
+        if obj.get("descriptive") is True or (
+            "descriptive" in obj and not isinstance(obj["descriptive"], bool)
+        ):
             _refuse(
                 "prepass_descriptive",
                 f"line {line_no} has descriptive=true; descriptive passes cannot be used",
             )
+        rec_has_descriptive = "descriptive" in obj and obj["descriptive"] is False
+        rec_has_seed = False
         for sk in ("pass_seed", "seed"):
-            if sk in obj and obj[sk] is not None and int(obj[sk]) not in allowed_seeds:
-                _refuse(
-                    "prepass_wrong_seed",
-                    f"line {line_no} has {sk}={obj[sk]!r}, expected {sorted(allowed_seeds)}",
-                )
+            if sk in obj and obj[sk] is not None:
+                if (
+                    isinstance(obj[sk], bool)
+                    or not isinstance(obj[sk], int)
+                    or int(obj[sk]) not in allowed_seeds
+                ):
+                    _refuse(
+                        "prepass_wrong_seed",
+                        f"line {line_no} has {sk}={obj[sk]!r}, expected {sorted(allowed_seeds)}",
+                    )
+                rec_has_seed = True
         rec_id = str(obj["id"])
         if rec_id in records_by_id:
             _refuse("prepass_duplicate_id", f"duplicate pre-pass record for id {rec_id!r}")
         if rec_id not in split_ids:
             _refuse("prepass_extra_id", f"pre-pass id {rec_id!r} is not in the split")
+        if not (header_has_seed or rec_has_seed):
+            _refuse(
+                "prepass_missing_seed",
+                f"line {line_no} and companion header are missing seed provenance",
+            )
+        if not (header_has_descriptive or rec_has_descriptive):
+            _refuse(
+                "prepass_missing_descriptive",
+                f"line {line_no} and companion header are missing descriptive provenance",
+            )
         records_by_id[rec_id] = obj
 
     missing = sorted(split_ids - set(records_by_id))
@@ -441,17 +482,18 @@ def draw_prompts(
     split: str = PROMPT_SPLIT,
     holdout_fraction: float = HOLDOUT_DEFAULT_FRACTION,
     holdout_seed: str | int | None = None,
+    holdout_ids: Sequence[str] | set[str] | None = None,
 ) -> tuple[list[dict], dict]:
     """Select ``n`` prompts from ``rows`` in ``split`` according to ``mode`` and return ``(prompts, record)``.
 
     Modes:
-    - ``first``: calls ``select_prompts(rows, n, split=split)`` directly.
+    - ``first``: calls ``select_prompts(rows, n, split=split)`` directly (excluding active holdout IDs).
     - ``uniform``: seeded sample of ``n`` without replacement from all sorted rows of ``split`` using a
       local ``random.Random(seed)``, returned sorted by ``id``.
     - ``kband``: filters to split rows whose pre-pass ``k_correct`` is in ``[k_min, k_max]``, then takes
       the same seeded sample of ``n`` without replacement using ``random.Random(seed)``, sorted by ``id``.
     - ``class_stratified``: class-stratified draw without replacement within each epoch over the training
-      pool (excluding the stratified 20% holdout when ``prepass`` is given).
+      pool (always requiring and excluding the stratified 20% holdout split).
 
     The returned ``record`` never contains item text.
     """
@@ -460,10 +502,30 @@ def draw_prompts(
     if not isinstance(n, int) or isinstance(n, bool) or n < 1:
         _refuse("invalid_draw_n", f"n must be an integer >= 1, got {n!r}")
 
-    _check_unused_draw_flags(mode, seed=seed, prepass=prepass, k_min=k_min, k_max=k_max)
+    _check_unused_draw_flags(
+        mode,
+        seed=seed,
+        prepass=prepass,
+        k_min=k_min,
+        k_max=k_max,
+        holdout_seed=holdout_seed,
+    )
+
+    active_holdout: set[str] = {str(x) for x in holdout_ids} if holdout_ids is not None else set()
+    has_prepass = prepass is not None and prepass != (None, None)
+    if mode != "class_stratified" and not active_holdout and holdout_seed is not None and has_prepass:
+        _, _, hold_meta_extra = split_stratified_holdout(
+            rows,
+            prepass,
+            holdout_fraction=holdout_fraction,
+            holdout_seed=holdout_seed,
+            split=split,
+        )
+        active_holdout = set(hold_meta_extra["holdout_ids"])
 
     if mode == "first":
-        picked = select_prompts(rows, n, split=split)
+        avail_rows = [r for r in rows if str(r.get("id")) not in active_holdout] if active_holdout else rows
+        picked = select_prompts(avail_rows, n, split=split)
         picked_ids = [str(r["id"]) for r in picked]
         return picked, {
             "draw_mode": "first",
@@ -475,7 +537,10 @@ def draw_prompts(
     if seed is None or isinstance(seed, bool) or not isinstance(seed, int):
         _refuse("missing_seed", f"{mode} draw requires an integer seed")
 
-    pool = sorted((r for r in rows if r.get("split") == split), key=lambda r: str(r["id"]))
+    pool = sorted(
+        (r for r in rows if r.get("split") == split and str(r.get("id")) not in active_holdout),
+        key=lambda r: str(r["id"]),
+    )
 
     if mode == "uniform":
         if n > len(pool):
@@ -494,34 +559,38 @@ def draw_prompts(
         }
 
     if mode == "class_stratified":
-        has_prepass = prepass is not None and prepass != (None, None)
-        if has_prepass:
-            train_pool, _, hold_meta = split_stratified_holdout(
-                rows,
-                prepass,
-                holdout_fraction=holdout_fraction,
-                holdout_seed=holdout_seed,
-                split=split,
+        if not has_prepass:
+            _refuse(
+                "prepass_missing",
+                "class_stratified requires a pre-pass JSONL path and expected sha256 for the holdout split",
             )
-            schedule, sched_rec = build_class_stratified_schedule(
-                train_pool,
-                n,
-                seed=seed,
-                holdout_ids=hold_meta["holdout_ids"],
-            )
-            sched_rec["holdout_seed"] = hold_meta["holdout_seed"]
-            sched_rec["holdout_count"] = hold_meta["holdout_count"]
-            sched_rec["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
-            sched_rec["train_ids_sha256"] = hold_meta["train_ids_sha256"]
-            if "prepass_sha256" in hold_meta:
-                sched_rec["prepass_sha256"] = hold_meta["prepass_sha256"]
-            return schedule, sched_rec
-        schedule, sched_rec = build_class_stratified_schedule(pool, n, seed=seed)
+        train_pool, _, hold_meta = split_stratified_holdout(
+            rows,
+            prepass,
+            holdout_fraction=holdout_fraction,
+            holdout_seed=holdout_seed,
+            split=split,
+        )
+        eff_holdout_ids = set(hold_meta["holdout_ids"]) | active_holdout
+        if active_holdout:
+            train_pool = [r for r in train_pool if str(r["id"]) not in active_holdout]
+        schedule, sched_rec = build_class_stratified_schedule(
+            train_pool,
+            n,
+            seed=seed,
+            holdout_ids=eff_holdout_ids,
+        )
+        sched_rec["holdout_seed"] = hold_meta["holdout_seed"]
+        sched_rec["holdout_count"] = hold_meta["holdout_count"]
+        sched_rec["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
+        sched_rec["train_ids_sha256"] = hold_meta["train_ids_sha256"]
+        if "prepass_sha256" in hold_meta:
+            sched_rec["prepass_sha256"] = hold_meta["prepass_sha256"]
         return schedule, sched_rec
 
     # mode == "kband"
-    split_ids = {str(r["id"]) for r in pool}
-    records_by_id, actual_sha = _load_and_verify_prepass(prepass, split_ids)
+    full_split_ids = {str(r["id"]) for r in rows if r.get("split") == split}
+    records_by_id, actual_sha = _load_and_verify_prepass(prepass, full_split_ids)
 
     if k_min is None or k_max is None or isinstance(k_min, bool) or isinstance(k_max, bool):
         _refuse("k_range_missing", "kband requires integer k_min and k_max")

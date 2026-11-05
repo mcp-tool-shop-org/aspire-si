@@ -1009,6 +1009,19 @@ def check_frozen_env(
         candidate_freeze = Path(sys.prefix) / "FROZEN-pip-freeze-2026-11-05.txt"
         if candidate_freeze.is_file():
             eff_freeze_path = candidate_freeze
+    if require_exact_versions:
+        for pkg, req_ver in FROZEN_STACK_VERSIONS.items():
+            inst_ver = versions.get(pkg)
+            if inst_ver != req_ver:
+                raise SystemExit(
+                    f"refusing to start (frozen_env_version_mismatch): "
+                    f"installed {pkg}=={inst_ver!r}, expected {req_ver!r}"
+                )
+    if eff_freeze_path is None and require_exact_versions:
+        raise SystemExit(
+            "refusing to start (frozen_env_missing_file): "
+            "--frozen-pip-freeze was not provided and FROZEN-pip-freeze-2026-11-05.txt is missing at sys.prefix"
+        )
     if eff_freeze_path is not None:
         pf_path = Path(eff_freeze_path)
         if not pf_path.is_file():
@@ -1033,14 +1046,6 @@ def check_frozen_env(
                 raise SystemExit(
                     f"refusing to start (frozen_env_version_mismatch): "
                     f"pip-freeze has {pkg}=={freeze_versions[pkg]}, expected {req_ver}"
-                )
-    if require_exact_versions:
-        for pkg, req_ver in FROZEN_STACK_VERSIONS.items():
-            inst_ver = versions.get(pkg)
-            if inst_ver != req_ver:
-                raise SystemExit(
-                    f"refusing to start (frozen_env_version_mismatch): "
-                    f"installed {pkg}=={inst_ver!r}, expected {req_ver!r}"
                 )
     return {
         "stack_versions": versions,
@@ -3248,6 +3253,8 @@ def run_probe_memory(
     gpu: dict | None,
     guard: dict | None,
     counter_runner: Callable[[], str] = run_typeperf_gpu_memory,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
 ) -> int:
     """Probe mode (``--probe-memory``): measures allocator and adapter memory across forced lengths."""
     torch = require_torch()
@@ -3356,6 +3363,11 @@ def run_probe_memory(
             }
         )
 
+    eff_stack_versions = (
+        dict(stack_versions)
+        if stack_versions is not None
+        else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+    )
     probe_doc = {
         "test": "S2-probe",
         "path": a.path,
@@ -3363,6 +3375,8 @@ def run_probe_memory(
         "prompt_tokens": prompt_len,
         "g": a.g,
         "flags": active_flags(a),
+        "stack_versions": eff_stack_versions,
+        "pip_freeze_sha256": pip_freeze_sha256,
         "model_info": _model_static_info(model, kv_key_dtype),
         "dtype_census": bundle.get("dtype_census"),
         "gpu": {"name": gpu.get("name"), "driver": gpu.get("driver")} if isinstance(gpu, dict) else None,
@@ -3674,10 +3688,8 @@ def prepass_item_record(
         "prompt_tokens": len(prompt_ids),
         "completion_tokens_mean": round(float(statistics.fmean(comp_lens)), 2) if comp_lens else 0.0,
     }
-    if descriptive:
-        rec["descriptive"] = True
-    if int(pass_seed) != 0:
-        rec["pass_seed"] = int(pass_seed)
+    rec["descriptive"] = bool(descriptive)
+    rec["pass_seed"] = int(pass_seed)
     item_id_key = str(row["id"])
     if pass_a_k is not None and item_id_key in pass_a_k:
         rec["pass_a_k"] = int(pass_a_k[item_id_key])
@@ -3764,7 +3776,7 @@ def _verify_pass_provenance(
     header: Mapping[str, Any] | None = None,
     expected_seed: int | None = None,
     forbid_seeds: Sequence[int] = (),
-    require_seeds: bool = False,
+    require_seeds: bool = True,
 ) -> int | None:
     """Verify pass records and optional header are not descriptive and have the expected seed provenance."""
     if header is not None and header.get("descriptive") is True:
@@ -3820,7 +3832,7 @@ def compute_paired_arm_estimators(
     pass_a_header: Mapping[str, Any] | None = None,
     pass_b_header: Mapping[str, Any] | None = None,
     postpass_headers: Sequence[tuple[Mapping[str, Any] | None, Mapping[str, Any] | None]] | None = None,
-    require_seeds: bool = False,
+    require_seeds: bool = True,
 ) -> dict[str, Any]:
     """Compute paired item-level estimators across 2 post-passes per seed and multiple training seeds.
 
@@ -4494,7 +4506,7 @@ def _check_header_not_descriptive(
     baseline_path: Path,
     *,
     expected_seeds: Sequence[int] = (0,),
-) -> None:
+) -> tuple[bool, bool]:
     """Refuse if any companion header beside ``baseline_path`` has ``descriptive: true`` or wrong seed."""
     allowed_seeds = {int(s) for s in expected_seeds}
     candidates = [
@@ -4503,6 +4515,8 @@ def _check_header_not_descriptive(
         baseline_path.parent / "s2-llamacpp-prepass-header.json",
     ]
     seen: set[Path] = set()
+    header_has_seed = False
+    header_has_descriptive = False
     for hdr_path in candidates:
         if hdr_path in seen or not hdr_path.is_file():
             continue
@@ -4513,12 +4527,14 @@ def _check_header_not_descriptive(
             continue
         if not isinstance(hdr_obj, dict):
             continue
-        if hdr_obj.get("descriptive") is True:
-            raise SystemExit(
-                "refusing to start (prepass_baseline_descriptive): "
-                "pass header has descriptive=true; the starting-policy logging pass "
-                "is never accepted as --prepass-baseline"
-            )
+        if "descriptive" in hdr_obj and isinstance(hdr_obj.get("descriptive"), bool):
+            if hdr_obj.get("descriptive") is True:
+                raise SystemExit(
+                    "refusing to start (prepass_baseline_descriptive): "
+                    "pass header has descriptive=true; the starting-policy logging pass "
+                    "is never accepted as --prepass-baseline"
+                )
+            header_has_descriptive = True
         if "seed" in hdr_obj:
             hdr_seed = hdr_obj.get("seed")
             if isinstance(hdr_seed, bool) or not isinstance(hdr_seed, int) or hdr_seed not in allowed_seeds:
@@ -4526,6 +4542,8 @@ def _check_header_not_descriptive(
                     f"refusing to start (prepass_baseline_wrong_seed): "
                     f"pass header has seed={hdr_seed!r}, expected one of {sorted(allowed_seeds)}"
                 )
+            header_has_seed = True
+    return header_has_seed, header_has_descriptive
 
 
 # -- the run -------------------------------------------------------------------------------------------------
@@ -4551,7 +4569,9 @@ def load_prepass_baseline(
             f"refusing to start (prepass_baseline_missing_file): baseline file does not exist: {path.name}"
         )
     allowed_seeds = {int(s) for s in expected_seeds}
-    _check_header_not_descriptive(path, expected_seeds=expected_seeds)
+    header_has_seed, header_has_descriptive = _check_header_not_descriptive(
+        path, expected_seeds=expected_seeds
+    )
     raw_bytes = path.read_bytes()
     actual_sha = hashlib.sha256(raw_bytes).hexdigest()
     expected_sha = str(baseline_sha256).strip().lower()
@@ -4572,12 +4592,17 @@ def load_prepass_baseline(
             raise SystemExit(
                 f"refusing to start (prepass_baseline_corrupt_json): invalid JSON on line {line_no}"
             ) from exc
-        if isinstance(obj, dict) and obj.get("descriptive") is True:
-            raise SystemExit(
-                "refusing to start (prepass_baseline_descriptive): "
-                "record has descriptive=true; the starting-policy logging pass "
-                "is never accepted as --prepass-baseline"
-            )
+        rec_has_descriptive = False
+        if isinstance(obj, dict) and "descriptive" in obj:
+            if obj.get("descriptive") is True:
+                raise SystemExit(
+                    "refusing to start (prepass_baseline_descriptive): "
+                    "record has descriptive=true; the starting-policy logging pass "
+                    "is never accepted as --prepass-baseline"
+                )
+            if obj.get("descriptive") is False:
+                rec_has_descriptive = True
+        rec_has_seed = False
         if isinstance(obj, dict) and ("pass_seed" in obj or "seed" in obj):
             rec_seed = obj.get("pass_seed", obj.get("seed"))
             if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed not in allowed_seeds:
@@ -4585,6 +4610,7 @@ def load_prepass_baseline(
                     f"refusing to start (prepass_baseline_wrong_seed): "
                     f"record on line {line_no} has seed={rec_seed!r}, expected one of {sorted(allowed_seeds)}"
                 )
+            rec_has_seed = True
         if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
             raise SystemExit(
                 f"refusing to start (prepass_baseline_invalid_record): "
@@ -4614,6 +4640,16 @@ def load_prepass_baseline(
             raise SystemExit(
                 f"refusing to start (prepass_baseline_k_out_of_range): "
                 f"baseline record for id {rec_id!r} has k_correct={k_val!r} outside 0..{expected_g}"
+            )
+        if not (header_has_seed or rec_has_seed):
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_missing_seed): "
+                f"record on line {line_no} and companion header lack seed metadata"
+            )
+        if not (header_has_descriptive or rec_has_descriptive):
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_missing_descriptive): "
+                f"record on line {line_no} and companion header lack descriptive metadata"
             )
         k_by_id[rec_id] = k_val
     missing = [str(cid) for cid in required_ids if str(cid) not in k_by_id]
@@ -4820,6 +4856,11 @@ def execute(
         )
         hold_seed = str(hold_seed_raw) if hold_seed_valid else None
         if draw_mode == "class_stratified":
+            if prepass_spec is None and getattr(a, "pass_a_jsonl", None) is not None:
+                prepass_spec = (
+                    getattr(a, "pass_a_jsonl", None),
+                    getattr(a, "pass_a_sha256", None),
+                )
             total_groups_needed = int(a.steps) * int(
                 getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP
             )
@@ -4863,6 +4904,7 @@ def execute(
             k_max=getattr(a, "k_max", None),
             holdout_fraction=hold_frac,
             holdout_seed=hold_seed,
+            holdout_ids=holdout_ids_list if holdout_ids_list else None,
         )
         if draw_mode != "first":
             draw_record.update(draw_rec)
@@ -4943,6 +4985,8 @@ def execute(
                 gpu=gpu,
                 guard=guard,
                 counter_runner=counter_runner,
+                stack_versions=frozen_env.get("stack_versions"),
+                pip_freeze_sha256=frozen_env.get("pip_freeze_sha256"),
             )
 
         sampler = VramSampler(rig.vram_query) if rig is not None and not a.dry else None
