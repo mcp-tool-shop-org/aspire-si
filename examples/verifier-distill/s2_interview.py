@@ -876,7 +876,11 @@ class InterviewModelRunner:
                     target_adapter = adapter_name
                     if callable(set_adapter_fn):
                         set_adapter_fn(adapter_name)
-            loaded_sha_raw = getattr(self.model, "_loaded_checkpoint_sha256", None)
+            sha_by_adapter = getattr(self.model, "_loaded_checkpoint_sha256_by_adapter", None)
+            if isinstance(sha_by_adapter, Mapping):
+                loaded_sha_raw = sha_by_adapter.get(target_adapter)
+            else:
+                loaded_sha_raw = getattr(self.model, "_loaded_checkpoint_sha256", None)
             loaded_sha = (
                 str(loaded_sha_raw).strip().lower()
                 if loaded_sha_raw is not None and str(loaded_sha_raw).strip()
@@ -895,13 +899,13 @@ class InterviewModelRunner:
             if not loaded_sha or not eff_expected:
                 raise SystemExit(
                     "refusing interview (checkpoint_sha_missing): "
-                    f"policy {policy!r} requires a loaded checkpoint sha256 from attach_or_load_adapter "
-                    "and an explicit expected checkpoint_sha256 for the cohort"
+                    f"policy {policy!r} (adapter {target_adapter!r}) requires a loaded checkpoint sha256 "
+                    "from attach_or_load_adapter and an explicit expected checkpoint_sha256 for the cohort"
                 )
             if loaded_sha != eff_expected:
                 raise SystemExit(
                     f"refusing interview (checkpoint_sha_mismatch): "
-                    f"loaded adapter sha256 {loaded_sha} != expected {eff_expected}"
+                    f"loaded adapter {target_adapter!r} sha256 {loaded_sha} != expected {eff_expected}"
                 )
             named_params_fn = getattr(self.model, "named_parameters", None)
             lora_b_params = []

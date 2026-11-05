@@ -12095,36 +12095,28 @@ class TestFix3Items:
 
         from s2_draw import _extract_k_by_id, _load_and_verify_prepass
 
-        # 1. Read real Pass A and Pass B2 headers from rnd-local if available, or verify exact shapes
-        real_pa_hdr_path = Path("E:/AI/rnd-local/projects/aspire-si-s2/run-prepass/s2-hf-prepass-header.json")
-        real_b2_hdr_path = Path("E:/AI/rnd-local/projects/aspire-si-s2/run-prepass-b2/s2-hf-prepass-header.json")
-        if real_pa_hdr_path.is_file():
-            pa_hdr = json.loads(real_pa_hdr_path.read_text(encoding="utf-8"))
-        else:
-            pa_hdr = {
-                "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
-                "script_sha256": "be8c800987ac982a9732158d1e48aa2a0e19ab96a8dd24b26085d3c674f5c63a",
-                "gold_files_sha256": {},
-                "g": 8,
-                "max_new": 2048,
-                "quote_reward": "v2",
-                "seed": 0,
-                "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
-            }
-        if real_b2_hdr_path.is_file():
-            b2_hdr = json.loads(real_b2_hdr_path.read_text(encoding="utf-8"))
-        else:
-            b2_hdr = {
-                "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
-                "script_sha256": "4577ddba30c9b18661f12d4b0f35742dd02d73aa26243cd4f99754d2b453ab19",
-                "gold_files_sha256": {},
-                "g": 8,
-                "max_new": 2048,
-                "quote_reward": "v2",
-                "seed": 1,
-                "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
-                "reproducible": True,
-            }
+        # 1. Verify legacy Pass A and Pass B2 header shapes (no 'descriptive' field)
+        pa_hdr = {
+            "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
+            "script_sha256": "be8c800987ac982a9732158d1e48aa2a0e19ab96a8dd24b26085d3c674f5c63a",
+            "gold_files_sha256": {},
+            "g": 8,
+            "max_new": 2048,
+            "quote_reward": "v2",
+            "seed": 0,
+            "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+        }
+        b2_hdr = {
+            "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
+            "script_sha256": "4577ddba30c9b18661f12d4b0f35742dd02d73aa26243cd4f99754d2b453ab19",
+            "gold_files_sha256": {},
+            "g": 8,
+            "max_new": 2048,
+            "quote_reward": "v2",
+            "seed": 1,
+            "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            "reproducible": True,
+        }
         assert "descriptive" not in pa_hdr
         assert "descriptive" not in b2_hdr
 
@@ -12506,6 +12498,86 @@ class TestFix3Items:
         )
         assert hdr_mismatch["replay_check_sha256"] == b2_sha
 
+        # 2b. Relaunching into the same out dir with the same arguments refuses before running any new item
+        seen_prompts.clear()
+        with pytest.raises(SystemExit, match="LOGGING_PASS_REPLAY_MISMATCH"):
+            s2.execute(a_mismatch, build=make_bundle, rig=_FakeRig(a_mismatch))
+        assert len(seen_prompts) == 0
+
+        # Even if the summary file is absent (or before summary check), _prepare_prepass_resume re-checks
+        # every completed record against replay_check_k and refuses before running any new item.
+        (mismatch_dir / "s2-hf-prepass-summary.json").unlink()
+        with pytest.raises(SystemExit, match="LOGGING_PASS_REPLAY_MISMATCH") as relaunch_exc:
+            s2.execute(a_mismatch, build=make_bundle, rig=_FakeRig(a_mismatch))
+        assert "item_id=t_b" in str(relaunch_exc.value)
+        assert len(seen_prompts) == 0
+
+        # 2c. Refusal on a wrong --replay-check-sha256 (replay_check_sha_mismatch)
+        a_bad_sha = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "logging_bad_sha"),
+                *b2_cli_flags,
+                "--replay-check",
+                str(b2_jsonl),
+                "--replay-check-sha256",
+                "00" * 32,
+            ]
+        )
+        with pytest.raises(SystemExit, match="replay_check_sha_mismatch"):
+            s2.execute(a_bad_sha, build=make_bundle, rig=_FakeRig(a_bad_sha))
+
+        # 2d. Full run where every item's k_correct matches B2 and the pass completes
+        matching_b2_jsonl = tmp_path / "b2_matching.jsonl"
+        expected_k_by_id = {"t_a": 8, "t_b": 3, "t_d": 8, "t_k": 0, "t_m": 0, "t_z": 8}
+        matching_b2_rows = [
+            {
+                "id": cid,
+                "g": 8,
+                "k_correct": expected_k_by_id[cid],
+                "pass_seed": 1,
+                "descriptive": False,
+            }
+            for cid in tune_ids
+        ]
+        matching_b2_jsonl.write_text(
+            "".join(json.dumps(r) + "\n" for r in matching_b2_rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        matching_b2_sha = hashlib.sha256(matching_b2_jsonl.read_bytes()).hexdigest()
+        match_dir = tmp_path / "logging_match"
+        a_match = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(match_dir),
+                *b2_cli_flags,
+                "--replay-check",
+                str(matching_b2_jsonl),
+                "--replay-check-sha256",
+                matching_b2_sha,
+            ]
+        )
+        seen_prompts.clear()
+        assert s2.execute(a_match, build=make_bundle, rig=_FakeRig(a_match)) == 0
+        assert len(seen_prompts) == len(tune_ids)
+        match_summary = json.loads(
+            (match_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8")
+        )
+        assert match_summary["item_count"] == len(tune_ids)
+        assert "stopped" not in match_summary
+        match_receipt = json.loads((match_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert match_receipt["stopped"] is None
+        assert match_receipt["run"]["replay_check_sha256"] == matching_b2_sha
+
         # 3. Also verify --replay-check-off-reason is recorded when provided
         off_dir = tmp_path / "logging_rc_off"
         a_off = ap.parse_args(
@@ -12526,6 +12598,108 @@ class TestFix3Items:
         assert hdr_off["replay_check_off_reason"] == "explicitly bypassed in unit test"
         rec_off = json.loads((off_dir / "s2-hf.json").read_text(encoding="utf-8"))
         assert rec_off["run"]["replay_check_off_reason"] == "explicitly bypassed in unit test"
+
+    @needs_torch
+    def test_fix4_item_04_checkpoint_sha_stored_and_checked_per_adapter_name(
+        self, tmp_path: Path
+    ) -> None:
+        import s2_interview as s2i
+        import torch
+
+        row = _row("f4_4", claim="Buffer size is 64 bytes.", text="The local buffer is initialised.")
+        t1 = (
+            "<think>missing size</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+
+        # Create two distinct trained checkpoints on disk (ckpt_a and ckpt_b) with different non-zero lora_B
+        base_m, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in base_m.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_a_dir = tmp_path / "ckpt_a"
+        base_m.save_pretrained(str(ckpt_a_dir))
+        sha_a = s2.checkpoint_sha256(ckpt_a_dir)
+
+        with torch.no_grad():
+            for name, param in base_m.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.12)
+        ckpt_b_dir = tmp_path / "ckpt_b"
+        base_m.save_pretrained(str(ckpt_b_dir))
+        sha_b = s2.checkpoint_sha256(ckpt_b_dir)
+        assert sha_a != sha_b
+
+        # Load adapter_a via attach_or_load_adapter, then load a second trained adapter_b onto the same model
+        raw_model, tok = s2i.build_cpu_qwen3_stub(with_adapter=False)
+        model, _, _, _ = s2.attach_or_load_adapter(
+            raw_model, ckpt_a_dir, for_pass=True, adapter_name="adapter_a"
+        )
+        model, _, _, _ = s2.attach_or_load_adapter(
+            model, ckpt_b_dir, for_pass=True, adapter_name="adapter_b"
+        )
+        assert model._loaded_checkpoint_sha256_by_adapter == {
+            "adapter_a": sha_a,
+            "adapter_b": sha_b,
+        }
+
+        # Runner expecting sha_b (the active/last-loaded adapter) must REFUSE policy="checkpoint:adapter_a"
+        runner_expect_b = s2i.InterviewModelRunner(model, tok, expected_checkpoint_sha256=sha_b)
+        with pytest.raises(SystemExit, match="checkpoint_sha_mismatch"):
+            runner_expect_b.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint:adapter_a",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # And if a second trained adapter is loaded via raw model.load_adapter without attach_or_load_adapter,
+        # it has no entry in _loaded_checkpoint_sha256_by_adapter and must refuse with checkpoint_sha_missing
+        model.load_adapter(str(ckpt_b_dir), adapter_name="untracked_adapter", is_trainable=False)
+        with pytest.raises(SystemExit, match="checkpoint_sha_missing"):
+            runner_expect_b.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint:untracked_adapter",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # Each tracked adapter succeeds when its own expected sha is supplied
+        ans_a = runner_expect_b.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="checkpoint:adapter_a",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+            expected_checkpoint_sha256=sha_a,
+        )
+        assert ans_a["policy"] == "checkpoint:adapter_a"
+
+        ans_b = runner_expect_b.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="checkpoint:adapter_b",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert ans_b["policy"] == "checkpoint:adapter_b"
 
 
 

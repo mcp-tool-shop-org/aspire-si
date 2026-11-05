@@ -3469,6 +3469,7 @@ def attach_or_load_adapter(
     checkpoint_path: Path | None,
     *,
     for_pass: bool = False,
+    adapter_name: str = "default",
 ) -> tuple[Any, bool, dict[str, str] | None, str | None]:
     """Attach a fresh LoRA adapter or load an existing PEFT checkpoint into ``base``."""
     from peft import LoraConfig, PeftModel, get_peft_model
@@ -3482,18 +3483,34 @@ def attach_or_load_adapter(
                 target_modules=list(LORA_TARGETS),
                 lora_dropout=0.0,
             ),
+            adapter_name=adapter_name,
         )
         return model, False, None, None
     cp = Path(checkpoint_path)
     files_sha = checkpoint_file_shas(cp)
     combined_sha = checkpoint_sha256(cp)
     try:
-        model = PeftModel.from_pretrained(base, str(cp), is_trainable=not for_pass)
+        if isinstance(base, PeftModel):
+            base.load_adapter(str(cp), adapter_name=adapter_name, is_trainable=not for_pass)
+            model = base
+        else:
+            model = PeftModel.from_pretrained(
+                base, str(cp), adapter_name=adapter_name, is_trainable=not for_pass
+            )
     except Exception as exc:
         raise SystemExit(
             f"refusing to start (checkpoint_adapter_not_loaded): "
             f"failed to load adapter from {cp.name}: {exc}"
         ) from exc
+    eff_name = str(adapter_name or getattr(model, "active_adapter", None) or "default")
+    sha_by_adapter = dict(getattr(model, "_loaded_checkpoint_sha256_by_adapter", None) or {})
+    if combined_sha is not None:
+        sha_by_adapter[eff_name] = combined_sha
+    model._loaded_checkpoint_sha256_by_adapter = sha_by_adapter
+    files_by_adapter = dict(getattr(model, "_loaded_checkpoint_files_sha256_by_adapter", None) or {})
+    if files_sha is not None:
+        files_by_adapter[eff_name] = dict(files_sha)
+    model._loaded_checkpoint_files_sha256_by_adapter = files_by_adapter
     model._loaded_checkpoint_sha256 = combined_sha
     model._loaded_checkpoint_files_sha256 = files_sha
     return model, True, files_sha, combined_sha
@@ -4271,6 +4288,8 @@ def _prepare_prepass_resume(
     expected_header: dict,
     *,
     path: str = "hf",
+    summary_path: Path | None = None,
+    replay_check_k: Mapping[str, int] | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> list[dict]:
     """Verify or write the prepass header, truncate any trailing partial line, and return done records."""
@@ -4288,6 +4307,25 @@ def _prepare_prepass_resume(
             ) from exc
         if not isinstance(existing_header, dict):
             raise SystemExit(f"refusing to resume prepass: header {header_path} is not a JSON object")
+        eff_summary_path = (
+            Path(summary_path)
+            if summary_path is not None
+            else header_path.parent / f"s2-{path}-prepass-summary.json"
+        )
+        if eff_summary_path.exists():
+            try:
+                existing_summary = json.loads(eff_summary_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                raise SystemExit(
+                    f"refusing to resume prepass: summary {eff_summary_path} is not valid JSON ({exc})"
+                ) from exc
+            stopped_rec = existing_summary.get("stopped") if isinstance(existing_summary, dict) else None
+            if isinstance(stopped_rec, dict) and stopped_rec.get("reason") == "LOGGING_PASS_REPLAY_MISMATCH":
+                raise SystemExit(
+                    f"refusing to resume prepass (LOGGING_PASS_REPLAY_MISMATCH): "
+                    f"summary {eff_summary_path} has stopped.reason=LOGGING_PASS_REPLAY_MISMATCH "
+                    f"({stopped_rec.get('error') or 'replay mismatch'})"
+                )
         existing_cmp = dict(existing_header)
         if "reproducible" not in existing_cmp and expected_header.get("reproducible") is True:
             existing_cmp["reproducible"] = True
@@ -4344,6 +4382,21 @@ def _prepare_prepass_resume(
             tfh.truncate(valid_bytes)
             tfh.flush()
             fsync(tfh.fileno())
+    if replay_check_k is not None:
+        for rec in completed:
+            rec_id = str(rec["id"])
+            if rec_id not in replay_check_k:
+                raise SystemExit(
+                    f"refusing to resume prepass (replay_check_missing_id): "
+                    f"completed record {rec_id!r} has no replay-check entry"
+                )
+            b2_k = int(replay_check_k[rec_id])
+            cur_k = int(rec["k_correct"])
+            if cur_k != b2_k:
+                raise SystemExit(
+                    f"refusing to resume prepass (LOGGING_PASS_REPLAY_MISMATCH): "
+                    f"completed record item_id={rec_id} k_correct={cur_k} b2_k_correct={b2_k}"
+                )
     return completed
 
 
@@ -4437,7 +4490,13 @@ def run_prepass(
     save_all_path = save_all_file_path(a.out, path_name)
 
     completed_records = _prepare_prepass_resume(
-        header_path, jsonl_path, expected_header, path=path_name, fsync=fsync
+        header_path,
+        jsonl_path,
+        expected_header,
+        path=path_name,
+        summary_path=summary_path,
+        replay_check_k=replay_check_k,
+        fsync=fsync,
     )
     done_ids = {str(r["id"]) for r in completed_records}
     pass_save_records: list[dict] = []
