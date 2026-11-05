@@ -4394,7 +4394,7 @@ class TestRolloutOnlyPrepass:
         expected_truth = [
             ("t_a", "prs/grounded-prs.jsonl", "supported", 4, 4, 0, 0, 0, 0, 4, True),
             ("t_b", "grounded.jsonl", "unsupported", 2, 1, 2, 0, 1, 0, 3, False),
-            ("t_d", "diffs/reasoning-diffs.jsonl", "supported", 1, 1, 0, 2, 1, 1, 1, False),
+            ("t_d", "diffs/reasoning-diffs.jsonl", "supported", 1, 1, 0, 2, 0, 1, 1, False),
             ("t_k", "diffs/reasoning-diffs.jsonl", "unsupported", 0, 4, 0, 0, 0, 0, 4, True),
             ("t_m", "prs/grounded-prs.jsonl", "cannot_tell", 3, 1, 1, 2, 0, 0, 2, False),
             ("t_z", "grounded.jsonl", "supported", 1, 2, 1, 0, 1, 0, 2, False),
@@ -4525,8 +4525,9 @@ class TestRolloutOnlyPrepass:
         captured = capsys.readouterr()
         assert marker not in captured.out
         assert marker not in captured.err
+        assert (a.out / "s2-hf-save-all.jsonl.gz").is_file()
         for path in a.out.rglob("*"):
-            if path.is_file():
+            if path.is_file() and not path.name.endswith(".jsonl.gz"):
                 assert marker not in path.read_text(encoding="utf-8"), f"marker leaked into {path.name}"
 
     @needs_torch
@@ -5487,7 +5488,7 @@ class TestStressPool:
         assert marker not in captured.out
         assert marker not in captured.err
         for p in a.out.rglob("*"):
-            if p.is_file():
+            if p.is_file() and not p.name.endswith(".jsonl.gz"):
                 assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p.name}"
 
         # Also run --prompt-lengths --stress-pool tune on the marker gold
@@ -5593,7 +5594,7 @@ def _write_fake_prepass(path: Path, ids: list[str], k_fn=lambda idx: idx % 9, g:
                 "reward_std": 0.5,
                 "zero_variance": k_fn(idx) in (0, g),
                 "prompt_tokens": 24,
-                "completion_tokens_mean": 12.0,
+                "completion_tokens_mean": 12.0, "pass_seed": 0, "descriptive": False,
             }
         )
         + "\n"
@@ -5896,7 +5897,7 @@ class TestDrawSetting:
                         "gold_file": "grounded.jsonl",
                         "gold_verdict": "supported",
                         "g": g_row,
-                        "k_correct": 2,
+                        "k_correct": 2, "pass_seed": 0, "descriptive": False,
                     }
                 )
                 + "\n"
@@ -6239,6 +6240,10 @@ class TestDrawSetting:
             "stopped",
             "readout",
             "verdict",
+            "save_all",
+            "save_all_sha256",
+            "stack_versions",
+            "pip_freeze_sha256",
         }
         expected_run_keys = {"steps", "prompts", "g", "max_new", "dry"}
         expected_readout_keys = {
@@ -6343,11 +6348,15 @@ class TestDrawSetting:
             "prompt_split": "tune",
             "prompt_ids": [f"t{i:02d}" for i in range(10)],
             "environment": base_env,
+            "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
             "llama_cpp": None,
             "pass_line": {"vram_line_mib": 31200, "steps": 20, "oom": False},
             "stopped": None,
             "readout": base_readout,
             "verdict": "S2-DRY",
+            "save_all": True,
+            "save_all_sha256": s2.hashlib.sha256((a.out / "s2-hf-save-all.jsonl.gz").read_bytes()).hexdigest(),
         }
         expected_bytes = json.dumps(base_receipt, indent=1).encode("utf-8")
         actual_bytes = (a.out / "s2-hf.json").read_bytes()
@@ -6499,7 +6508,7 @@ class TestDrawSetting:
         assert marker not in captured.err
         for out_dir in (a_u.out, a_k.out):
             for p in out_dir.rglob("*"):
-                if p.is_file():
+                if p.is_file() and not p.name.endswith(".jsonl.gz"):
                     assert marker not in p.read_text(encoding="utf-8"), f"marker leaked into {p}"
 
 
@@ -6586,23 +6595,25 @@ class TestPrepassSeed:
         assert seen_seeds == [s2.item_seed(cid, 0) for cid in expected_ids]
 
         header_bytes = (a0.out / "s2-hf-prepass-header.json").read_bytes()
-        expected_literal_header_bytes = (
-            b"{\n"
-            b' "ids_sha256": "1faaea262a971c66357c551cd28fbe6c8f94b922cc36fa1a8ac041e3fd7373ca",\n'
-            b' "script_sha256": "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a",\n'
-            b' "gold_files_sha256": {\n'
-            b'  "grounded.jsonl": "9cdc8be6611000289f539cb41573173827e3a4417249964496614a69fe4a8c31",\n'
-            b'  "prs/grounded-prs.jsonl": "2ad0462e5bb52f899dd802ea505cd62514a93690393d05401e8971924a1ba2e9",\n'
-            b'  "diffs/reasoning-diffs.jsonl": "aa66a79b4276ef90e68856ea30427d53d2058cc9c56e685f87bb92f259c2858d"\n'
-            b" },\n"
-            b' "g": 2,\n'
-            b' "max_new": 16,\n'
-            b' "quote_reward": "v2",\n'
-            b' "seed": 0,\n'
-            b' "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",\n'
-            b' "reproducible": true\n'
-            b"}\n"
-        )
+        expected_header_dict = {
+            "ids_sha256": "1faaea262a971c66357c551cd28fbe6c8f94b922cc36fa1a8ac041e3fd7373ca",
+            "script_sha256": "906cae4b804b10614c42bd1e9f4240b6915cb1bb936153c97bb23d5f6730b48a",
+            "gold_files_sha256": {
+                "grounded.jsonl": "9cdc8be6611000289f539cb41573173827e3a4417249964496614a69fe4a8c31",
+                "prs/grounded-prs.jsonl": "2ad0462e5bb52f899dd802ea505cd62514a93690393d05401e8971924a1ba2e9",
+                "diffs/reasoning-diffs.jsonl": "aa66a79b4276ef90e68856ea30427d53d2058cc9c56e685f87bb92f259c2858d",
+            },
+            "g": 2,
+            "max_new": 16,
+            "quote_reward": "v2",
+            "seed": 0,
+            "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            "reproducible": True,
+            "descriptive": False,
+            "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
+        }
+        expected_literal_header_bytes = (json.dumps(expected_header_dict, indent=1) + "\n").encode("utf-8")
         assert header_bytes == expected_literal_header_bytes
 
         # Also verify resume works when the script hash matches and seed is default 0:
@@ -7083,7 +7094,7 @@ class TestSignDiagnostics:
         captured = capsys.readouterr()
         assert marker not in captured.out and marker not in captured.err
         for p in a.out.rglob("*"):
-            if p.is_file():
+            if p.is_file() and not p.name.endswith(".jsonl.gz"):
                 assert marker not in p.read_text(encoding="utf-8")
 
     @needs_torch
@@ -7463,7 +7474,7 @@ class TestPrepassBaseline:
         captured = capsys.readouterr()
         assert marker not in captured.out and marker not in captured.err
         for p in a.out.rglob("*"):
-            if p.is_file():
+            if p.is_file() and not p.name.endswith(".jsonl.gz"):
                 content = p.read_text(encoding="utf-8")
                 assert marker not in content
                 assert str(baseline_path) not in content
@@ -8194,11 +8205,4507 @@ class TestDefaultPathLiteralExpectation:
             "prompt_split": "tune",
             "prompt_ids": ["g00", "g01"],
             "environment": expected_env,
+            "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
             "llama_cpp": None,
             "pass_line": {"vram_line_mib": 31200, "steps": 20, "oom": False},
             "stopped": None,
             "readout": expected_readout,
             "verdict": "S2-LIMITED",
+            "save_all": True,
+            "save_all_sha256": s2.hashlib.sha256((a.out / "s2-hf-save-all.jsonl.gz").read_bytes()).hexdigest(),
         }
         expected_receipt_bytes = json.dumps(expected_receipt, indent=1).encode("utf-8")
         assert (a.out / "s2-hf.json").read_bytes() == expected_receipt_bytes
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-05 Part A: Save-All
+# ---------------------------------------------------------------------------
+
+
+class TestSaveAll:
+    def test_save_all_is_on_by_default_and_refuses_no_save_all_without_reason(self, tmp_path):
+        gold_dir = _gold(tmp_path / "gold")
+        ap = s2.build_parser()
+        a_def = ap.parse_args(
+            ["--gold", str(gold_dir), "--rnd-commit", "e48cc90c", "--out", str(tmp_path / "out_def")]
+        )
+        assert a_def.save_all is True
+        assert a_def.save_all_off_reason is None
+        assert s2.validate_save_all_args(a_def) == (True, None)
+        assert "save_all" not in s2.active_flags(a_def)
+
+        a_no_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_no_reason"),
+                "--no-save-all",
+            ]
+        )
+        assert a_no_reason.save_all is False
+        with pytest.raises(SystemExit, match="save_all_off_reason_required"):
+            s2.validate_save_all_args(a_no_reason)
+        with pytest.raises(SystemExit, match="save_all_off_reason_required"):
+            s2.execute(
+                a_no_reason,
+                build=lambda _: (_ for _ in ()).throw(AssertionError("build must not run")),
+            )
+
+        a_blank_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_blank"),
+                "--no-save-all",
+                "--save-all-off-reason",
+                "   ",
+            ]
+        )
+        with pytest.raises(SystemExit, match="save_all_off_reason_required"):
+            s2.validate_save_all_args(a_blank_reason)
+
+        a_unused_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_unused"),
+                "--save-all-off-reason",
+                "accidental reason while save-all is on",
+            ]
+        )
+        with pytest.raises(SystemExit, match="save_all_off_reason_unused"):
+            s2.validate_save_all_args(a_unused_reason)
+
+        a_valid_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_valid_off"),
+                "--no-save-all",
+                "--save-all-off-reason",
+                "  write-only equivalence test  ",
+                "--pass-id",
+                "custom_pass_01",
+            ]
+        )
+        assert s2.validate_save_all_args(a_valid_off) == (False, "write-only equivalence test")
+        flags = s2.active_flags(a_valid_off)
+        assert flags["save_all"] is False
+        assert flags["save_all_off_reason"] == "write-only equivalence test"
+        assert flags["pass_id"] == "custom_pass_01"
+
+        # Also test read_save_all on plain .jsonl as well as .jsonl.gz
+        plain_path = tmp_path / "plain.jsonl"
+        plain_path.write_text('{"item_id": "x1", "kind": "pass"}\n', encoding="utf-8")
+        assert s2.read_save_all(plain_path) == [{"item_id": "x1", "kind": "pass"}]
+
+    @needs_torch
+    def test_save_all_pass_and_training_write_only_equivalence_and_sha256(self, tmp_path, monkeypatch):
+        import hashlib
+        from contextlib import nullcontext
+
+        import torch
+
+        monkeypatch.setattr(s2.time, "time", lambda: 1000.0)
+        monkeypatch.setattr(s2.time, "monotonic", lambda: 500.0)
+        monkeypatch.setitem(s2.PhaseLogger.__init__.__kwdefaults__, "now", lambda: 500.0)
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+
+        def make_pass_bundle(_args_ns):
+            fake_cuda = _FakeCuda()
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c_ok = tok.encode(_reply("supported", "alpha beta gamma", think="careful thought")) + [
+                    tok.eos_token_id
+                ]
+                c_mal = tok.encode("<think>bad json</think>{not valid json") + [tok.eos_token_id]
+                c_trunc = tok.encode("<think>unclosed thinking without eos")
+                comps = [c_ok, c_mal, c_trunc][:g_cnt]
+                truncs = [False, False, True][:g_cnt]
+                return p_ids, comps, truncs
+
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 500,
+                "revision": "rev_pass_1",
+                "llama": None,
+                "dtype_census": None,
+                "dry_prepass_cap": 4,
+            }
+
+        ap = s2.build_parser()
+        # 1. Pass run with save-all ON (including dry resume across two halves) vs save-all OFF
+        a_pass_on = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pass_on"),
+                "--rollout-only",
+                "--dry",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "passA_seed0",
+            ]
+        )
+        a_pass_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pass_off"),
+                "--rollout-only",
+                "--dry",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "passA_seed0",
+                "--no-save-all",
+                "--save-all-off-reason",
+                "testing write-only equivalence on pass",
+            ]
+        )
+        assert s2.execute(a_pass_on, build=make_pass_bundle) == 0
+        assert s2.execute(a_pass_off, build=make_pass_bundle) == 0
+
+        sa_pass_path = a_pass_on.out / "s2-hf-save-all.jsonl.gz"
+        assert sa_pass_path.is_file()
+        assert not (a_pass_off.out / "s2-hf-save-all.jsonl.gz").exists()
+
+        rec_pass_on = json.loads((a_pass_on.out / "s2-hf.json").read_text(encoding="utf-8"))
+        rec_pass_off = json.loads((a_pass_off.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec_pass_on["save_all"] is True
+        assert (
+            rec_pass_on["save_all_sha256"]
+            == hashlib.sha256(sa_pass_path.read_bytes()).hexdigest()
+        )
+        assert "save_all_off_reason" not in rec_pass_on
+        assert rec_pass_off["save_all"] is False
+        assert rec_pass_off["save_all_sha256"] is None
+        assert rec_pass_off["save_all_off_reason"] == "testing write-only equivalence on pass"
+
+        saved_pass_rows = s2.read_save_all(sa_pass_path)
+        assert len(saved_pass_rows) == 4 * 3  # 4 items * g=3 completions
+        for idx, row_sa in enumerate(saved_pass_rows):
+            assert row_sa["kind"] == "pass"
+            assert row_sa["pass_id"] == "passA_seed0"
+            assert row_sa["pass_seed"] == 0
+            assert row_sa["sample_index"] == idx % 3
+            assert row_sa["seed"] == s2.item_seed(row_sa["item_id"], 0)
+            if idx % 3 == 0:
+                assert row_sa["parse_status"] == "ok"
+                assert row_sa["thinking"] == "careful thought"
+                assert row_sa["answer"].startswith("{")
+                assert row_sa["verdict"] == "supported"
+                assert row_sa["truncated"] is False
+            elif idx % 3 == 1:
+                assert row_sa["parse_status"] == "malformed"
+                assert row_sa["verdict"] is None
+                assert row_sa["truncated"] is False
+            else:
+                assert row_sa["parse_status"] == "truncated"
+                assert row_sa["verdict"] is None
+                assert row_sa["truncated"] is True
+
+        # Byte-identical prepass.jsonl, prepass-summary.json, eval-summary.json
+        for fname in (
+            "s2-hf-prepass.jsonl",
+            "s2-hf-prepass-summary.json",
+            "s2-hf-eval-summary.json",
+        ):
+            assert (a_pass_on.out / fname).read_bytes() == (a_pass_off.out / fname).read_bytes(), fname
+
+        # Resuming a save-all=False directory with save-all=True refuses on header mismatch
+        a_mismatch_resume = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "pass_off"),
+                "--rollout-only",
+                "--dry",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="header mismatch on save_all"):
+            s2.execute(a_mismatch_resume, build=make_pass_bundle)
+
+        # 2. Training run with save-all ON vs save-all OFF: byte-identical steps, groups, eval_summary, and receipt
+        def make_train_bundle(_args_ns):
+            torch.manual_seed(42)
+            fake_cuda = _FakeCuda()
+
+            class _TinyModel:
+                device = torch.device("cpu")
+
+                def __init__(self) -> None:
+                    self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+                def parameters(self):
+                    return [self._p]
+
+                def __call__(self, input_ids, attention_mask=None, **kwargs):
+                    logits = (
+                        torch.zeros(
+                            (input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32
+                        )
+                        + self._p * 0.0
+                    )
+                    return Namespace(logits=logits)
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="step thought")) + [
+                    tok.eos_token_id
+                ]
+                c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="alt thought")) + [
+                    tok.eos_token_id
+                ]
+                c2 = tok.encode("<think>truncated rollout")
+                return p_ids, [c0, c1, c2][:g_cnt], [False, False, True][:g_cnt]
+
+            return {
+                "model": _TinyModel(),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 250,
+                "revision": "rev_train_1",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        a_train_on = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "train_on"),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+            ]
+        )
+        a_train_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "train_off"),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "3",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--no-save-all",
+                "--save-all-off-reason",
+                "testing write-only equivalence on training",
+            ]
+        )
+        assert s2.execute(a_train_on, build=make_train_bundle, rig=_FakeRig(a_train_on)) == 1
+        assert s2.execute(a_train_off, build=make_train_bundle, rig=_FakeRig(a_train_off)) == 1
+
+        sa_train_path = a_train_on.out / "s2-hf-save-all.jsonl.gz"
+        assert sa_train_path.is_file()
+        assert not (a_train_off.out / "s2-hf-save-all.jsonl.gz").exists()
+
+        saved_rollouts = s2.read_save_all(sa_train_path)
+        assert len(saved_rollouts) == 2 * 2 * 3  # 2 steps * 2 groups/step * 3 samples/group = 12
+        for r_item in saved_rollouts:
+            assert r_item["kind"] == "rollout"
+            assert set(r_item.keys()) == {
+                "kind",
+                "item_id",
+                "seed",
+                "step",
+                "group",
+                "sample_index",
+                "text",
+                "thinking",
+                "answer",
+                "parse_status",
+                "verdict",
+                "reward",
+                "advantage",
+                "truncated",
+            }
+
+        for fname in ("s2-hf-steps.jsonl", "s2-hf-groups.jsonl", "s2-hf-eval-summary.json"):
+            assert (a_train_on.out / fname).read_bytes() == (a_train_off.out / fname).read_bytes(), fname
+
+        rec_tr_on = json.loads((a_train_on.out / "s2-hf.json").read_text(encoding="utf-8"))
+        rec_tr_off = json.loads((a_train_off.out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec_tr_on["save_all"] is True
+        assert (
+            rec_tr_on["save_all_sha256"]
+            == hashlib.sha256(sa_train_path.read_bytes()).hexdigest()
+        )
+        assert rec_tr_off["save_all"] is False
+        assert rec_tr_off["save_all_sha256"] is None
+        assert rec_tr_off["save_all_off_reason"] == "testing write-only equivalence on training"
+
+        def strip_save_all_fields(doc: dict) -> dict:
+            out = {
+                k: v
+                for k, v in doc.items()
+                if k not in ("save_all", "save_all_sha256", "save_all_off_reason")
+            }
+            out["run"] = {
+                k: v for k, v in doc["run"].items() if k not in ("save_all", "save_all_off_reason")
+            }
+            out["readout"] = dict(doc["readout"])
+            if "flags" in out["readout"]:
+                out["readout"]["flags"] = {
+                    k: v
+                    for k, v in out["readout"]["flags"].items()
+                    if k not in ("save_all", "save_all_off_reason")
+                }
+            return out
+
+        assert strip_save_all_fields(rec_tr_on) == strip_save_all_fields(rec_tr_off)
+        assert strip_save_all_fields(rec_pass_on) == strip_save_all_fields(rec_pass_off)
+
+
+class TestLoggingPassAndPostpass:
+    def test_pass_mode_validation_and_checkpoint_sha(self, tmp_path: Path) -> None:
+        import hashlib
+
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+
+        # Conflicting --logging-pass and --postpass
+        a_conflict = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "conflict"),
+                "--logging-pass",
+                "--postpass",
+            ]
+        )
+        with pytest.raises(SystemExit, match="conflicting_pass_flags"):
+            s2.validate_pass_mode_args(a_conflict)
+
+        # --logging-pass cannot take --checkpoint
+        ckpt_file = tmp_path / "adapter.bin"
+        ckpt_file.write_bytes(b"weights-v1")
+        a_log_ckpt = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "log_ckpt"),
+                "--logging-pass",
+                "--checkpoint",
+                str(ckpt_file),
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_checkpoint_forbidden"):
+            s2.validate_pass_mode_args(a_log_ckpt)
+
+        # --logging-pass refuses seed != 1 via --pass-seed or --prepass-seed
+        a_log_bad_seed = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "log_bad_seed"),
+                "--logging-pass",
+                "--pass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_seed_must_be_1"):
+            s2.validate_pass_mode_args(a_log_bad_seed)
+
+        a_log_bad_pre_seed = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "log_bad_pre_seed"),
+                "--logging-pass",
+                "--prepass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_seed_must_be_1"):
+            s2.validate_pass_mode_args(a_log_bad_pre_seed)
+
+        # --postpass refuses reserved seeds 0 and 1
+        for bad_seed in ("0", "1"):
+            a_post_reserved = ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / f"post_reserved_{bad_seed}"),
+                    "--postpass",
+                    "--pass-seed",
+                    bad_seed,
+                ]
+            )
+            with pytest.raises(SystemExit, match="postpass_reserved_seed"):
+                s2.validate_pass_mode_args(a_post_reserved)
+
+        # Missing checkpoint and empty directory checkpoint are refused
+        with pytest.raises(SystemExit, match="checkpoint_missing"):
+            s2.checkpoint_sha256(tmp_path / "no_such_ckpt")
+        empty_ckpt_dir = tmp_path / "empty_ckpt"
+        empty_ckpt_dir.mkdir()
+        with pytest.raises(SystemExit, match="checkpoint_empty"):
+            s2.checkpoint_sha256(empty_ckpt_dir)
+
+        # Directory checkpoint hashing is deterministic
+        ckpt_dir = tmp_path / "lora_ckpt"
+        (ckpt_dir / "sub").mkdir(parents=True)
+        (ckpt_dir / "adapter_config.json").write_text('{"r": 16}\n', encoding="utf-8")
+        (ckpt_dir / "sub" / "adapter_model.safetensors").write_bytes(b"safetensor-bytes")
+        sha_dir_1 = s2.checkpoint_sha256(ckpt_dir)
+        sha_dir_2 = s2.checkpoint_sha256(ckpt_dir)
+        assert sha_dir_1 is not None and len(sha_dir_1) == 64 and sha_dir_1 == sha_dir_2
+
+        # File checkpoint hashing
+        sha_file = s2.checkpoint_sha256(ckpt_file)
+        assert sha_file == hashlib.sha256(b"weights-v1").hexdigest()
+
+        # Valid --postpass with --checkpoint and --pass-seed 2
+        a_post_ok = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "post_ok"),
+                "--postpass",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--pass-seed",
+                "2",
+            ]
+        )
+        is_pm, is_desc, eff_seed, ckpt_sha = s2.validate_pass_mode_args(a_post_ok)
+        assert (is_pm, is_desc, eff_seed, ckpt_sha) == (True, False, 2, sha_dir_1)
+        assert s2.active_flags(a_post_ok)["postpass"] is True
+        assert s2.active_flags(a_post_ok)["prepass_seed"] == 2
+
+    def test_logging_pass_descriptive_guard_and_postpass_truncation_by_band(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import hashlib
+        from contextlib import nullcontext
+
+        torch = pytest.importorskip("torch")
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        fixed_script_sha = "77" * 32
+        monkeypatch.setattr(s2, "script_sha256", lambda: fixed_script_sha)
+
+        # Create a Pass-A baseline JSONL (seed 0, non-descriptive) with items across all 3 bands:
+        # t_a, t_b in [0,5] (k=2, 5); t_d, t_k in [6,7] (k=6, 7); t_m, t_z in 8 (k=8, 8)
+        pass_a_dir = tmp_path / "pass_a"
+        pass_a_dir.mkdir(parents=True)
+        pass_a_jsonl = pass_a_dir / "s2-hf-prepass.jsonl"
+        pass_a_rows = [
+            {"id": "t_a", "g": 8, "k_correct": 2, "pass_seed": 0, "descriptive": False},
+            {"id": "t_b", "g": 8, "k_correct": 5, "pass_seed": 0, "descriptive": False},
+            {"id": "t_d", "g": 8, "k_correct": 6, "pass_seed": 0, "descriptive": False},
+            {"id": "t_k", "g": 8, "k_correct": 7, "pass_seed": 0, "descriptive": False},
+            {"id": "t_m", "g": 8, "k_correct": 8, "pass_seed": 0, "descriptive": False},
+            {"id": "t_z", "g": 8, "k_correct": 8, "pass_seed": 0, "descriptive": False},
+        ]
+        pass_a_jsonl.write_text(
+            "".join(json.dumps(r) + "\n" for r in pass_a_rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        pass_a_sha = hashlib.sha256(pass_a_jsonl.read_bytes()).hexdigest()
+
+        def make_bundle(_args_ns):
+            fake_cuda = _FakeCuda()
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                # Make t_a (band [0,5]) have 2 truncations, t_d (band [6,7]) have 1 truncation,
+                # and t_m (band 8) have 3 truncations.
+                if "Claim ta" in prompt_text:
+                    n_trunc = 2
+                elif "Claim td" in prompt_text:
+                    n_trunc = 1
+                elif "Claim tm" in prompt_text:
+                    n_trunc = 3
+                else:
+                    n_trunc = 0
+                comps = []
+                truncs = []
+                for idx in range(g_cnt):
+                    if idx < n_trunc:
+                        comps.append(tok.encode("<think>unclosed"))
+                        truncs.append(True)
+                    else:
+                        comps.append(
+                            tok.encode(_reply("supported", "alpha beta gamma", think="ok"))
+                            + [tok.eos_token_id]
+                        )
+                        truncs.append(False)
+                return p_ids, comps, truncs
+
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 100,
+                "revision": "rev_pass_test",
+                "llama": None,
+                "dtype_census": None,
+                "adapter_loaded": getattr(_args_ns, "checkpoint", None) is not None,
+            }
+
+        # 1. Run starting-policy --logging-pass (uses seed 1, sets descriptive: true)
+        log_dir = tmp_path / "logging_pass"
+        a_log = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(log_dir),
+                "--logging-pass",
+                "--path",
+                "hf",
+                "--revision",
+                s2.STUDENT_FULL_REVISION,
+                "--bf16-restore",
+                "--logprob-microbatch",
+                "2",
+                "--attention-mask",
+                "--alloc-conf",
+                "expandable",
+                "--empty-cache-phases",
+                "--g",
+                "8",
+                "--max-new",
+                "2048",
+                "--quote-reward",
+                "v2",
+                "--replay-check-off-reason",
+                "synthetic truncation band test",
+                "--pass-a-jsonl",
+                str(pass_a_jsonl),
+                "--pass-a-sha256",
+                pass_a_sha,
+            ]
+        )
+        assert s2.execute(a_log, build=make_bundle, rig=_FakeRig(a_log)) == 0
+
+        log_hdr = json.loads((log_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert log_hdr["seed"] == 1
+        assert log_hdr["descriptive"] is True
+        assert log_hdr["pass_a_sha256"] == pass_a_sha
+
+        log_summary = json.loads((log_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert log_summary["descriptive"] is True
+        assert log_summary["total_truncations"] == 6
+        assert log_summary["truncations_by_band"] == {"[0,5]": 2, "[6,7]": 1, "8": 3}
+
+        log_jsonl_path = log_dir / "s2-hf-prepass.jsonl"
+        log_recs = [
+            json.loads(line) for line in log_jsonl_path.read_text(encoding="utf-8").splitlines() if line
+        ]
+        assert len(log_recs) == 6
+        assert all(r.get("descriptive") is True for r in log_recs)
+        by_id = {r["id"]: r for r in log_recs}
+        assert by_id["t_a"]["pass_a_k"] == 2 and by_id["t_a"]["pass_a_band"] == "[0,5]"
+        assert by_id["t_d"]["pass_a_k"] == 6 and by_id["t_d"]["pass_a_band"] == "[6,7]"
+        assert by_id["t_m"]["pass_a_k"] == 8 and by_id["t_m"]["pass_a_band"] == "8"
+
+        sa_log_recs = s2.read_save_all(log_dir / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_log_recs) == 6 * 8
+        assert all(r["pass_id"] == "logging_seed1" and r["pass_seed"] == 1 for r in sa_log_recs)
+
+        # 2. Refusal when passing the descriptive logging pass as --prepass-baseline
+        log_sha = hashlib.sha256(log_jsonl_path.read_bytes()).hexdigest()
+        with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+            s2.load_prepass_baseline(log_jsonl_path, log_sha, ["t_a"], g=8)
+
+        # Even if the companion header is removed, the per-record descriptive=true guard still refuses
+        copied_jsonl = tmp_path / "copied_descriptive.jsonl"
+        copied_jsonl.write_bytes(log_jsonl_path.read_bytes())
+        with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+            s2.load_prepass_baseline(copied_jsonl, log_sha, ["t_a"], g=8)
+
+        # And if a record has descriptive omitted but companion *-header.json has descriptive=true, it refuses
+        hdr_only_dir = tmp_path / "hdr_only_desc"
+        hdr_only_dir.mkdir()
+        hdr_only_jsonl = hdr_only_dir / "s2-hf-prepass.jsonl"
+        hdr_only_jsonl.write_bytes(pass_a_jsonl.read_bytes())
+        (hdr_only_dir / "s2-hf-prepass-header.json").write_text(
+            json.dumps({"descriptive": True}), encoding="utf-8"
+        )
+        with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+            s2.load_prepass_baseline(hdr_only_jsonl, pass_a_sha, ["t_a"], g=8)
+
+        # 3. Run --postpass for a trained checkpoint with seed 2 and verify header, summary, and resume
+        ckpt_dir = tmp_path / "trained_ckpt"
+        ckpt_dir.mkdir()
+        (ckpt_dir / "adapter_model.bin").write_bytes(b"trained-adapter-bytes")
+        expected_ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+
+        post_dir = tmp_path / "postpass_seed2"
+        a_post = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(post_dir),
+                "--postpass",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--pass-seed",
+                "2",
+                "--g",
+                "8",
+                "--max-new",
+                "2048",
+                "--quote-reward",
+                "v2",
+                "--pass-a-jsonl",
+                str(pass_a_jsonl),
+                "--pass-a-sha256",
+                pass_a_sha,
+            ]
+        )
+        assert s2.execute(a_post, build=make_bundle, rig=_FakeRig(a_post)) == 0
+
+        post_hdr = json.loads((post_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert post_hdr["seed"] == 2
+        assert post_hdr["descriptive"] is False
+        assert post_hdr["checkpoint_sha256"] == expected_ckpt_sha
+        assert post_hdr["pass_a_sha256"] == pass_a_sha
+
+        post_summary = json.loads((post_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert "descriptive" not in post_summary
+        assert post_summary["checkpoint_sha256"] == expected_ckpt_sha
+        assert post_summary["truncations_by_band"] == {"[0,5]": 2, "[6,7]": 1, "8": 3}
+
+        sa_post_recs = s2.read_save_all(post_dir / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_post_recs) == 6 * 8
+        assert all(r["pass_id"] == "postpass_seed2" and r["pass_seed"] == 2 for r in sa_post_recs)
+
+
+class TestTrainingSideRulesPartC:
+    def test_frozen_env_check_and_refusals(self, tmp_path: Path) -> None:
+        import hashlib
+
+        # Build a synthetic pip-freeze text and verify check_frozen_env against its sha256 and versions
+        freeze_lines = [
+            "accelerate==1.15.0\n",
+            "bitsandbytes==0.50.2\n",
+            "peft==0.21.2\n",
+            "torch==2.14.1+cu130\n",
+            "transformers==5.19.0\n",
+        ]
+        pf_path = tmp_path / "pip-freeze.txt"
+        pf_bytes = "".join(freeze_lines).encode("utf-8")
+        pf_path.write_bytes(pf_bytes)
+        pf_sha = hashlib.sha256(pf_bytes).hexdigest()
+
+        res = s2.check_frozen_env(
+            pf_path,
+            expected_sha256=pf_sha,
+            installed_versions=s2.FROZEN_STACK_VERSIONS,
+            require_exact_versions=True,
+        )
+        assert res["pip_freeze_sha256"] == pf_sha
+        assert res["stack_versions"] == s2.FROZEN_STACK_VERSIONS
+        assert (
+            s2.FROZEN_PIP_FREEZE_SHA256
+            == "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
+        )
+
+        # Missing file -> frozen_env_missing_file
+        with pytest.raises(SystemExit, match="frozen_env_missing_file"):
+            s2.check_frozen_env(tmp_path / "missing-freeze.txt")
+
+        # SHA mismatch -> frozen_env_sha_mismatch
+        with pytest.raises(SystemExit, match="frozen_env_sha_mismatch"):
+            s2.check_frozen_env(pf_path, expected_sha256="00" * 32)
+
+        # Version mismatch inside pip-freeze -> frozen_env_version_mismatch
+        bad_pf = tmp_path / "bad-freeze.txt"
+        bad_bytes = (
+            b"accelerate==1.15.0\nbitsandbytes==0.50.2\npeft==0.21.2\n"
+            b"torch==2.6.0\ntransformers==5.19.0\n"
+        )
+        bad_pf.write_bytes(bad_bytes)
+        bad_sha = hashlib.sha256(bad_bytes).hexdigest()
+        with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
+            s2.check_frozen_env(bad_pf, expected_sha256=bad_sha)
+
+        # Installed version mismatch when require_exact_versions=True -> frozen_env_version_mismatch
+        with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
+            s2.check_frozen_env(
+                installed_versions={
+                    "torch": "2.14.1+cu130",
+                    "transformers": "4.50.0",
+                    "bitsandbytes": "0.50.2",
+                    "peft": "0.21.2",
+                    "accelerate": "1.15.0",
+                },
+                require_exact_versions=True,
+            )
+
+    def test_stratified_20_percent_holdout_and_class_stratified_epoch_draw(self, tmp_path: Path) -> None:
+        import hashlib
+        import random
+        from collections import Counter
+
+        from s2_draw import (
+            build_class_stratified_epoch,
+            build_class_stratified_schedule,
+            draw_prompts,
+            split_stratified_holdout,
+        )
+
+        # Build a 493-item synthetic tune split with the exact 9-cell Pass-A band x gold class counts:
+        # ('[0,5]', 'cannot_tell'): 11, ('[0,5]', 'supported'): 37, ('[0,5]', 'unsupported'): 57
+        # ('[6,7]', 'cannot_tell'): 6,  ('[6,7]', 'supported'): 53, ('[6,7]', 'unsupported'): 59
+        # ('8', 'cannot_tell'): 17,     ('8', 'supported'): 139,    ('8', 'unsupported'): 114
+        cell_specs = [
+            ("[0,5]", "cannot_tell", 11, 3),
+            ("[0,5]", "supported", 37, 4),
+            ("[0,5]", "unsupported", 57, 5),
+            ("[6,7]", "cannot_tell", 6, 6),
+            ("[6,7]", "supported", 53, 7),
+            ("[6,7]", "unsupported", 59, 6),
+            ("8", "cannot_tell", 17, 8),
+            ("8", "supported", 139, 8),
+            ("8", "unsupported", 114, 8),
+        ]
+        rows_493: list[dict] = []
+        prepass_recs: list[dict] = []
+        idx = 0
+        for _band, gold_cls, count, k_val in cell_specs:
+            for _ in range(count):
+                cid = f"item_{idx:03d}"
+                rows_493.append(
+                    {
+                        "id": cid,
+                        "split": "tune",
+                        "label": gold_cls,
+                        "claim": f"claim {cid}",
+                        "context": [{"source": "s", "text": "alpha beta gamma"}],
+                    }
+                )
+                prepass_recs.append({"id": cid, "g": 8, "k_correct": k_val, "gold_verdict": gold_cls, "pass_seed": 0, "descriptive": False})
+                idx += 1
+        assert len(rows_493) == 493
+
+        prepass_path = tmp_path / "pass_a_493.jsonl"
+        prepass_path.write_text(
+            "".join(json.dumps(r) + "\n" for r in prepass_recs),
+            encoding="utf-8",
+            newline="\n",
+        )
+        prepass_sha = hashlib.sha256(prepass_path.read_bytes()).hexdigest()
+
+        train_rows, holdout_rows, meta = split_stratified_holdout(
+            rows_493,
+            (prepass_path, prepass_sha),
+            holdout_fraction=0.20,
+            holdout_seed="pr79-holdout-v1",
+        )
+        assert len(holdout_rows) == 99
+        assert len(train_rows) == 394
+        assert meta["holdout_count"] == 99
+        assert meta["train_count"] == 394
+        holdout_ids = {r["id"] for r in holdout_rows}
+        train_ids = {r["id"] for r in train_rows}
+        assert holdout_ids.isdisjoint(train_ids)
+        assert len(holdout_ids | train_ids) == 493
+
+        # Verify each of the 9 cells has proportional 20% holdout within 1 item of exact quota
+        for band, gold_cls, count, _ in cell_specs:
+            cell_info = meta["cells"][f"{band}:{gold_cls}"]
+            assert cell_info["total"] == count
+            assert abs(cell_info["holdout"] - (0.20 * count)) < 1.0
+
+        # Determinism across shuffled input rows and dictionary input
+        shuffled_rows = list(rows_493)
+        random.Random(99).shuffle(shuffled_rows)
+        train_2, holdout_2, meta_2 = split_stratified_holdout(
+            shuffled_rows,
+            {r["id"]: r["k_correct"] for r in prepass_recs},
+            holdout_fraction=0.20,
+            holdout_seed="pr79-holdout-v1",
+        )
+        assert [r["id"] for r in holdout_2] == [r["id"] for r in holdout_rows]
+        assert [r["id"] for r in train_2] == [r["id"] for r in train_rows]
+        assert meta_2["holdout_ids_sha256"] == meta["holdout_ids_sha256"]
+
+        # Class-stratified epoch draw without replacement:
+        # 1. Exact class counts per epoch, zero repeats within an epoch, reshuffled per epoch
+        expected_train_class_counts = Counter(r["label"] for r in train_rows)
+        ep0 = build_class_stratified_epoch(train_rows, seed=101, epoch=0)
+        ep1 = build_class_stratified_epoch(train_rows, seed=101, epoch=1)
+        assert len(ep0) == 394 and len(ep1) == 394
+        assert len({r["id"] for r in ep0}) == 394
+        assert len({r["id"] for r in ep1}) == 394
+        assert Counter(r["label"] for r in ep0) == expected_train_class_counts
+        assert Counter(r["label"] for r in ep1) == expected_train_class_counts
+        assert [r["id"] for r in ep0] != [r["id"] for r in ep1]
+        assert {r["id"] for r in ep0}.isdisjoint(holdout_ids)
+
+        # Prefix of 50 items is also class-stratified within 1 item of exact class share
+        prefix_50 = ep0[:50]
+        prefix_counts = Counter(r["label"] for r in prefix_50)
+        for cls, total_cls in expected_train_class_counts.items():
+            expected_prefix_cls = 50.0 * (total_cls / 394.0)
+            assert abs(prefix_counts[cls] - expected_prefix_cls) <= 1.0
+
+        # Multi-epoch schedule (800 groups = 2+ epochs over 394 training items) via draw_prompts
+        sched_800, sched_rec = draw_prompts(
+            rows_493,
+            800,
+            mode="class_stratified",
+            seed=101,
+            prepass=(prepass_path, prepass_sha),
+            holdout_seed="pr79-holdout-v1",
+        )
+        assert len(sched_800) == 800
+        assert sched_rec["draw_mode"] == "class_stratified"
+        assert sched_rec["holdout_count"] == 99
+        assert sched_rec["holdout_ids_sha256"] == meta["holdout_ids_sha256"]
+        assert {r["id"] for r in sched_800}.isdisjoint(holdout_ids)
+        # First 394 and second 394 are each a full permutation of train_rows without replacement
+        assert {r["id"] for r in sched_800[:394]} == train_ids
+        assert {r["id"] for r in sched_800[394:788]} == train_ids
+        assert [r["id"] for r in sched_800[:394]] != [r["id"] for r in sched_800[394:788]]
+
+        # Refusal when a holdout item is in the training pool
+        with pytest.raises(SystemExit, match="holdout_item_in_training"):
+            build_class_stratified_schedule(
+                train_rows + [holdout_rows[0]],
+                10,
+                seed=101,
+                holdout_ids=holdout_ids,
+            )
+
+    def test_ct_collapse_guard_s1_s2_u1_u2_and_run_steps_halt(self, tmp_path: Path) -> None:
+        from contextlib import nullcontext
+
+        torch = pytest.importorskip("torch")
+
+        # 1. S1: >= 3 distinct gold-supported items in window have CT AND >= 2 have positive CT advantage.
+        # Same item repeated 3 times does NOT trigger S1 (distinct item count = 1).
+        guard_s1 = s2.CtCollapseGuard(window_groups=4)
+        assert (
+            guard_s1.record_group(
+                step=0,
+                group=0,
+                item_id="sup_1",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+        assert (
+            guard_s1.record_group(
+                step=0,
+                group=1,
+                item_id="sup_1",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+        assert (
+            guard_s1.record_group(
+                step=1,
+                group=0,
+                item_id="sup_1",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+        # 4th group completes window: only 2 distinct items (sup_1, sup_2) -> does NOT halt
+        assert (
+            guard_s1.record_group(
+                step=1,
+                group=1,
+                item_id="sup_2",
+                gold_verdict="supported",
+                verdicts=["cannot_tell", "supported"],
+                correct_flags=[False, True],
+                advantages_list=[0.5, -0.5],
+            )
+            is None
+        )
+
+        # Next window of 4 groups: 3 distinct gold-supported items with CT, 2 with positive CT adv -> halts S1!
+        guard_s1.record_group(
+            step=2,
+            group=0,
+            item_id="sup_1",
+            gold_verdict="supported",
+            verdicts=["cannot_tell", "unsupported"],
+            correct_flags=[False, False],
+            advantages_list=[0.8, -0.8],
+        )
+        guard_s1.record_group(
+            step=2,
+            group=1,
+            item_id="sup_2",
+            gold_verdict="supported",
+            verdicts=["cannot_tell", "unsupported"],
+            correct_flags=[False, False],
+            advantages_list=[0.8, -0.8],
+        )
+        guard_s1.record_group(
+            step=3,
+            group=0,
+            item_id="sup_3",
+            gold_verdict="supported",
+            verdicts=["cannot_tell", "supported"],
+            correct_flags=[False, True],
+            advantages_list=[-0.5, 0.5],
+        )
+        # 4th group is a zero-variance cannot_tell group (counted in the 4-group window, no guard on gold CT)
+        stop_s1 = guard_s1.record_group(
+            step=3,
+            group=1,
+            item_id="ct_1",
+            gold_verdict="cannot_tell",
+            verdicts=["cannot_tell", "cannot_tell"],
+            correct_flags=[True, True],
+            advantages_list=[0.0, 0.0],
+            is_zero_variance=True,
+        )
+        assert stop_s1 is not None
+        assert stop_s1["triggered_rules"] == ["S1"]
+        assert stop_s1["reason"] == "ct_guard_s1"
+
+        # 2. S2 (cumulative): CT > 1.5% once >= 600 gold-supported answers have accrued across >= 4 distinct items
+        guard_s2 = s2.CtCollapseGuard(window_groups=4)
+        # Feed 76 groups of 8 answers = 608 gold-supported answers across 4 distinct items with 10 CTs (1.64%)
+        stop_s2 = None
+        for idx in range(76):
+            cid = f"sup_item_{idx % 4}"
+            # Put 1 CT in each of the first 10 windows across all 4 distinct items (idx % 4 = 0,1,2,3)
+            has_ct = idx in (0, 5, 10, 15, 20, 25, 30, 35, 40, 45)
+            v_list = (["cannot_tell"] + ["supported"] * 7) if has_ct else (["supported"] * 8)
+            c_list = ([False] + [True] * 7) if has_ct else ([True] * 8)
+            a_list = ([-0.8] + [0.11] * 7) if has_ct else ([0.0] * 8)
+            res = guard_s2.record_group(
+                step=idx // 2,
+                group=idx % 2,
+                item_id=cid,
+                gold_verdict="supported",
+                verdicts=v_list,
+                correct_flags=c_list,
+                advantages_list=a_list,
+                is_zero_variance=not has_ct,
+            )
+            if res is not None:
+                stop_s2 = res
+                break
+        assert stop_s2 is not None
+        assert stop_s2["triggered_rules"] == ["S2"]
+        assert stop_s2["guard_metrics"]["s2_cum_sup_answers"] == 608
+        assert stop_s2["guard_metrics"]["s2_cum_distinct_ct_items"] == 4
+
+        # 3. U1: >= 4 distinct gold-unsupported items in window have CT AND window correct rate < 78%
+        guard_u1 = s2.CtCollapseGuard(window_groups=4)
+        for g_idx in range(3):
+            assert (
+                guard_u1.record_group(
+                    step=0,
+                    group=g_idx,
+                    item_id=f"u_{g_idx}",
+                    gold_verdict="unsupported",
+                    verdicts=["cannot_tell", "cannot_tell", "unsupported", "unsupported"],
+                    correct_flags=[False, False, True, True],
+                    advantages_list=[-0.5, -0.5, 0.5, 0.5],
+                )
+                is None
+            )
+        stop_u1 = guard_u1.record_group(
+            step=1,
+            group=1,
+            item_id="u_3",
+            gold_verdict="unsupported",
+            verdicts=["cannot_tell", "cannot_tell", "unsupported", "unsupported"],
+            correct_flags=[False, False, True, True],
+            advantages_list=[-0.5, -0.5, 0.5, 0.5],
+        )
+        assert stop_u1 is not None
+        assert stop_u1["triggered_rules"] == ["U1"]
+        assert stop_u1["guard_metrics"]["u1_correct_rate"] == 0.5
+
+        # 4. U2: >= 2 distinct gold-unsupported items with Pass-A k >= 6 have any CT in one window
+        guard_u2 = s2.CtCollapseGuard(
+            window_groups=2,
+            pass_a_k={"u_easy_1": 6, "u_easy_2": 8, "u_hard": 3},
+        )
+        assert (
+            guard_u2.record_group(
+                step=0,
+                group=0,
+                item_id="u_easy_1",
+                gold_verdict="unsupported",
+                verdicts=["cannot_tell"] + ["unsupported"] * 7,
+                correct_flags=[False] + [True] * 7,
+                advantages_list=[-0.5] + [0.07] * 7,
+            )
+            is None
+        )
+        stop_u2 = guard_u2.record_group(
+            step=0,
+            group=1,
+            item_id="u_easy_2",
+            gold_verdict="unsupported",
+            verdicts=["cannot_tell"] + ["unsupported"] * 7,
+            correct_flags=[False] + [True] * 7,
+            advantages_list=[-0.5] + [0.07] * 7,
+        )
+        assert stop_u2 is not None
+        assert stop_u2["triggered_rules"] == ["U2"]
+
+        # 5. End-to-end run_steps halts on U2 at window boundary and refuses holdout items
+        tok = s2.DryTokenizer()
+
+        class _TinyModel:
+            device = torch.device("cpu")
+
+            def __init__(self) -> None:
+                self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+            def parameters(self):
+                return [self._p]
+
+            def __call__(self, input_ids, attention_mask=None, **kwargs):
+                logits = (
+                    torch.zeros((input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32)
+                    + self._p * 0.0
+                )
+                return Namespace(logits=logits)
+
+        prompts_u = [
+            {
+                "id": "u_easy_1",
+                "label": "unsupported",
+                "claim": "c1",
+                "context": [{"source": "s", "text": "alpha beta gamma"}],
+            },
+            {
+                "id": "u_easy_2",
+                "label": "unsupported",
+                "claim": "c2",
+                "context": [{"source": "s", "text": "alpha beta gamma"}],
+            },
+        ]
+        # Refuses if any prompt is in holdout_ids
+        with pytest.raises(SystemExit, match="holdout_item_in_training"):
+            s2.run_steps(
+                model=_TinyModel(),
+                ref_adapter_off=nullcontext,
+                tok=tok,
+                optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                prompts=prompts_u,
+                rollout=lambda text, g_cnt, max_n, temp: (
+                    tok.encode(text),
+                    [tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id]] * g_cnt,
+                    [False] * g_cnt,
+                ),
+                steps=2,
+                g=2,
+                max_new=32,
+                reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                device_sync=lambda: None,
+                peak_alloc_mib=lambda: 100,
+                holdout_ids={"u_easy_2"},
+            )
+
+        # Halts at end of step 0 (2 groups = 1 window of 2 groups) when U2 triggers
+        steps_out, stopped_out, oom_out = s2.run_steps(
+            model=_TinyModel(),
+            ref_adapter_off=nullcontext,
+            tok=tok,
+            optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            prompts=prompts_u,
+            rollout=lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [
+                    tok.encode(_reply("cannot_tell", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                ][:g_cnt],
+                [False] * g_cnt,
+            ),
+            steps=5,
+            g=2,
+            max_new=32,
+            reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            ct_guard=s2.CtCollapseGuard(window_groups=2, pass_a_k={"u_easy_1": 7, "u_easy_2": 8}),
+        )
+        assert not oom_out
+        assert len(steps_out) == 1
+        assert stopped_out is not None
+        assert stopped_out["triggered_rules"] == ["U2"]
+
+    def test_mask_wrong_positive_advantage_dual_clip_and_truncation_out_of_group_mean(self) -> None:
+        torch = pytest.importorskip("torch")
+
+        # 1. Masking fallback: wrong-label completions with positive advantage are clamped to <= 0
+        # after mean-centring, with NO re-centring after the clamp.
+        # Suppose on a gold-supported item:
+        # - 1 completion is 'supported' (+1.0, correct=True)
+        # - 2 completions are 'cannot_tell' (-0.3, correct=False)
+        # - 5 completions are 'supported' with unfound quote on gold unsupported? Or suppose on gold supported:
+        #   5 completions are malformed (-1.0, correct=False), 2 are cannot_tell (-0.3, correct=False), 1 is supported (+1.0, correct=True)
+        rewards = [1.0, -0.3, -0.3, -1.0, -1.0, -1.0, -1.0, -1.0]
+        correct_flags = [True, False, False, False, False, False, False, False]
+        raw_adv = s2.advantages(rewards, mode="dr-grpo")
+        # Mean is -0.575, so cannot_tell (-0.3) gets positive advantage +0.275 before clamping!
+        assert raw_adv[0] == pytest.approx(1.575)
+        assert raw_adv[1] == pytest.approx(0.275)
+        assert raw_adv[3] == pytest.approx(-0.425)
+
+        clamped_adv = s2.clamp_wrong_positive_advantages(raw_adv, correct_flags)
+        # Wrong-label positive advantages (indices 1, 2) are clamped to 0.0;
+        # right-label positive (index 0) and wrong-label negative (indices 3..7) are UNCHANGED (no re-centring!)
+        assert clamped_adv[0] == pytest.approx(1.575)
+        assert clamped_adv[1] == 0.0
+        assert clamped_adv[2] == 0.0
+        for idx in range(3, 8):
+            assert clamped_adv[idx] == pytest.approx(-0.425)
+        assert sum(clamped_adv) != pytest.approx(0.0)
+
+        # 2. Dual-clip c = 3.0 caps the policy surrogate on negative advantages when ratio > 3.0
+        old_logp = torch.zeros((1, 4), dtype=torch.float32)
+        ref_logp = torch.zeros((1, 4), dtype=torch.float32)
+        # logp = log(10.0) -> ratio = 10.0 > c = 3.0
+        logp_high = torch.full((1, 4), float(torch.log(torch.tensor(10.0))), dtype=torch.float32)
+        adv_neg = torch.tensor([-2.0], dtype=torch.float32)
+        mask = torch.ones((1, 4), dtype=torch.float32)
+
+        loss_unclipped = s2.grpo_loss(logp_high, old_logp, ref_logp, adv_neg, mask, beta=0.0, dual_clip_c=None)
+        loss_dual_clipped = s2.grpo_loss(
+            logp_high, old_logp, ref_logp, adv_neg, mask, beta=0.0, dual_clip_c=3.0
+        )
+        # Unclipped policy term is -ratio * adv = -10.0 * (-2.0) = +20.0
+        # Dual-clipped policy term at c=3.0 is -c * adv = -3.0 * (-2.0) = +6.0
+        assert float(loss_unclipped) == pytest.approx(20.0, rel=1e-5)
+        assert float(loss_dual_clipped) == pytest.approx(6.0, rel=1e-5)
+
+        # 3. Truncation out of the group mean:
+        # When 2 of 8 completions are truncated (-1.0) and the 6 survivors all score +1.0:
+        # - Without mask_truncated, survivors get positive advantage against the -1.0 truncations.
+        # - With mask_truncated, truncated completions are excluded from the group mean & std BEFORE
+        #   computing advantages, so the 6 identical survivors have zero variance and 0.0 advantage!
+        r_group = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0]
+        truncs = [False, False, False, False, False, False, True, True]
+        active_r = [r for r, tr in zip(r_group, truncs, strict=True) if not tr]
+        assert s2.zero_variance(active_r) is True
+        active_adv = s2.advantages(active_r, mode="dr-grpo")
+        it = iter(active_adv)
+        masked_adv = [0.0 if tr else next(it) for tr in truncs]
+        assert masked_adv == [0.0] * 8
+
+        # Even when survivors vary (e.g. three +1.0 and three +0.8), their mean is 0.9 (not pulled down by -1.0)
+        r_varied = [1.0, 1.0, 1.0, 0.8, 0.8, 0.8, -1.0, -1.0]
+        active_varied = [r for r, tr in zip(r_varied, truncs, strict=True) if not tr]
+        adv_varied = s2.advantages(active_varied, mode="dr-grpo")
+        it_v = iter(adv_varied)
+        masked_varied = [0.0 if tr else next(it_v) for tr in truncs]
+        assert masked_varied[:3] == [pytest.approx(0.1)] * 3
+        assert masked_varied[3:6] == [pytest.approx(-0.1)] * 3
+        assert masked_varied[6:] == [0.0, 0.0]
+
+    def test_postpass_confident_errors_confusion_matrix_hedge_flag_and_paired_estimators(self) -> None:
+        # Build Pass A, Pass B, and 3 seeds x 2 post-passes over 3 items (1 per band & gold class)
+        pass_a = [
+            {
+                "id": "i_sup_b0",
+                "gold_verdict": "supported",
+                "g": 8,
+                "k_correct": 4,
+                "supported": 4,
+                "unsupported": 3,
+                "cannot_tell": 1,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.2, "pass_seed": 0, "descriptive": False,
+            },
+            {
+                "id": "i_unsup_b1",
+                "gold_verdict": "unsupported",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 2,
+                "unsupported": 6,
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.4, "pass_seed": 0, "descriptive": False,
+            },
+            {
+                "id": "i_ct_b2",
+                "gold_verdict": "cannot_tell",
+                "g": 8,
+                "k_correct": 8,
+                "supported": 0,
+                "unsupported": 4,
+                "cannot_tell": 4,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 1.0, "pass_seed": 0, "descriptive": False,
+            },
+        ]
+        pass_b = [
+            {
+                "id": "i_sup_b0",
+                "gold_verdict": "supported",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 6,
+                "unsupported": 2,
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.5, "pass_seed": 1, "descriptive": False,
+            },
+            {
+                "id": "i_unsup_b1",
+                "gold_verdict": "unsupported",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 2,
+                "unsupported": 6,
+                "cannot_tell": 0,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.4, "pass_seed": 1, "descriptive": False,
+            },
+            {
+                "id": "i_ct_b2",
+                "gold_verdict": "cannot_tell",
+                "g": 8,
+                "k_correct": 6,
+                "supported": 2,
+                "unsupported": 3,
+                "cannot_tell": 3,
+                "malformed": 0,
+                "truncations": 0,
+                "reward_mean": 0.4, "pass_seed": 1, "descriptive": False,
+            },
+        ]
+
+        # Confident errors on Pass A:
+        # i_sup_b0 (gold supported): unsupported = 3
+        # i_unsup_b1 (gold unsupported): supported = 2
+        # i_ct_b2 (gold cannot_tell): supported = 0
+        assert [s2.item_confident_errors(r) for r in pass_a] == [3, 2, 0]
+        assert [s2.item_confident_errors(r) for r in pass_b] == [2, 2, 2]
+
+        # Post-passes for 3 seeds:
+        # Make CT share on gold cannot_tell drop to 1/8 = 12.5% (< 21% threshold) so hedge_flag triggers
+        def make_post(k_sup: int, unsup_on_sup: int, ct_on_ct: int, pass_seed: int = 2):
+            return [
+                {
+                    "id": "i_sup_b0",
+                    "gold_verdict": "supported",
+                    "g": 8,
+                    "k_correct": k_sup,
+                    "supported": k_sup,
+                    "unsupported": unsup_on_sup,
+                    "cannot_tell": 8 - k_sup - unsup_on_sup,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "reward_mean": 0.8, "pass_seed": pass_seed, "descriptive": False,
+                },
+                {
+                    "id": "i_unsup_b1",
+                    "gold_verdict": "unsupported",
+                    "g": 8,
+                    "k_correct": 7,
+                    "supported": 1,
+                    "unsupported": 7,
+                    "cannot_tell": 0,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "reward_mean": 0.7, "pass_seed": pass_seed, "descriptive": False,
+                },
+                {
+                    "id": "i_ct_b2",
+                    "gold_verdict": "cannot_tell",
+                    "g": 8,
+                    "k_correct": 8,
+                    "supported": 0,
+                    "unsupported": 8 - ct_on_ct,
+                    "cannot_tell": ct_on_ct,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "reward_mean": 1.0, "pass_seed": pass_seed, "descriptive": False,
+                },
+            ]
+
+        seed_postpasses = [
+            (make_post(7, 1, 1, 2), make_post(8, 0, 1, 3)),  # seed 1 post_mean k on i_sup_b0 = 7.5, ce = 0.5
+            (make_post(7, 1, 1, 2), make_post(7, 1, 1, 3)),  # seed 2 post_mean k on i_sup_b0 = 7.0, ce = 1.0
+            (make_post(8, 0, 1, 2), make_post(7, 1, 1, 3)),  # seed 3 post_mean k on i_sup_b0 = 7.5, ce = 0.5
+        ]
+        # Across the 3 seeds, i_sup_b0 has post_mean_k = (7.5 + 7.0 + 7.5)/3 = 7.333333, ce = 2.0/3 = 0.666667
+        est = s2.compute_paired_arm_estimators(
+            pass_a,
+            pass_b,
+            seed_postpasses,
+            holdout_ids={"i_ct_b2"},
+            baseline_ct_share=0.42,
+        )
+        assert est["n_items"] == 3
+        assert est["n_seeds"] == 3
+        assert est["per_item_post_mean_k"]["i_sup_b0"] == pytest.approx(22.0 / 3.0, abs=1e-5)
+        assert est["per_item_post_mean_confident_errors"]["i_sup_b0"] == pytest.approx(2.0 / 3.0, abs=1e-5)
+
+        # Band [0,5] (i_sup_b0): estimator is post_mean - B (B has k=6, ce=2)
+        b0 = est["by_pass_a_band"]["[0,5]"]
+        assert b0["estimator"] == "post_mean - B"
+        assert b0["k_diff"] == pytest.approx((22.0 / 3.0) - 6.0, abs=1e-5)
+        assert b0["confident_error_diff"] == pytest.approx((2.0 / 3.0) - 2.0, abs=1e-5)
+
+        # Unbanded holdout (i_ct_b2): estimator is post_mean - (A + B) / 2
+        # A has k=8, B has k=6 -> (A+B)/2 = 7.0; post_mean k = 8.0 -> diff = +1.0
+        # A has ce=0, B has ce=2 -> (A+B)/2 = 1.0; post_mean ce = 0.0 -> diff = -1.0
+        hold_est = est["unbanded"]["holdout"]
+        assert hold_est["estimator"] == "post_mean - (A + B) / 2"
+        assert hold_est["k_diff"] == pytest.approx(1.0, abs=1e-5)
+        assert hold_est["confident_error_diff"] == pytest.approx(-1.0, abs=1e-5)
+
+        # Hedge flag triggered because ct_share_of_correct = 1/8 = 0.125 < 0.21
+        assert est["hedge_flag_after"]["ct_share_of_correct"] == pytest.approx(0.125)
+        assert est["hedge_flag_after"]["triggered"] is True
+        assert est["confusion_matrix_after"]["cannot_tell"]["cannot_tell"] == 6
+        assert est["confusion_matrix_after"]["cannot_tell"]["unsupported"] == 42
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-05 Part D: CT Interview Runner & Two-Judge Tagging Pipeline
+# ---------------------------------------------------------------------------
+class TestInterviewAndTagging:
+    def test_cohort_selection_first_ct_rates_and_resolution_mcnemar(self):
+        import s2_interview as s2i
+
+        def _samp(cid: str, idx: int, verdict: str, part: str = "subclaim A") -> dict:
+            body = json.dumps(
+                {
+                    "verdict": verdict,
+                    "reason": "r",
+                    "evidence_quotes": [{"part": part, "verdict": verdict, "quote": ""}],
+                }
+            )
+            return {
+                "item_id": cid,
+                "sample_index": idx,
+                "verdict": verdict,
+                "text": f"<think>trace {cid} s{idx}</think>{body}",
+            }
+
+        # Item 1: both_CT (baseline has CT at sample 1 and 2 -> 2/4 = 0.5, majority (>=0.5);
+        # checkpoint has CT at sample 0, 1, 2 -> 3/4 = 0.75, majority)
+        # Item 2: baseline_only_CT (baseline has CT at sample 2; checkpoint has 0 CT)
+        # Item 3: checkpoint_only_CT (baseline has 0 CT; checkpoint has CT at sample 3)
+        # Item 4: neither CT (excluded)
+        base_recs = [
+            _samp("item_1", 0, "supported"),
+            _samp("item_1", 2, "cannot_tell", "second ct"),
+            _samp("item_1", 1, "cannot_tell", "first ct"),
+            _samp("item_1", 3, "unsupported"),
+            _samp("item_2", 0, "supported"),
+            _samp("item_2", 1, "cannot_tell", "b_only ct"),
+            _samp("item_3", 0, "supported"),
+            _samp("item_4", 0, "supported"),
+        ]
+        ckpt_recs = [
+            _samp("item_1", 0, "cannot_tell", "ckpt first ct"),
+            _samp("item_1", 1, "cannot_tell"),
+            _samp("item_1", 2, "cannot_tell"),
+            _samp("item_1", 3, "supported"),
+            _samp("item_2", 0, "supported"),
+            _samp("item_2", 1, "supported"),
+            _samp("item_3", 0, "unsupported"),
+            _samp("item_3", 1, "cannot_tell", "ckpt_only ct"),
+            _samp("item_4", 0, "unsupported"),
+        ]
+
+        cohort = s2i.select_interview_cohort(base_recs, ckpt_recs)
+        assert [c["item_id"] for c in cohort] == ["item_1", "item_2", "item_3"]
+        c1, c2, c3 = cohort
+        assert c1["cohort"] == "both_CT"
+        assert c1["baseline_ct_rate"] == pytest.approx(0.5)
+        assert c1["baseline_majority_ct"] is True
+        assert c1["baseline_first_ct"]["sample_index"] == 1
+        assert "first ct" in c1["baseline_first_ct"]["text"]
+        assert c1["checkpoint_ct_rate"] == pytest.approx(0.75)
+        assert c1["checkpoint_majority_ct"] is True
+        assert c1["checkpoint_first_ct"]["sample_index"] == 0
+
+        assert c2["cohort"] == "baseline_only_CT"
+        assert c2["baseline_first_ct"]["sample_index"] == 1
+        assert c2["checkpoint_first_ct"] is None
+
+        assert c3["cohort"] == "checkpoint_only_CT"
+        assert c3["baseline_first_ct"] is None
+        assert c3["checkpoint_first_ct"]["sample_index"] == 1
+
+        res = s2i.summarize_cohort_resolution(
+            cohort,
+            checkpoint_verdicts_by_item={"item_2": "supported"},
+            baseline_q3_lean_by_item={"item_2": "supported"},
+            both_ct_paired_outcomes={"item_1": (False, True)},
+        )
+        assert res["cohort_counts"] == {
+            "both_CT": 1,
+            "baseline_only_CT": 1,
+            "checkpoint_only_CT": 1,
+        }
+        assert res["resolved_cross_tab_lean_vs_checkpoint"]["supported"]["supported"] == 1
+        assert res["both_ct_mcnemar"] == {
+            "both_true": 0,
+            "baseline_only_true_minus": 0,
+            "checkpoint_only_true_plus": 1,
+            "both_false": 0,
+        }
+
+    def test_turn1_thinking_stripped_in_turn2_prompt_and_violation_caught(self):
+        import s2_interview as s2i
+
+        tok = s2i.Qwen3ChatStubTokenizer()
+        row = _row("item_strip_01", claim="The cache timeout is 30 seconds.")
+        secret_think = "SECRET_TURN1_THINKING_TRACE_THAT_MUST_BE_STRIPPED"
+        turn1_reply = (
+            f"<think>{secret_think}</think>"
+            '{"verdict":"cannot_tell","reason":"no timeout given",'
+            '"evidence_quotes":[{"part":"timeout is 30 seconds","verdict":"cannot_tell","quote":""}]}'
+        )
+        msgs = s2i.build_interview_messages(row, turn1_reply, "Q1")
+        rendered_text, prompt_ids = s2i.render_interview_prompt(tok, msgs)
+
+        assert s2i.verify_turn1_thinking_stripped(rendered_text, prompt_ids, secret_think) is True
+        assert secret_think not in rendered_text
+        assert s2i.QWEN3_END_THINK_TOKEN_ID not in prompt_ids
+        # Generation prompt at the end opens Turn 2 thinking (`<think>\n`), so exactly 1 `<think>` token is at the tail
+        assert prompt_ids.count(s2i.QWEN3_THINK_TOKEN_ID) == 1
+
+        # Verify assertion triggers if `</think>` or Turn 1 thinking text leaks into prompt
+        with pytest.raises(AssertionError, match="leaked"):
+            s2i.verify_turn1_thinking_stripped(
+                rendered_text + "</think>",
+                [*prompt_ids, s2i.QWEN3_END_THINK_TOKEN_ID],
+                secret_think,
+            )
+        with pytest.raises(AssertionError, match="leaked"):
+            s2i.verify_turn1_thinking_stripped(
+                rendered_text + secret_think,
+                prompt_ids,
+                secret_think,
+            )
+
+    @needs_torch
+    def test_two_stage_thinking_cap_truncates_at_256_and_natural_close_not_truncated(self):
+        import s2_interview as s2i
+        import torch
+
+        tok = s2i.Qwen3ChatStubTokenizer()
+
+        class _UnclosedThinkModel:
+            device = torch.device("cpu")
+
+            def __init__(self):
+                self.calls = []
+
+            def generate(self, input_ids, max_new_tokens, **kwargs):
+                self.calls.append((int(input_ids.shape[1]), int(max_new_tokens)))
+                if len(self.calls) == 1:
+                    # Emit max_new_tokens of 'a' without closing </think>
+                    new_toks = tok.encode("thinking word " * 40)[:max_new_tokens]
+                else:
+                    # Stage 2 answer tokens after forced \n</think>\n\n
+                    new_toks = tok.encode("The missing piece is the cache TTL.")[:max_new_tokens]
+                out = torch.tensor([list(input_ids[0].tolist()) + new_toks], dtype=torch.long)
+                return out
+
+        m_trunc = _UnclosedThinkModel()
+        res_trunc = s2i.generate_two_stage_thinking(
+            m_trunc,
+            tok,
+            [10, 11, 12],
+            seed=42,
+            thinking_cap=256,
+            answer_cap=200,
+        )
+        assert res_trunc["think_truncated"] is True
+        assert res_trunc["thinking_tokens"] == 256
+        assert len(m_trunc.calls) == 2
+        assert m_trunc.calls[0][1] == 256
+        assert m_trunc.calls[1][1] == 200
+        assert "The missing piece is the cache TTL." in res_trunc["answer"]
+        assert res_trunc["ngram_4_rep_rate"] > 0.0
+
+        class _ClosedThinkModel:
+            device = torch.device("cpu")
+
+            def generate(self, input_ids, max_new_tokens, **kwargs):
+                # Emit short thinking + </think> + answer + EOS inside Stage 1
+                seq = (
+                    tok.encode("short reasoning")
+                    + [s2i.QWEN3_END_THINK_TOKEN_ID]
+                    + tok.encode("LEAN: supported — matches context.")
+                    + [s2i.QWEN3_EOS_TOKEN_ID]
+                )
+                return torch.tensor([list(input_ids[0].tolist()) + seq], dtype=torch.long)
+
+        res_closed = s2i.generate_two_stage_thinking(
+            _ClosedThinkModel(),
+            tok,
+            [10, 11, 12],
+            seed=99,
+            thinking_cap=256,
+            answer_cap=200,
+        )
+        assert res_closed["think_truncated"] is False
+        assert "short reasoning" in res_closed["thinking"]
+        assert res_closed["answer"].startswith("LEAN: supported")
+
+    def test_mechanical_measures_part_match_whole_claim_guard_quotes_counterfactual_and_q3_lean(self):
+        import s2_interview as s2i
+
+        claim = (
+            "The authentication service rotates signing keys every twenty four hours "
+            "and stores backup keys in an offline hardware security module."
+        )
+        json_ct_parts = ["stores backup keys in an offline hardware security module"]
+
+        # Specific Q1 answer matching the CT sub-claim -> high containment & match_at_0_3/0_5/0_7 True
+        good_q1 = "stores backup keys in an offline hardware security module"
+        sc_good = s2i.score_part_match(good_q1, json_ct_parts, claim)
+        assert sc_good["whole_claim_copy"] is False
+        assert sc_good["containment"] >= 0.7
+        assert sc_good["match_at_0_3"] is True
+        assert sc_good["match_at_0_5"] is True
+        assert sc_good["match_at_0_7"] is True
+
+        # Whole-claim copy (>85% of claim tokens while JSON CT part is <70% of claim tokens) -> gated off
+        copy_q1 = (
+            "The authentication service rotates signing keys every twenty four hours "
+            "and stores backup keys in an offline hardware security module."
+        )
+        sc_copy = s2i.score_part_match(copy_q1, json_ct_parts, claim)
+        assert sc_copy["whole_claim_copy"] is True
+        assert sc_copy["match_at_0_3"] is False
+        assert sc_copy["match_at_0_5"] is False
+        assert sc_copy["match_at_0_7"] is False
+
+        # Quote validity & consistency (Q4)
+        evidence = ["The authentication service rotates signing keys every 24 hours."]
+        t1_json = json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "backup storage not mentioned",
+                "evidence_quotes": [
+                    {
+                        "part": "rotates signing keys",
+                        "verdict": "supported",
+                        "quote": "rotates signing keys every 24 hours",
+                    }
+                ],
+            }
+        )
+        q4_valid = s2i.score_quote_validity_and_consistency(
+            "rotates signing keys every 24 hours", evidence, t1_json
+        )
+        assert q4_valid["quote_valid"] is True
+        assert q4_valid["in_evidence"] is True
+        assert q4_valid["quote_consistency_f1"] == pytest.approx(1.0)
+
+        q4_none = s2i.score_quote_validity_and_consistency("NONE", evidence, t1_json)
+        assert q4_none["is_none"] is True
+        assert q4_none["quote_valid"] is True
+
+        q4_hallucinated = s2i.score_quote_validity_and_consistency(
+            "backup keys are kept in AWS KMS vault", evidence, t1_json
+        )
+        assert q4_hallucinated["quote_valid"] is False
+
+        # Counterfactual check (Q2 MISSING_FACT)
+        row = _row("cf_item_1", claim=claim, text=evidence[0])
+        q2_ans = "MISSING_FACT: Backup keys are stored in an offline hardware security module."
+
+        def fake_verifier(cf_row: dict, seed: int) -> str:
+            joined = " ".join(c["text"] for c in cf_row["context"])
+            assert "offline hardware security module" in joined
+            return json.dumps(
+                {
+                    "verdict": "supported",
+                    "reason": "now supported",
+                    "evidence_quotes": [
+                        {
+                            "part": "offline hardware security module",
+                            "verdict": "supported",
+                            "quote": "Backup keys are stored in an offline hardware security module",
+                        }
+                    ],
+                }
+            )
+
+        cf_res = s2i.run_counterfactual_check(row, q2_ans, fake_verifier, base_seed=7)
+        assert cf_res["format_ok"] is True
+        assert cf_res["left_cannot_tell"] is True
+        assert cf_res["new_verdict"] == "supported"
+        assert cf_res["direction"] == "supported"
+
+        cf_bad = s2i.run_counterfactual_check(row, "No prefix here.", fake_verifier, base_seed=7)
+        assert cf_bad["format_ok"] is False
+        assert cf_bad["left_cannot_tell"] is False
+
+        # Q3 forced lean & counterbalancing
+        orders = {s2i.q3_choice_order(f"id_{i}") for i in range(20)}
+        assert orders == {("supported", "unsupported"), ("unsupported", "supported")}
+
+        l_sup = s2i.score_q3_lean_item(
+            "LEAN: supported — partial evidence aligns.", "supported", "id_1"
+        )
+        l_unsup = s2i.score_q3_lean_item(
+            "LEAN: supported — partial evidence aligns.", "unsupported", "id_2"
+        )
+        l_ct = s2i.score_q3_lean_item(
+            "LEAN: unsupported — leans against.", "cannot_tell", "id_3"
+        )
+        assert l_sup["accuracy_scored"] is True and l_sup["correct"] is True
+        assert l_unsup["accuracy_scored"] is True and l_unsup["correct"] is False
+        assert l_ct["accuracy_scored"] is False and l_ct["correct"] is None
+
+        lean_summary = s2i.summarize_q3_lean([l_sup, l_unsup, l_ct])
+        assert lean_summary["balanced_accuracy"] == pytest.approx(0.5)
+        assert lean_summary["gold_cannot_tell"]["accuracy_scored"] is False
+        assert lean_summary["gold_cannot_tell"]["unsupported_share"] == pytest.approx(1.0)
+
+    @needs_torch
+    def test_cpu_3_item_synthetic_interview_end_to_end(self, tmp_path):
+        import hashlib
+
+        import s2_interview as s2i
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "syn_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        model, tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        runner = s2i.InterviewModelRunner(model, tok, expected_checkpoint_sha256=ckpt_sha)
+
+        rows_by_id = {
+            f"syn_{i}": _row(
+                f"syn_{i}",
+                claim=f"Synthetic claim number {i} states the buffer size is 64 bytes.",
+                text=f"Passage for item {i}: the module initialises a local buffer.",
+                label="supported" if i == 0 else ("unsupported" if i == 1 else "cannot_tell"),
+            )
+            for i in range(3)
+        }
+
+        def _make_ct_rec(cid: str) -> dict:
+            t1 = (
+                f"<think>Thinking for {cid}: buffer size 64 bytes is missing.</think>"
+                + json.dumps(
+                    {
+                        "verdict": "cannot_tell",
+                        "reason": "size missing",
+                        "evidence_quotes": [
+                            {"part": "buffer size is 64 bytes", "verdict": "cannot_tell", "quote": ""}
+                        ],
+                    }
+                )
+            )
+            return {"item_id": cid, "sample_index": 0, "verdict": "cannot_tell", "text": t1}
+
+        base_pass = [_make_ct_rec("syn_0"), _make_ct_rec("syn_1")]
+        ckpt_pass = [_make_ct_rec("syn_0"), _make_ct_rec("syn_2")]
+        cohort = s2i.select_interview_cohort(base_pass, ckpt_pass)
+        assert len(cohort) == 3
+
+        out_dir = tmp_path / "interview_out"
+        receipt = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=runner,
+            out_dir=out_dir,
+            base_seed=20261105,
+            thinking_cap=8,
+            answer_cap=8,
+            include_cold_control=True,
+        )
+        assert receipt["cohort_size"] == 3
+        # syn_0 (both_CT -> 2*4 + 2*2 cold = 12), syn_1 (baseline_only -> 4 + 2 = 6), syn_2 (ckpt_only -> 4 + 2 = 6) => 24 turns
+        assert receipt["total_turns_recorded"] == 24
+        save_all_file = out_dir / receipt["save_all_path"]
+        assert save_all_file.exists()
+        assert hashlib.sha256(save_all_file.read_bytes()).hexdigest() == receipt["save_all_sha256"]
+        records = s2.read_save_all(save_all_file)
+        assert len(records) == 24
+        assert all("ngram_4_rep_rate" in r and "think_truncated" in r for r in records)
+
+    def test_two_judge_tagging_refuses_qwen_gates_controls_computes_ac1_and_exports_blinded_audit(
+        self, tmp_path
+    ):
+        import s2_interview_tag as s2t
+
+        # 1. Refuse Qwen-family judges or duplicate judges
+        with pytest.raises(SystemExit, match="judge_qwen_family_forbidden"):
+            s2t.validate_judge_name("Qwen/Qwen3-32B-Instruct")
+        with pytest.raises(SystemExit, match="judge_qwen_family_forbidden"):
+            s2t.require_two_non_qwen_judges("claude-3-5-sonnet", "qwen2.5-72b")
+        with pytest.raises(SystemExit, match="judges_must_be_distinct"):
+            s2t.require_two_non_qwen_judges("llama-3.3-70b", "Llama-3.3-70B")
+
+        # 2. Build 30 shuffled, 30 verbatim, 15 empty-thinking controls
+        controls = s2t.build_judge_controls([])
+        assert len(controls["shuffled"]) == 30
+        assert len(controls["verbatim"]) == 30
+        assert len(controls["empty_thinking"]) == 15
+
+        def accurate_judge(thinking: str, q1_answer: str) -> dict[str, str]:
+            t_clean = thinking.strip()
+            if not t_clean or "not enough information to decide" in t_clean or "not sure whether" in t_clean or "Cannot tell from" in t_clean:
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if t_clean in q1_answer or "release date" in t_clean and "release date" in q1_answer and t_clean.split()[-1] == q1_answer.split()[-1]:
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        def bad_judge(thinking: str, q1_answer: str) -> dict[str, str]:
+            return {"missing_element_match": "same", "reason_type": "lacks"}
+
+        # Gate fails when accuracy < 0.90
+        with pytest.raises(SystemExit, match="judge_control_gate_failed"):
+            s2t.evaluate_judge_controls(controls, bad_judge, min_accuracy=0.90, enforce_gate=True)
+
+        # Gate passes for accurate judge
+        gate_ok = s2t.evaluate_judge_controls(controls, accurate_judge, min_accuracy=0.90, enforce_gate=True)
+        assert gate_ok["passed"] is True
+        assert all(acc >= 0.90 for acc in gate_ok["accuracies"].values())
+
+        # 3. Run full two-judge pipeline over 35 synthetic Q1 records (with 10 disagreements + 25 agreements)
+        q1_records = []
+        for i in range(35):
+            q1_records.append(
+                {
+                    "item_id": f"item_{i:02d}",
+                    "policy": "baseline" if i % 2 == 0 else "checkpoint",
+                    "original_turn1_thinking_tokens": 50 + i * 3,
+                    "turn1_thinking": f"Thinking trace {i}: release date for module {i} is missing.",
+                    "q1_answer": (
+                        f"As noted in the reasoning, Thinking trace {i}: release date for module {i} is missing."
+                        if i < 20
+                        else f"Different explanation {i}"
+                    ),
+                }
+            )
+
+        call_counter = {"b": 0}
+
+        def judge_b_with_disagreements(thinking: str, q1_answer: str) -> dict[str, str]:
+            base = accurate_judge(thinking, q1_answer)
+            # Only flip on non-control items (which start with "Thinking trace ")
+            if thinking.startswith("Thinking trace "):
+                idx = call_counter["b"]
+                call_counter["b"] += 1
+                if idx < 10:
+                    return {
+                        "missing_element_match": "different"
+                        if base["missing_element_match"] == "same"
+                        else "same",
+                        "reason_type": "conflicts",
+                    }
+            return base
+
+        out_dir = tmp_path / "tagging_out"
+        summary = s2t.run_two_judge_tagging(
+            interview_q1_records=q1_records,
+            judge_a_name="meta-llama/Llama-3.3-70B-Instruct",
+            judge_b_name="mistralai/Mistral-Large-Instruct",
+            judge_a_fn=accurate_judge,
+            judge_b_fn=judge_b_with_disagreements,
+            out_dir=out_dir,
+            controls=controls,
+        )
+        assert summary["agreement_missing_element_match"]["n"] == 35
+        assert summary["agreement_missing_element_match"]["disagreements"] == 10
+        assert summary["agreement_missing_element_match"]["raw_agreement"] == pytest.approx(25.0 / 35.0, abs=1e-5)
+        assert summary["agreement_missing_element_match"]["cohens_kappa"] is not None
+        assert summary["agreement_missing_element_match"]["gwets_ac1"] is not None
+        assert summary["thinking_length_confound"]["n"] == 35
+
+        # 4. Verify 30-item blinded human audit export (10 disagreements + 20 stratified)
+        audit_meta = summary["blinded_human_audit"]
+        assert audit_meta["audit_count"] == 30
+        assert audit_meta["disagreements_included"] == 10
+        assert audit_meta["stratified_agreements_included"] == 20
+
+        audit_lines = [
+            json.loads(line)
+            for line in (out_dir / "s2-interview-blinded-audit.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        ]
+        assert len(audit_lines) == 30
+        for row in audit_lines:
+            assert "policy" not in row
+            assert "model" not in row
+            assert "item_id" not in row
+            assert row["blind_source_code"].startswith("BLIND_")
+
+
+class TestFix1Items:
+    @needs_torch
+    def test_item_01_load_checkpoint_into_peft_model(self, tmp_path: Path) -> None:
+        import torch
+
+        assert hasattr(s2, "attach_or_load_adapter")
+        gold_dir = _prepass_gold(tmp_path / "gold")
+
+        # 1. Build a dry PEFT model, perturb its LoRA weights, and save the adapter to ckpt_dir
+        a_init = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "init_out"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+            ]
+        )
+        b_init = s2.dry_bundle(a_init)
+        assert b_init["adapter_loaded"] is False
+        assert b_init["checkpoint_sha256"] is None
+        assert b_init["checkpoint_files_sha256"] is None
+        with torch.no_grad():
+            for name, p in b_init["model"].named_parameters():
+                if "lora_" in name:
+                    p.fill_(0.125)
+        ckpt_dir = tmp_path / "saved_lora_ckpt"
+        b_init["model"].save_pretrained(str(ckpt_dir))
+
+        # 2. Load the saved adapter via dry_bundle in --postpass mode and verify weights + file shas
+        a_post = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "post_out"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+            ]
+        )
+        b_loaded = s2.dry_bundle(a_post)
+        assert b_loaded["adapter_loaded"] is True
+        assert b_loaded["checkpoint_sha256"] == s2.checkpoint_sha256(ckpt_dir)
+        assert b_loaded["checkpoint_files_sha256"] == s2.checkpoint_file_shas(ckpt_dir)
+        assert all(not p.requires_grad for p in b_loaded["model"].parameters())
+        lora_b_vals = [
+            float(p.abs().mean().item())
+            for name, p in b_loaded["model"].named_parameters()
+            if "lora_B" in name
+        ]
+        assert lora_b_vals and all(abs(v - 0.125) < 1e-5 for v in lora_b_vals)
+
+        # 3. Refuse --postpass without --checkpoint (postpass_requires_checkpoint)
+        a_no_ckpt = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "no_ckpt"),
+                "--rnd-commit",
+                "deadbee",
+                "--postpass",
+                "--pass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="postpass_requires_checkpoint"):
+            s2.validate_pass_mode_args(a_no_ckpt)
+
+        # 4. Refuse corrupt/unloaded adapter in attach_or_load_adapter and in execute
+        bad_ckpt = tmp_path / "bad_ckpt"
+        bad_ckpt.mkdir(parents=True, exist_ok=True)
+        (bad_ckpt / "not_an_adapter.txt").write_text("corrupt\n", encoding="utf-8")
+        a_bad = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "bad_out"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--checkpoint",
+                str(bad_ckpt),
+                "--pass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            s2.dry_bundle(a_bad)
+
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            s2.execute(a_post, build=lambda _a: {**b_init, "adapter_loaded": False})
+
+    @needs_torch
+    def test_item_02_save_adapter_at_end_of_training(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        out_dir = tmp_path / "train_save_adapter"
+        a = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(out_dir),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "1",
+                "--g",
+                "2",
+            ]
+        )
+        assert s2.execute(a, build=s2.dry_bundle) == 0
+        adapter_dir = out_dir / "adapter"
+        assert adapter_dir.is_dir()
+        receipt = json.loads((out_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert receipt["adapter_sha256"] == s2.checkpoint_sha256(adapter_dir)
+        assert receipt["adapter_files_sha256"] == s2.checkpoint_file_shas(adapter_dir)
+
+        # Verify the saved adapter can be loaded into a subsequent --postpass run
+        post_out = tmp_path / "post_from_saved"
+        a_post = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(post_out),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(adapter_dir),
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+            ]
+        )
+        assert s2.execute(a_post, build=s2.dry_bundle) == 0
+        post_hdr = json.loads((post_out / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        post_sum = json.loads((post_out / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        post_rec = json.loads((post_out / "s2-hf.json").read_text(encoding="utf-8"))
+        assert post_hdr["checkpoint_sha256"] == receipt["adapter_sha256"]
+        assert post_hdr["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+        assert post_sum["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+        assert post_rec["checkpoint_sha256"] == receipt["adapter_sha256"]
+        assert post_rec["checkpoint_files_sha256"] == receipt["adapter_files_sha256"]
+
+    def test_item_03_frozen_stack_versions_match_aspire_gpu(self) -> None:
+        assert s2.FROZEN_STACK_VERSIONS == {
+            "torch": "2.14.1+cu130",
+            "transformers": "5.19.0",
+            "bitsandbytes": "0.50.2",
+            "peft": "0.21.2",
+            "accelerate": "1.15.0",
+        }
+        assert (
+            s2.FROZEN_PIP_FREEZE_SHA256
+            == "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
+        )
+
+    @needs_torch
+    def test_item_04_always_check_frozen_env_on_non_dry_and_record_in_headers_and_receipts(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        # 1. Non-dry run without --require-frozen-env still calls check_frozen_env and refuses version mismatch
+        a_nondry = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "nondry_mismatch"),
+                "--rnd-commit",
+                "deadbee",
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+            ]
+        )
+        monkeypatch.setattr(
+            s2,
+            "FROZEN_STACK_VERSIONS",
+            {**s2.FROZEN_STACK_VERSIONS, "transformers": "999.0.0"},
+        )
+        with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
+            s2.execute(a_nondry, build=s2.real_bundle, rig=_FakeRig(a_nondry))
+
+        # 2. Restore FROZEN_STACK_VERSIONS and verify stack_versions + pip_freeze_sha256 in header and receipt
+        monkeypatch.undo()
+        freeze_lines = [f"{pkg}=={ver}\n" for pkg, ver in sorted(s2.FROZEN_STACK_VERSIONS.items())]
+        pf_path = tmp_path / "FROZEN-pip-freeze-2026-11-05.txt"
+        pf_bytes = "".join(freeze_lines).encode("utf-8")
+        pf_path.write_bytes(pf_bytes)
+        pf_sha = s2.hashlib.sha256(pf_bytes).hexdigest()
+        monkeypatch.setattr(s2, "FROZEN_PIP_FREEZE_SHA256", pf_sha)
+        monkeypatch.setattr(s2, "package_version", lambda k: s2.FROZEN_STACK_VERSIONS.get(k))
+
+        out_ro = tmp_path / "ro_with_freeze"
+        a_ro = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(out_ro),
+                "--rnd-commit",
+                "deadbee",
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "8",
+                "--frozen-pip-freeze",
+                str(pf_path),
+            ]
+        )
+        assert s2.execute(a_ro, build=s2.dry_bundle, rig=_FakeRig(a_ro)) == 0
+        hdr = json.loads((out_ro / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        rec = json.loads((out_ro / "s2-hf.json").read_text(encoding="utf-8"))
+        assert hdr["pip_freeze_sha256"] == pf_sha
+        assert rec["pip_freeze_sha256"] == pf_sha
+        assert set(hdr["stack_versions"].keys()) == set(s2.FROZEN_STACK_VERSIONS.keys())
+        assert set(rec["stack_versions"].keys()) == set(s2.FROZEN_STACK_VERSIONS.keys())
+
+    def test_item_05_prepass_and_paired_estimators_refuse_descriptive_and_wrong_seeds(
+        self, tmp_path: Path
+    ) -> None:
+        from s2_draw import draw_prompts, split_stratified_holdout
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+
+        # 1. Prepass file with seed=1 header or record is refused by draw_prompts, split_stratified_holdout, and load_prepass_baseline
+        seed1_dir = tmp_path / "seed1_pass"
+        seed1_dir.mkdir(parents=True, exist_ok=True)
+        seed1_jsonl = seed1_dir / "s2-hf-prepass.jsonl"
+        seed1_sha = _write_fake_prepass(seed1_jsonl, tune_ids, k_fn=lambda i: i % 9, g=8)
+        (seed1_dir / "s2-hf-prepass-header.json").write_text(
+            json.dumps({"seed": 1, "g": 8}) + "\n", encoding="utf-8"
+        )
+
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            draw_prompts(
+                rows,
+                8,
+                mode="kband",
+                seed=42,
+                prepass=(seed1_jsonl, seed1_sha),
+                k_min=0,
+                k_max=5,
+            )
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            split_stratified_holdout(
+                rows,
+                (seed1_jsonl, seed1_sha),
+                holdout_seed="pr79-holdout-v1",
+            )
+        with pytest.raises(SystemExit, match="prepass_baseline_wrong_seed"):
+            s2.load_prepass_baseline(seed1_jsonl, seed1_sha, tune_ids[:4], g=8)
+
+        # Also check record-level pass_seed != 0 without header
+        rec_seed2_jsonl = tmp_path / "rec_seed2.jsonl"
+        rec_lines = [
+            json.dumps({"id": cid, "g": 8, "k_correct": 4, "pass_seed": 2}) + "\n"
+            for cid in tune_ids
+        ]
+        rec_bytes = "".join(rec_lines).encode("utf-8")
+        rec_seed2_jsonl.write_bytes(rec_bytes)
+        rec_seed2_sha = s2.hashlib.sha256(rec_bytes).hexdigest()
+        with pytest.raises(SystemExit, match="prepass_wrong_seed"):
+            draw_prompts(
+                rows,
+                8,
+                mode="kband",
+                seed=42,
+                prepass=(rec_seed2_jsonl, rec_seed2_sha),
+                k_min=0,
+                k_max=5,
+            )
+        with pytest.raises(SystemExit, match="prepass_baseline_wrong_seed"):
+            s2.load_prepass_baseline(rec_seed2_jsonl, rec_seed2_sha, tune_ids[:4], g=8)
+
+        # 2. compute_paired_arm_estimators checks Pass A seed=0, Pass B seed=1, and post-passes non-reserved & not descriptive
+        base_rec = {
+            "id": "t00",
+            "gold_verdict": "supported",
+            "g": 8,
+            "k_correct": 4,
+            "supported": 4,
+            "unsupported": 2,
+            "cannot_tell": 2,
+            "malformed": 0,
+            "truncations": 0,
+            "reward_mean": 0.2,
+        }
+        pa_ok = [{**base_rec, "pass_seed": 0}]
+        pb_ok = [{**base_rec, "pass_seed": 1}]
+        post2_ok = [{**base_rec, "pass_seed": 2}]
+        post3_ok = [{**base_rec, "pass_seed": 3}]
+
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                [{**base_rec, "pass_seed": 1}], pb_ok, [(post2_ok, post3_ok)]
+            )
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                pa_ok, [{**base_rec, "pass_seed": 0}], [(post2_ok, post3_ok)]
+            )
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                pa_ok, pb_ok, [([{**base_rec, "pass_seed": 1}], post3_ok)]
+            )
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(pa_ok, pb_ok, [(post2_ok, post2_ok)])
+        with pytest.raises(SystemExit, match="paired_estimator_descriptive"):
+            s2.compute_paired_arm_estimators(
+                pa_ok, pb_ok, [([{**base_rec, "pass_seed": 2, "descriptive": True}], post3_ok)]
+            )
+
+    @needs_torch
+    def test_item_06_guard_halts_before_optimiser_step_and_records_all_groups_in_step(self) -> None:
+        from contextlib import nullcontext
+
+        import torch
+
+        class _TinyModel(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.w = torch.nn.Parameter(torch.zeros((1, 256), dtype=torch.float32))
+                self.device = torch.device("cpu")
+
+            def forward(self, input_ids, attention_mask=None, logits_to_keep=None):
+                b, t = input_ids.shape
+                k = logits_to_keep if logits_to_keep is not None else t
+                logits = self.w.unsqueeze(0).expand(b, k, 256)
+                return Namespace(logits=logits)
+
+        tok = s2.DryTokenizer()
+        prompts_u = [
+            {
+                "id": f"u_easy_{i}",
+                "split": "tune",
+                "gold_file": "grounded.jsonl",
+                "claim": f"Unsupported claim {i}.",
+                "label": "unsupported",
+                "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+            }
+            for i in range(4)
+        ]
+        opt_steps = {"count": 0}
+        zero_grads = {"count": 0}
+        guard = s2.CtCollapseGuard(
+            window_groups=2,
+            pass_a_k={f"u_easy_{i}": 8 for i in range(4)},
+        )
+        steps_out, stopped_out, oom_out = s2.run_steps(
+            model=_TinyModel(),
+            ref_adapter_off=nullcontext,
+            tok=tok,
+            optimiser=Namespace(
+                zero_grad=lambda set_to_none=True: zero_grads.__setitem__("count", zero_grads["count"] + 1),
+                step=lambda: opt_steps.__setitem__("count", opt_steps["count"] + 1),
+            ),
+            prompts=prompts_u,
+            rollout=lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [
+                    tok.encode(_reply("cannot_tell", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                ][:g_cnt],
+                [False] * g_cnt,
+            ),
+            steps=2,
+            g=2,
+            max_new=32,
+            reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            groups_per_update=3,
+            ct_guard=guard,
+        )
+        assert not oom_out
+        assert len(steps_out) == 1
+        assert stopped_out is not None
+        assert opt_steps["count"] == 0
+        assert zero_grads["count"] >= 2
+        assert len(guard.records) == 3
+
+    @needs_torch
+    def test_item_07_guard_computes_ct_pos_adv_on_unclamped_advantages(self) -> None:
+        from contextlib import nullcontext
+
+        import torch
+
+        class _TinyModel(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.w = torch.nn.Parameter(torch.zeros((1, 256), dtype=torch.float32))
+                self.device = torch.device("cpu")
+
+            def forward(self, input_ids, attention_mask=None, logits_to_keep=None):
+                b, t = input_ids.shape
+                k = logits_to_keep if logits_to_keep is not None else t
+                logits = self.w.unsqueeze(0).expand(b, k, 256)
+                return Namespace(logits=logits)
+
+        tok = s2.DryTokenizer()
+        prompts_sup = [
+            {
+                "id": f"sup_item_{i}",
+                "split": "tune",
+                "gold_file": "grounded.jsonl",
+                "claim": f"Supported claim {i}.",
+                "label": "supported",
+                "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+            }
+            for i in range(4)
+        ]
+        # On gold supported: 1 completion is 'cannot_tell' (-0.3) and 3 are 'unsupported' (-1.0).
+        # Raw unclamped advantage on 'cannot_tell' is positive (-0.3 > mean -0.825),
+        # while clamp_wrong_positive_advantages clamps it to 0.0.
+        # S1 must still see ct_pos_adv=True on the unclamped advantages!
+        guard = s2.CtCollapseGuard(window_groups=4)
+        _, stopped_out, _ = s2.run_steps(
+            model=_TinyModel(),
+            ref_adapter_off=nullcontext,
+            tok=tok,
+            optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            prompts=prompts_sup,
+            rollout=lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [
+                    tok.encode(_reply("cannot_tell", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                ][:g_cnt],
+                [False] * g_cnt,
+            ),
+            steps=2,
+            g=4,
+            max_new=32,
+            reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            groups_per_update=2,
+            mask_wrong_positive_advantage=True,
+            ct_guard=guard,
+        )
+        assert stopped_out is not None
+        assert "S1" in stopped_out["triggered_rules"]
+        assert all(r["ct_pos_adv"] is True for r in guard.records)
+
+    @needs_torch
+    def test_item_08_u2_loads_pass_a_k_from_prepass_jsonl_and_refuses_without_pass_a_k(
+        self, tmp_path: Path
+    ) -> None:
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "pass_a.jsonl"
+        prepass_sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda _i: 7, g=8)
+
+        # 1. Refuses --ct-guard when neither --pass-a-jsonl nor --prepass-jsonl is given
+        a_no_pa = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "no_pa"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--ct-guard",
+            ]
+        )
+        with pytest.raises(SystemExit, match="ct_guard_requires_pass_a_k"):
+            s2.execute(a_no_pa, build=s2.dry_bundle)
+
+        # 2. Loads pass_a_k from --prepass-jsonl when --pass-a-jsonl is not separately passed
+        a_with_prepass = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "with_prepass"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--prepass-jsonl",
+                str(prepass_path),
+                "--prepass-sha256",
+                prepass_sha,
+                "--ct-guard",
+            ]
+        )
+        assert s2.execute(a_with_prepass, build=s2.dry_bundle) == 0
+
+    def test_item_09_prepass_item_record_does_not_count_truncations_in_malformed(self) -> None:
+        tok = s2.DryTokenizer()
+        row = {
+            "id": "item_trunc",
+            "gold_file": "grounded.jsonl",
+            "label": "supported",
+            "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+        }
+        c_ok = tok.encode(_reply("supported", "alpha beta gamma"))
+        c_trunc = tok.encode("<think>unclosed thinking that got truncated")
+        rec, _ = s2.prepass_item_record(
+            row=row,
+            prompt_ids=[1, 2, 3],
+            comps=[c_ok, c_trunc],
+            truncs=[False, True],
+            tok=tok,
+            reward_fn=lambda text, r, tt, truncated=False: s2.reward(
+                text, r["label"], s2.passages_of(r), tt, truncated=truncated
+            ),
+        )
+        assert rec["truncations"] == 1
+        assert rec["malformed"] == 0
+        assert (
+            rec["supported"]
+            + rec["unsupported"]
+            + rec["cannot_tell"]
+            + rec["malformed"]
+            + rec["truncations"]
+            == rec["g"]
+        )
+
+    def test_item_10_paired_estimators_by_band_and_gold_class_and_cli_entry(
+        self, tmp_path: Path
+    ) -> None:
+        # 3 bands x 3 gold classes = 9 items
+        items = []
+        idx = 0
+        for band_k in (2, 6, 8):
+            for gv in ("supported", "unsupported", "cannot_tell"):
+                items.append((f"id_{idx}", gv, band_k))
+                idx += 1
+
+        def _make_records(seed_val: int, delta_k: int = 0) -> list[dict]:
+            out = []
+            for cid, gv, bk in items:
+                k_c = min(8, max(0, bk + delta_k))
+                out.append(
+                    {
+                        "id": cid,
+                        "gold_verdict": gv,
+                        "g": 8,
+                        "k_correct": k_c,
+                        "supported": k_c if gv == "supported" else (8 - k_c),
+                        "unsupported": k_c if gv == "unsupported" else 0,
+                        "cannot_tell": k_c if gv == "cannot_tell" else 0,
+                        "malformed": 0,
+                        "truncations": 0,
+                        "reward_mean": 0.5,
+                        "pass_seed": seed_val, "descriptive": False,
+                    }
+                )
+            return out
+
+        pa = _make_records(0, 0)
+        pb = _make_records(1, 0)
+        p2 = _make_records(2, 1)
+        p3 = _make_records(3, 1)
+
+        doc = s2.compute_paired_arm_estimators(pa, pb, [(p2, p3)])
+        assert "by_band_and_gold_class" in doc
+        for band in ("[0,5]", "[6,7]", "8"):
+            assert set(doc["by_band_and_gold_class"][band].keys()) == {
+                "supported",
+                "unsupported",
+                "cannot_tell",
+            }
+            for gv in ("supported", "unsupported", "cannot_tell"):
+                cell = doc["by_band_and_gold_class"][band][gv]
+                assert cell["n_items"] == 1
+                assert cell["estimator"] == "post_mean - B"
+
+        # Verify CLI entry --paired-estimators writes s2-paired-estimators.json
+        def _write_pass_dir(name: str, seed_val: int, recs: list[dict]) -> dict[str, str]:
+            d = tmp_path / name
+            d.mkdir(parents=True, exist_ok=True)
+            jpath = d / "s2-hf-prepass.jsonl"
+            raw = "".join(json.dumps(r) + "\n" for r in recs).encode("utf-8")
+            jpath.write_bytes(raw)
+            (d / "s2-hf-prepass-header.json").write_text(
+                json.dumps({"seed": seed_val, "g": 8}) + "\n", encoding="utf-8"
+            )
+            return {"jsonl": str(jpath), "sha256": s2.hashlib.sha256(raw).hexdigest()}
+
+        spec_path = tmp_path / "paired_spec.json"
+        spec_path.write_text(
+            json.dumps(
+                {
+                    "pass_a": _write_pass_dir("pa", 0, pa),
+                    "pass_b": _write_pass_dir("pb", 1, pb),
+                    "seed_postpasses": [[_write_pass_dir("p2", 2, p2), _write_pass_dir("p3", 3, p3)]],
+                }
+            ),
+            encoding="utf-8",
+        )
+        out_cli = tmp_path / "paired_out"
+        a_cli = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(tmp_path),
+                "--rnd-commit",
+                "deadbee",
+                "--out",
+                str(out_cli),
+                "--paired-estimators",
+                str(spec_path),
+            ]
+        )
+        assert s2.execute(a_cli, build=s2.dry_bundle) == 0
+        written = json.loads((out_cli / "s2-paired-estimators.json").read_text(encoding="utf-8"))
+        assert written["by_band_and_gold_class"] == doc["by_band_and_gold_class"]
+
+    @needs_torch
+    def test_item_11_class_stratified_total_groups_and_explicit_holdout_seed_required(
+        self, tmp_path: Path
+    ) -> None:
+        from s2_draw import draw_prompts, split_stratified_holdout
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "pass_a.jsonl"
+        prepass_sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda i: i % 9, g=8)
+
+        # 1. Missing holdout_seed is refused by split_stratified_holdout and draw_prompts
+        with pytest.raises(SystemExit, match="missing_holdout_seed"):
+            split_stratified_holdout(rows, (prepass_path, prepass_sha))
+        with pytest.raises(SystemExit, match="missing_holdout_seed"):
+            draw_prompts(
+                rows,
+                10,
+                mode="class_stratified",
+                seed=42,
+                prepass=(prepass_path, prepass_sha),
+            )
+
+        # 2. Under --draw class_stratified, explicit --prompts < steps * groups_per_update is refused
+        a_too_small = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "too_small"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "5",
+                "--groups-per-update",
+                "2",
+                "--prompts",
+                "6",
+                "--g",
+                "2",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--prepass-jsonl",
+                str(prepass_path),
+                "--prepass-sha256",
+                prepass_sha,
+            ]
+        )
+        with pytest.raises(SystemExit, match="prompts_smaller_than_total_groups"):
+            s2.execute(a_too_small, build=s2.dry_bundle)
+
+        # 3. When --prompts is omitted under --draw class_stratified, it defaults to steps * groups_per_update
+        out_ok = tmp_path / "cs_default_prompts"
+        a_ok = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(out_ok),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "3",
+                "--groups-per-update",
+                "2",
+                "--g",
+                "2",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--prepass-jsonl",
+                str(prepass_path),
+                "--prepass-sha256",
+                prepass_sha,
+            ]
+        )
+        assert s2.execute(a_ok, build=s2.dry_bundle) == 0
+        rec = json.loads((out_ok / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec["draw_n"] == 6
+        assert len(rec["prompt_ids"]) == 6
+        assert rec["holdout_seed"] == "pr79-holdout-v1"
+
+    def test_item_12_interview_question_text_matches_design_v2(self):
+        import s2_interview as s2i
+
+        expected = {
+            "Q1": (
+                "Which part of the claim could you not decide from the evidence? "
+                "Copy the exact words of that part from the claim."
+            ),
+            "Q4": (
+                "Copy exactly one line from the evidence that is closest to deciding that part, "
+                "or write NONE."
+            ),
+            "Q2": (
+                "What would the evidence need to say for you to decide it? "
+                "End with one line: "
+                "MISSING_FACT: <one sentence>."
+            ),
+            "Q3": (
+                "If you had to choose between {A} and {B}, "
+                "which would you choose, and why?"
+            ),
+        }
+        assert s2i.INTERVIEW_QUESTIONS == expected
+        assert s2i.COLD_CONTROL_QUESTIONS == {
+            "Q1": expected["Q1"],
+            "Q2": expected["Q2"],
+        }
+        # Q3 option order comes from item hash, with nothing hard-coded in format line
+        q3_text = s2i.format_interview_question("Q3", "item_abc")
+        assert "supported | unsupported" not in q3_text
+        # Also verify natural prose and LEAN: both parse cleanly
+        assert s2i.parse_q3_lean("I would lean toward supported because the passage agrees.")["lean"] == "supported"
+        assert s2i.parse_q3_lean("LEAN: unsupported — contradicts the date.")["lean"] == "unsupported"
+
+    @needs_torch
+    def test_item_13_interview_seed_uses_item_id_and_question_id_only(self):
+        import hashlib
+        import inspect
+
+        import s2_interview as s2i
+
+        s_base = s2i.interview_seed("item_42", "Q1", base_seed=7)
+        sig = inspect.signature(s2i.interview_seed)
+        assert "policy" not in sig.parameters
+        digest = hashlib.sha256(b"interview:7:item_42:Q1").digest()
+        expected = int.from_bytes(digest[:8], "big") & 0x7FFF_FFFF_FFFF_FFFF
+        assert s_base == expected
+
+    @needs_torch
+    def test_item_14_stage1_stops_at_end_think_and_slices_answer_to_answer_cap(self):
+        import s2_interview as s2i
+        import torch
+
+        tok = s2i.Qwen3ChatStubTokenizer()
+
+        class _CaptureEosAndOverflowAnswerModel:
+            device = torch.device("cpu")
+
+            def __init__(self):
+                self.stage1_eos = None
+
+            def generate(self, input_ids, max_new_tokens, **kwargs):
+                if self.stage1_eos is None:
+                    self.stage1_eos = kwargs.get("eos_token_id")
+                    # Simulate model emitting </think> followed by 50 answer tokens in Stage 1
+                    seq = (
+                        tok.encode("brief thought")
+                        + [s2i.QWEN3_END_THINK_TOKEN_ID]
+                        + [20 + (i % 50) for i in range(50)]
+                    )
+                    return torch.tensor([list(input_ids[0].tolist()) + seq], dtype=torch.long)
+                seq2 = [30 + (i % 50) for i in range(max_new_tokens)]
+                return torch.tensor([list(input_ids[0].tolist()) + seq2], dtype=torch.long)
+
+        m = _CaptureEosAndOverflowAnswerModel()
+        res = s2i.generate_two_stage_thinking(
+            m,
+            tok,
+            [10, 11, 12],
+            seed=11,
+            thinking_cap=64,
+            answer_cap=10,
+        )
+        eos_set = set(m.stage1_eos) if isinstance(m.stage1_eos, (list, tuple)) else {m.stage1_eos}
+        assert s2i.QWEN3_END_THINK_TOKEN_ID in eos_set
+        assert tok.eos_token_id in eos_set
+        assert res["answer_tokens"] <= 10
+
+    @needs_torch
+    def test_item_15_cold_control_omits_json_contract_and_runs_both_policies(self, tmp_path):
+        import s2_interview as s2i
+
+        row = _row("cold_item_1", claim="The cache TTL is 60 seconds.", text="A local cache is used.")
+        msgs = s2i.build_cold_control_messages(row, "Q1")
+        user_text = msgs[0]["content"]
+        assert "The cache TTL is 60 seconds." in user_text
+        assert "A local cache is used." in user_text
+        assert "evidence_quotes" not in user_text
+        assert '{"verdict"' not in user_text
+
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "cold_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        model, tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        policy_seen: list[str] = []
+        runner = s2i.InterviewModelRunner(model, tok, expected_checkpoint_sha256=ckpt_sha)
+        orig_ctx = runner._policy_context
+
+        def _spy_ctx(pol: str, *, expected_checkpoint_sha256: str | None = None):
+            policy_seen.append(pol)
+            return orig_ctx(pol, expected_checkpoint_sha256=expected_checkpoint_sha256)
+
+        runner._policy_context = _spy_ctx  # type: ignore[method-assign]
+        t1 = (
+            "<think>missing TTL</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "TTL is 60 seconds", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        cohort = s2i.select_interview_cohort(
+            [{"item_id": "cold_item_1", "sample_index": 0, "verdict": "cannot_tell", "text": t1}],
+            [{"item_id": "cold_item_1", "sample_index": 0, "verdict": "cannot_tell", "text": t1}],
+        )
+        out_dir = tmp_path / "cold_both"
+        s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id={"cold_item_1": row},
+            runner=runner,
+            out_dir=out_dir,
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+            include_cold_control=True,
+        )
+        recs = s2.read_save_all(out_dir / "s2-interview-save-all.jsonl.gz")
+        cold_recs = [r for r in recs if r.get("cold_control") is True or str(r.get("policy", "")).startswith("cold_control")]
+        cold_policies = {r.get("policy") for r in cold_recs}
+        assert len(cold_recs) == 4
+        assert len(cold_policies) == 2
+
+    def test_item_16_part_match_f1_containment_fallback_and_unspecific_full_claim_copy(self):
+        import s2_interview as s2i
+
+        claim = (
+            "The authentication service rotates signing keys every twenty four hours "
+            "and stores backup keys in an offline hardware security module."
+        )
+        # Q1 has 4 tokens ("stores backup keys module"), JSON has 6 tokens ("stores backup keys in offline module")
+        # Intersection = 4 -> |Q1 ∩ JSON| / |Q1| = 4/4 = 1.0, while |Q1 ∩ JSON| / |JSON| = 4/6 = 0.666667
+        q1_short = "stores backup keys module"
+        json_part = ["stores backup keys in offline module"]
+        sc = s2i.score_part_match(q1_short, json_part, claim)
+        assert sc["containment"] == pytest.approx(1.0)
+        assert sc["token_f1"] == pytest.approx(0.8)
+        assert "unspecific_full_claim_copy" in sc
+        assert "f1_at_0_3" in sc and "f1_at_0_5" in sc and "f1_at_0_7" in sc
+        assert "containment_at_0_3" in sc and "containment_at_0_5" in sc and "containment_at_0_7" in sc
+
+        # Fallback flag when JSON has no cannot_tell entry in evidence_quotes
+        t1_no_ct_part = json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "unsure",
+                "evidence_quotes": [{"part": "rotates signing keys", "verdict": "supported", "quote": "rotates"}],
+            }
+        )
+        parts_res = s2i.extract_ct_parts_from_json(t1_no_ct_part)
+        sc_fb = s2i.score_part_match(q1_short, parts_res, claim)
+        assert sc_fb.get("ct_part_fallback") is True
+
+    @needs_torch
+    def test_item_17_counterfactual_runs_by_default_with_interviewed_policy_and_writes_summary(
+        self, tmp_path
+    ):
+        import s2_interview as s2i
+
+        model, tok = s2i.build_cpu_qwen3_stub()
+        runner = s2i.InterviewModelRunner(model, tok)
+        row = _row("cf_def_1", claim="The retry limit is 5.", text="Requests are retried.")
+        t1 = (
+            "<think>retry limit missing</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "retry limit is 5", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        cohort = s2i.select_interview_cohort(
+            [{"item_id": "cf_def_1", "sample_index": 0, "verdict": "cannot_tell", "text": t1}],
+            [],
+        )
+        out_dir = tmp_path / "cf_default"
+        receipt = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id={"cf_def_1": row},
+            runner=runner,
+            out_dir=out_dir,
+            base_seed=9,
+            thinking_cap=4,
+            answer_cap=4,
+            include_cold_control=False,
+        )
+        assert "counterfactual_summary" in receipt
+        recs = s2.read_save_all(out_dir / "s2-interview-save-all.jsonl.gz")
+        q2_rec = next(r for r in recs if r["question_id"] == "Q2")
+        assert "left_cannot_tell" in q2_rec["mechanical_score"]
+        assert "direction" in q2_rec["mechanical_score"]
+
+    @needs_torch
+    def test_item_18_majority_ct_uses_half_or_more_and_copies_to_turn_records(self, tmp_path):
+        import s2_interview as s2i
+
+        t1 = (
+            "<think>missing</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "x", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        t_sup = (
+            "<think>ok</think>"
+            + json.dumps(
+                {
+                    "verdict": "supported",
+                    "reason": "ok",
+                    "evidence_quotes": [{"part": "x", "verdict": "supported", "quote": "x"}],
+                }
+            )
+        )
+        # 4 of 8 = 0.5 -> majority_ct must be True under 2*k >= K
+        base_recs = [
+            {"item_id": "maj_1", "sample_index": i, "verdict": "cannot_tell" if i < 4 else "supported", "text": t1 if i < 4 else t_sup}
+            for i in range(8)
+        ]
+        cohort = s2i.select_interview_cohort(base_recs, [])
+        assert cohort[0]["baseline_majority_ct"] is True
+
+        model, tok = s2i.build_cpu_qwen3_stub()
+        runner = s2i.InterviewModelRunner(model, tok)
+        out_dir = tmp_path / "maj_out"
+        s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id={"maj_1": _row("maj_1", claim="x", text="x")},
+            runner=runner,
+            out_dir=out_dir,
+            base_seed=3,
+            thinking_cap=4,
+            answer_cap=4,
+            include_cold_control=False,
+        )
+        recs = s2.read_save_all(out_dir / "s2-interview-save-all.jsonl.gz")
+        for r in recs:
+            assert "ct_rate" in r
+            assert "majority_ct" in r
+            assert r["ct_rate"] == pytest.approx(0.5)
+            assert r["majority_ct"] is True
+
+    def test_item_19_q4_is_none_requires_exact_none_not_prefix(self):
+        import s2_interview as s2i
+
+        t1 = json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": "x", "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        sc = s2i.score_quote_validity_and_consistency(
+            "None of the passages state the exact latency.", ["Passage one."], t1
+        )
+        assert sc["is_none"] is False
+        assert sc["quote_valid"] is False
+
+        sc_exact = s2i.score_quote_validity_and_consistency("  NONE. ", ["Passage one."], t1)
+        assert sc_exact["is_none"] is True
+        assert sc_exact["quote_valid"] is True
+
+    def test_item_20_q3_unparsed_answers_count_as_wrong_in_recall_and_balanced_accuracy(self):
+        import s2_interview as s2i
+
+        r_sup_ok = s2i.score_q3_lean_item("LEAN: supported — yes", "supported", "id_1")
+        r_sup_unparsed = s2i.score_q3_lean_item("I refuse to guess.", "supported", "id_2")
+        r_unsup_ok = s2i.score_q3_lean_item("LEAN: unsupported — no", "unsupported", "id_3")
+
+        summary = s2i.summarize_q3_lean([r_sup_ok, r_sup_unparsed, r_unsup_ok])
+        assert summary["unparsed_count"] == 1
+        # supported recall is 1/2 = 0.5 (unparsed counts in denominator), unsupported recall is 1/1 = 1.0 -> bal_acc = 0.75
+        assert summary["decidable_supported_acc"] == pytest.approx(0.5)
+        assert summary["balanced_accuracy"] == pytest.approx(0.75)
+
+    @needs_torch
+    def test_item_21_tagger_tags_q2_requires_turn1_thinking_truly_empty_controls_and_hash_only_tags_jsonl(
+        self, tmp_path
+    ):
+        import s2_interview as s2i
+        import s2_interview_tag as s2t
+
+        # 1. All 15 empty_thinking controls must have truly empty thinking (thinking.strip() == "")
+        controls = s2t.build_judge_controls([])
+        assert len(controls["empty_thinking"]) == 15
+        assert all(c["thinking"].strip() == "" for c in controls["empty_thinking"])
+
+        # 2. InterviewModelRunner.ask_question stores turn1_thinking on non-cold records
+        model, tok = s2i.build_cpu_qwen3_stub()
+        runner = s2i.InterviewModelRunner(model, tok)
+        row = _row("tag_item_1", claim="The cache size is 16 MB.", text="A local cache is configured.")
+        t1 = (
+            "<think>Original Turn-1 secret thinking about 16 MB cache size.</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "size missing",
+                    "evidence_quotes": [{"part": "cache size is 16 MB", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        q2_turn = runner.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q2",
+            policy="baseline",
+            base_seed=5,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert q2_turn.get("turn1_thinking") == "Original Turn-1 secret thinking about 16 MB cache size."
+
+        # 3. build_tagging_prompt compares Turn 1 thinking against Turn 2 Q2 answer
+        prompt_str = s2t.build_tagging_prompt("turn 1 trace", "Q2 missing fact answer")
+        assert "Turn 1 <think>" in prompt_str
+        assert "Turn 2 Q2 answer" in prompt_str
+
+        def accurate_judge(thinking: str, q2_answer: str) -> dict[str, str]:
+            t_clean = thinking.strip()
+            if not t_clean:
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if (
+                t_clean in q2_answer
+                or (
+                    "release date" in t_clean
+                    and "release date" in q2_answer
+                    and t_clean.split()[-1].rstrip(".") in q2_answer
+                )
+            ):
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        # 4. Refuses when turn1_thinking is missing (never falls back to Turn 2's thinking)
+        with pytest.raises(SystemExit, match="missing_turn1_thinking"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=[
+                    {
+                        "item_id": "bad_1",
+                        "policy": "baseline",
+                        "question_id": "Q2",
+                        "thinking": "Turn 2 thinking only",
+                        "answer": "MISSING_FACT: x",
+                    }
+                ],
+                judge_a_name="llama-3.3-70b",
+                judge_b_name="mistral-large",
+                judge_a_fn=accurate_judge,
+                judge_b_fn=accurate_judge,
+                out_dir=tmp_path / "bad_no_t1",
+                controls=controls,
+            )
+
+        with pytest.raises(SystemExit, match="missing_turn1_thinking"):
+            s2t.export_blinded_human_audit(
+                [{"item_id": "bad_1", "policy": "baseline", "q2_answer": "x"}],
+                tmp_path / "bad_audit",
+            )
+
+        with pytest.raises(SystemExit, match="missing_q2_records"):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=[
+                    {
+                        "item_id": "only_q1",
+                        "policy": "baseline",
+                        "question_id": "Q1",
+                        "turn1_thinking": "trace",
+                        "answer": "part",
+                    }
+                ],
+                judge_a_name="llama-3.3-70b",
+                judge_b_name="mistral-large",
+                judge_a_fn=accurate_judge,
+                judge_b_fn=accurate_judge,
+                out_dir=tmp_path / "bad_no_q2",
+                controls=controls,
+            )
+
+        # 5. Tags Q2 records (filtering out Q1/cold records when passed a mixed save-all list)
+        # and writes ONLY ids, tags, token counts, and sha256 hashes (no raw text) to s2-interview-tags.jsonl
+        mixed_records = [
+            {
+                "item_id": "item_01",
+                "policy": "baseline",
+                "question_id": "Q1",
+                "turn1_thinking": "RAW_TURN1_THINKING_SECRET_TEXT",
+                "answer": "RAW_Q1_ANSWER_SHOULD_NOT_BE_TAGGED",
+                "original_turn1_thinking_tokens": 12,
+            },
+            {
+                "item_id": "item_01",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "turn1_thinking": "RAW_TURN1_THINKING_SECRET_TEXT",
+                "answer": "As noted in the reasoning, RAW_TURN1_THINKING_SECRET_TEXT\nMISSING_FACT: fact",
+                "original_turn1_thinking_tokens": 12,
+            },
+            {
+                "item_id": "item_01",
+                "policy": "cold_control:baseline",
+                "question_id": "Q2",
+                "cold_control": True,
+                "turn1_thinking": None,
+                "answer": "COLD_Q2_SHOULD_BE_SKIPPED",
+                "original_turn1_thinking_tokens": 0,
+            },
+        ]
+        out_ok = tmp_path / "tag_ok"
+        res = s2t.run_two_judge_tagging(
+            interview_q2_records=mixed_records,
+            judge_a_name="llama-3.3-70b",
+            judge_b_name="mistral-large",
+            judge_a_fn=accurate_judge,
+            judge_b_fn=accurate_judge,
+            out_dir=out_ok,
+            controls=controls,
+        )
+        assert res["tagged_question_id"] == "Q2"
+        assert res["agreement_missing_element_match"]["n"] == 1
+        tags_raw = (out_ok / "s2-interview-tags.jsonl").read_text(encoding="utf-8")
+        assert "RAW_TURN1_THINKING_SECRET_TEXT" not in tags_raw
+        assert "MISSING_FACT: fact" not in tags_raw
+        tag_row = json.loads(tags_raw.splitlines()[0])
+        assert tag_row["question_id"] == "Q2"
+        assert "turn1_thinking_sha256" in tag_row
+        assert "q2_answer_sha256" in tag_row
+        assert "turn1_thinking" not in tag_row
+        assert "q1_answer" not in tag_row
+        assert "q2_answer" not in tag_row
+
+
+class TestFix2Items:
+    @needs_torch
+    def test_fix2_item_01_checkpoint_policy_requires_loaded_adapter(self, tmp_path: Path) -> None:
+        import s2_interview as s2i
+
+        row = _row("ckpt_item_1", claim="The buffer is 64 bytes.", text="A local buffer is allocated.")
+        t1 = (
+            "<think>buffer size missing</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "buffer is 64 bytes", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        bare_model, tok = s2i.build_cpu_qwen3_stub()
+        bare_runner = s2i.InterviewModelRunner(bare_model, tok)
+
+        # Bare model succeeds for baseline and cold_control:baseline
+        res_base = bare_runner.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="baseline",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert res_base["policy"] == "baseline"
+        res_cold_base = bare_runner.ask_question(
+            row=row,
+            turn1_completion_text=None,
+            question_id="Q1",
+            policy="cold_control:baseline",
+            cold_control=True,
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert res_cold_base["cold_control"] is True
+
+        # Bare model (no PEFT adapter loaded) must refuse checkpoint and cold_control:checkpoint
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            bare_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            bare_runner.ask_question(
+                row=row,
+                turn1_completion_text=None,
+                question_id="Q1",
+                policy="cold_control:checkpoint",
+                cold_control=True,
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # Model with loaded PEFT adapter succeeds on baseline, checkpoint, and both cold controls
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "fix2_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        peft_model, peft_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        peft_runner = s2i.InterviewModelRunner(
+            peft_model, peft_tok, expected_checkpoint_sha256=ckpt_sha
+        )
+        for pol in ("baseline", "checkpoint", "cold_control:baseline", "cold_control:checkpoint"):
+            is_cold = pol.startswith("cold_control:")
+            out = peft_runner.ask_question(
+                row=row,
+                turn1_completion_text=None if is_cold else t1,
+                question_id="Q1",
+                policy=pol,
+                cold_control=is_cold,
+                base_seed=2,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+            assert out["policy"] == pol
+        with pytest.raises(SystemExit, match="checkpoint_adapter_not_loaded"):
+            peft_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint:missing_adapter",
+                base_seed=2,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+    @needs_torch
+    def test_fix2_item_02_counterfactual_works_end_to_end_with_turn1_budget(self, tmp_path: Path, monkeypatch) -> None:
+        import s2_interview as s2i
+
+        model, tok = s2i.build_cpu_qwen3_stub()
+        runner = s2i.InterviewModelRunner(model, tok)
+        row = _row("cf_e2e_1", claim="The retry limit is 5.", text="Requests are retried on failure.")
+
+        # 1. Direct run_verifier call must return generated text without KeyError: 'raw_text'
+        direct_reply = runner.run_verifier(row, seed=7, policy="baseline", thinking_cap=4, answer_cap=4)
+        assert isinstance(direct_reply, str) and len(direct_reply) > 0
+
+        # 2. End-to-end cohort run where Q2 emits MISSING_FACT: <sentence>
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "cf_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        peft_model, peft_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        peft_runner = s2i.InterviewModelRunner(
+            peft_model, peft_tok, expected_checkpoint_sha256=ckpt_sha
+        )
+        seen_verifier_calls: list[tuple[str, int, int]] = []
+        orig_gen = s2i.generate_two_stage_thinking
+
+        def scripted_gen(m, tk, prompt_ids, *, seed, thinking_cap=256, answer_cap=200, sampling=s2i.INTERVIEW_SAMPLING):
+            decoded_prompt = tk.decode(prompt_ids, skip_special_tokens=False)
+            if "MISSING_FACT:" in decoded_prompt and "Question:" not in decoded_prompt:
+                # Turn 2 Q2 interview prompt
+                txt = (
+                    "<think>need retry limit</think>"
+                    "The evidence does not state the retry count.\n"
+                    "MISSING_FACT: The retry limit is 5."
+                )
+                return {
+                    "seed": int(seed),
+                    "text": txt,
+                    "thinking": "need retry limit",
+                    "answer": "The evidence does not state the retry count.\nMISSING_FACT: The retry limit is 5.",
+                    "thinking_tokens": 3,
+                    "answer_tokens": 12,
+                    "think_truncated": False,
+                    "ngram_4_rep_rate": 0.0,
+                }
+            if "The retry limit is 5." in decoded_prompt and "Which part of the claim" not in decoded_prompt and "Copy exactly one line" not in decoded_prompt and "If you had to choose" not in decoded_prompt:
+                # Counterfactual Turn-1 verification task rerun
+                is_disabled = any(getattr(sub, "disable_adapters", None) is True for sub in m.modules())
+                pol_used = "baseline" if is_disabled else "checkpoint"
+                seen_verifier_calls.append((pol_used, int(thinking_cap), int(answer_cap)))
+                ver_json = json.dumps(
+                    {
+                        "verdict": "supported",
+                        "reason": "retry limit is 5",
+                        "evidence_quotes": [
+                            {"part": "retry limit is 5", "verdict": "supported", "quote": "The retry limit is 5."}
+                        ],
+                    }
+                )
+                txt = f"<think>now supported</think>{ver_json}"
+                return {
+                    "seed": int(seed),
+                    "text": txt,
+                    "thinking": "now supported",
+                    "answer": ver_json,
+                    "thinking_tokens": 2,
+                    "answer_tokens": 15,
+                    "think_truncated": False,
+                    "ngram_4_rep_rate": 0.0,
+                }
+            return orig_gen(
+                m,
+                tk,
+                prompt_ids,
+                seed=seed,
+                thinking_cap=thinking_cap,
+                answer_cap=answer_cap,
+                sampling=sampling,
+            )
+
+        monkeypatch.setattr(s2i, "generate_two_stage_thinking", scripted_gen)
+        t1 = (
+            "<think>missing retry limit</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "retry limit is 5", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+        cohort = s2i.select_interview_cohort(
+            [{"item_id": "cf_e2e_1", "sample_index": 0, "verdict": "cannot_tell", "text": t1}],
+            [{"item_id": "cf_e2e_1", "sample_index": 0, "verdict": "cannot_tell", "text": t1}],
+        )
+        out_dir = tmp_path / "cf_e2e_out"
+        receipt = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id={"cf_e2e_1": row},
+            runner=peft_runner,
+            out_dir=out_dir,
+            base_seed=5,
+            thinking_cap=4,
+            answer_cap=4,
+            include_cold_control=False,
+        )
+        assert seen_verifier_calls == [
+            ("baseline", s2.MAX_NEW_TOKENS, s2.MAX_NEW_TOKENS),
+            ("checkpoint", s2.MAX_NEW_TOKENS, s2.MAX_NEW_TOKENS),
+        ]
+        for pol in ("baseline", "checkpoint"):
+            cf_sum = receipt["counterfactual_summary"][pol]
+            assert cf_sum["n"] == 1
+            assert cf_sum["format_ok_count"] == 1
+            assert cf_sum["left_cannot_tell_count"] == 1
+            assert cf_sum["direction_counts"] == {"supported": 1}
+
+    def test_fix2_item_03_question_text_matches_design_v2_exact_strings(self) -> None:
+        import s2_interview as s2i
+
+        assert (
+            s2i.INTERVIEW_QUESTIONS["Q1"]
+            == "Which part of the claim could you not decide from the evidence? Copy the exact words of that part from the claim."
+        )
+        assert (
+            s2i.INTERVIEW_QUESTIONS["Q4"]
+            == "Copy exactly one line from the evidence that is closest to deciding that part, or write NONE."
+        )
+        assert (
+            s2i.INTERVIEW_QUESTIONS["Q2"]
+            == "What would the evidence need to say for you to decide it? End with one line: MISSING_FACT: <one sentence>."
+        )
+        assert (
+            s2i.INTERVIEW_QUESTIONS["Q3"]
+            == "If you had to choose between {A} and {B}, which would you choose, and why?"
+        )
+        assert s2i.COLD_CONTROL_QUESTIONS == {
+            "Q1": s2i.INTERVIEW_QUESTIONS["Q1"],
+            "Q2": s2i.INTERVIEW_QUESTIONS["Q2"],
+        }
+
+    def test_fix2_item_04_part_match_summaries_use_gated_values_and_keep_raw_fields(self, tmp_path: Path) -> None:
+        import s2_interview as s2i
+
+        claim = (
+            "The authentication service rotates signing keys every twenty four hours "
+            "and stores backup keys in an offline hardware security module."
+        )
+        json_ct_parts = ["stores backup keys in an offline hardware security module"]
+        sc_copy = s2i.score_part_match(claim, json_ct_parts, claim)
+        assert sc_copy["unspecific_full_claim_copy"] is True
+        assert sc_copy["token_f1"] == 0.0
+        assert sc_copy["containment"] == 0.0
+        assert sc_copy["max_overlap"] == 0.0
+        assert sc_copy["raw_token_f1"] == pytest.approx(4.0 / 7.0, abs=1e-5)
+        assert sc_copy["raw_containment"] == pytest.approx(8.0 / 19.0, abs=1e-5)
+        assert sc_copy["raw_max_overlap"] == pytest.approx(4.0 / 7.0, abs=1e-5)
+
+        sc_good = s2i.score_part_match(json_ct_parts[0], json_ct_parts, claim)
+        assert sc_good["unspecific_full_claim_copy"] is False
+        assert sc_good["token_f1"] == pytest.approx(1.0)
+        assert sc_good["containment"] == pytest.approx(1.0)
+        assert sc_good["raw_token_f1"] == pytest.approx(1.0)
+        assert sc_good["raw_containment"] == pytest.approx(1.0)
+
+        class _StubRunner:
+            def __init__(self, q1_by_item: dict[str, str]) -> None:
+                self.q1_by_item = q1_by_item
+
+            def ask_question(self, *, row, turn1_completion_text, question_id, policy="baseline", cold_control=False, **kw):
+                cid = str(row["id"])
+                ans = self.q1_by_item[cid] if question_id == "Q1" else "NONE"
+                return {
+                    "item_id": cid,
+                    "policy": policy,
+                    "question_id": question_id,
+                    "cold_control": cold_control,
+                    "prompt_text": "",
+                    "prompt_tokens": 4,
+                    "turn1_thinking": "think",
+                    "original_turn1_thinking_tokens": 1,
+                    "seed": 1,
+                    "text": ans,
+                    "thinking": "",
+                    "answer": ans,
+                    "thinking_tokens": 0,
+                    "answer_tokens": 2,
+                    "think_truncated": False,
+                    "ngram_4_rep_rate": 0.0,
+                }
+
+            def run_verifier(self, row, seed, **kw) -> str:
+                return '{"verdict":"cannot_tell","reason":"r","evidence_quotes":[]}'
+
+        t1 = json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": json_ct_parts[0], "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        cohort = s2i.select_interview_cohort(
+            [
+                {"item_id": "i_good", "sample_index": 0, "verdict": "cannot_tell", "text": t1},
+                {"item_id": "i_copy", "sample_index": 0, "verdict": "cannot_tell", "text": t1},
+            ],
+            [],
+        )
+        rows_by_id = {
+            "i_good": _row("i_good", claim=claim, text="x"),
+            "i_copy": _row("i_copy", claim=claim, text="x"),
+        }
+        receipt = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubRunner({"i_good": json_ct_parts[0], "i_copy": claim}),  # type: ignore[arg-type]
+            out_dir=tmp_path / "pm_sum",
+            include_cold_control=False,
+        )
+        pm_base = receipt["part_match_summary"]["baseline"]
+        assert pm_base["mean_token_f1"] == pytest.approx(0.5)
+        assert pm_base["median_token_f1"] == pytest.approx(0.5)
+        assert pm_base["mean_containment"] == pytest.approx(0.5)
+        assert pm_base["median_containment"] == pytest.approx(0.5)
+        assert pm_base["mean_overlap"] == pytest.approx(0.5)
+        assert pm_base["median_overlap"] == pytest.approx(0.5)
+        assert pm_base["raw_mean_containment"] == pytest.approx(27.0 / 38.0, abs=1e-5)
+        assert pm_base["raw_median_containment"] == pytest.approx(27.0 / 38.0, abs=1e-5)
+        assert pm_base["raw_mean_token_f1"] > 0.5
+
+    def test_fix2_item_05_q3_parsing_refuses_both_labels_and_negations(self) -> None:
+        import s2_interview as s2i
+
+        refusal_both = s2i.parse_q3_lean("I cannot choose between supported and unsupported without more evidence.")
+        assert refusal_both["format_ok"] is False
+        assert refusal_both["lean"] is None
+
+        neither_both = s2i.parse_q3_lean("Neither unsupported nor supported is justified by the text.")
+        assert neither_both["format_ok"] is False
+        assert neither_both["lean"] is None
+
+        mixed_both = s2i.parse_q3_lean("I would lean toward supported rather than unsupported.")
+        assert mixed_both["format_ok"] is False
+        assert mixed_both["lean"] is None
+
+        negated_single = s2i.parse_q3_lean("I cannot choose supported without seeing the logs.")
+        assert negated_single["format_ok"] is False
+        assert negated_single["lean"] is None
+
+        not_label = s2i.parse_q3_lean("The claim is not supported by the passage.")
+        assert not_label["format_ok"] is False
+        assert not_label["lean"] is None
+
+        scored = [
+            s2i.score_q3_lean_item("I cannot choose between supported and unsupported.", "supported", "id_1"),
+            s2i.score_q3_lean_item("Neither unsupported nor supported applies.", "unsupported", "id_2"),
+            s2i.score_q3_lean_item("I would choose supported because the numbers match.", "supported", "id_3"),
+            s2i.score_q3_lean_item("LEAN: unsupported — contradicts the passage.", "unsupported", "id_4"),
+        ]
+        summary = s2i.summarize_q3_lean(scored)
+        assert summary["unparsed_count"] == 2
+        assert summary["decidable_supported_acc"] == pytest.approx(0.5)
+        assert summary["decidable_unsupported_acc"] == pytest.approx(0.5)
+        assert summary["balanced_accuracy"] == pytest.approx(0.5)
+
+    @needs_torch
+    def test_fix2_item_06_freeze_file_required_and_probe_records_stack_versions_and_sha(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        # 1. When require_exact_versions=True and no freeze file is given or at sys.prefix, refuse with frozen_env_missing_file
+        monkeypatch.setattr(s2.sys, "prefix", str(tmp_path / "empty_prefix"))
+        with pytest.raises(SystemExit, match="frozen_env_missing_file"):
+            s2.check_frozen_env(
+                None,
+                installed_versions=s2.FROZEN_STACK_VERSIONS,
+                require_exact_versions=True,
+            )
+
+        # 2. run_probe_memory writes stack_versions and pip_freeze_sha256 into s2-<path>-probe.json
+        freeze_lines = [f"{pkg}=={ver}\n" for pkg, ver in sorted(s2.FROZEN_STACK_VERSIONS.items())]
+        pf_path = tmp_path / "FROZEN-pip-freeze-2026-11-05.txt"
+        pf_bytes = "".join(freeze_lines).encode("utf-8")
+        pf_path.write_bytes(pf_bytes)
+        pf_sha = s2.hashlib.sha256(pf_bytes).hexdigest()
+        monkeypatch.setattr(s2, "FROZEN_PIP_FREEZE_SHA256", pf_sha)
+        monkeypatch.setattr(s2, "package_version", lambda k: s2.FROZEN_STACK_VERSIONS.get(k))
+
+        gold_dir = _gold(tmp_path / "gold")
+        out_probe = tmp_path / "probe_out"
+        a_probe = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "deadbee",
+                "--out",
+                str(out_probe),
+                "--dry",
+                "--probe-memory",
+                "--probe-lengths",
+                "4,8",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--frozen-pip-freeze",
+                str(pf_path),
+            ]
+        )
+        assert s2.execute(a_probe, build=s2.dry_bundle) == 0
+        probe_doc = json.loads((out_probe / "s2-hf-probe.json").read_text(encoding="utf-8"))
+        assert probe_doc["stack_versions"] == s2.FROZEN_STACK_VERSIONS
+        assert probe_doc["pip_freeze_sha256"] == pf_sha
+
+    def test_fix2_item_07_seed_and_descriptive_provenance_required_everywhere(self, tmp_path: Path) -> None:
+        from s2_draw import _load_and_verify_prepass
+
+        # 1. prepass_item_record always writes pass_seed and descriptive, including for Pass A (seed 0, descriptive=False)
+        tok = s2.DryTokenizer()
+        row = {
+            "id": "t00",
+            "gold_file": "grounded.jsonl",
+            "label": "supported",
+            "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+        }
+        c_ok = tok.encode(_reply("supported", "alpha beta gamma"))
+        rec_a, _ = s2.prepass_item_record(
+            row=row,
+            prompt_ids=[1, 2],
+            comps=[c_ok],
+            truncs=[False],
+            tok=tok,
+            reward_fn=lambda text, r, tt, truncated=False: s2.reward(
+                text, r["label"], s2.passages_of(r), tt, truncated=truncated
+            ),
+            pass_seed=0,
+            descriptive=False,
+        )
+        assert rec_a["pass_seed"] == 0
+        assert rec_a["descriptive"] is False
+
+        # 2. compute_paired_arm_estimators defaults to require_seeds=True and refuses missing seed metadata
+        bare_item = {
+            "id": "t00",
+            "gold_verdict": "supported",
+            "g": 8,
+            "k_correct": 4,
+            "supported": 4,
+            "unsupported": 2,
+            "cannot_tell": 2,
+            "malformed": 0,
+            "truncations": 0,
+            "reward_mean": 0.2,
+        }
+        with pytest.raises(SystemExit, match="paired_estimator_wrong_seed"):
+            s2.compute_paired_arm_estimators(
+                [bare_item],
+                [{**bare_item, "pass_seed": 1}],
+                [([{**bare_item, "pass_seed": 2}], [{**bare_item, "pass_seed": 3}])],
+            )
+
+        # 3. _load_and_verify_prepass and load_prepass_baseline refuse when neither record nor header has seed/descriptive
+        no_prov_jsonl = tmp_path / "no_prov.jsonl"
+        no_prov_bytes = (json.dumps({"id": "t00", "g": 8, "k_correct": 4}) + "\n").encode("utf-8")
+        no_prov_jsonl.write_bytes(no_prov_bytes)
+        no_prov_sha = s2.hashlib.sha256(no_prov_bytes).hexdigest()
+
+        with pytest.raises(SystemExit, match="prepass_missing_seed"):
+            _load_and_verify_prepass((no_prov_jsonl, no_prov_sha), {"t00"})
+        with pytest.raises(SystemExit, match="prepass_baseline_missing_seed"):
+            s2.load_prepass_baseline(no_prov_jsonl, no_prov_sha, ["t00"], g=8)
+
+        no_desc_jsonl = tmp_path / "no_desc.jsonl"
+        no_desc_bytes = (json.dumps({"id": "t00", "g": 8, "k_correct": 4, "pass_seed": 0}) + "\n").encode("utf-8")
+        no_desc_jsonl.write_bytes(no_desc_bytes)
+        no_desc_sha = s2.hashlib.sha256(no_desc_bytes).hexdigest()
+
+        with pytest.raises(SystemExit, match="prepass_missing_descriptive"):
+            _load_and_verify_prepass((no_desc_jsonl, no_desc_sha), {"t00"})
+        with pytest.raises(SystemExit, match="prepass_baseline_missing_descriptive"):
+            s2.load_prepass_baseline(no_desc_jsonl, no_desc_sha, ["t00"], g=8)
+
+    @needs_torch
+    def test_fix2_item_08_class_stratified_requires_holdout_and_draw_prompts_filters_holdout_everywhere(
+        self, tmp_path: Path
+    ) -> None:
+        from s2_draw import draw_prompts, split_stratified_holdout
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "pass_a.jsonl"
+        prepass_sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda i: i % 9, g=8)
+
+        # 1. --draw class_stratified without prepass / holdout split is refused
+        with pytest.raises(SystemExit, match="prepass_missing"):
+            draw_prompts(rows, 10, mode="class_stratified", seed=42, holdout_seed="pr79-holdout-v1")
+
+        a_cs_no_prepass = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "deadbee",
+                "--out",
+                str(tmp_path / "cs_no_pre"),
+                "--dry",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+            ]
+        )
+        with pytest.raises(SystemExit, match="prepass_missing"):
+            s2.execute(a_cs_no_prepass, build=s2.dry_bundle)
+
+        # 2. draw_prompts filters holdout_ids out of first, uniform, kband, and class_stratified when a split is active
+        _, _, hold_meta = split_stratified_holdout(
+            rows,
+            (prepass_path, prepass_sha),
+            holdout_fraction=0.20,
+            holdout_seed="pr79-holdout-v1",
+        )
+        hold_set = set(hold_meta["holdout_ids"])
+        assert len(hold_set) == 8
+
+        p_first, _ = draw_prompts(rows, 32, mode="first", holdout_ids=hold_set)
+        assert {r["id"] for r in p_first}.isdisjoint(hold_set)
+
+        p_uni, _ = draw_prompts(rows, 32, mode="uniform", seed=42, holdout_ids=hold_set)
+        assert {r["id"] for r in p_uni}.isdisjoint(hold_set)
+
+        p_kb, _ = draw_prompts(
+            rows,
+            10,
+            mode="kband",
+            seed=42,
+            prepass=(prepass_path, prepass_sha),
+            k_min=0,
+            k_max=8,
+            holdout_ids=hold_set,
+        )
+        assert {r["id"] for r in p_kb}.isdisjoint(hold_set)
+
+        # End-to-end execute with --holdout and --draw uniform filters holdout items before run_steps
+        out_uni_hold = tmp_path / "uni_hold"
+        a_uni_hold = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "deadbee",
+                "--out",
+                str(out_uni_hold),
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "32",
+                "--g",
+                "2",
+                "--draw",
+                "uniform",
+                "--draw-seed",
+                "42",
+                "--holdout",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--pass-a-jsonl",
+                str(prepass_path),
+                "--pass-a-sha256",
+                prepass_sha,
+            ]
+        )
+        assert s2.execute(a_uni_hold, build=s2.dry_bundle) == 0
+        rec_uni = json.loads((out_uni_hold / "s2-hf.json").read_text(encoding="utf-8"))
+        assert set(rec_uni["prompt_ids"]).isdisjoint(hold_set)
+
+
+class TestFix3Items:
+    @needs_torch
+    def test_fix3_item_01_checkpoint_policy_proves_named_checkpoint_and_nonzero_lora_b(
+        self, tmp_path: Path
+    ) -> None:
+        import s2_interview as s2i
+        import torch
+
+        row = _row("f3_1", claim="Buffer size is 64 bytes.", text="The local buffer is initialised.")
+        t1 = (
+            "<think>missing size</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+
+        # 1. Fresh get_peft_model (checkpoint_path=None) has no _loaded_checkpoint_sha256 and all-zero lora_B.
+        # It must fail both checks: first missing/mismatched checkpoint sha, and even if sha is forged, all-zero lora_B.
+        fresh_model, fresh_tok = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        assert getattr(fresh_model, "_loaded_checkpoint_sha256", None) is None
+        fresh_runner_no_exp = s2i.InterviewModelRunner(fresh_model, fresh_tok)
+        with pytest.raises(SystemExit, match="checkpoint_sha_missing"):
+            fresh_runner_no_exp.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+        fresh_runner = s2i.InterviewModelRunner(
+            fresh_model, fresh_tok, expected_checkpoint_sha256="deadbeef" * 8
+        )
+        with pytest.raises(SystemExit, match="checkpoint_sha_missing"):
+            fresh_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # Even if a zero-lora_B adapter is saved to disk and loaded via attach_or_load_adapter (so sha matches),
+        # _policy_context must refuse because every lora_B weight of the active adapter is 0.
+        zero_ckpt_dir = tmp_path / "zero_ckpt"
+        fresh_model.save_pretrained(str(zero_ckpt_dir))
+        zero_ckpt_sha = s2.checkpoint_sha256(zero_ckpt_dir)
+        zero_loaded_model, zero_loaded_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=zero_ckpt_dir)
+        assert getattr(zero_loaded_model, "_loaded_checkpoint_sha256", None) == zero_ckpt_sha
+        zero_runner = s2i.InterviewModelRunner(
+            zero_loaded_model, zero_loaded_tok, expected_checkpoint_sha256=zero_ckpt_sha
+        )
+        with pytest.raises(SystemExit, match="checkpoint_lora_b_all_zero"):
+            zero_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # 2. A trained checkpoint (non-zero lora_B) loaded via attach_or_load_adapter records _loaded_checkpoint_sha256,
+        # refuses on sha mismatch, and succeeds when expected_checkpoint_sha256 matches.
+        with torch.no_grad():
+            for name, param in fresh_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        trained_ckpt_dir = tmp_path / "trained_ckpt"
+        fresh_model.save_pretrained(str(trained_ckpt_dir))
+        trained_sha = s2.checkpoint_sha256(trained_ckpt_dir)
+
+        loaded_model, loaded_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=trained_ckpt_dir)
+        assert getattr(loaded_model, "_loaded_checkpoint_sha256", None) == trained_sha
+
+        wrong_sha_runner = s2i.InterviewModelRunner(
+            loaded_model, loaded_tok, expected_checkpoint_sha256="00" * 32
+        )
+        with pytest.raises(SystemExit, match="checkpoint_sha_mismatch"):
+            wrong_sha_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        ok_runner = s2i.InterviewModelRunner(
+            loaded_model, loaded_tok, expected_checkpoint_sha256=trained_sha
+        )
+        ans = ok_runner.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="checkpoint",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert ans["policy"] == "checkpoint"
+
+    def test_fix3_item_02_legacy_and_nondescriptive_pass_headers_accepted_consistently(
+        self, tmp_path: Path
+    ) -> None:
+        import hashlib
+
+        from s2_draw import _extract_k_by_id, _load_and_verify_prepass
+
+        # 1. Verify legacy Pass A and Pass B2 header shapes (no 'descriptive' field)
+        pa_hdr = {
+            "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
+            "script_sha256": "be8c800987ac982a9732158d1e48aa2a0e19ab96a8dd24b26085d3c674f5c63a",
+            "gold_files_sha256": {},
+            "g": 8,
+            "max_new": 2048,
+            "quote_reward": "v2",
+            "seed": 0,
+            "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+        }
+        b2_hdr = {
+            "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
+            "script_sha256": "4577ddba30c9b18661f12d4b0f35742dd02d73aa26243cd4f99754d2b453ab19",
+            "gold_files_sha256": {},
+            "g": 8,
+            "max_new": 2048,
+            "quote_reward": "v2",
+            "seed": 1,
+            "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            "reproducible": True,
+        }
+        assert "descriptive" not in pa_hdr
+        assert "descriptive" not in b2_hdr
+
+        # Legacy records also lack 'pass_seed' and 'descriptive'
+        legacy_line = (
+            json.dumps(
+                {
+                    "id": "fe_0",
+                    "gold_file": "fever_500.jsonl",
+                    "gold_verdict": "cannot_tell",
+                    "g": 8,
+                    "k_correct": 4,
+                    "supported": 4,
+                    "unsupported": 0,
+                    "cannot_tell": 4,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "quote_pass": 0,
+                    "reward_mean": 0.25,
+                    "reward_std": 0.65,
+                    "zero_variance": False,
+                    "prompt_tokens": 227,
+                    "completion_tokens_mean": 300.5,
+                }
+            )
+            + "\n"
+        ).encode("utf-8")
+        legacy_sha = hashlib.sha256(legacy_line).hexdigest()
+
+        pa_dir = tmp_path / "legacy_pa"
+        pa_dir.mkdir()
+        (pa_dir / "s2-hf-prepass-header.json").write_text(json.dumps(pa_hdr), encoding="utf-8")
+        pa_jsonl = pa_dir / "s2-hf-prepass.jsonl"
+        pa_jsonl.write_bytes(legacy_line)
+
+        assert s2._check_header_not_descriptive(pa_jsonl, expected_seeds=(0,)) == (True, True)
+        k_pa, _ = s2.load_prepass_baseline(pa_jsonl, legacy_sha, ["fe_0"], g=8, expected_seeds=(0,))
+        assert k_pa == {"fe_0": 4}
+
+        b2_dir = tmp_path / "legacy_b2"
+        b2_dir.mkdir()
+        (b2_dir / "s2-hf-prepass-header.json").write_text(json.dumps(b2_hdr), encoding="utf-8")
+        b2_jsonl = b2_dir / "s2-hf-prepass.jsonl"
+        b2_jsonl.write_bytes(legacy_line)
+
+        assert s2._check_header_not_descriptive(b2_jsonl, expected_seeds=(1,)) == (True, True)
+        k_b2, _ = s2.load_prepass_baseline(b2_jsonl, legacy_sha, ["fe_0"], g=8, expected_seeds=(1,))
+        assert k_b2 == {"fe_0": 4}
+
+        # 2. Non-bool 'descriptive' in header or record is refused everywhere
+        for bad_desc in ("false", "true", 0, 1, None, ["no"]):
+            bad_hdr_dir = tmp_path / f"bad_hdr_{type(bad_desc).__name__}_{bad_desc}"
+            bad_hdr_dir.mkdir(exist_ok=True)
+            (bad_hdr_dir / "s2-hf-prepass-header.json").write_text(
+                json.dumps({**pa_hdr, "descriptive": bad_desc}), encoding="utf-8"
+            )
+            bad_hdr_jsonl = bad_hdr_dir / "s2-hf-prepass.jsonl"
+            bad_hdr_jsonl.write_bytes(legacy_line)
+            with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+                s2._check_header_not_descriptive(bad_hdr_jsonl, expected_seeds=(0,))
+            with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+                s2.load_prepass_baseline(bad_hdr_jsonl, legacy_sha, ["fe_0"], g=8)
+            with pytest.raises(SystemExit, match="prepass_descriptive"):
+                _load_and_verify_prepass((bad_hdr_jsonl, legacy_sha), {"fe_0"})
+
+            bad_rec_dir = tmp_path / f"bad_rec_{type(bad_desc).__name__}_{bad_desc}"
+            bad_rec_dir.mkdir(exist_ok=True)
+            bad_rec_bytes = (
+                json.dumps({"id": "fe_0", "g": 8, "k_correct": 4, "pass_seed": 0, "descriptive": bad_desc})
+                + "\n"
+            ).encode("utf-8")
+            bad_rec_jsonl = bad_rec_dir / "s2-hf-prepass.jsonl"
+            bad_rec_jsonl.write_bytes(bad_rec_bytes)
+            bad_rec_sha = hashlib.sha256(bad_rec_bytes).hexdigest()
+            with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+                s2.load_prepass_baseline(bad_rec_jsonl, bad_rec_sha, ["fe_0"], g=8)
+            with pytest.raises(SystemExit, match="prepass_descriptive"):
+                _load_and_verify_prepass((bad_rec_jsonl, bad_rec_sha), {"fe_0"})
+            with pytest.raises(SystemExit, match="prepass_descriptive"):
+                _extract_k_by_id(
+                    {"fe_0": {"k_correct": 4, "pass_seed": 0, "descriptive": bad_desc}},
+                    {"fe_0"},
+                )
+            with pytest.raises(SystemExit, match="paired_estimator_descriptive"):
+                s2._verify_pass_provenance(
+                    [{"id": "fe_0", "k_correct": 4, "pass_seed": 0, "descriptive": bad_desc}],
+                    role="Pass A",
+                )
+
+        # 3. Newly written non-descriptive pass headers explicitly include "descriptive": False
+        new_hdr = s2.build_prepass_header(
+            prompt_ids=["fe_0"],
+            gold_hashes={"fever_500.jsonl": "aa" * 32},
+            g=8,
+            max_new=2048,
+            quote_reward="v2",
+            seed=2,
+            model_revision=s2.STUDENT_FULL_REVISION,
+            descriptive=False,
+        )
+        assert "descriptive" in new_hdr and new_hdr["descriptive"] is False
+
+    def test_fix3_item_03_logging_pass_requires_and_records_b2_replay_settings(
+        self, tmp_path: Path
+    ) -> None:
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+
+        # 1. Verify --logging-pass refuses when B2 replay settings are missing or altered
+        a_default_missing_b2 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_missing_b2"),
+                "--logging-pass",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_b2_settings_mismatch"):
+            s2.validate_pass_mode_args(a_default_missing_b2)
+
+        expected_b2 = {
+            "path": "hf",
+            "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            "bf16_restore": True,
+            "logprob_microbatch": 2,
+            "attention_mask": True,
+            "alloc_conf": "expandable",
+            "empty_cache_phases": True,
+            "quote_reward": "v2",
+            "g": 8,
+            "max_new": 2048,
+        }
+        assert s2.B2_REPLAY_SETTINGS == expected_b2
+
+        base_cli = [
+            "--gold",
+            str(gold_dir),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "out"),
+            "--logging-pass",
+            "--path",
+            "hf",
+            "--revision",
+            "b968826d9c46dd6066d109eabc6255188de91218",
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--quote-reward",
+            "v2",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+            "--replay-check-off-reason",
+            "unit test",
+        ]
+        a_ok = ap.parse_args(base_cli)
+        assert s2.validate_pass_mode_args(a_ok)[:3] == (True, True, 1)
+
+        # Verify each B2 replay setting is enforced and refused when missing or altered
+        for key, bad_val in (
+            ("path", "llamacpp"),
+            ("revision", "b968826d"),
+            ("bf16_restore", False),
+            ("logprob_microbatch", 1),
+            ("logprob_microbatch", None),
+            ("attention_mask", False),
+            ("alloc_conf", None),
+            ("empty_cache_phases", False),
+            ("quote_reward", "v1"),
+            ("g", 4),
+            ("max_new", 1024),
+        ):
+            a_bad = ap.parse_args(base_cli)
+            setattr(a_bad, key, bad_val)
+            with pytest.raises(SystemExit, match=f"logging_pass_b2_settings_mismatch.*{key}"):
+                s2.validate_pass_mode_args(a_bad)
+
+        hdr = s2.build_prepass_header(
+            prompt_ids=["t_a"],
+            gold_hashes={"grounded.jsonl": "11" * 32},
+            g=8,
+            max_new=2048,
+            quote_reward="v2",
+            seed=1,
+            model_revision=s2.STUDENT_FULL_REVISION,
+            descriptive=True,
+        )
+        assert hdr["descriptive"] is True
+        assert hdr["b2_replay_settings"] == expected_b2
+
+    @needs_torch
+    def test_fix3_item_04_logging_pass_replay_check_and_mismatch_halt(
+        self, tmp_path: Path
+    ) -> None:
+        import hashlib
+        from contextlib import nullcontext
+
+        import torch
+
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        tune_ids = ["t_a", "t_b", "t_d", "t_k", "t_m", "t_z"]
+
+        b2_cli_flags = [
+            "--logging-pass",
+            "--path",
+            "hf",
+            "--revision",
+            "b968826d9c46dd6066d109eabc6255188de91218",
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--quote-reward",
+            "v2",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+        ]
+
+        # 1. --logging-pass without --replay-check and without --replay-check-off-reason is refused
+        a_no_rc = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "no_rc"),
+                *b2_cli_flags,
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_requires_replay_check"):
+            s2.validate_pass_mode_args(a_no_rc)
+
+        # Empty/whitespace --replay-check-off-reason is also refused
+        a_empty_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "empty_reason"),
+                *b2_cli_flags,
+                "--replay-check-off-reason",
+                "   ",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_requires_replay_check"):
+            s2.validate_pass_mode_args(a_empty_reason)
+
+        # Write a B2 JSONL where every item has k_correct=8 except t_d which has k_correct=7
+        b2_jsonl = tmp_path / "b2_baseline.jsonl"
+        b2_rows = [
+            {"id": cid, "g": 8, "k_correct": 7 if cid == "t_d" else 8, "pass_seed": 1, "descriptive": False}
+            for cid in tune_ids
+        ]
+        b2_jsonl.write_text(
+            "".join(json.dumps(r) + "\n" for r in b2_rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        b2_sha = hashlib.sha256(b2_jsonl.read_bytes()).hexdigest()
+
+        seen_prompts: list[str] = []
+
+        def make_bundle(_args_ns):
+            fake_cuda = _FakeCuda()
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                seen_prompts.append(prompt_text)
+                p_ids = tok.encode(prompt_text)
+                # Make t_b (the 2nd item, index 1) return only 5 correct completions instead of 8!
+                n_wrong = 3 if "Claim tb" in prompt_text else 0
+                comps = []
+                truncs = []
+                for idx in range(g_cnt):
+                    if idx < n_wrong:
+                        comps.append(
+                            tok.encode(_reply("unsupported", "alpha beta gamma", think="wrong"))
+                            + [tok.eos_token_id]
+                        )
+                    else:
+                        comps.append(
+                            tok.encode(_reply("supported", "alpha beta gamma", think="ok"))
+                            + [tok.eos_token_id]
+                        )
+                    truncs.append(False)
+                return p_ids, comps, truncs
+
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 100,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+                "adapter_loaded": False,
+            }
+
+        # 2. Run --logging-pass with --replay-check: t_a (index 0) matches (k=8),
+        # t_b (index 1) mismatches (k_correct=5 vs b2_k_correct=8) -> halts immediately with LOGGING_PASS_REPLAY_MISMATCH
+        mismatch_dir = tmp_path / "logging_mismatch"
+        a_mismatch = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(mismatch_dir),
+                *b2_cli_flags,
+                "--replay-check",
+                str(b2_jsonl),
+                "--replay-check-sha256",
+                b2_sha,
+            ]
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            s2.execute(a_mismatch, build=make_bundle, rig=_FakeRig(a_mismatch))
+        err_msg = str(exc_info.value)
+        assert "LOGGING_PASS_REPLAY_MISMATCH" in err_msg
+        assert "t_b" in err_msg
+        assert "k_correct=3" in err_msg
+        assert "b2_k_correct=8" in err_msg
+
+        # Only t_a and t_b were evaluated; subsequent items (t_d, t_k, t_m, t_z) were not run
+        assert len(seen_prompts) == 2
+        partial_jsonl = mismatch_dir / "s2-hf-prepass.jsonl"
+        assert partial_jsonl.is_file()
+        partial_recs = [
+            json.loads(line) for line in partial_jsonl.read_text(encoding="utf-8").splitlines() if line.strip()
+        ]
+        assert [r["id"] for r in partial_recs] == ["t_a", "t_b"]
+
+        partial_sa = s2.read_save_all(mismatch_dir / "s2-hf-save-all.jsonl.gz")
+        assert len(partial_sa) == 2 * 8
+
+        partial_summary = json.loads(
+            (mismatch_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8")
+        )
+        assert partial_summary["item_count"] == 2
+        assert partial_summary["stopped"]["reason"] == "LOGGING_PASS_REPLAY_MISMATCH"
+        assert partial_summary["stopped"]["item_id"] == "t_b"
+        assert partial_summary["stopped"]["k_correct"] == 3
+        assert partial_summary["stopped"]["b2_k_correct"] == 8
+
+        partial_receipt = json.loads((mismatch_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert partial_receipt["stopped"]["reason"] == "LOGGING_PASS_REPLAY_MISMATCH"
+        assert partial_receipt["run"]["replay_check_sha256"] == b2_sha
+        hdr_mismatch = json.loads(
+            (mismatch_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8")
+        )
+        assert hdr_mismatch["replay_check_sha256"] == b2_sha
+
+        # 2b. Relaunching into the same out dir with the same arguments refuses before running any new item
+        seen_prompts.clear()
+        with pytest.raises(SystemExit, match="LOGGING_PASS_REPLAY_MISMATCH"):
+            s2.execute(a_mismatch, build=make_bundle, rig=_FakeRig(a_mismatch))
+        assert len(seen_prompts) == 0
+
+        # Even if the summary file is absent (or before summary check), _prepare_prepass_resume re-checks
+        # every completed record against replay_check_k and refuses before running any new item.
+        (mismatch_dir / "s2-hf-prepass-summary.json").unlink()
+        with pytest.raises(SystemExit, match="LOGGING_PASS_REPLAY_MISMATCH") as relaunch_exc:
+            s2.execute(a_mismatch, build=make_bundle, rig=_FakeRig(a_mismatch))
+        assert "item_id=t_b" in str(relaunch_exc.value)
+        assert len(seen_prompts) == 0
+
+        # 2c. Refusal on a wrong --replay-check-sha256 (replay_check_sha_mismatch)
+        a_bad_sha = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "logging_bad_sha"),
+                *b2_cli_flags,
+                "--replay-check",
+                str(b2_jsonl),
+                "--replay-check-sha256",
+                "00" * 32,
+            ]
+        )
+        with pytest.raises(SystemExit, match="replay_check_sha_mismatch"):
+            s2.execute(a_bad_sha, build=make_bundle, rig=_FakeRig(a_bad_sha))
+
+        # 2d. Full run where every item's k_correct matches B2 and the pass completes
+        matching_b2_jsonl = tmp_path / "b2_matching.jsonl"
+        expected_k_by_id = {"t_a": 8, "t_b": 3, "t_d": 8, "t_k": 0, "t_m": 0, "t_z": 8}
+        matching_b2_rows = [
+            {
+                "id": cid,
+                "g": 8,
+                "k_correct": expected_k_by_id[cid],
+                "pass_seed": 1,
+                "descriptive": False,
+            }
+            for cid in tune_ids
+        ]
+        matching_b2_jsonl.write_text(
+            "".join(json.dumps(r) + "\n" for r in matching_b2_rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        matching_b2_sha = hashlib.sha256(matching_b2_jsonl.read_bytes()).hexdigest()
+        match_dir = tmp_path / "logging_match"
+        a_match = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(match_dir),
+                *b2_cli_flags,
+                "--replay-check",
+                str(matching_b2_jsonl),
+                "--replay-check-sha256",
+                matching_b2_sha,
+            ]
+        )
+        seen_prompts.clear()
+        assert s2.execute(a_match, build=make_bundle, rig=_FakeRig(a_match)) == 0
+        assert len(seen_prompts) == len(tune_ids)
+        match_summary = json.loads(
+            (match_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8")
+        )
+        assert match_summary["item_count"] == len(tune_ids)
+        assert "stopped" not in match_summary
+        match_receipt = json.loads((match_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert match_receipt["stopped"] is None
+        assert match_receipt["run"]["replay_check_sha256"] == matching_b2_sha
+
+        # 3. Also verify --replay-check-off-reason is recorded when provided
+        off_dir = tmp_path / "logging_rc_off"
+        a_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(off_dir),
+                *b2_cli_flags,
+                "--replay-check-off-reason",
+                "explicitly bypassed in unit test",
+            ]
+        )
+        assert s2.execute(a_off, build=make_bundle, rig=_FakeRig(a_off)) == 0
+        hdr_off = json.loads((off_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert hdr_off["replay_check_off_reason"] == "explicitly bypassed in unit test"
+        rec_off = json.loads((off_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec_off["run"]["replay_check_off_reason"] == "explicitly bypassed in unit test"
+
+    @needs_torch
+    def test_fix4_item_04_checkpoint_sha_stored_and_checked_per_adapter_name(
+        self, tmp_path: Path
+    ) -> None:
+        import s2_interview as s2i
+        import torch
+
+        row = _row("f4_4", claim="Buffer size is 64 bytes.", text="The local buffer is initialised.")
+        t1 = (
+            "<think>missing size</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+
+        # Create two distinct trained checkpoints on disk (ckpt_a and ckpt_b) with different non-zero lora_B
+        base_m, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in base_m.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_a_dir = tmp_path / "ckpt_a"
+        base_m.save_pretrained(str(ckpt_a_dir))
+        sha_a = s2.checkpoint_sha256(ckpt_a_dir)
+
+        with torch.no_grad():
+            for name, param in base_m.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.12)
+        ckpt_b_dir = tmp_path / "ckpt_b"
+        base_m.save_pretrained(str(ckpt_b_dir))
+        sha_b = s2.checkpoint_sha256(ckpt_b_dir)
+        assert sha_a != sha_b
+
+        # Load adapter_a via attach_or_load_adapter, then load a second trained adapter_b onto the same model
+        raw_model, tok = s2i.build_cpu_qwen3_stub(with_adapter=False)
+        model, _, _, _ = s2.attach_or_load_adapter(
+            raw_model, ckpt_a_dir, for_pass=True, adapter_name="adapter_a"
+        )
+        model, _, _, _ = s2.attach_or_load_adapter(
+            model, ckpt_b_dir, for_pass=True, adapter_name="adapter_b"
+        )
+        assert model._loaded_checkpoint_sha256_by_adapter == {
+            "adapter_a": sha_a,
+            "adapter_b": sha_b,
+        }
+
+        # Runner expecting sha_b (the active/last-loaded adapter) must REFUSE policy="checkpoint:adapter_a"
+        runner_expect_b = s2i.InterviewModelRunner(model, tok, expected_checkpoint_sha256=sha_b)
+        with pytest.raises(SystemExit, match="checkpoint_sha_mismatch"):
+            runner_expect_b.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint:adapter_a",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # And if a second trained adapter is loaded via raw model.load_adapter without attach_or_load_adapter,
+        # it has no entry in _loaded_checkpoint_sha256_by_adapter and must refuse with checkpoint_sha_missing
+        model.load_adapter(str(ckpt_b_dir), adapter_name="untracked_adapter", is_trainable=False)
+        with pytest.raises(SystemExit, match="checkpoint_sha_missing"):
+            runner_expect_b.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint:untracked_adapter",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # Each tracked adapter succeeds when its own expected sha is supplied
+        ans_a = runner_expect_b.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="checkpoint:adapter_a",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+            expected_checkpoint_sha256=sha_a,
+        )
+        assert ans_a["policy"] == "checkpoint:adapter_a"
+
+        ans_b = runner_expect_b.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="checkpoint:adapter_b",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert ans_b["policy"] == "checkpoint:adapter_b"
+
+
+
+
+
+
+
+
+

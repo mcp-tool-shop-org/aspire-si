@@ -20,6 +20,7 @@ import argparse
 import csv
 import fnmatch
 import gc
+import gzip
 import hashlib
 import importlib.metadata as metadata
 import json
@@ -35,8 +36,9 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 from xml.parsers import expat
 
 # -- the pre-registered numbers (docs/runs/2026-10-10-smoke-s2-prereg.md) ------------------------------------
@@ -54,6 +56,17 @@ LORA_TARGETS = ("q_proj", "k_proj", "v_proj", "o_proj")
 LEARNING_RATE = 1e-5
 BETA = 0.04
 EPSILON = 0.2
+DUAL_CLIP_C = 3.0
+GUARD_WINDOW_UPDATES = 10
+GUARD_WINDOW_GROUPS = 40
+FROZEN_PIP_FREEZE_SHA256 = "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
+FROZEN_STACK_VERSIONS = {
+    "torch": "2.14.1+cu130",
+    "transformers": "5.19.0",
+    "bitsandbytes": "0.50.2",
+    "peft": "0.21.2",
+    "accelerate": "1.15.0",
+}
 MAX_NEW_TOKENS = 2048
 VRAM_LINE_MIB = 31_200  # the rig's watchdog line
 SAMPLER_PERIOD_S = 1.0
@@ -67,6 +80,19 @@ GOLD_FILES = ("grounded.jsonl", "prs/grounded-prs.jsonl", "diffs/reasoning-diffs
 VERDICTS = ("supported", "unsupported", "cannot_tell")
 DRY_PREPASS_ITEMS = 4
 PREPASS_BASE_SEED = 0
+STUDENT_FULL_REVISION = "b968826d9c46dd6066d109eabc6255188de91218"
+B2_REPLAY_SETTINGS: dict[str, Any] = {
+    "path": "hf",
+    "revision": STUDENT_FULL_REVISION,
+    "bf16_restore": True,
+    "logprob_microbatch": 2,
+    "attention_mask": True,
+    "alloc_conf": "expandable",
+    "empty_cache_phases": True,
+    "quote_reward": "v2",
+    "g": G,
+    "max_new": MAX_NEW_TOKENS,
+}
 PREPASS_RECORD_KEYS = (
     "id",
     "gold_file",
@@ -183,7 +209,16 @@ try:
         quote_is_relevant,
         strip_markers,
     )
-    from s2_draw import DRAW_MODES, draw_prompts, select_prompts  # noqa: F401
+    from s2_draw import (  # noqa: F401
+        DRAW_MODES,
+        HOLDOUT_DEFAULT_FRACTION,
+        HOLDOUT_DEFAULT_SEED,
+        build_class_stratified_epoch,
+        build_class_stratified_schedule,
+        draw_prompts,
+        select_prompts,
+        split_stratified_holdout,
+    )
 except ModuleNotFoundError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from quote_rule import (  # noqa: F401
@@ -200,7 +235,16 @@ except ModuleNotFoundError:  # pragma: no cover
         quote_is_relevant,
         strip_markers,
     )
-    from s2_draw import DRAW_MODES, draw_prompts, select_prompts  # noqa: F401
+    from s2_draw import (  # noqa: F401
+        DRAW_MODES,
+        HOLDOUT_DEFAULT_FRACTION,
+        HOLDOUT_DEFAULT_SEED,
+        build_class_stratified_epoch,
+        build_class_stratified_schedule,
+        draw_prompts,
+        select_prompts,
+        split_stratified_holdout,
+    )
 
 
 def split_reply(text: str) -> tuple[str, str]:
@@ -432,6 +476,163 @@ def advantages(rewards: Sequence[float], *, mode: str = "std") -> list[float]:
     if mode != "std":
         raise SystemExit(f"unknown --advantage mode {mode!r}")
     return [(r - mean) / (sd + 1e-6) for r in rewards]
+
+
+def clamp_wrong_positive_advantages(
+    adv_list: Sequence[float],
+    correct_flags: Sequence[bool],
+) -> list[float]:
+    """Masking fallback: clamp wrong-label advantages to <= 0.0 after mean-centring, with no re-centring."""
+    return [
+        float(adv) if bool(is_corr) else min(float(adv), 0.0)
+        for adv, is_corr in zip(adv_list, correct_flags, strict=True)
+    ]
+
+
+class CtCollapseGuard:
+    """Two-class CT collapse guard (S1, S2, U1, U2) counted by distinct item over sampled-group windows.
+
+    A window is ``window_groups`` sampled groups (default 40 = 10 updates of 4 groups, including
+    zero-variance groups). Checked at the end of each window:
+    - S1 (gold supported, window): >= 3 distinct gold-supported items in the window have any CT and
+      >= 2 of those groups gave CT a positive advantage (only non-zero-variance groups have positive adv).
+    - S2 (gold supported, cumulative): CT > 1.5% of gold-supported answers once >= 600 gold-supported
+      answers have accrued, across >= 4 distinct gold-supported items.
+    - U1 (gold unsupported, window): >= 4 distinct gold-unsupported items in the window have any CT and
+      the window's correct rate on gold-unsupported is < 78%.
+    - U2 (gold unsupported, easy items, window): >= 2 distinct gold-unsupported items with Pass-A k >= 6
+      have any CT in one window.
+    - No guard on gold cannot_tell items.
+    """
+
+    def __init__(
+        self,
+        *,
+        window_groups: int = GUARD_WINDOW_GROUPS,
+        pass_a_k: Mapping[str, int] | None = None,
+    ) -> None:
+        if window_groups < 1:
+            raise SystemExit(f"--guard-window-groups must be >= 1, got {window_groups}")
+        self.window_groups = int(window_groups)
+        self.pass_a_k = {str(k): int(v) for k, v in pass_a_k.items()} if pass_a_k is not None else {}
+        self.window_index = 0
+        self.total_groups_sampled = 0
+        self._window: list[dict[str, Any]] = []
+        self.records: list[dict[str, Any]] = []
+        self.cum_sup_answers = 0
+        self.cum_sup_ct_answers = 0
+        self.cum_sup_ct_items: set[str] = set()
+        self.window_history: list[dict[str, Any]] = []
+
+    def record_group(
+        self,
+        *,
+        step: int,
+        group: int,
+        item_id: str,
+        gold_verdict: str,
+        verdicts: Sequence[str | None],
+        correct_flags: Sequence[bool],
+        advantages_list: Sequence[float],
+        is_zero_variance: bool = False,
+    ) -> dict[str, Any] | None:
+        cid = str(item_id)
+        gold = str(gold_verdict)
+        v_list = list(verdicts)
+        c_list = [bool(c) for c in correct_flags]
+        a_list = [float(a) for a in advantages_list]
+        ct_count = sum(1 for v in v_list if v == "cannot_tell")
+        correct_count = sum(1 for c in c_list if c)
+        ct_pos_adv = (not is_zero_variance) and any(
+            v == "cannot_tell" and a > 0.0 for v, a in zip(v_list, a_list, strict=True)
+        )
+        if gold == "supported":
+            self.cum_sup_answers += len(v_list)
+            self.cum_sup_ct_answers += ct_count
+            if ct_count > 0:
+                self.cum_sup_ct_items.add(cid)
+
+        self.total_groups_sampled += 1
+        rec_entry = {
+            "step": int(step),
+            "group": int(group),
+            "item_id": cid,
+            "gold_verdict": gold,
+            "n": len(v_list),
+            "ct_count": ct_count,
+            "correct_count": correct_count,
+            "ct_pos_adv": bool(ct_pos_adv),
+        }
+        self.records.append(rec_entry)
+        self._window.append(rec_entry)
+        if len(self._window) < self.window_groups:
+            return None
+        return self._evaluate_window(step=int(step))
+
+    def _evaluate_window(self, *, step: int) -> dict[str, Any] | None:
+        self.window_index += 1
+        win = list(self._window)
+        self._window.clear()
+
+        sup_groups = [g_rec for g_rec in win if g_rec["gold_verdict"] == "supported"]
+        s1_ct_items = {g_rec["item_id"] for g_rec in sup_groups if g_rec["ct_count"] > 0}
+        s1_pos_adv_groups = sum(1 for g_rec in sup_groups if g_rec["ct_count"] > 0 and g_rec["ct_pos_adv"])
+
+        cum_sup_ct_rate = (
+            (self.cum_sup_ct_answers / float(self.cum_sup_answers)) if self.cum_sup_answers > 0 else 0.0
+        )
+
+        unsup_groups = [g_rec for g_rec in win if g_rec["gold_verdict"] == "unsupported"]
+        u1_ct_items = {g_rec["item_id"] for g_rec in unsup_groups if g_rec["ct_count"] > 0}
+        u_total = sum(int(g_rec["n"]) for g_rec in unsup_groups)
+        u_correct = sum(int(g_rec["correct_count"]) for g_rec in unsup_groups)
+        u_correct_rate = (u_correct / float(u_total)) if u_total > 0 else 1.0
+
+        u2_easy_ct_items = {
+            g_rec["item_id"]
+            for g_rec in unsup_groups
+            if g_rec["ct_count"] > 0 and self.pass_a_k.get(g_rec["item_id"], -1) >= 6
+        }
+
+        triggered: list[str] = []
+        if len(s1_ct_items) >= 3 and s1_pos_adv_groups >= 2:
+            triggered.append("S1")
+        if (
+            self.cum_sup_answers >= 600
+            and cum_sup_ct_rate > 0.015
+            and len(self.cum_sup_ct_items) >= 4
+        ):
+            triggered.append("S2")
+        if len(u1_ct_items) >= 4 and u_total > 0 and u_correct_rate < 0.78:
+            triggered.append("U1")
+        if len(u2_easy_ct_items) >= 2:
+            triggered.append("U2")
+
+        metrics = {
+            "window_index": self.window_index,
+            "total_groups_sampled": self.total_groups_sampled,
+            "s1_distinct_ct_items": len(s1_ct_items),
+            "s1_pos_adv_groups": s1_pos_adv_groups,
+            "s2_cum_sup_answers": self.cum_sup_answers,
+            "s2_cum_sup_ct_answers": self.cum_sup_ct_answers,
+            "s2_cum_sup_ct_rate": round(cum_sup_ct_rate, 6),
+            "s2_cum_distinct_ct_items": len(self.cum_sup_ct_items),
+            "u1_distinct_ct_items": len(u1_ct_items),
+            "u1_correct_rate": round(u_correct_rate, 6),
+            "u2_distinct_easy_ct_items": len(u2_easy_ct_items),
+            "triggered_rules": list(triggered),
+        }
+        self.window_history.append(metrics)
+        if not triggered:
+            return None
+        return {
+            "step": int(step),
+            "reason": f"ct_guard_{triggered[0].lower()}",
+            "triggered_rules": triggered,
+            "window_index": self.window_index,
+            "total_groups_sampled": self.total_groups_sampled,
+            "guard_metrics": metrics,
+        }
 
 
 def zero_variance(rewards: Sequence[float]) -> bool:
@@ -801,6 +1002,72 @@ def environment(
     }
 
 
+def check_frozen_env(
+    pip_freeze_path: Path | None = None,
+    *,
+    expected_sha256: str | None = None,
+    installed_versions: Mapping[str, str | None] | None = None,
+    require_exact_versions: bool = False,
+) -> dict:
+    """Record frozen stack versions and check the frozen pip-freeze.txt sha256."""
+    versions = (
+        {k: installed_versions.get(k) for k in FROZEN_STACK_VERSIONS}
+        if installed_versions is not None
+        else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+    )
+    actual_sha: str | None = None
+    exp_sha = str(FROZEN_PIP_FREEZE_SHA256 if expected_sha256 is None else expected_sha256).strip().lower()
+    eff_freeze_path = pip_freeze_path
+    if eff_freeze_path is None:
+        candidate_freeze = Path(sys.prefix) / "FROZEN-pip-freeze-2026-11-05.txt"
+        if candidate_freeze.is_file():
+            eff_freeze_path = candidate_freeze
+    if require_exact_versions:
+        for pkg, req_ver in FROZEN_STACK_VERSIONS.items():
+            inst_ver = versions.get(pkg)
+            if inst_ver != req_ver:
+                raise SystemExit(
+                    f"refusing to start (frozen_env_version_mismatch): "
+                    f"installed {pkg}=={inst_ver!r}, expected {req_ver!r}"
+                )
+    if eff_freeze_path is None and require_exact_versions:
+        raise SystemExit(
+            "refusing to start (frozen_env_missing_file): "
+            "--frozen-pip-freeze was not provided and "
+            "FROZEN-pip-freeze-2026-11-05.txt is missing at sys.prefix"
+        )
+    if eff_freeze_path is not None:
+        pf_path = Path(eff_freeze_path)
+        if not pf_path.is_file():
+            raise SystemExit(
+                f"refusing to start (frozen_env_missing_file): pip-freeze file does not exist: {pf_path.name}"
+            )
+        raw_bytes = pf_path.read_bytes()
+        actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+        if actual_sha != exp_sha:
+            raise SystemExit(
+                f"refusing to start (frozen_env_sha_mismatch): "
+                f"expected pip-freeze sha256 {exp_sha}, got {actual_sha}"
+            )
+        freeze_versions: dict[str, str] = {}
+        for raw_line in raw_bytes.decode("utf-8", errors="replace").splitlines():
+            line = raw_line.strip()
+            if "==" in line and not line.startswith("#"):
+                pkg, _, ver = line.partition("==")
+                freeze_versions[pkg.strip().lower()] = ver.strip()
+        for pkg, req_ver in FROZEN_STACK_VERSIONS.items():
+            if pkg in freeze_versions and freeze_versions[pkg] != req_ver:
+                raise SystemExit(
+                    f"refusing to start (frozen_env_version_mismatch): "
+                    f"pip-freeze has {pkg}=={freeze_versions[pkg]}, expected {req_ver}"
+                )
+    return {
+        "stack_versions": versions,
+        "pip_freeze_sha256": actual_sha,
+        "frozen_expected_sha256": exp_sha,
+    }
+
+
 def require_single_nvidia_gpu(gpus: list[dict]) -> dict:
     """The one NVIDIA GPU, or a refusal: nothing else is ever used."""
     if len(gpus) != 1:
@@ -1131,6 +1398,15 @@ def build_receipt(
     stopped: dict | None,
     verdict: str,
     dtype_census_record: dict | None = None,
+    save_all: bool | None = None,
+    save_all_sha256: str | None = None,
+    save_all_off_reason: str | None = None,
+    checkpoint_sha256: str | None = None,
+    checkpoint_files_sha256: Mapping[str, str] | None = None,
+    adapter_sha256: str | None = None,
+    adapter_files_sha256: Mapping[str, str] | None = None,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
 ) -> dict:
     out = {
         "test": "S2",
@@ -1157,6 +1433,12 @@ def build_receipt(
         "prompt_split": PROMPT_SPLIT,
         "prompt_ids": prompt_ids,
         "environment": env,
+        "stack_versions": (
+            dict(stack_versions)
+            if stack_versions is not None
+            else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+        ),
+        "pip_freeze_sha256": pip_freeze_sha256,
         "llama_cpp": llama,
         "pass_line": {"vram_line_mib": VRAM_LINE_MIB, "steps": STEPS, "oom": False},
         "stopped": stopped,
@@ -1165,6 +1447,19 @@ def build_receipt(
     }
     if dtype_census_record is not None:
         out["dtype_census"] = dtype_census_record
+    if save_all is not None:
+        out["save_all"] = bool(save_all)
+        out["save_all_sha256"] = save_all_sha256
+        if not save_all and save_all_off_reason is not None:
+            out["save_all_off_reason"] = save_all_off_reason
+    if checkpoint_sha256 is not None:
+        out["checkpoint_sha256"] = checkpoint_sha256
+    if checkpoint_files_sha256 is not None:
+        out["checkpoint_files_sha256"] = dict(checkpoint_files_sha256)
+    if adapter_sha256 is not None:
+        out["adapter_sha256"] = adapter_sha256
+    if adapter_files_sha256 is not None:
+        out["adapter_files_sha256"] = dict(adapter_files_sha256)
     for k in (
         "stress_pool",
         "stress_prompt_id",
@@ -1178,10 +1473,65 @@ def build_receipt(
         "k_min",
         "k_max",
         "band_pool_size",
+        "holdout_seed",
+        "holdout_count",
+        "holdout_ids_sha256",
+        "train_ids_sha256",
     ):
         if k in args:
             out[k] = args[k]
     return out
+
+
+def save_all_file_path(out_dir: Path, path: str = "hf") -> Path:
+    """Path to the gzip-compressed JSONL completion archive beside the run's outputs."""
+    return Path(out_dir) / f"s2-{path}-save-all.jsonl.gz"
+
+
+def write_save_all(
+    path: Path,
+    records: Sequence[dict],
+    *,
+    fsync: Callable[[int], None] = os.fsync,
+) -> str:
+    """Write ``records`` as deterministic gzip-compressed JSONL (mtime=0) and return its sha256 hex digest."""
+    raw_bytes = "".join(json.dumps(r) + "\n" for r in records).encode("utf-8")
+    gz_bytes = gzip.compress(raw_bytes, mtime=0)
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("wb") as fh:
+        fh.write(gz_bytes)
+        fh.flush()
+        fsync(fh.fileno())
+    return hashlib.sha256(gz_bytes).hexdigest()
+
+
+def read_save_all(path: Path) -> list[dict]:
+    """Read completion records from a ``.jsonl.gz`` (or plain ``.jsonl``) save-all archive."""
+    in_path = Path(path)
+    raw = in_path.read_bytes()
+    text = gzip.decompress(raw).decode("utf-8") if in_path.name.endswith(".gz") else raw.decode("utf-8")
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def validate_save_all_args(a: argparse.Namespace) -> tuple[bool, str | None]:
+    """Validate ``--save-all`` / ``--no-save-all`` and ``--save-all-off-reason``."""
+    save_all_on = bool(getattr(a, "save_all", True))
+    raw_reason = getattr(a, "save_all_off_reason", None)
+    reason = raw_reason.strip() if isinstance(raw_reason, str) else None
+    if not save_all_on:
+        if not reason:
+            raise SystemExit(
+                "refusing to start (save_all_off_reason_required): "
+                "--no-save-all requires a non-empty --save-all-off-reason"
+            )
+        return False, reason
+    if raw_reason is not None:
+        raise SystemExit(
+            "refusing to start (save_all_off_reason_unused): "
+            "--save-all-off-reason cannot be used unless --no-save-all is set"
+        )
+    return True, None
 
 
 # -- the VRAM sampler (nvidia-smi, once a second) ------------------------------------------------------------
@@ -1370,6 +1720,7 @@ def grpo_loss(
     eps: float = EPSILON,
     zero_variance_mask: bool = False,
     group_size: int | None = None,
+    dual_clip_c: float | None = None,
 ):
     """The clipped-ratio policy loss plus a k3 KL penalty to the reference, masked, averaged over tokens."""
     torch = require_torch()
@@ -1380,7 +1731,10 @@ def grpo_loss(
             return logp.sum() * 0.0
     ratio = torch.exp(logp - old_logp)
     a = adv.unsqueeze(-1)
-    policy = -torch.min(ratio * a, torch.clamp(ratio, 1 - eps, 1 + eps) * a)
+    surr = torch.min(ratio * a, torch.clamp(ratio, 1 - eps, 1 + eps) * a)
+    if dual_clip_c is not None:
+        surr = torch.where(a < 0, torch.max(surr, float(dual_clip_c) * a), surr)
+    policy = -surr
     delta = ref_logp - logp
     kl = torch.exp(delta) - delta - 1
     return ((policy + beta * kl) * eff_mask).sum() / eff_mask.sum().clamp(min=1)
@@ -1403,6 +1757,7 @@ def grpo_microbatch_backward(
     after_forward: Callable[[], None] | None = None,
     zero_variance_mask: bool = False,
     group_size: int | None = None,
+    dual_clip_c: float | None = None,
 ):
     """Run training forward and backward over ``G`` sequences in micro-batches of ``microbatch`` with
     gradients accumulated, using ``logits_to_keep`` and ``gather - logsumexp``."""
@@ -1436,7 +1791,10 @@ def grpo_microbatch_backward(
         mb_ref = ref_logp[start:end]
         mb_adv = adv[start:end].unsqueeze(-1)
         ratio = torch.exp(mb_logp - mb_old)
-        policy = -torch.min(ratio * mb_adv, torch.clamp(ratio, 1 - eps, 1 + eps) * mb_adv)
+        surr = torch.min(ratio * mb_adv, torch.clamp(ratio, 1 - eps, 1 + eps) * mb_adv)
+        if dual_clip_c is not None:
+            surr = torch.where(mb_adv < 0, torch.max(surr, float(dual_clip_c) * mb_adv), surr)
+        policy = -surr
         delta = mb_ref - mb_logp
         kl = torch.exp(delta) - delta - 1
         mb_loss = ((policy + beta * kl) * mb_mask).sum() / denom
@@ -1998,6 +2356,12 @@ def run_steps(
     sign_diagnostics: bool = False,
     prepass_baseline_k: dict[str, int] | None = None,
     group_residuals: list[tuple[str, int, float]] | None = None,
+    save_all_records: list[dict] | None = None,
+    base_seed: int = 0,
+    holdout_ids: Sequence[str] | set[str] | None = None,
+    mask_wrong_positive_advantage: bool = False,
+    dual_clip_c: float | None = None,
+    ct_guard: CtCollapseGuard | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -2010,6 +2374,20 @@ def run_steps(
     """
     if groups_per_update < 1:
         raise SystemExit(f"--groups-per-update must be >= 1, got {groups_per_update}")
+
+    holdout_set = {str(cid) for cid in holdout_ids} if holdout_ids is not None else set()
+    if holdout_set:
+        overlap = sorted({str(r.get("id", "")) for r in prompts} & holdout_set)
+        if overlap:
+            raise SystemExit(
+                f"refusing to train (holdout_item_in_training): "
+                f"prompt {overlap[0]!r} is in the held-out evaluation set"
+            )
+    eff_dual_clip_c = (
+        float(dual_clip_c)
+        if dual_clip_c is not None
+        else (DUAL_CLIP_C if mask_wrong_positive_advantage else None)
+    )
 
     torch = require_torch()
     if empty_cache is None:
@@ -2037,13 +2415,21 @@ def run_steps(
             active_outcome_var_sum = 0.0
             active_correct_var_sum = 0.0
             active_total_var_sum = 0.0
+            step_guard_stop: dict[str, Any] | None = None
             need_details = (
                 (group_logger is not None and group_logger.enabled)
                 or sign_diagnostics
                 or prepass_baseline_k is not None
+                or mask_wrong_positive_advantage
+                or ct_guard is not None
             )
             for k in range(groups_per_update):
                 row = prompts[(step * groups_per_update + k) % len(prompts)]
+                if holdout_set and str(row.get("id", "")) in holdout_set:
+                    raise SystemExit(
+                        f"refusing to train (holdout_item_in_training): "
+                        f"prompt {row.get('id')!r} is in the held-out evaluation set"
+                    )
                 prompt_text = build_prompt(row)
                 if mode:
                     mode(False)
@@ -2087,13 +2473,16 @@ def run_steps(
                 group_samples: list[dict] = []
                 verdict_scores: list[float] = []
                 rollout_outcomes: list[dict] = []
+                group_decoded: list[tuple[str, str, str, bool]] = []
                 for c, trunc in zip(comps, truncs, strict=True):
                     text = tok.decode(c, skip_special_tokens=True)
-                    think, _ = split_reply(text)
+                    think, answer = split_reply(text)
                     tt = len(tok.encode(think)) if think else 0
                     think_counts.append(tt)
                     r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
                     rewards.append(r_val)
+                    if save_all_records is not None:
+                        group_decoded.append((text, think, answer, bool(trunc)))
                     if eval_records is not None:
                         rollout_outcomes.append(
                             completion_eval_outcome(text, row, truncated=trunc, reward_val=r_val)
@@ -2119,6 +2508,59 @@ def run_steps(
                 else:
                     is_zv = zero_variance(rewards)
                     adv_list = advantages(rewards, mode=advantage_mode)
+
+                unclamped_adv_list = list(adv_list)
+                if mask_wrong_positive_advantage:
+                    correct_flags = [bool(s.get("correct")) for s in group_samples]
+                    adv_list = clamp_wrong_positive_advantages(adv_list, correct_flags)
+
+                if ct_guard is not None:
+                    guard_stop = ct_guard.record_group(
+                        step=step,
+                        group=k,
+                        item_id=str(row.get("id", k)),
+                        gold_verdict=str(row.get("label", "supported")),
+                        verdicts=[s.get("verdict") for s in group_samples],
+                        correct_flags=[bool(s.get("correct")) for s in group_samples],
+                        advantages_list=unclamped_adv_list,
+                        is_zero_variance=bool(is_zv),
+                    )
+                    if guard_stop is not None:
+                        step_guard_stop = guard_stop
+
+                if save_all_records is not None:
+                    grp_item_id = str(row.get("id", k))
+                    grp_seed = item_seed(grp_item_id, base_seed + step * groups_per_update + k)
+                    for sample_idx, ((text, think, answer, is_trunc), r_val, adv_val) in enumerate(
+                        zip(group_decoded, rewards, adv_list, strict=True)
+                    ):
+                        parsed_obj = None if is_trunc else parse_reply(text)
+                        parse_status = (
+                            "truncated" if is_trunc else ("malformed" if parsed_obj is None else "ok")
+                        )
+                        eff_verdict = (
+                            None
+                            if parsed_obj is None
+                            else ("cannot_tell" if loop_detected(text) else parsed_obj["verdict"])
+                        )
+                        save_all_records.append(
+                            {
+                                "kind": "rollout",
+                                "item_id": grp_item_id,
+                                "seed": int(grp_seed),
+                                "step": int(step),
+                                "group": int(k),
+                                "sample_index": int(sample_idx),
+                                "text": text,
+                                "thinking": think,
+                                "answer": answer.strip(),
+                                "parse_status": parse_status,
+                                "verdict": eff_verdict,
+                                "reward": round(float(r_val), 6),
+                                "advantage": round(float(adv_val), 6),
+                                "truncated": bool(is_trunc),
+                            }
+                        )
 
                 if eval_records is not None:
                     for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
@@ -2271,6 +2713,7 @@ def run_steps(
                         scale=grp_scale,
                         zero_variance_mask=zero_variance_mask,
                         group_size=g,
+                        dual_clip_c=eff_dual_clip_c,
                         after_forward=(
                             (
                                 lambda s=step, grp=k, pt=len(prompt_ids), cl=comp_lens: phase_logger.record(
@@ -2308,6 +2751,7 @@ def run_steps(
                                 mask,
                                 zero_variance_mask=zero_variance_mask,
                                 group_size=g,
+                                dual_clip_c=eff_dual_clip_c,
                             )
                             * grp_scale
                         )
@@ -2332,7 +2776,16 @@ def run_steps(
                     )
                 train_s += time.time() - t1
             t2 = time.time()
-            if zero_variance_mask:
+            if step_guard_stop is not None:
+                optimiser.zero_grad(set_to_none=True)
+                if hasattr(model, "parameters"):
+                    for p in model.parameters():
+                        if getattr(p, "grad", None) is not None:
+                            p.grad = None
+                reported_loss = (
+                    (step_loss_sum / groups_per_update) if zero_variance_mask else step_loss_sum
+                )
+            elif zero_variance_mask:
                 if active_groups > 0:
                     for p in model.parameters():
                         if p.requires_grad and p.grad is not None:
@@ -2396,6 +2849,8 @@ def run_steps(
                 on_step(rec)
             if on_eval is not None and eval_records is not None:
                 on_eval(evaluation_summary(eval_records, advantage_mode=advantage_mode))
+            if step_guard_stop is not None:
+                return rows, step_guard_stop, False
         except oom_types:
             return rows, {"step": step, "error": "out of memory"}, True
         except TimeoutError as exc:
@@ -2451,7 +2906,6 @@ def dry_reward(text: str, row: dict, thinking_tokens: int) -> float:
 def dry_bundle(a: argparse.Namespace) -> dict:
     """A 2-layer Llama with the real LoRA targets (q/k/v/o), random weights, on the CPU."""
     torch = require_torch()
-    from peft import LoraConfig, get_peft_model
     from transformers import LlamaConfig, LlamaForCausalLM
 
     torch.manual_seed(0)
@@ -2467,12 +2921,21 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         pad_token_id=tok.pad_token_id,
         eos_token_id=tok.eos_token_id,
     )
-    model = get_peft_model(
-        LlamaForCausalLM(cfg),
-        LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0),
+    for_pass = bool(
+        getattr(a, "rollout_only", False)
+        or getattr(a, "logging_pass", False)
+        or getattr(a, "postpass", False)
+    )
+    model, adapter_loaded, ckpt_files_sha, ckpt_sha = attach_or_load_adapter(
+        LlamaForCausalLM(cfg), getattr(a, "checkpoint", None), for_pass=for_pass
     )
     census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     params = [p for p in model.parameters() if p.requires_grad]
+    optimiser = (
+        torch.optim.AdamW(params, lr=LEARNING_RATE)
+        if params
+        else argparse.Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None)
+    )
     mode, state = make_mode(model)
     pass_att = bool(getattr(a, "attention_mask", False))
     return {
@@ -2480,7 +2943,7 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         "tok": tok,
         "mode": mode,
         "state": state,
-        "optimiser": torch.optim.AdamW(params, lr=LEARNING_RATE),
+        "optimiser": optimiser,
         "ref_adapter_off": model.disable_adapter,
         "rollout": lambda text, g, max_new, temp: hf_rollout(
             model, tok, text, g, max_new, temp, pass_attention_mask=pass_att
@@ -2492,6 +2955,9 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         "llama": None,
         "dtype_census": census,
         "dry_prepass_cap": DRY_PREPASS_ITEMS,
+        "adapter_loaded": adapter_loaded,
+        "checkpoint_sha256": ckpt_sha,
+        "checkpoint_files_sha256": ckpt_files_sha,
     }
 
 
@@ -2541,7 +3007,7 @@ class Rig:
 def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 5090 and the model
     """Qwen3-8B on a 4-bit base with a LoRA (r 16, alpha 32, q/k/v/o); path (a) samples with the same copy."""
     torch = require_torch()
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from peft import prepare_model_for_kbit_training
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
     quant = BitsAndBytesConfig(
@@ -2560,13 +3026,23 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
     )
     revision = getattr(base.config, "_commit_hash", None)
     base = prepare_model_for_kbit_training(base, use_gradient_checkpointing=True)
-    model = get_peft_model(
-        base, LoraConfig(r=LORA_R, lora_alpha=LORA_ALPHA, target_modules=list(LORA_TARGETS), lora_dropout=0.0)
+    for_pass = bool(
+        getattr(a, "rollout_only", False)
+        or getattr(a, "logging_pass", False)
+        or getattr(a, "postpass", False)
+    )
+    model, adapter_loaded, ckpt_files_sha, ckpt_sha = attach_or_load_adapter(
+        base, getattr(a, "checkpoint", None), for_pass=for_pass
     )
     census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     model.print_trainable_parameters()
     torch.cuda.reset_peak_memory_stats()
-    optimiser = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=LEARNING_RATE)
+    params = [p for p in model.parameters() if p.requires_grad]
+    optimiser = (
+        torch.optim.AdamW(params, lr=LEARNING_RATE)
+        if params
+        else argparse.Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None)
+    )
 
     def render(text: str) -> str:
         return tok.apply_chat_template(
@@ -2600,6 +3076,9 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         "revision": revision,
         "llama": None,
         "dtype_census": census,
+        "adapter_loaded": adapter_loaded,
+        "checkpoint_sha256": ckpt_sha,
+        "checkpoint_files_sha256": ckpt_files_sha,
     }
     if a.path == "hf":
         # generation runs with checkpointing off and the cache on, and training with it on: run_steps switches
@@ -2788,6 +3267,8 @@ def run_probe_memory(
     gpu: dict | None,
     guard: dict | None,
     counter_runner: Callable[[], str] = run_typeperf_gpu_memory,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
 ) -> int:
     """Probe mode (``--probe-memory``): measures allocator and adapter memory across forced lengths."""
     torch = require_torch()
@@ -2896,6 +3377,11 @@ def run_probe_memory(
             }
         )
 
+    eff_stack_versions = (
+        dict(stack_versions)
+        if stack_versions is not None
+        else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+    )
     probe_doc = {
         "test": "S2-probe",
         "path": a.path,
@@ -2903,6 +3389,8 @@ def run_probe_memory(
         "prompt_tokens": prompt_len,
         "g": a.g,
         "flags": active_flags(a),
+        "stack_versions": eff_stack_versions,
+        "pip_freeze_sha256": pip_freeze_sha256,
         "model_info": _model_static_info(model, kv_key_dtype),
         "dtype_census": bundle.get("dtype_census"),
         "gpu": {"name": gpu.get("name"), "driver": gpu.get("driver")} if isinstance(gpu, dict) else None,
@@ -2932,6 +3420,203 @@ def ids_sha256(ids: Sequence[str]) -> str:
     return hashlib.sha256("\n".join(ids).encode()).hexdigest()
 
 
+def k_band_name(k_correct: int) -> str:
+    """Return the pre-registered Pass-A difficulty band ('[0,5]', '[6,7]', or '8') for ``k_correct``."""
+    k_val = int(k_correct)
+    if k_val <= 5:
+        return "[0,5]"
+    if k_val <= 7:
+        return "[6,7]"
+    return "8"
+
+
+def checkpoint_file_shas(checkpoint_path: Path | None) -> dict[str, str] | None:
+    """Return a sorted ``{rel_posix_path: sha256}`` map for every file in ``checkpoint_path``, or None."""
+    if checkpoint_path is None:
+        return None
+    cp = Path(checkpoint_path)
+    if not cp.exists():
+        raise SystemExit(
+            f"refusing to start (checkpoint_missing): checkpoint does not exist: {cp.name}"
+        )
+    if cp.is_file():
+        return {cp.name: hashlib.sha256(cp.read_bytes()).hexdigest()}
+    files = sorted(p for p in cp.rglob("*") if p.is_file())
+    if not files:
+        raise SystemExit(
+            f"refusing to start (checkpoint_empty): checkpoint directory has no files: {cp.name}"
+        )
+    return {
+        p.relative_to(cp).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in files
+    }
+
+
+def checkpoint_sha256(checkpoint_path: Path | None) -> str | None:
+    """Return a deterministic sha256 digest of a checkpoint file or directory, or None when omitted."""
+    file_shas = checkpoint_file_shas(checkpoint_path)
+    if file_shas is None:
+        return None
+    cp = Path(checkpoint_path)
+    if cp.is_file():
+        return next(iter(file_shas.values()))
+    entries = [f"{rel}:{sha}" for rel, sha in file_shas.items()]
+    return hashlib.sha256("\n".join(entries).encode("utf-8")).hexdigest()
+
+
+def attach_or_load_adapter(
+    base,
+    checkpoint_path: Path | None,
+    *,
+    for_pass: bool = False,
+    adapter_name: str = "default",
+) -> tuple[Any, bool, dict[str, str] | None, str | None]:
+    """Attach a fresh LoRA adapter or load an existing PEFT checkpoint into ``base``."""
+    from peft import LoraConfig, PeftModel, get_peft_model
+
+    if checkpoint_path is None:
+        model = get_peft_model(
+            base,
+            LoraConfig(
+                r=LORA_R,
+                lora_alpha=LORA_ALPHA,
+                target_modules=list(LORA_TARGETS),
+                lora_dropout=0.0,
+            ),
+            adapter_name=adapter_name,
+        )
+        return model, False, None, None
+    cp = Path(checkpoint_path)
+    files_sha = checkpoint_file_shas(cp)
+    combined_sha = checkpoint_sha256(cp)
+    try:
+        if isinstance(base, PeftModel):
+            base.load_adapter(str(cp), adapter_name=adapter_name, is_trainable=not for_pass)
+            model = base
+        else:
+            model = PeftModel.from_pretrained(
+                base, str(cp), adapter_name=adapter_name, is_trainable=not for_pass
+            )
+    except Exception as exc:
+        raise SystemExit(
+            f"refusing to start (checkpoint_adapter_not_loaded): "
+            f"failed to load adapter from {cp.name}: {exc}"
+        ) from exc
+    eff_name = str(adapter_name or getattr(model, "active_adapter", None) or "default")
+    sha_by_adapter = dict(getattr(model, "_loaded_checkpoint_sha256_by_adapter", None) or {})
+    if combined_sha is not None:
+        sha_by_adapter[eff_name] = combined_sha
+    model._loaded_checkpoint_sha256_by_adapter = sha_by_adapter
+    files_by_adapter = dict(getattr(model, "_loaded_checkpoint_files_sha256_by_adapter", None) or {})
+    if files_sha is not None:
+        files_by_adapter[eff_name] = dict(files_sha)
+    model._loaded_checkpoint_files_sha256_by_adapter = files_by_adapter
+    model._loaded_checkpoint_sha256 = combined_sha
+    model._loaded_checkpoint_files_sha256 = files_sha
+    return model, True, files_sha, combined_sha
+
+
+def validate_replay_check_args(a: argparse.Namespace) -> tuple[Path | None, str | None, str | None]:
+    """Validate ``--replay-check``, ``--replay-check-sha256``, and ``--replay-check-off-reason``.
+
+    Returns ``(replay_check_path, replay_check_sha256, replay_check_off_reason)``.
+    """
+    logging_pass = bool(getattr(a, "logging_pass", False))
+    rc_path_raw = getattr(a, "replay_check", None)
+    rc_path = Path(rc_path_raw) if rc_path_raw is not None else None
+    rc_sha_raw = getattr(a, "replay_check_sha256", None)
+    rc_sha = str(rc_sha_raw).strip().lower() if rc_sha_raw and str(rc_sha_raw).strip() else None
+    rc_off_raw = getattr(a, "replay_check_off_reason", None)
+    rc_off_reason = str(rc_off_raw).strip() if rc_off_raw and str(rc_off_raw).strip() else None
+
+    if rc_path is not None and rc_off_reason is not None:
+        raise SystemExit(
+            "refusing to start (replay_check_conflicting_args): "
+            "--replay-check and --replay-check-off-reason cannot both be set"
+        )
+    if (rc_path is None) != (rc_sha is None):
+        raise SystemExit(
+            "refusing to start (replay_check_missing_arg): "
+            "--replay-check and --replay-check-sha256 must be given together"
+        )
+    if logging_pass and rc_path is None and rc_off_reason is None:
+        raise SystemExit(
+            "refusing to start (logging_pass_requires_replay_check): "
+            "--logging-pass requires --replay-check <b2.jsonl> --replay-check-sha256 <sha> "
+            "unless a non-empty --replay-check-off-reason is provided"
+        )
+    return rc_path, rc_sha, rc_off_reason
+
+
+def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str | None]:
+    """Validate ``--logging-pass``, ``--postpass``, ``--checkpoint``, and pass seeds.
+
+    Returns ``(is_pass_mode, is_descriptive, effective_seed, checkpoint_sha256)``.
+    """
+    logging_pass = bool(getattr(a, "logging_pass", False))
+    postpass = bool(getattr(a, "postpass", False))
+    rollout_only = bool(getattr(a, "rollout_only", False))
+    ckpt_path = getattr(a, "checkpoint", None)
+
+    if logging_pass and postpass:
+        raise SystemExit(
+            "refusing to start (conflicting_pass_flags): --logging-pass and --postpass cannot be combined"
+        )
+    if logging_pass and ckpt_path is not None:
+        raise SystemExit(
+            "refusing to start (logging_pass_checkpoint_forbidden): "
+            "--logging-pass is for the starting policy and cannot take --checkpoint"
+        )
+    ckpt_sha = checkpoint_sha256(ckpt_path)
+
+    pass_seed_arg = getattr(a, "pass_seed", None)
+    prepass_seed_arg = getattr(a, "prepass_seed", PREPASS_BASE_SEED)
+    if logging_pass:
+        if pass_seed_arg is not None and int(pass_seed_arg) != 1:
+            raise SystemExit(
+                f"refusing to start (logging_pass_seed_must_be_1): "
+                f"--logging-pass requires post-pass seed 1, got {pass_seed_arg}"
+            )
+        if prepass_seed_arg not in (PREPASS_BASE_SEED, 1):
+            raise SystemExit(
+                f"refusing to start (logging_pass_seed_must_be_1): "
+                f"--logging-pass requires post-pass seed 1, got {prepass_seed_arg}"
+            )
+        for setting_key, expected_val in B2_REPLAY_SETTINGS.items():
+            actual_val = getattr(a, setting_key, None)
+            if type(actual_val) is not type(expected_val) or actual_val != expected_val:
+                raise SystemExit(
+                    f"refusing to start (logging_pass_b2_settings_mismatch): "
+                    f"--logging-pass requires B2 replay setting {setting_key}={expected_val!r}, "
+                    f"got {actual_val!r}"
+                )
+        validate_replay_check_args(a)
+        eff_seed = 1
+        descriptive = True
+    elif postpass or ckpt_path is not None:
+        validate_replay_check_args(a)
+        eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
+        if eff_seed in (0, 1):
+            raise SystemExit(
+                f"refusing to start (postpass_reserved_seed): "
+                f"post-pass for a trained checkpoint refuses seed {eff_seed} "
+                f"(seeds 0 and 1 are reserved for pre-pass and starting-policy logging pass)"
+            )
+        if postpass and ckpt_path is None:
+            raise SystemExit(
+                "refusing to start (postpass_requires_checkpoint): "
+                "--postpass requires --checkpoint"
+            )
+        descriptive = False
+    else:
+        validate_replay_check_args(a)
+        eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
+        descriptive = False
+
+    is_pass_mode = bool(rollout_only or logging_pass or postpass)
+    return is_pass_mode, descriptive, eff_seed, ckpt_sha
+
+
 def build_prepass_header(
     *,
     prompt_ids: Sequence[str],
@@ -2943,8 +3628,18 @@ def build_prepass_header(
     model_revision: str | None,
     script_hash: str | None = None,
     reproducible: bool = True,
+    save_all: bool = True,
+    descriptive: bool = False,
+    checkpoint_sha: str | None = None,
+    checkpoint_files_sha: Mapping[str, str] | None = None,
+    pass_a_sha: str | None = None,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
+    b2_replay_settings: Mapping[str, Any] | None = None,
+    replay_check_sha256: str | None = None,
+    replay_check_off_reason: str | None = None,
 ) -> dict:
-    return {
+    hdr: dict = {
         "ids_sha256": ids_sha256(prompt_ids),
         "script_sha256": script_hash if script_hash is not None else script_sha256(),
         "gold_files_sha256": dict(gold_hashes),
@@ -2954,7 +3649,31 @@ def build_prepass_header(
         "seed": int(seed),
         "model_revision": model_revision,
         "reproducible": bool(reproducible),
+        "descriptive": bool(descriptive),
+        "stack_versions": (
+            dict(stack_versions)
+            if stack_versions is not None
+            else {k: package_version(k) for k in FROZEN_STACK_VERSIONS}
+        ),
+        "pip_freeze_sha256": pip_freeze_sha256,
     }
+    if not save_all:
+        hdr["save_all"] = False
+    if descriptive:
+        hdr["b2_replay_settings"] = dict(
+            b2_replay_settings if b2_replay_settings is not None else B2_REPLAY_SETTINGS
+        )
+    if replay_check_sha256 is not None:
+        hdr["replay_check_sha256"] = str(replay_check_sha256)
+    if replay_check_off_reason is not None:
+        hdr["replay_check_off_reason"] = str(replay_check_off_reason)
+    if checkpoint_sha is not None:
+        hdr["checkpoint_sha256"] = checkpoint_sha
+    if checkpoint_files_sha is not None:
+        hdr["checkpoint_files_sha256"] = dict(checkpoint_files_sha)
+    if pass_a_sha is not None:
+        hdr["pass_a_sha256"] = pass_a_sha
+    return hdr
 
 
 def prepass_item_record(
@@ -2966,6 +3685,12 @@ def prepass_item_record(
     tok,
     reward_fn: Callable,
     quote_reward: str = "v1",
+    save_all_out: list[dict] | None = None,
+    pass_id: str = "prepass_seed0",
+    item_seed_val: int = 0,
+    pass_seed: int = 0,
+    descriptive: bool = False,
+    pass_a_k: dict[str, int] | None = None,
 ) -> tuple[dict, list[dict]]:
     """Score one item's G completions and return (the text-free JSONL record, eval rollout outcomes)."""
     gold_verdict = str(row.get("label", "supported"))
@@ -2978,12 +3703,12 @@ def prepass_item_record(
     trunc_count = 0
     rollout_outcomes: list[dict] = []
 
-    for c, trunc in zip(comps, truncs, strict=True):
+    for sample_idx, (c, trunc) in enumerate(zip(comps, truncs, strict=True)):
         is_trunc = bool(trunc)
         if is_trunc:
             trunc_count += 1
         text = tok.decode(c, skip_special_tokens=True)
-        think, _ = split_reply(text)
+        think, answer = split_reply(text)
         tt = len(tok.encode(think)) if think else 0
         r_val = _call_reward_fn(reward_fn, text, row, tt, is_trunc)
         rewards.append(r_val)
@@ -2996,18 +3721,38 @@ def prepass_item_record(
             quote_reward=quote_reward,
         )
         v = det.get("verdict")
-        if v in VERDICTS:
-            verdict_counts[v] += 1
-        else:
-            verdict_counts["malformed"] += 1
+        if not is_trunc:
+            if v in VERDICTS:
+                verdict_counts[v] += 1
+            else:
+                verdict_counts["malformed"] += 1
         if det.get("correct"):
             k_correct += 1
-        if not is_trunc:
-            parsed = parse_reply(text)
-            if parsed is not None:
-                parts = parsed["evidence_quotes"]
-                if parts and all(quote_found(p["quote"], passages) for p in parts):
-                    quote_pass += 1
+        parsed = None if is_trunc else parse_reply(text)
+        if parsed is not None:
+            parts = parsed["evidence_quotes"]
+            if parts and all(quote_found(p["quote"], passages) for p in parts):
+                quote_pass += 1
+        if save_all_out is not None:
+            parse_status = "truncated" if is_trunc else ("malformed" if parsed is None else "ok")
+            save_all_out.append(
+                {
+                    "kind": "pass",
+                    "item_id": str(row["id"]),
+                    "pass_id": str(pass_id),
+                    "seed": int(item_seed_val),
+                    "pass_seed": int(pass_seed),
+                    "sample_index": int(sample_idx),
+                    "text": text,
+                    "thinking": think,
+                    "answer": answer.strip(),
+                    "parse_status": parse_status,
+                    "verdict": v,
+                    "correct": bool(det.get("correct")),
+                    "reward": round(float(r_val), 6),
+                    "truncated": bool(is_trunc),
+                }
+            )
         rollout_outcomes.append(completion_eval_outcome(text, row, truncated=is_trunc, reward_val=r_val))
 
     comp_lens = [len(c) for c in comps]
@@ -3029,6 +3774,12 @@ def prepass_item_record(
         "prompt_tokens": len(prompt_ids),
         "completion_tokens_mean": round(float(statistics.fmean(comp_lens)), 2) if comp_lens else 0.0,
     }
+    rec["descriptive"] = bool(descriptive)
+    rec["pass_seed"] = int(pass_seed)
+    item_id_key = str(row["id"])
+    if pass_a_k is not None and item_id_key in pass_a_k:
+        rec["pass_a_k"] = int(pass_a_k[item_id_key])
+        rec["pass_a_band"] = k_band_name(rec["pass_a_k"])
     return rec, rollout_outcomes
 
 
@@ -3040,14 +3791,430 @@ def _k_correct_hist(records: Sequence[dict], g: int) -> dict[str, int]:
     return hist
 
 
+def item_confident_errors(rec: Mapping[str, Any]) -> int:
+    """Count confident errors for one item record:
+    - 'supported' on gold unsupported or gold cannot_tell, plus
+    - 'unsupported' on gold supported.
+    """
+    gold = str(rec.get("gold_verdict", "supported"))
+    if gold == "supported":
+        return int(rec.get("unsupported", 0))
+    return int(rec.get("supported", 0))
+
+
+def build_confusion_matrix_3x3(records: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, int]]:
+    """Build the 3x3 gold_verdict x predicted_verdict matrix plus malformed and truncations per gold class."""
+    matrix: dict[str, dict[str, int]] = {
+        gv: {
+            "supported": 0,
+            "unsupported": 0,
+            "cannot_tell": 0,
+            "malformed": 0,
+            "truncations": 0,
+            "total": 0,
+        }
+        for gv in VERDICTS
+    }
+    for r in records:
+        gv = str(r.get("gold_verdict", "supported"))
+        if gv not in matrix:
+            continue
+        row_m = matrix[gv]
+        row_m["supported"] += int(r.get("supported", 0))
+        row_m["unsupported"] += int(r.get("unsupported", 0))
+        row_m["cannot_tell"] += int(r.get("cannot_tell", 0))
+        row_m["malformed"] += int(r.get("malformed", 0))
+        row_m["truncations"] += int(r.get("truncations", 0))
+        row_m["total"] += int(r.get("g", 0))
+    return matrix
+
+
+def compute_hedge_flag(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    baseline_ct_share: float = 0.42,
+    threshold: float | None = None,
+) -> dict[str, Any]:
+    """Compute the secondary hedge flag on gold cannot_tell items: CT's share of correct answers
+    (cannot_tell / (cannot_tell + unsupported)), firing when it falls below half of baseline (~21%).
+    """
+    eff_threshold = (0.5 * float(baseline_ct_share)) if threshold is None else float(threshold)
+    ct_recs = [r for r in records if str(r.get("gold_verdict")) == "cannot_tell"]
+    ct_n = sum(int(r.get("cannot_tell", 0)) for r in ct_recs)
+    unsup_n = sum(int(r.get("unsupported", 0)) for r in ct_recs)
+    correct_total = ct_n + unsup_n
+    share = (ct_n / float(correct_total)) if correct_total > 0 else 0.0
+    return {
+        "cannot_tell_count": ct_n,
+        "unsupported_count": unsup_n,
+        "correct_total": correct_total,
+        "ct_share_of_correct": round(share, 6),
+        "baseline_ct_share": round(float(baseline_ct_share), 6),
+        "threshold": round(eff_threshold, 6),
+        "triggered": bool(correct_total > 0 and share < eff_threshold),
+    }
+
+
+def _verify_pass_provenance(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    role: str,
+    header: Mapping[str, Any] | None = None,
+    expected_seed: int | None = None,
+    forbid_seeds: Sequence[int] = (),
+    require_seeds: bool = True,
+) -> int | None:
+    """Verify pass records and optional header are not descriptive and have the expected seed provenance."""
+    if header is not None and (
+        header.get("descriptive") is True
+        or ("descriptive" in header and not isinstance(header["descriptive"], bool))
+    ):
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_descriptive): "
+            f"{role} header has descriptive=true"
+        )
+    observed_seed: int | None = None
+    if header is not None and "seed" in header and not isinstance(header["seed"], bool):
+        observed_seed = int(header["seed"])
+    for r in records:
+        if r.get("descriptive") is True or (
+            "descriptive" in r and not isinstance(r["descriptive"], bool)
+        ):
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_descriptive): "
+                f"{role} record {r.get('id')!r} has descriptive=true"
+            )
+        rec_seed_raw = r.get("pass_seed", r.get("seed"))
+        if rec_seed_raw is not None and not isinstance(rec_seed_raw, bool):
+            rec_seed = int(rec_seed_raw)
+            if observed_seed is None:
+                observed_seed = rec_seed
+            elif observed_seed != rec_seed:
+                raise SystemExit(
+                    f"refusing paired estimators (paired_estimator_wrong_seed): "
+                    f"{role} has inconsistent seeds ({observed_seed} vs {rec_seed})"
+                )
+    if require_seeds and observed_seed is None:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_wrong_seed): "
+            f"{role} is missing seed metadata"
+        )
+    if observed_seed is not None:
+        if expected_seed is not None and observed_seed != int(expected_seed):
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_wrong_seed): "
+                f"{role} requires seed {int(expected_seed)}, got {observed_seed}"
+            )
+        if observed_seed in {int(s) for s in forbid_seeds}:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_wrong_seed): "
+                f"{role} has reserved seed {observed_seed}"
+            )
+    return observed_seed
+
+
+def compute_paired_arm_estimators(
+    pass_a_records: Sequence[Mapping[str, Any]],
+    pass_b_records: Sequence[Mapping[str, Any]],
+    seed_postpasses: Sequence[tuple[Sequence[Mapping[str, Any]], Sequence[Mapping[str, Any]]]],
+    *,
+    holdout_ids: Sequence[str] | set[str] | None = None,
+    baseline_ct_share: float = 0.42,
+    pass_a_header: Mapping[str, Any] | None = None,
+    pass_b_header: Mapping[str, Any] | None = None,
+    postpass_headers: Sequence[tuple[Mapping[str, Any] | None, Mapping[str, Any] | None]] | None = None,
+    require_seeds: bool = True,
+) -> dict[str, Any]:
+    """Compute paired item-level estimators across 2 post-passes per seed and multiple training seeds.
+
+    Rules (Sections 11 & 13):
+    - Per item, average the 2 post-passes first: ``post_mean = (post1 + post2) / 2``.
+    - Then average ``post_mean`` across the training seeds paired by item (``n = items``).
+    - Inside Pass-A bands (``[0,5]``, ``[6,7]``, ``8``): use ``post_mean - B``.
+    - On unbanded sets (all items, held-out, trained, and by gold class): use ``post_mean - (A + B) / 2``.
+    - Co-primary measures: ``k_correct`` and ``confident_errors`` (plus ``reward_mean`` as secondary).
+    """
+    if not seed_postpasses:
+        raise ValueError("seed_postpasses must contain at least one (post1, post2) pair")
+    _verify_pass_provenance(
+        pass_a_records,
+        role="Pass A",
+        header=pass_a_header,
+        expected_seed=0,
+        require_seeds=require_seeds,
+    )
+    _verify_pass_provenance(
+        pass_b_records,
+        role="Pass B",
+        header=pass_b_header,
+        expected_seed=1,
+        require_seeds=require_seeds,
+    )
+    for pair_idx, (post1, post2) in enumerate(seed_postpasses):
+        hdr1, hdr2 = (
+            postpass_headers[pair_idx]
+            if postpass_headers is not None and pair_idx < len(postpass_headers)
+            else (None, None)
+        )
+        s1 = _verify_pass_provenance(
+            post1,
+            role=f"seed_postpasses[{pair_idx}][0]",
+            header=hdr1,
+            forbid_seeds=(0, 1),
+            require_seeds=require_seeds,
+        )
+        s2_seed = _verify_pass_provenance(
+            post2,
+            role=f"seed_postpasses[{pair_idx}][1]",
+            header=hdr2,
+            forbid_seeds=(0, 1),
+            require_seeds=require_seeds,
+        )
+        if s1 is not None and s2_seed is not None and s1 == s2_seed:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_wrong_seed): "
+                f"seed_postpasses[{pair_idx}] post1 and post2 have identical seed {s1}"
+            )
+    a_by_id = {str(r["id"]): r for r in pass_a_records}
+    b_by_id = {str(r["id"]): r for r in pass_b_records}
+    item_ids = sorted(a_by_id.keys())
+    if set(b_by_id.keys()) != set(item_ids):
+        raise ValueError("pass_a_records and pass_b_records must cover the exact same item IDs")
+
+    holdout_set = {str(x) for x in holdout_ids} if holdout_ids is not None else set()
+
+    # Per-seed, per-item post_mean = (post1 + post2) / 2
+    per_item_k_seeds: dict[str, list[float]] = {cid: [] for cid in item_ids}
+    per_item_ce_seeds: dict[str, list[float]] = {cid: [] for cid in item_ids}
+    per_item_rew_seeds: dict[str, list[float]] = {cid: [] for cid in item_ids}
+    flat_post_records: list[Mapping[str, Any]] = []
+
+    for post1, post2 in seed_postpasses:
+        p1_by_id = {str(r["id"]): r for r in post1}
+        p2_by_id = {str(r["id"]): r for r in post2}
+        flat_post_records.extend(post1)
+        flat_post_records.extend(post2)
+        for cid in item_ids:
+            r1, r2 = p1_by_id[cid], p2_by_id[cid]
+            per_item_k_seeds[cid].append(0.5 * (float(r1["k_correct"]) + float(r2["k_correct"])))
+            per_item_ce_seeds[cid].append(
+                0.5 * (float(item_confident_errors(r1)) + float(item_confident_errors(r2)))
+            )
+            per_item_rew_seeds[cid].append(
+                0.5 * (float(r1.get("reward_mean", 0.0)) + float(r2.get("reward_mean", 0.0)))
+            )
+
+    post_mean_k = {cid: float(statistics.fmean(per_item_k_seeds[cid])) for cid in item_ids}
+    post_mean_ce = {cid: float(statistics.fmean(per_item_ce_seeds[cid])) for cid in item_ids}
+    post_mean_rew = {cid: float(statistics.fmean(per_item_rew_seeds[cid])) for cid in item_ids}
+
+    def _subset_banded(ids_sub: Sequence[str]) -> dict[str, Any]:
+        """Inside Pass-A bands: estimator is post_mean - B."""
+        if not ids_sub:
+            return {"n_items": 0, "k_diff": None, "confident_error_diff": None, "reward_diff": None}
+        k_diffs = [post_mean_k[cid] - float(b_by_id[cid]["k_correct"]) for cid in ids_sub]
+        ce_diffs = [post_mean_ce[cid] - float(item_confident_errors(b_by_id[cid])) for cid in ids_sub]
+        rew_diffs = [post_mean_rew[cid] - float(b_by_id[cid].get("reward_mean", 0.0)) for cid in ids_sub]
+        return {
+            "n_items": len(ids_sub),
+            "estimator": "post_mean - B",
+            "k_post_mean": round(float(statistics.fmean(post_mean_k[cid] for cid in ids_sub)), 6),
+            "k_diff": round(float(statistics.fmean(k_diffs)), 6),
+            "confident_error_post_mean": round(
+                float(statistics.fmean(post_mean_ce[cid] for cid in ids_sub)), 6
+            ),
+            "confident_error_diff": round(float(statistics.fmean(ce_diffs)), 6),
+            "reward_diff": round(float(statistics.fmean(rew_diffs)), 6),
+        }
+
+    def _subset_unbanded(ids_sub: Sequence[str]) -> dict[str, Any]:
+        """On unbanded sets: estimator is post_mean - (A + B) / 2."""
+        if not ids_sub:
+            return {"n_items": 0, "k_diff": None, "confident_error_diff": None, "reward_diff": None}
+        k_diffs = [
+            post_mean_k[cid] - 0.5 * (float(a_by_id[cid]["k_correct"]) + float(b_by_id[cid]["k_correct"]))
+            for cid in ids_sub
+        ]
+        ce_diffs = [
+            post_mean_ce[cid]
+            - 0.5 * (float(item_confident_errors(a_by_id[cid])) + float(item_confident_errors(b_by_id[cid])))
+            for cid in ids_sub
+        ]
+        rew_diffs = [
+            post_mean_rew[cid]
+            - 0.5
+            * (
+                float(a_by_id[cid].get("reward_mean", 0.0))
+                + float(b_by_id[cid].get("reward_mean", 0.0))
+            )
+            for cid in ids_sub
+        ]
+        return {
+            "n_items": len(ids_sub),
+            "estimator": "post_mean - (A + B) / 2",
+            "k_post_mean": round(float(statistics.fmean(post_mean_k[cid] for cid in ids_sub)), 6),
+            "k_diff": round(float(statistics.fmean(k_diffs)), 6),
+            "confident_error_post_mean": round(
+                float(statistics.fmean(post_mean_ce[cid] for cid in ids_sub)), 6
+            ),
+            "confident_error_diff": round(float(statistics.fmean(ce_diffs)), 6),
+            "reward_diff": round(float(statistics.fmean(rew_diffs)), 6),
+        }
+
+    by_band: dict[str, Any] = {}
+    for band in ("[0,5]", "[6,7]", "8"):
+        band_ids = [cid for cid in item_ids if k_band_name(int(a_by_id[cid]["k_correct"])) == band]
+        by_band[band] = _subset_banded(band_ids)
+
+    by_gold_class: dict[str, Any] = {}
+    for gv in VERDICTS:
+        gv_ids = [cid for cid in item_ids if str(a_by_id[cid].get("gold_verdict")) == gv]
+        by_gold_class[gv] = _subset_unbanded(gv_ids)
+
+    by_band_and_gold_class: dict[str, dict[str, Any]] = {}
+    for band in ("[0,5]", "[6,7]", "8"):
+        by_band_and_gold_class[band] = {}
+        for gv in VERDICTS:
+            cell_ids = [
+                cid
+                for cid in item_ids
+                if k_band_name(int(a_by_id[cid]["k_correct"])) == band
+                and str(a_by_id[cid].get("gold_verdict")) == gv
+            ]
+            by_band_and_gold_class[band][gv] = _subset_banded(cell_ids)
+
+    hold_list = [cid for cid in item_ids if cid in holdout_set]
+    train_list = [cid for cid in item_ids if cid not in holdout_set]
+
+    return {
+        "n_items": len(item_ids),
+        "n_seeds": len(seed_postpasses),
+        "unbanded": {
+            "all_items": _subset_unbanded(item_ids),
+            "holdout": _subset_unbanded(hold_list),
+            "trained": _subset_unbanded(train_list),
+        },
+        "by_pass_a_band": by_band,
+        "by_gold_class": by_gold_class,
+        "by_band_and_gold_class": by_band_and_gold_class,
+        "confusion_matrix_before": {
+            "pass_a": build_confusion_matrix_3x3(pass_a_records),
+            "pass_b": build_confusion_matrix_3x3(pass_b_records),
+        },
+        "confusion_matrix_after": build_confusion_matrix_3x3(flat_post_records),
+        "hedge_flag_after": compute_hedge_flag(flat_post_records, baseline_ct_share=baseline_ct_share),
+        "per_item_post_mean_k": {cid: round(post_mean_k[cid], 6) for cid in item_ids},
+        "per_item_post_mean_confident_errors": {cid: round(post_mean_ce[cid], 6) for cid in item_ids},
+    }
+
+
+def _load_verified_pass_entry(entry: Mapping[str, Any], role: str) -> tuple[list[dict], dict | None]:
+    """Load a pass JSONL + companion header from a paired-estimator spec entry, verifying sha256."""
+    jsonl_val = entry.get("jsonl") or entry.get("path")
+    sha_val = entry.get("sha256")
+    if not jsonl_val or not sha_val:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_missing_arg): "
+            f"{role} requires both 'jsonl' and 'sha256'"
+        )
+    jpath = Path(str(jsonl_val))
+    if not jpath.is_file():
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_missing_file): "
+            f"{role} file does not exist: {jpath.name}"
+        )
+    raw_bytes = jpath.read_bytes()
+    actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+    expected_sha = str(sha_val).strip().lower()
+    if actual_sha != expected_sha:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_sha_mismatch): "
+            f"{role} expected sha256 {expected_sha}, got {actual_sha}"
+        )
+    recs = [json.loads(line) for line in raw_bytes.decode("utf-8").splitlines() if line.strip()]
+    hdr_val = entry.get("header")
+    hdr_obj: dict | None = None
+    candidates = (
+        [Path(str(hdr_val))]
+        if hdr_val
+        else [
+            jpath.with_name(jpath.stem + "-header.json"),
+            jpath.parent / "s2-hf-prepass-header.json",
+            jpath.parent / "s2-llamacpp-prepass-header.json",
+        ]
+    )
+    for cpath in candidates:
+        if cpath.is_file():
+            loaded = json.loads(cpath.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                hdr_obj = loaded
+                break
+    return recs, hdr_obj
+
+
+def run_paired_estimators_from_spec(spec_path: Path, out_dir: Path) -> dict[str, Any]:
+    """Read Pass A, Pass B, and seed post-pass pairs from ``spec_path`` and write estimator report."""
+    spath = Path(spec_path)
+    if not spath.is_file():
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_missing_spec): "
+            f"spec file does not exist: {spath.name}"
+        )
+    spec = json.loads(spath.read_text(encoding="utf-8"))
+    if not isinstance(spec, dict):
+        raise SystemExit(
+            "refusing paired estimators (paired_estimator_invalid_spec): spec must be a JSON object"
+        )
+    if "pass_a" not in spec or "pass_b" not in spec or "seed_postpasses" not in spec:
+        raise SystemExit(
+            "refusing paired estimators (paired_estimator_invalid_spec): "
+            "spec requires 'pass_a', 'pass_b', and 'seed_postpasses'"
+        )
+    pa_recs, pa_hdr = _load_verified_pass_entry(spec["pass_a"], "pass_a")
+    pb_recs, pb_hdr = _load_verified_pass_entry(spec["pass_b"], "pass_b")
+    post_pairs: list[tuple[list[dict], list[dict]]] = []
+    post_hdrs: list[tuple[dict | None, dict | None]] = []
+    for idx, pair in enumerate(spec["seed_postpasses"]):
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_invalid_spec): "
+                f"seed_postpasses[{idx}] must be a 2-element list"
+            )
+        p1_recs, p1_hdr = _load_verified_pass_entry(pair[0], f"seed_postpasses[{idx}][0]")
+        p2_recs, p2_hdr = _load_verified_pass_entry(pair[1], f"seed_postpasses[{idx}][1]")
+        post_pairs.append((p1_recs, p2_recs))
+        post_hdrs.append((p1_hdr, p2_hdr))
+    doc = compute_paired_arm_estimators(
+        pa_recs,
+        pb_recs,
+        post_pairs,
+        holdout_ids=spec.get("holdout_ids"),
+        baseline_ct_share=float(spec.get("baseline_ct_share", 0.42)),
+        pass_a_header=pa_hdr,
+        pass_b_header=pb_hdr,
+        postpass_headers=post_hdrs,
+        require_seeds=True,
+    )
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "s2-paired-estimators.json").write_text(
+        json.dumps(doc, indent=1) + "\n", encoding="utf-8", newline="\n"
+    )
+    return doc
+
+
 def prepass_summary(
     records: Sequence[dict],
     *,
     g: int,
     quote_reward: str = "v1",
     reproducible: bool = True,
+    descriptive: bool = False,
+    pass_a_k: dict[str, int] | None = None,
+    checkpoint_sha: str | None = None,
+    checkpoint_files_sha: Mapping[str, str] | None = None,
 ) -> dict:
-    """Summary of a rollout-only pre-pass: counts, histograms (0..G), and ratios only."""
+    """Summary of a rollout-only pre-pass: counts, histograms (0..G), per-band truncations, and ratios."""
     n = len(records)
     hist = _k_correct_hist(records, g)
     all_correct = sum(1 for r in records if int(r["k_correct"]) == g)
@@ -3059,11 +4226,31 @@ def prepass_summary(
     for gv in VERDICTS:
         by_verdict[gv] = _k_correct_hist([r for r in records if r.get("gold_verdict") == gv], g)
     total_truncs = sum(int(r["truncations"]) for r in records)
+    truncs_by_band: dict[str, int] = {"[0,5]": 0, "[6,7]": 0, "8": 0}
+    ce_by_band: dict[str, int] = {"[0,5]": 0, "[6,7]": 0, "8": 0}
+    ce_by_verdict: dict[str, int] = {gv: 0 for gv in VERDICTS}
+    total_ce = 0
+    total_completions = sum(int(r.get("g", g)) for r in records)
+    for r in records:
+        rid = str(r["id"])
+        k_ref = (
+            int(pass_a_k[rid])
+            if (pass_a_k is not None and rid in pass_a_k)
+            else int(r.get("pass_a_k", r["k_correct"]))
+        )
+        band_key = k_band_name(k_ref)
+        truncs_by_band[band_key] += int(r["truncations"])
+        ce_val = item_confident_errors(r)
+        total_ce += ce_val
+        ce_by_band[band_key] += ce_val
+        gv_key = str(r.get("gold_verdict", "supported"))
+        if gv_key in ce_by_verdict:
+            ce_by_verdict[gv_key] += ce_val
     total_quote_pass = sum(int(r.get("quote_pass", 0)) for r in records)
     gold_sup_completions = sum(int(r["g"]) for r in records if r.get("gold_verdict") == "supported")
     ct_on_gold_sup = sum(int(r["cannot_tell"]) for r in records if r.get("gold_verdict") == "supported")
     p_ct_given_sup = (ct_on_gold_sup / gold_sup_completions) if gold_sup_completions > 0 else 0.0
-    return {
+    out: dict = {
         "item_count": n,
         "g": int(g),
         "k_correct_histogram": hist,
@@ -3074,11 +4261,25 @@ def prepass_summary(
         "by_gold_file": by_file,
         "by_gold_verdict": by_verdict,
         "total_truncations": total_truncs,
+        "truncations_by_band": truncs_by_band,
+        "confident_errors": total_ce,
+        "confident_error_rate": (total_ce / total_completions) if total_completions > 0 else 0.0,
+        "confident_errors_by_gold_verdict": ce_by_verdict,
+        "confident_errors_by_band": ce_by_band,
+        "confusion_matrix_3x3": build_confusion_matrix_3x3(records),
+        "hedge_flag": compute_hedge_flag(records),
         "quote_pass": total_quote_pass,
         "quote_pass_role": quote_pass_role_text(quote_reward),
         "p_cannot_tell_given_gold_supported": p_ct_given_sup,
         "reproducible": bool(reproducible),
     }
+    if descriptive:
+        out["descriptive"] = True
+    if checkpoint_sha is not None:
+        out["checkpoint_sha256"] = checkpoint_sha
+    if checkpoint_files_sha is not None:
+        out["checkpoint_files_sha256"] = dict(checkpoint_files_sha)
+    return out
 
 
 def _prepare_prepass_resume(
@@ -3087,6 +4288,8 @@ def _prepare_prepass_resume(
     expected_header: dict,
     *,
     path: str = "hf",
+    summary_path: Path | None = None,
+    replay_check_k: Mapping[str, int] | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> list[dict]:
     """Verify or write the prepass header, truncate any trailing partial line, and return done records."""
@@ -3104,9 +4307,33 @@ def _prepare_prepass_resume(
             ) from exc
         if not isinstance(existing_header, dict):
             raise SystemExit(f"refusing to resume prepass: header {header_path} is not a JSON object")
+        eff_summary_path = (
+            Path(summary_path)
+            if summary_path is not None
+            else header_path.parent / f"s2-{path}-prepass-summary.json"
+        )
+        if eff_summary_path.exists():
+            try:
+                existing_summary = json.loads(eff_summary_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                raise SystemExit(
+                    f"refusing to resume prepass: summary {eff_summary_path} is not valid JSON ({exc})"
+                ) from exc
+            stopped_rec = existing_summary.get("stopped") if isinstance(existing_summary, dict) else None
+            if isinstance(stopped_rec, dict) and stopped_rec.get("reason") == "LOGGING_PASS_REPLAY_MISMATCH":
+                raise SystemExit(
+                    f"refusing to resume prepass (LOGGING_PASS_REPLAY_MISMATCH): "
+                    f"summary {eff_summary_path} has stopped.reason=LOGGING_PASS_REPLAY_MISMATCH "
+                    f"({stopped_rec.get('error') or 'replay mismatch'})"
+                )
         existing_cmp = dict(existing_header)
         if "reproducible" not in existing_cmp and expected_header.get("reproducible") is True:
             existing_cmp["reproducible"] = True
+        if "descriptive" not in existing_cmp and expected_header.get("descriptive") is False:
+            existing_cmp["descriptive"] = False
+        for k_opt in ("stack_versions", "pip_freeze_sha256"):
+            if k_opt not in existing_cmp and k_opt in expected_header:
+                existing_cmp[k_opt] = expected_header[k_opt]
         mismatched = [
             k
             for k in sorted(set(expected_header) | set(existing_cmp))
@@ -3155,6 +4382,21 @@ def _prepare_prepass_resume(
             tfh.truncate(valid_bytes)
             tfh.flush()
             fsync(tfh.fileno())
+    if replay_check_k is not None:
+        for rec in completed:
+            rec_id = str(rec["id"])
+            if rec_id not in replay_check_k:
+                raise SystemExit(
+                    f"refusing to resume prepass (replay_check_missing_id): "
+                    f"completed record {rec_id!r} has no replay-check entry"
+                )
+            b2_k = int(replay_check_k[rec_id])
+            cur_k = int(rec["k_correct"])
+            if cur_k != b2_k:
+                raise SystemExit(
+                    f"refusing to resume prepass (LOGGING_PASS_REPLAY_MISMATCH): "
+                    f"completed record item_id={rec_id} k_correct={cur_k} b2_k_correct={b2_k}"
+                )
     return completed
 
 
@@ -3168,6 +4410,16 @@ def run_prepass(
     eval_records: list[dict] | None = None,
     base_seed: int | None = None,
     stop_after_new: int | None = None,
+    descriptive: bool = False,
+    checkpoint_sha: str | None = None,
+    checkpoint_files_sha: Mapping[str, str] | None = None,
+    pass_a_k: dict[str, int] | None = None,
+    pass_a_sha: str | None = None,
+    replay_check_k: Mapping[str, int] | None = None,
+    replay_check_sha: str | None = None,
+    replay_check_off_reason: str | None = None,
+    stack_versions: Mapping[str, str | None] | None = None,
+    pip_freeze_sha256: str | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> tuple[list[dict], list[dict], dict | None, bool]:
     """Run the rollout-only pre-pass over ``prompts`` with resume support.
@@ -3197,6 +4449,21 @@ def run_prepass(
     )
     path_name = str(getattr(a, "path", "hf") or "hf")
     reproducible = path_name != "llamacpp"
+    save_all_on = bool(getattr(a, "save_all", True))
+    default_pass_id = (
+        f"logging_seed{eff_seed}"
+        if descriptive
+        else f"postpass_seed{eff_seed}"
+        if (bool(getattr(a, "postpass", False)) or checkpoint_sha is not None)
+        else f"prepass_seed{eff_seed}"
+    )
+    pass_id_str = str(getattr(a, "pass_id", None) or default_pass_id)
+    eff_rc_sha = replay_check_sha
+    eff_rc_off = replay_check_off_reason
+    if eff_rc_sha is None and getattr(a, "replay_check_sha256", None):
+        eff_rc_sha = str(a.replay_check_sha256).strip().lower()
+    if eff_rc_off is None and getattr(a, "replay_check_off_reason", None):
+        eff_rc_off = str(a.replay_check_off_reason).strip() or None
     expected_header = build_prepass_header(
         prompt_ids=[r["id"] for r in prompts],
         gold_hashes=gold_hashes,
@@ -3206,16 +4473,37 @@ def run_prepass(
         seed=eff_seed,
         model_revision=model_rev,
         reproducible=reproducible,
+        save_all=save_all_on,
+        descriptive=descriptive,
+        checkpoint_sha=checkpoint_sha,
+        checkpoint_files_sha=checkpoint_files_sha,
+        pass_a_sha=pass_a_sha,
+        stack_versions=stack_versions,
+        pip_freeze_sha256=pip_freeze_sha256,
+        replay_check_sha256=eff_rc_sha,
+        replay_check_off_reason=eff_rc_off,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
     jsonl_path = a.out / f"s2-{a.path}-prepass.jsonl"
     summary_path = a.out / f"s2-{a.path}-prepass-summary.json"
+    save_all_path = save_all_file_path(a.out, path_name)
 
     completed_records = _prepare_prepass_resume(
-        header_path, jsonl_path, expected_header, path=path_name, fsync=fsync
+        header_path,
+        jsonl_path,
+        expected_header,
+        path=path_name,
+        summary_path=summary_path,
+        replay_check_k=replay_check_k,
+        fsync=fsync,
     )
     done_ids = {str(r["id"]) for r in completed_records}
+    pass_save_records: list[dict] = []
+    if save_all_on and done_ids and save_all_path.exists():
+        pass_save_records = [
+            r for r in read_save_all(save_all_path) if str(r.get("item_id")) in done_ids
+        ]
 
     if mode:
         mode(False)
@@ -3226,115 +4514,206 @@ def run_prepass(
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     step_rows: list[dict] = []
     new_count = 0
+    stopped_mismatch: dict | None = None
 
-    with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
-        for item_idx, row in enumerate(prompts):
-            item_id = str(row["id"])
-            if item_id in done_ids:
-                continue
-            if stop_after_new is not None and new_count >= stop_after_new:
-                break
-            try:
-                started = time.time()
-                torch.manual_seed(item_seed(item_id, eff_seed))
-                prompt_text = build_prompt(row)
-                ckpt_rollout = state()["grad_ckpt"] if state else None
-                if phase_logger is not None:
-                    phase_logger.record(
-                        step=0,
-                        group=item_idx,
-                        phase="pre_rollout",
-                        prompt_tokens=len(tok.encode(prompt_text)),
-                        completion_lengths=(),
+    try:
+        with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
+            for item_idx, row in enumerate(prompts):
+                item_id = str(row["id"])
+                if item_id in done_ids:
+                    continue
+                if stop_after_new is not None and new_count >= stop_after_new:
+                    break
+                try:
+                    started = time.time()
+                    seed_for_item = item_seed(item_id, eff_seed)
+                    torch.manual_seed(seed_for_item)
+                    prompt_text = build_prompt(row)
+                    ckpt_rollout = state()["grad_ckpt"] if state else None
+                    if phase_logger is not None:
+                        phase_logger.record(
+                            step=0,
+                            group=item_idx,
+                            phase="pre_rollout",
+                            prompt_tokens=len(tok.encode(prompt_text)),
+                            completion_lengths=(),
+                        )
+                    t0 = time.time()
+                    roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
+                    if len(roll_out) == 3:
+                        prompt_ids, comps, truncs = roll_out
+                        truncs = [bool(t) for t in truncs]
+                    else:
+                        prompt_ids, comps = roll_out
+                        truncs = [
+                            len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
+                            for c in comps
+                        ]
+                    device_sync()
+                    roll_s = time.time() - t0
+                    comp_lens = [len(c) for c in comps]
+                    if empty_cache_phases and empty_cache is not None:
+                        empty_cache()
+                    if phase_logger is not None:
+                        phase_logger.record(
+                            step=0,
+                            group=item_idx,
+                            phase="post_rollout",
+                            prompt_tokens=len(prompt_ids),
+                            completion_lengths=comp_lens,
+                        )
+                    rec, rollout_outcomes = prepass_item_record(
+                        row=row,
+                        prompt_ids=prompt_ids,
+                        comps=comps,
+                        truncs=truncs,
+                        tok=tok,
+                        reward_fn=reward_fn,
+                        quote_reward=quote_rew,
+                        save_all_out=pass_save_records if save_all_on else None,
+                        pass_id=pass_id_str,
+                        item_seed_val=seed_for_item,
+                        pass_seed=eff_seed,
+                        descriptive=descriptive,
+                        pass_a_k=pass_a_k,
                     )
-                t0 = time.time()
-                roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
-                if len(roll_out) == 3:
-                    prompt_ids, comps, truncs = roll_out
-                    truncs = [bool(t) for t in truncs]
-                else:
-                    prompt_ids, comps = roll_out
-                    truncs = [
-                        len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
-                        for c in comps
-                    ]
-                device_sync()
-                roll_s = time.time() - t0
-                comp_lens = [len(c) for c in comps]
-                if empty_cache_phases and empty_cache is not None:
-                    empty_cache()
-                if phase_logger is not None:
-                    phase_logger.record(
-                        step=0,
-                        group=item_idx,
-                        phase="post_rollout",
-                        prompt_tokens=len(prompt_ids),
-                        completion_lengths=comp_lens,
-                    )
-                rec, rollout_outcomes = prepass_item_record(
-                    row=row,
-                    prompt_ids=prompt_ids,
-                    comps=comps,
-                    truncs=truncs,
-                    tok=tok,
-                    reward_fn=reward_fn,
-                    quote_reward=quote_rew,
-                )
-                if eval_records is not None:
-                    rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
-                    adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
-                    for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
-                        ro_item["advantage"] = float(adv_val)
-                    eval_records.append(
+                    if eval_records is not None:
+                        rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
+                        adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
+                        for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
+                            ro_item["advantage"] = float(adv_val)
+                        eval_records.append(
+                            {
+                                "step": 0,
+                                "group": item_idx,
+                                "gold": str(row.get("label", "supported")),
+                                "rollouts": rollout_outcomes,
+                            }
+                        )
+                    jfh.write(json.dumps(rec) + "\n")
+                    jfh.flush()
+                    fsync(jfh.fileno())
+                    completed_records.append(rec)
+                    done_ids.add(item_id)
+                    new_count += 1
+                    is_zv = bool(rec["zero_variance"])
+                    step_rows.append(
                         {
-                            "step": 0,
-                            "group": item_idx,
-                            "gold": str(row.get("label", "supported")),
-                            "rollouts": rollout_outcomes,
+                            "step": item_idx,
+                            "groups": 1,
+                            "active_groups": int(not is_zv),
+                            "zero_variance_groups": int(is_zv),
+                            "tokens": sum(comp_lens),
+                            "rollout_s": round(roll_s, 4),
+                            "train_s": 0.0,
+                            "step_s": round(time.time() - started, 4),
+                            "mean_reward": rec["reward_mean"],
+                            "loss": 0.0,
+                            "peak_alloc_mib": (
+                                phase_logger.peak_alloc_mib()
+                                if phase_logger is not None and phase_logger.max_memory_allocated is not None
+                                else peak_alloc_mib()
+                            ),
+                            "grad_ckpt": None,
+                            "grad_ckpt_rollout": ckpt_rollout,
                         }
                     )
-                jfh.write(json.dumps(rec) + "\n")
-                jfh.flush()
-                fsync(jfh.fileno())
-                completed_records.append(rec)
-                done_ids.add(item_id)
-                new_count += 1
-                is_zv = bool(rec["zero_variance"])
-                step_rows.append(
-                    {
-                        "step": item_idx,
-                        "groups": 1,
-                        "active_groups": int(not is_zv),
-                        "zero_variance_groups": int(is_zv),
-                        "tokens": sum(comp_lens),
-                        "rollout_s": round(roll_s, 4),
-                        "train_s": 0.0,
-                        "step_s": round(time.time() - started, 4),
-                        "mean_reward": rec["reward_mean"],
-                        "loss": 0.0,
-                        "peak_alloc_mib": (
-                            phase_logger.peak_alloc_mib()
-                            if phase_logger is not None and phase_logger.max_memory_allocated is not None
-                            else peak_alloc_mib()
-                        ),
-                        "grad_ckpt": None,
-                        "grad_ckpt_rollout": ckpt_rollout,
-                    }
-                )
-            except oom_types:
-                return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
-            except TimeoutError as exc:
-                return step_rows, completed_records, {"step": item_idx, "error": f"timeout: {exc}"}, False
+                    if replay_check_k is not None:
+                        b2_k = int(replay_check_k[item_id])
+                        cur_k = int(rec["k_correct"])
+                        if cur_k != b2_k:
+                            mismatch_msg = (
+                                f"LOGGING_PASS_REPLAY_MISMATCH: item_id={item_id} "
+                                f"k_correct={cur_k} b2_k_correct={b2_k}"
+                            )
+                            stopped_mismatch = {
+                                "step": item_idx,
+                                "reason": "LOGGING_PASS_REPLAY_MISMATCH",
+                                "error": mismatch_msg,
+                                "item_id": item_id,
+                                "k_correct": cur_k,
+                                "b2_k_correct": b2_k,
+                            }
+                            break
+                except oom_types:
+                    return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
+                except TimeoutError as exc:
+                    return (
+                        step_rows,
+                        completed_records,
+                        {"step": item_idx, "error": f"timeout: {exc}"},
+                        False,
+                    )
+    finally:
+        if save_all_on:
+            write_save_all(save_all_path, pass_save_records, fsync=fsync)
 
-    if len(completed_records) == len(prompts):
+    if len(completed_records) == len(prompts) or stopped_mismatch is not None:
         summary_doc = prepass_summary(
-            completed_records, g=a.g, quote_reward=quote_rew, reproducible=reproducible
+            completed_records,
+            g=a.g,
+            quote_reward=quote_rew,
+            reproducible=reproducible,
+            descriptive=descriptive,
+            pass_a_k=pass_a_k,
+            checkpoint_sha=checkpoint_sha,
+            checkpoint_files_sha=checkpoint_files_sha,
         )
+        if stopped_mismatch is not None:
+            summary_doc["stopped"] = dict(stopped_mismatch)
         with summary_path.open("w", encoding="utf-8", newline="\n") as sfh:
             sfh.write(json.dumps(summary_doc, indent=1) + "\n")
             sfh.flush()
             fsync(sfh.fileno())
-    return step_rows, completed_records, None, False
+    return step_rows, completed_records, stopped_mismatch, False
+
+
+def _check_header_not_descriptive(
+    baseline_path: Path,
+    *,
+    expected_seeds: Sequence[int] = (0,),
+) -> tuple[bool, bool]:
+    """Refuse if any companion header beside ``baseline_path`` has ``descriptive: true`` or wrong seed."""
+    allowed_seeds = {int(s) for s in expected_seeds}
+    candidates = [
+        baseline_path.with_name(baseline_path.stem + "-header.json"),
+        baseline_path.parent / "s2-hf-prepass-header.json",
+        baseline_path.parent / "s2-llamacpp-prepass-header.json",
+    ]
+    seen: set[Path] = set()
+    header_has_seed = False
+    header_has_descriptive = False
+    for hdr_path in candidates:
+        if hdr_path in seen or not hdr_path.is_file():
+            continue
+        seen.add(hdr_path)
+        try:
+            hdr_obj = json.loads(hdr_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(hdr_obj, dict):
+            continue
+        if hdr_obj.get("descriptive") is True or (
+            "descriptive" in hdr_obj and not isinstance(hdr_obj["descriptive"], bool)
+        ):
+            raise SystemExit(
+                "refusing to start (prepass_baseline_descriptive): "
+                "pass header has descriptive=true; the starting-policy logging pass "
+                "is never accepted as --prepass-baseline"
+            )
+        if "descriptive" in hdr_obj and hdr_obj["descriptive"] is False:
+            header_has_descriptive = True
+        if "seed" in hdr_obj:
+            hdr_seed = hdr_obj.get("seed")
+            if isinstance(hdr_seed, bool) or not isinstance(hdr_seed, int) or hdr_seed not in allowed_seeds:
+                raise SystemExit(
+                    f"refusing to start (prepass_baseline_wrong_seed): "
+                    f"pass header has seed={hdr_seed!r}, expected one of {sorted(allowed_seeds)}"
+                )
+            header_has_seed = True
+            if "ids_sha256" in hdr_obj and "descriptive" not in hdr_obj:
+                header_has_descriptive = True
+    return header_has_seed, header_has_descriptive
 
 
 # -- the run -------------------------------------------------------------------------------------------------
@@ -3343,7 +4722,8 @@ def load_prepass_baseline(
     baseline_sha256: str | None,
     required_ids: Sequence[str],
     *,
-    g: int = G,
+    g: int | None = G,
+    expected_seeds: Sequence[int] = (0,),
 ) -> tuple[dict[str, int] | None, str | None]:
     """Load and SHA-check a pre-pass baseline JSONL. Never records item text or full file paths."""
     if baseline_path is None and baseline_sha256 is None:
@@ -3358,6 +4738,10 @@ def load_prepass_baseline(
         raise SystemExit(
             f"refusing to start (prepass_baseline_missing_file): baseline file does not exist: {path.name}"
         )
+    allowed_seeds = {int(s) for s in expected_seeds}
+    header_has_seed, header_has_descriptive = _check_header_not_descriptive(
+        path, expected_seeds=expected_seeds
+    )
     raw_bytes = path.read_bytes()
     actual_sha = hashlib.sha256(raw_bytes).hexdigest()
     expected_sha = str(baseline_sha256).strip().lower()
@@ -3366,7 +4750,7 @@ def load_prepass_baseline(
             f"refusing to start (prepass_baseline_sha_mismatch): "
             f"expected sha256 {expected_sha}, got {actual_sha}"
         )
-    expected_g = int(g)
+    expected_g = int(g) if g is not None else None
     k_by_id: dict[str, int] = {}
     for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
         line = raw_line.strip()
@@ -3378,6 +4762,25 @@ def load_prepass_baseline(
             raise SystemExit(
                 f"refusing to start (prepass_baseline_corrupt_json): invalid JSON on line {line_no}"
             ) from exc
+        rec_has_descriptive = False
+        if isinstance(obj, dict) and "descriptive" in obj:
+            if obj.get("descriptive") is True or not isinstance(obj.get("descriptive"), bool):
+                raise SystemExit(
+                    "refusing to start (prepass_baseline_descriptive): "
+                    "record has descriptive=true; the starting-policy logging pass "
+                    "is never accepted as --prepass-baseline"
+                )
+            if obj.get("descriptive") is False:
+                rec_has_descriptive = True
+        rec_has_seed = False
+        if isinstance(obj, dict) and ("pass_seed" in obj or "seed" in obj):
+            rec_seed = obj.get("pass_seed", obj.get("seed"))
+            if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed not in allowed_seeds:
+                raise SystemExit(
+                    f"refusing to start (prepass_baseline_wrong_seed): "
+                    f"record on line {line_no} has seed={rec_seed!r}, expected one of {sorted(allowed_seeds)}"
+                )
+            rec_has_seed = True
         if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
             raise SystemExit(
                 f"refusing to start (prepass_baseline_invalid_record): "
@@ -3390,7 +4793,14 @@ def load_prepass_baseline(
                 f"duplicate baseline record for id {rec_id!r}"
             )
         g_val = obj.get("g")
-        if isinstance(g_val, bool) or not isinstance(g_val, int) or g_val != expected_g:
+        if isinstance(g_val, bool) or not isinstance(g_val, int) or g_val < 1:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_g_mismatch): "
+                f"baseline record for id {rec_id!r} has g={g_val!r}, expected {expected_g}"
+            )
+        if expected_g is None:
+            expected_g = g_val
+        elif g_val != expected_g:
             raise SystemExit(
                 f"refusing to start (prepass_baseline_g_mismatch): "
                 f"baseline record for id {rec_id!r} has g={g_val!r}, expected {expected_g}"
@@ -3401,11 +4811,107 @@ def load_prepass_baseline(
                 f"refusing to start (prepass_baseline_k_out_of_range): "
                 f"baseline record for id {rec_id!r} has k_correct={k_val!r} outside 0..{expected_g}"
             )
+        if not (header_has_seed or rec_has_seed):
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_missing_seed): "
+                f"record on line {line_no} and companion header lack seed metadata"
+            )
+        if not (header_has_descriptive or rec_has_descriptive):
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_missing_descriptive): "
+                f"record on line {line_no} and companion header lack descriptive metadata"
+            )
         k_by_id[rec_id] = k_val
     missing = [str(cid) for cid in required_ids if str(cid) not in k_by_id]
     if missing:
         raise SystemExit(
             f"refusing to start (prepass_baseline_missing_id): prompt {missing[0]!r} has no baseline record "
+            f"({len(missing)} missing)"
+        )
+    return k_by_id, actual_sha
+
+
+def load_replay_check_jsonl(
+    replay_path: Path | None,
+    replay_sha256: str | None,
+    required_ids: Sequence[str],
+    *,
+    g: int | None = G,
+) -> tuple[dict[str, int] | None, str | None]:
+    """Load and SHA-check a B2 JSONL file for ``--replay-check`` during ``--logging-pass``."""
+    if replay_path is None and replay_sha256 is None:
+        return None, None
+    if replay_path is None or not replay_sha256:
+        raise SystemExit(
+            "refusing to start (replay_check_missing_arg): "
+            "--replay-check and --replay-check-sha256 must be given together"
+        )
+    path = Path(replay_path)
+    if not path.is_file():
+        raise SystemExit(
+            f"refusing to start (replay_check_missing_file): replay-check file does not exist: {path.name}"
+        )
+    _check_header_not_descriptive(path, expected_seeds=(1,))
+    raw_bytes = path.read_bytes()
+    actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+    expected_sha = str(replay_sha256).strip().lower()
+    if actual_sha != expected_sha:
+        raise SystemExit(
+            f"refusing to start (replay_check_sha_mismatch): "
+            f"expected sha256 {expected_sha}, got {actual_sha}"
+        )
+    expected_g = int(g) if g is not None else None
+    k_by_id: dict[str, int] = {}
+    for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                f"refusing to start (replay_check_corrupt_json): invalid JSON on line {line_no}"
+            ) from exc
+        if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
+            raise SystemExit(
+                f"refusing to start (replay_check_invalid_record): "
+                f"line {line_no} is missing 'id' or 'k_correct'"
+            )
+        if "descriptive" in obj and (
+            obj.get("descriptive") is True or not isinstance(obj.get("descriptive"), bool)
+        ):
+            raise SystemExit(
+                "refusing to start (replay_check_descriptive): "
+                f"line {line_no} has descriptive=true; --replay-check requires non-descriptive Pass B2"
+            )
+        if "pass_seed" in obj or "seed" in obj:
+            rec_seed = obj.get("pass_seed", obj.get("seed"))
+            if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed != 1:
+                raise SystemExit(
+                    f"refusing to start (replay_check_wrong_seed): "
+                    f"record on line {line_no} has seed={rec_seed!r}, expected 1"
+                )
+        rec_id = str(obj["id"])
+        if rec_id in k_by_id:
+            raise SystemExit(
+                f"refusing to start (replay_check_duplicate_id): duplicate record for id {rec_id!r}"
+            )
+        k_val = obj["k_correct"]
+        if isinstance(k_val, bool) or not isinstance(k_val, int) or k_val < 0:
+            raise SystemExit(
+                f"refusing to start (replay_check_k_out_of_range): "
+                f"record for id {rec_id!r} has invalid k_correct={k_val!r}"
+            )
+        if expected_g is not None and k_val > expected_g:
+            raise SystemExit(
+                f"refusing to start (replay_check_k_out_of_range): "
+                f"record for id {rec_id!r} has k_correct={k_val!r} > g={expected_g}"
+            )
+        k_by_id[rec_id] = k_val
+    missing = [str(cid) for cid in required_ids if str(cid) not in k_by_id]
+    if missing:
+        raise SystemExit(
+            f"refusing to start (replay_check_missing_id): prompt {missing[0]!r} has no replay-check record "
             f"({len(missing)} missing)"
         )
     return k_by_id, actual_sha
@@ -3466,24 +4972,68 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["mask_truncated"] = True
     if getattr(a, "quote_reward", "v1") != "v1":
         flags["quote_reward"] = a.quote_reward
-    if getattr(a, "rollout_only", False):
+    if any(getattr(a, attr, False) for attr in ("rollout_only", "logging_pass", "postpass")):
         flags["rollout_only"] = True
-    if int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
+    if getattr(a, "logging_pass", False):
+        flags["logging_pass"] = True
+        flags["descriptive"] = True
+        flags["prepass_seed"] = 1
+    elif getattr(a, "postpass", False):
+        flags["postpass"] = True
+        if getattr(a, "pass_seed", None) is not None:
+            flags["prepass_seed"] = int(a.pass_seed)
+        elif int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
+            flags["prepass_seed"] = int(a.prepass_seed)
+    elif int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
         flags["prepass_seed"] = int(a.prepass_seed)
+    elif getattr(a, "pass_seed", None) != PREPASS_BASE_SEED and getattr(a, "pass_seed", None) is not None:
+        flags["prepass_seed"] = int(a.pass_seed)
     if getattr(a, "sign_diagnostics", False):
         flags["sign_diagnostics"] = True
     if getattr(a, "prepass_baseline_sha256", None):
         flags["prepass_baseline_sha256"] = str(a.prepass_baseline_sha256).strip().lower()
+    if getattr(a, "pass_a_sha256", None):
+        flags["pass_a_sha256"] = str(a.pass_a_sha256).strip().lower()
+    if getattr(a, "replay_check_sha256", None) and str(getattr(a, "replay_check_sha256")).strip():
+        flags["replay_check_sha256"] = str(a.replay_check_sha256).strip().lower()
+    if getattr(a, "replay_check_off_reason", None) and str(getattr(a, "replay_check_off_reason")).strip():
+        flags["replay_check_off_reason"] = str(a.replay_check_off_reason).strip()
     if getattr(a, "log_sdpa_backend", False):
         flags["log_sdpa_backend"] = True
+    if not bool(getattr(a, "save_all", True)):
+        flags["save_all"] = False
+        flags["save_all_off_reason"] = (getattr(a, "save_all_off_reason", None) or "").strip()
+    if getattr(a, "pass_id", None):
+        flags["pass_id"] = str(a.pass_id)
+    if getattr(a, "mask_wrong_positive_advantage", False):
+        flags["mask_wrong_positive_advantage"] = True
+        flags["dual_clip_c"] = float(getattr(a, "dual_clip_c", None) or DUAL_CLIP_C)
+    elif getattr(a, "dual_clip_c", None) is not None:
+        flags["dual_clip_c"] = float(a.dual_clip_c)
+    if getattr(a, "ct_guard", False):
+        flags["ct_guard"] = True
+        flags["guard_window_groups"] = int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS))
+    if getattr(a, "holdout", False):
+        flags["holdout"] = True
+        flags["holdout_fraction"] = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
+        if getattr(a, "holdout_seed", None) is not None:
+            flags["holdout_seed"] = str(a.holdout_seed)
+    elif getattr(a, "holdout_seed", None) is not None:
+        flags["holdout_seed"] = str(a.holdout_seed)
     return flags
 
 
 def is_cut(a: argparse.Namespace) -> bool:
     """Whether the run is not the registered shape: --steps, --prompts, --g or --max-new changed."""
-    if getattr(a, "rollout_only", False):
+    if any(getattr(a, attr, False) for attr in ("rollout_only", "logging_pass", "postpass")):
         return a.g != G or a.max_new != MAX_NEW_TOKENS
-    return a.steps != STEPS or a.prompts != PROMPTS or a.g != G or a.max_new != MAX_NEW_TOKENS
+    expected_prompts = (
+        int(a.steps) * int(getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP)
+        if str(getattr(a, "draw", "first") or "first") == "class_stratified"
+        and not getattr(a, "_prompts_explicit", False)
+        else PROMPTS
+    )
+    return a.steps != STEPS or a.prompts != expected_prompts or a.g != G or a.max_new != MAX_NEW_TOKENS
 
 
 def execute(
@@ -3495,15 +5045,32 @@ def execute(
 ) -> int:
     """One S2 run: guards, prompts, steps, readout, receipt. ``build`` makes the model bundle; ``rig`` is the
     machine's side (the GPU query, the heartbeat, the sampler), None for a dry rehearsal."""
-    if getattr(a, "alloc_conf", None) is not None:
+    if getattr(a, "alloc_conf", None) is not None and not a.dry and build is real_bundle:
         configure_alloc_conf(a.alloc_conf)
+    if getattr(a, "paired_estimators", None) is not None:
+        run_paired_estimators_from_spec(Path(a.paired_estimators), a.out)
+        return 0
+    save_all_on, save_all_reason = validate_save_all_args(a)
+    rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
+    ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
+    frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
+    require_frozen = bool(
+        getattr(a, "require_frozen_stack", False)
+        or (not a.dry and (build is real_bundle or frozen_pip_freeze is not None))
+    )
+    if not a.dry or frozen_pip_freeze is not None or require_frozen:
+        frozen_env = check_frozen_env(frozen_pip_freeze, require_exact_versions=require_frozen)
+    else:
+        frozen_env = {
+            "stack_versions": {k: package_version(k) for k in FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
+        }
     if getattr(a, "logprob_microbatch", None) is not None and a.logprob_microbatch < 1:
         raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
     if getattr(a, "stress_prefix", 0) < 0:
         raise SystemExit(f"--stress-prefix must be >= 0, got {a.stress_prefix}")
     if getattr(a, "groups_per_update", GROUPS_PER_STEP) < 1:
         raise SystemExit(f"--groups-per-update must be >= 1, got {a.groups_per_update}")
-    rollout_only = bool(getattr(a, "rollout_only", False))
     if rollout_only and getattr(a, "stress_prefix", 0) > 0:
         raise SystemExit("refusing to start: --rollout-only cannot be used with --stress-prefix > 0")
     draw_mode = str(getattr(a, "draw", "first") or "first")
@@ -3529,6 +5096,7 @@ def execute(
 
     rows, gold_hashes = read_gold(a.gold)
     draw_record: dict = {}
+    holdout_ids_list: list[str] = []
     if rollout_only:
         prompts = select_prompts(rows, None)
     else:
@@ -3539,6 +5107,53 @@ def execute(
             if (prepass_jsonl is not None or prepass_sha256 is not None)
             else None
         )
+        hold_frac = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
+        hold_seed_raw = getattr(a, "holdout_seed", None)
+        hold_seed_valid = (
+            hold_seed_raw is not None
+            and not isinstance(hold_seed_raw, bool)
+            and str(hold_seed_raw).strip()
+        )
+        hold_seed = str(hold_seed_raw) if hold_seed_valid else None
+        if draw_mode == "class_stratified":
+            if prepass_spec is None and getattr(a, "pass_a_jsonl", None) is not None:
+                prepass_spec = (
+                    getattr(a, "pass_a_jsonl", None),
+                    getattr(a, "pass_a_sha256", None),
+                )
+            total_groups_needed = int(a.steps) * int(
+                getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP
+            )
+            if not getattr(a, "_prompts_explicit", False):
+                a.prompts = total_groups_needed
+            elif int(a.prompts) < total_groups_needed:
+                raise SystemExit(
+                    f"refusing to start (prompts_smaller_than_total_groups): "
+                    f"--draw class_stratified requires --prompts ({a.prompts}) >= "
+                    f"steps * groups_per_update ({total_groups_needed})"
+                )
+        if getattr(a, "holdout", False):
+            hold_spec = prepass_spec or (
+                (getattr(a, "pass_a_jsonl", None), getattr(a, "pass_a_sha256", None))
+                if getattr(a, "pass_a_jsonl", None) is not None
+                else None
+            )
+            if hold_spec is None:
+                raise SystemExit(
+                    "refusing to start (holdout_requires_pass_a): "
+                    "--holdout requires --pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256"
+                )
+            _, _, hold_meta = split_stratified_holdout(
+                rows,
+                hold_spec,
+                holdout_fraction=hold_frac,
+                holdout_seed=hold_seed,
+            )
+            holdout_ids_list = list(hold_meta["holdout_ids"])
+            draw_record["holdout_seed"] = hold_meta["holdout_seed"]
+            draw_record["holdout_count"] = hold_meta["holdout_count"]
+            draw_record["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
+            draw_record["train_ids_sha256"] = hold_meta["train_ids_sha256"]
         prompts, draw_rec = draw_prompts(
             rows,
             a.prompts,
@@ -3547,15 +5162,53 @@ def execute(
             prepass=prepass_spec,
             k_min=getattr(a, "k_min", None),
             k_max=getattr(a, "k_max", None),
+            holdout_fraction=hold_frac,
+            holdout_seed=hold_seed,
+            holdout_ids=holdout_ids_list if holdout_ids_list else None,
         )
         if draw_mode != "first":
-            draw_record = draw_rec
+            draw_record.update(draw_rec)
+        if draw_mode == "class_stratified" and prepass_spec is not None and not holdout_ids_list:
+            _, _, hold_meta = split_stratified_holdout(
+                rows,
+                prepass_spec,
+                holdout_fraction=hold_frac,
+                holdout_seed=hold_seed,
+            )
+            holdout_ids_list = list(hold_meta["holdout_ids"])
+            draw_record["holdout_seed"] = hold_meta["holdout_seed"]
     prepass_baseline_k, _ = load_prepass_baseline(
         getattr(a, "prepass_baseline", None),
         getattr(a, "prepass_baseline_sha256", None),
         [r["id"] for r in prompts],
         g=a.g,
     )
+    pass_a_k, pass_a_sha = load_prepass_baseline(
+        getattr(a, "pass_a_jsonl", None),
+        getattr(a, "pass_a_sha256", None),
+        [r["id"] for r in prompts],
+        g=None,
+    )
+    rc_path_val, rc_sha_val, rc_off_val = validate_replay_check_args(a)
+    replay_check_k, replay_check_sha = load_replay_check_jsonl(
+        rc_path_val,
+        rc_sha_val,
+        [r["id"] for r in prompts],
+        g=a.g,
+    )
+    if pass_a_k is None and not rollout_only and getattr(a, "prepass_jsonl", None) is not None:
+        pass_a_k, pass_a_sha = load_prepass_baseline(
+            getattr(a, "prepass_jsonl", None),
+            getattr(a, "prepass_sha256", None),
+            [r["id"] for r in prompts],
+            g=None,
+        )
+    if getattr(a, "ct_guard", False) and not pass_a_k:
+        raise SystemExit(
+            "refusing to start (ct_guard_requires_pass_a_k): "
+            "--ct-guard requires Pass-A k_correct "
+            "(--pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256)"
+        )
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -3580,6 +5233,12 @@ def execute(
         gpu = rig.preflight()
         guard = gpu.get("guard")
     bundle = build(a)
+    if bool(getattr(a, "postpass", False)) or getattr(a, "checkpoint", None) is not None:
+        if not bundle.get("adapter_loaded"):
+            raise SystemExit(
+                "refusing to start (checkpoint_adapter_not_loaded): "
+                "--postpass / --checkpoint requires the adapter to be loaded into the model"
+            )
     if rollout_only and a.dry and bundle.get("dry_prepass_cap") is not None:
         prompts = prompts[: int(bundle["dry_prepass_cap"])]
     phase_logger: PhaseLogger | None = None
@@ -3593,6 +5252,8 @@ def execute(
                 gpu=gpu,
                 guard=guard,
                 counter_runner=counter_runner,
+                stack_versions=frozen_env.get("stack_versions"),
+                pip_freeze_sha256=frozen_env.get("pip_freeze_sha256"),
             )
 
         sampler = VramSampler(rig.vram_query) if rig is not None and not a.dry else None
@@ -3601,7 +5262,6 @@ def execute(
         )
         log_sdpa = bool(getattr(a, "log_sdpa_backend", False))
         sign_diag = bool(getattr(a, "sign_diagnostics", False))
-        prepass_seed_val = int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0)
         phase_logger = PhaseLogger(
             a.out / f"s2-{a.path}-phases.jsonl",
             enabled=rig is not None and not a.dry,
@@ -3624,6 +5284,7 @@ def execute(
         quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
         eval_records: list[dict] = []
         prepass_records: list[dict] = []
+        rollout_save_records: list[dict] = []
         group_residuals: list[tuple[str, int, float]] = []
         stress_meta: dict = {}
 
@@ -3656,6 +5317,16 @@ def execute(
                         eval_records=eval_records,
                         base_seed=prepass_seed_val,
                         stop_after_new=half,
+                        descriptive=descriptive_pass,
+                        checkpoint_sha=ckpt_sha,
+                        checkpoint_files_sha=ckpt_files_sha,
+                        pass_a_k=pass_a_k,
+                        pass_a_sha=pass_a_sha,
+                        replay_check_k=replay_check_k,
+                        replay_check_sha=replay_check_sha,
+                        replay_check_off_reason=rc_off_val,
+                        stack_versions=frozen_env["stack_versions"],
+                        pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                     )
                     with jsonl_path.open("a", encoding="utf-8", newline="\n") as pfh:
                         pfh.write('{"id": "dry_partial_line"')
@@ -3668,6 +5339,16 @@ def execute(
                         phase_logger=phase_logger,
                         eval_records=eval_records,
                         base_seed=prepass_seed_val,
+                        descriptive=descriptive_pass,
+                        checkpoint_sha=ckpt_sha,
+                        checkpoint_files_sha=ckpt_files_sha,
+                        pass_a_k=pass_a_k,
+                        pass_a_sha=pass_a_sha,
+                        replay_check_k=replay_check_k,
+                        replay_check_sha=replay_check_sha,
+                        replay_check_off_reason=rc_off_val,
+                        stack_versions=frozen_env["stack_versions"],
+                        pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                     )
                     prepass_records = recs_p2
                     return rows_p1 + rows_p2, stop_p2, oom_p2
@@ -3679,6 +5360,16 @@ def execute(
                     phase_logger=phase_logger,
                     eval_records=eval_records,
                     base_seed=prepass_seed_val,
+                    descriptive=descriptive_pass,
+                    checkpoint_sha=ckpt_sha,
+                    checkpoint_files_sha=ckpt_files_sha,
+                    pass_a_k=pass_a_k,
+                    pass_a_sha=pass_a_sha,
+                    replay_check_k=replay_check_k,
+                    replay_check_sha=replay_check_sha,
+                    replay_check_off_reason=rc_off_val,
+                    stack_versions=frozen_env["stack_versions"],
+                    pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                 )
                 prepass_records = recs_ro
                 return rows_ro, stop_ro, oom_ro
@@ -3732,6 +5423,14 @@ def execute(
                 )
                 if stress_stopped is not None or stress_oom:
                     return [], stress_stopped, stress_oom
+            ct_guard_obj = (
+                CtCollapseGuard(
+                    window_groups=int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS)),
+                    pass_a_k=pass_a_k,
+                )
+                if getattr(a, "ct_guard", False)
+                else None
+            )
             return run_steps(
                 model=bundle["model"],
                 ref_adapter_off=bundle["ref_adapter_off"],
@@ -3762,6 +5461,12 @@ def execute(
                 sign_diagnostics=sign_diag,
                 prepass_baseline_k=prepass_baseline_k,
                 group_residuals=group_residuals if prepass_baseline_k is not None else None,
+                save_all_records=rollout_save_records if save_all_on else None,
+                base_seed=int(getattr(a, "draw_seed", None) or 0),
+                holdout_ids=holdout_ids_list or None,
+                mask_wrong_positive_advantage=bool(getattr(a, "mask_wrong_positive_advantage", False)),
+                dual_clip_c=getattr(a, "dual_clip_c", None),
+                ct_guard=ct_guard_obj,
             )
 
         if sampler is not None:
@@ -3769,6 +5474,13 @@ def execute(
                 steps, stopped, oom = run_it()
         else:
             steps, stopped, oom = run_it()
+        save_all_sha: str | None = None
+        if save_all_on:
+            sa_path = save_all_file_path(a.out, a.path)
+            if rollout_only:
+                save_all_sha = hashlib.sha256(sa_path.read_bytes()).hexdigest()
+            else:
+                save_all_sha = write_save_all(sa_path, rollout_save_records)
         eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
@@ -3779,6 +5491,10 @@ def execute(
                 g=a.g,
                 quote_reward=quote_rew,
                 reproducible=(a.path != "llamacpp"),
+                descriptive=descriptive_pass,
+                pass_a_k=pass_a_k,
+                checkpoint_sha=ckpt_sha,
+                checkpoint_files_sha=ckpt_files_sha,
             )
             if rollout_only and prepass_records
             else None
@@ -3824,6 +5540,15 @@ def execute(
         }
         if rollout_only:
             run_args["ignored_flags"] = ["prompts", "steps"]
+        a.out.mkdir(parents=True, exist_ok=True)
+        adapter_sha: str | None = None
+        adapter_files_sha: dict[str, str] | None = None
+        if not rollout_only and callable(getattr(bundle.get("model"), "save_pretrained", None)):
+            adapter_dir = a.out / "adapter"
+            adapter_dir.mkdir(parents=True, exist_ok=True)
+            bundle["model"].save_pretrained(str(adapter_dir))
+            adapter_files_sha = checkpoint_file_shas(adapter_dir)
+            adapter_sha = checkpoint_sha256(adapter_dir)
         receipt = build_receipt(
             path=a.path,
             dry=a.dry,
@@ -3838,8 +5563,16 @@ def execute(
             stopped=stopped,
             verdict=line,
             dtype_census_record=bundle.get("dtype_census"),
+            save_all=save_all_on,
+            save_all_sha256=save_all_sha,
+            save_all_off_reason=save_all_reason,
+            checkpoint_sha256=ckpt_sha,
+            checkpoint_files_sha256=ckpt_files_sha,
+            adapter_sha256=adapter_sha,
+            adapter_files_sha256=adapter_files_sha,
+            stack_versions=frozen_env["stack_versions"],
+            pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
         )
-        a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )
@@ -3861,6 +5594,8 @@ def execute(
             summary_out["ignored_flags"] = result["ignored_flags"]
         print(json.dumps(summary_out))
         print(line)
+        if isinstance(stopped, dict) and stopped.get("reason") == "LOGGING_PASS_REPLAY_MISMATCH":
+            raise SystemExit(str(stopped.get("error") or "LOGGING_PASS_REPLAY_MISMATCH"))
         return exit_status(line)
     finally:
         if group_logger is not None:
@@ -3872,12 +5607,22 @@ def execute(
             close()
 
 
+class _TrackPromptsAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        setattr(namespace, "_prompts_explicit", True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--path", choices=("hf", "llamacpp"), default="hf")
     ap.add_argument("--steps", type=int, default=STEPS, help="a value other than 20 makes the run S2-LIMITED")
     ap.add_argument(
-        "--prompts", type=int, default=PROMPTS, help="a value other than 32 makes the run S2-LIMITED"
+        "--prompts",
+        type=int,
+        default=PROMPTS,
+        action=_TrackPromptsAction,
+        help="a value other than 32 makes the run S2-LIMITED",
     )
     ap.add_argument("--g", type=int, default=G, help="a value other than 8 makes the run S2-LIMITED")
     ap.add_argument(
@@ -4060,6 +5805,133 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="record sdpa_backend ('flash', 'efficient', 'math', 'cudnn', or 'unknown') in each phase row",
     )
+    ap.add_argument(
+        "--save-all",
+        dest="save_all",
+        action="store_true",
+        default=True,
+        help="write every pass completion and rollout to compressed JSONL beside outputs (default: on)",
+    )
+    ap.add_argument(
+        "--no-save-all",
+        dest="save_all",
+        action="store_false",
+        help="disable save-all completion logging (requires --save-all-off-reason)",
+    )
+    ap.add_argument(
+        "--save-all-off-reason",
+        default=None,
+        help="required non-empty reason when --no-save-all is passed",
+    )
+    ap.add_argument(
+        "--pass-id",
+        default=None,
+        help="optional pass identifier recorded in save-all completion rows",
+    )
+    ap.add_argument(
+        "--logging-pass",
+        action="store_true",
+        help="run the starting-policy logging pass (seed 1, descriptive=true, never accepted as baseline)",
+    )
+    ap.add_argument(
+        "--postpass",
+        action="store_true",
+        help="run a post-training evaluation pass over all tune items (refuses seeds 0 and 1)",
+    )
+    ap.add_argument(
+        "--pass-seed",
+        type=int,
+        default=None,
+        help="sampling seed for --logging-pass (must be 1) or --postpass (must not be 0 or 1)",
+    )
+    ap.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="LoRA checkpoint directory or file for --postpass evaluation",
+    )
+    ap.add_argument(
+        "--pass-a-jsonl",
+        type=Path,
+        default=None,
+        help="Pass-A pre-pass JSONL used to assign fixed [0,5], [6,7], 8 bands for truncation counts",
+    )
+    ap.add_argument(
+        "--pass-a-sha256",
+        default=None,
+        help="expected sha256 hex digest of --pass-a-jsonl",
+    )
+    ap.add_argument(
+        "--replay-check",
+        type=Path,
+        default=None,
+        help="Pass-B2 pre-pass JSONL used to verify item-by-item k_correct replay during --logging-pass",
+    )
+    ap.add_argument(
+        "--replay-check-sha256",
+        default=None,
+        help="expected sha256 hex digest of --replay-check",
+    )
+    ap.add_argument(
+        "--replay-check-off-reason",
+        default=None,
+        help="explicit non-empty reason required when running --logging-pass without --replay-check",
+    )
+    ap.add_argument(
+        "--frozen-pip-freeze",
+        type=Path,
+        default=None,
+        help="optional path to frozen pip-freeze.txt verified against pre-registered sha256",
+    )
+    ap.add_argument(
+        "--require-frozen-stack",
+        action="store_true",
+        help="verify installed torch, transformers, and bitsandbytes match FROZEN_STACK_VERSIONS",
+    )
+    ap.add_argument(
+        "--holdout",
+        action="store_true",
+        help="hold out a stratified 20% (Pass-A band x gold class) from all training draws",
+    )
+    ap.add_argument(
+        "--holdout-fraction",
+        type=float,
+        default=HOLDOUT_DEFAULT_FRACTION,
+        help="stratified holdout fraction (default 0.20)",
+    )
+    ap.add_argument(
+        "--holdout-seed",
+        default=None,
+        help="deterministic seed string for the stratified holdout split (required when --holdout is set)",
+    )
+    ap.add_argument(
+        "--paired-estimators",
+        type=Path,
+        default=None,
+        help="JSON spec path to compute paired estimators across Pass A, Pass B, and post-pass pairs",
+    )
+    ap.add_argument(
+        "--ct-guard",
+        action="store_true",
+        help="enable two-class CT collapse guard (S1, S2, U1, U2) over sampled-group windows",
+    )
+    ap.add_argument(
+        "--guard-window-groups",
+        type=int,
+        default=GUARD_WINDOW_GROUPS,
+        help="number of sampled groups per CT collapse guard window (default 40 = 10 updates)",
+    )
+    ap.add_argument(
+        "--mask-wrong-positive-advantage",
+        action="store_true",
+        help="clamp advantages on wrong-label completions to <= 0 after mean-centring (no re-centring)",
+    )
+    ap.add_argument(
+        "--dual-clip-c",
+        type=float,
+        default=None,
+        help="dual-clip coefficient c on negative advantages (default 3.0 when masking wrong positive adv)",
+    )
     return ap
 
 
@@ -4075,7 +5947,7 @@ def apply_dry_defaults(a: argparse.Namespace) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - the real run needs the rig
     a = build_parser().parse_args(argv)
-    if getattr(a, "alloc_conf", None) is not None:
+    if getattr(a, "alloc_conf", None) is not None and not a.dry:
         configure_alloc_conf(a.alloc_conf)
     if a.dry:
         return execute(apply_dry_defaults(a), build=dry_bundle)
