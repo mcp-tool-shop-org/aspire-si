@@ -253,7 +253,9 @@ def _extract_k_by_id(
         for k_id, val in prepass_records_or_spec.items():
             cid = str(k_id)
             if isinstance(val, Mapping):
-                if val.get("descriptive") is True:
+                if val.get("descriptive") is True or (
+                    "descriptive" in val and not isinstance(val["descriptive"], bool)
+                ):
                     _refuse(
                         "prepass_descriptive",
                         f"record {cid!r} has descriptive=true; descriptive passes cannot be used",

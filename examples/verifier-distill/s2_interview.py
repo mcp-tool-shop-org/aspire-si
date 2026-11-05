@@ -33,6 +33,7 @@ if _HERE not in sys.path:
 from quote_rule import as_passages, normalise, quote_found  # noqa: E402
 from s2_grpo_smoke import (  # noqa: E402
     MAX_NEW_TOKENS,
+    attach_or_load_adapter,
     build_prompt,
     loop_detected,
     parse_reply,
@@ -836,12 +837,17 @@ class InterviewModelRunner:
     loaded base model without reloading weights.
     """
 
-    def __init__(self, model, tok) -> None:
+    def __init__(self, model, tok, *, expected_checkpoint_sha256: str | None = None) -> None:
         self.model = model
         self.tok = tok
         self.active_policy = "baseline"
+        self.expected_checkpoint_sha256 = (
+            str(expected_checkpoint_sha256).strip().lower()
+            if expected_checkpoint_sha256 is not None and str(expected_checkpoint_sha256).strip()
+            else None
+        )
 
-    def _policy_context(self, policy: str):
+    def _policy_context(self, policy: str, *, expected_checkpoint_sha256: str | None = None):
         eff_policy = policy.removeprefix("cold_control:") if policy.startswith("cold_control:") else policy
         if eff_policy in ("baseline", "cold_control"):
             disable_fn = getattr(self.model, "disable_adapter", None)
@@ -858,6 +864,7 @@ class InterviewModelRunner:
                     "(peft_config / active_adapter missing)"
                 )
             set_adapter_fn = getattr(self.model, "set_adapter", None)
+            target_adapter = str(active_adapter)
             if ":" in eff_policy:
                 _, _, adapter_name = eff_policy.partition(":")
                 if adapter_name:
@@ -866,8 +873,56 @@ class InterviewModelRunner:
                             "refusing interview (checkpoint_adapter_not_loaded): "
                             f"adapter {adapter_name!r} is not loaded in peft_config"
                         )
+                    target_adapter = adapter_name
                     if callable(set_adapter_fn):
                         set_adapter_fn(adapter_name)
+            loaded_sha_raw = getattr(self.model, "_loaded_checkpoint_sha256", None)
+            loaded_sha = (
+                str(loaded_sha_raw).strip().lower()
+                if loaded_sha_raw is not None and str(loaded_sha_raw).strip()
+                else None
+            )
+            eff_expected_raw = (
+                expected_checkpoint_sha256
+                if expected_checkpoint_sha256 is not None
+                else self.expected_checkpoint_sha256
+            )
+            eff_expected = (
+                str(eff_expected_raw).strip().lower()
+                if eff_expected_raw is not None and str(eff_expected_raw).strip()
+                else None
+            )
+            if not loaded_sha or not eff_expected:
+                raise SystemExit(
+                    "refusing interview (checkpoint_sha_missing): "
+                    f"policy {policy!r} requires a loaded checkpoint sha256 from attach_or_load_adapter "
+                    "and an explicit expected checkpoint_sha256 for the cohort"
+                )
+            if loaded_sha != eff_expected:
+                raise SystemExit(
+                    f"refusing interview (checkpoint_sha_mismatch): "
+                    f"loaded adapter sha256 {loaded_sha} != expected {eff_expected}"
+                )
+            named_params_fn = getattr(self.model, "named_parameters", None)
+            lora_b_params = []
+            if callable(named_params_fn):
+                for name, param in named_params_fn():
+                    if "lora_B" in name and (
+                        f".{target_adapter}." in name or name.endswith(f".{target_adapter}")
+                    ):
+                        lora_b_params.append(param)
+                if not lora_b_params:
+                    lora_b_params = [
+                        param for name, param in named_params_fn() if "lora_B" in name
+                    ]
+            if not lora_b_params or all(
+                bool((param.detach() == 0).all().item()) for param in lora_b_params
+            ):
+                raise SystemExit(
+                    "refusing interview (checkpoint_lora_b_all_zero): "
+                    f"every lora_B weight of active adapter {target_adapter!r} is exactly zero "
+                    "(fresh untrained LoRA adapter refused as checkpoint)"
+                )
             return nullcontext()
         raise ValueError(f"Unknown interview policy {policy!r}")
 
@@ -882,6 +937,7 @@ class InterviewModelRunner:
         base_seed: int = 0,
         thinking_cap: int = THINKING_CAP_TOKENS,
         answer_cap: int = ANSWER_CAP_TOKENS,
+        expected_checkpoint_sha256: str | None = None,
     ) -> dict[str, Any]:
         cid = str(row["id"])
         cold = bool(cold_control or policy == "cold_control" or policy.startswith("cold_control:"))
@@ -902,7 +958,7 @@ class InterviewModelRunner:
             verify_turn1_thinking_stripped(rendered_text, prompt_ids, orig_think)
 
         q_seed = interview_seed(cid, question_id, base_seed=base_seed)
-        with self._policy_context(policy):
+        with self._policy_context(policy, expected_checkpoint_sha256=expected_checkpoint_sha256):
             gen_res = generate_two_stage_thinking(
                 self.model,
                 self.tok,
@@ -931,11 +987,12 @@ class InterviewModelRunner:
         policy: str = "baseline",
         thinking_cap: int = MAX_NEW_TOKENS,
         answer_cap: int = MAX_NEW_TOKENS,
+        expected_checkpoint_sha256: str | None = None,
     ) -> str:
         """Run the normal verification task under ``policy`` with ``seed`` and return raw text."""
         messages = [{"role": "user", "content": build_prompt(dict(row))}]
         _, prompt_ids = render_interview_prompt(self.tok, messages)
-        with self._policy_context(policy):
+        with self._policy_context(policy, expected_checkpoint_sha256=expected_checkpoint_sha256):
             gen_res = generate_two_stage_thinking(
                 self.model,
                 self.tok,
@@ -1013,7 +1070,12 @@ class Qwen3ChatStubTokenizer:
         return "".join(chars)
 
 
-def build_cpu_qwen3_stub(*, with_adapter: bool = False):
+def build_cpu_qwen3_stub(
+    *,
+    with_adapter: bool = False,
+    checkpoint_path: Path | None = None,
+    trained_adapter: bool = False,
+):
     """Build a tiny in-memory ``Qwen3ForCausalLM`` on CPU with ``Qwen3ChatStubTokenizer`` (no download)."""
     import torch
     from transformers import Qwen3Config, Qwen3ForCausalLM
@@ -1033,7 +1095,9 @@ def build_cpu_qwen3_stub(*, with_adapter: bool = False):
         eos_token_id=tok.eos_token_id,
     )
     model: Any = Qwen3ForCausalLM(cfg)
-    if with_adapter:
+    if checkpoint_path is not None:
+        model, _, _, _ = attach_or_load_adapter(model, checkpoint_path, for_pass=True)
+    elif with_adapter:
         from peft import LoraConfig, get_peft_model
 
         model = get_peft_model(
@@ -1045,6 +1109,11 @@ def build_cpu_qwen3_stub(*, with_adapter: bool = False):
                 lora_dropout=0.0,
             ),
         )
+        if trained_adapter:
+            with torch.no_grad():
+                for name, param in model.named_parameters():
+                    if "lora_B" in name:
+                        param.fill_(0.05)
     model.eval()
     return model, tok
 
@@ -1062,8 +1131,25 @@ def run_interview_for_cohort(
     verifier_max_new_tokens: int = MAX_NEW_TOKENS,
     verifier_runner: Callable[[dict[str, Any], int], str] | None = None,
     include_cold_control: bool = True,
+    checkpoint_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Run Q1 -> Q4 -> Q2 -> Q3 (plus Cold Control Q1 & Q2) across ``cohort`` and write keep-all archive."""
+    eff_ckpt_sha_raw = (
+        checkpoint_sha256
+        if checkpoint_sha256 is not None
+        else getattr(runner, "expected_checkpoint_sha256", None)
+    )
+    eff_ckpt_sha = (
+        str(eff_ckpt_sha_raw).strip().lower()
+        if eff_ckpt_sha_raw is not None and str(eff_ckpt_sha_raw).strip()
+        else None
+    )
+    if any(item.get("checkpoint_first_ct") is not None for item in cohort):
+        if not eff_ckpt_sha:
+            raise SystemExit(
+                "refusing interview (checkpoint_sha_missing): "
+                "cohort includes checkpoint items; an explicit checkpoint_sha256 argument is required"
+            )
     all_records: list[dict[str, Any]] = []
     q3_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     part_scores_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
@@ -1090,15 +1176,18 @@ def run_interview_for_cohort(
             pol_ct_rate = float(item.get(f"{pol_name}_ct_rate", 0.0))
             pol_majority_ct = bool(item.get(f"{pol_name}_majority_ct", False))
             for q_id in QUESTION_ORDER:
-                q_rec = runner.ask_question(
-                    row=row,
-                    turn1_completion_text=turn1_text,
-                    question_id=q_id,
-                    policy=pol_name,
-                    base_seed=base_seed,
-                    thinking_cap=thinking_cap,
-                    answer_cap=answer_cap,
-                )
+                ask_kw: dict[str, Any] = {
+                    "row": row,
+                    "turn1_completion_text": turn1_text,
+                    "question_id": q_id,
+                    "policy": pol_name,
+                    "base_seed": base_seed,
+                    "thinking_cap": thinking_cap,
+                    "answer_cap": answer_cap,
+                }
+                if eff_ckpt_sha is not None and isinstance(runner, InterviewModelRunner):
+                    ask_kw["expected_checkpoint_sha256"] = eff_ckpt_sha
+                q_rec = runner.ask_question(**ask_kw)
                 q_rec["cohort"] = item["cohort"]
                 q_rec["turn1_sample_index"] = int(first_ct.get("sample_index", 0))
                 q_rec["ct_rate"] = pol_ct_rate
@@ -1120,12 +1209,23 @@ def run_interview_for_cohort(
                         verifier_runner
                         if verifier_runner is not None
                         else (
-                            lambda cf_row, cf_seed, _pol=pol_name: runner.run_verifier(
-                                cf_row,
-                                cf_seed,
-                                policy=_pol,
-                                thinking_cap=verifier_max_new_tokens,
-                                answer_cap=verifier_max_new_tokens,
+                            lambda cf_row, cf_seed, _pol=pol_name: (
+                                runner.run_verifier(
+                                    cf_row,
+                                    cf_seed,
+                                    policy=_pol,
+                                    thinking_cap=verifier_max_new_tokens,
+                                    answer_cap=verifier_max_new_tokens,
+                                    expected_checkpoint_sha256=eff_ckpt_sha,
+                                )
+                                if isinstance(runner, InterviewModelRunner) and eff_ckpt_sha is not None
+                                else runner.run_verifier(
+                                    cf_row,
+                                    cf_seed,
+                                    policy=_pol,
+                                    thinking_cap=verifier_max_new_tokens,
+                                    answer_cap=verifier_max_new_tokens,
+                                )
                             )
                         )
                     )
@@ -1142,16 +1242,19 @@ def run_interview_for_cohort(
 
             if include_cold_control:
                 for cold_q_id in ("Q1", "Q2"):
-                    c_rec = runner.ask_question(
-                        row=row,
-                        turn1_completion_text=None,
-                        question_id=cold_q_id,
-                        policy=f"cold_control:{pol_name}",
-                        cold_control=True,
-                        base_seed=base_seed,
-                        thinking_cap=thinking_cap,
-                        answer_cap=answer_cap,
-                    )
+                    cold_kw: dict[str, Any] = {
+                        "row": row,
+                        "turn1_completion_text": None,
+                        "question_id": cold_q_id,
+                        "policy": f"cold_control:{pol_name}",
+                        "cold_control": True,
+                        "base_seed": base_seed,
+                        "thinking_cap": thinking_cap,
+                        "answer_cap": answer_cap,
+                    }
+                    if eff_ckpt_sha is not None and isinstance(runner, InterviewModelRunner):
+                        cold_kw["expected_checkpoint_sha256"] = eff_ckpt_sha
+                    c_rec = runner.ask_question(**cold_kw)
                     c_rec["cohort"] = item["cohort"]
                     c_rec["ct_rate"] = pol_ct_rate
                     c_rec["majority_ct"] = pol_majority_ct
@@ -1256,6 +1359,7 @@ def run_interview_for_cohort(
         "total_turns_recorded": len(all_records),
         "save_all_path": save_all_path.name,
         "save_all_sha256": save_all_sha,
+        "checkpoint_sha256": eff_ckpt_sha,
         "part_match_summary": {
             "baseline": _summarize_part_scores(part_scores_by_policy["baseline"]),
             "checkpoint": _summarize_part_scores(part_scores_by_policy["checkpoint"]),

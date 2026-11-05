@@ -6609,6 +6609,7 @@ class TestPrepassSeed:
             "seed": 0,
             "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
             "reproducible": True,
+            "descriptive": False,
             "stack_versions": {k: s2.package_version(k) for k in s2.FROZEN_STACK_VERSIONS},
             "pip_freeze_sha256": None,
         }
@@ -8865,12 +8866,25 @@ class TestLoggingPassAndPostpass:
                 "--out",
                 str(log_dir),
                 "--logging-pass",
+                "--path",
+                "hf",
+                "--revision",
+                s2.STUDENT_FULL_REVISION,
+                "--bf16-restore",
+                "--logprob-microbatch",
+                "2",
+                "--attention-mask",
+                "--alloc-conf",
+                "expandable",
+                "--empty-cache-phases",
                 "--g",
                 "8",
                 "--max-new",
                 "2048",
                 "--quote-reward",
                 "v2",
+                "--replay-check-off-reason",
+                "synthetic truncation band test",
                 "--pass-a-jsonl",
                 str(pass_a_jsonl),
                 "--pass-a-sha256",
@@ -8962,7 +8976,7 @@ class TestLoggingPassAndPostpass:
 
         post_hdr = json.loads((post_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
         assert post_hdr["seed"] == 2
-        assert "descriptive" not in post_hdr
+        assert post_hdr["descriptive"] is False
         assert post_hdr["checkpoint_sha256"] == expected_ckpt_sha
         assert post_hdr["pass_a_sha256"] == pass_a_sha
 
@@ -9990,9 +10004,18 @@ class TestInterviewAndTagging:
         import hashlib
 
         import s2_interview as s2i
+        import torch
 
-        model, tok = s2i.build_cpu_qwen3_stub(with_adapter=True)
-        runner = s2i.InterviewModelRunner(model, tok)
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "syn_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        model, tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        runner = s2i.InterviewModelRunner(model, tok, expected_checkpoint_sha256=ckpt_sha)
 
         rows_by_id = {
             f"syn_{i}": _row(
@@ -11004,14 +11027,24 @@ class TestFix1Items:
         assert "evidence_quotes" not in user_text
         assert '{"verdict"' not in user_text
 
-        model, tok = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "cold_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        model, tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
         policy_seen: list[str] = []
-        runner = s2i.InterviewModelRunner(model, tok)
+        runner = s2i.InterviewModelRunner(model, tok, expected_checkpoint_sha256=ckpt_sha)
         orig_ctx = runner._policy_context
 
-        def _spy_ctx(pol: str):
+        def _spy_ctx(pol: str, *, expected_checkpoint_sha256: str | None = None):
             policy_seen.append(pol)
-            return orig_ctx(pol)
+            return orig_ctx(pol, expected_checkpoint_sha256=expected_checkpoint_sha256)
 
         runner._policy_context = _spy_ctx  # type: ignore[method-assign]
         t1 = (
@@ -11421,8 +11454,20 @@ class TestFix2Items:
             )
 
         # Model with loaded PEFT adapter succeeds on baseline, checkpoint, and both cold controls
-        peft_model, peft_tok = s2i.build_cpu_qwen3_stub(with_adapter=True)
-        peft_runner = s2i.InterviewModelRunner(peft_model, peft_tok)
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "fix2_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        peft_model, peft_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        peft_runner = s2i.InterviewModelRunner(
+            peft_model, peft_tok, expected_checkpoint_sha256=ckpt_sha
+        )
         for pol in ("baseline", "checkpoint", "cold_control:baseline", "cold_control:checkpoint"):
             is_cold = pol.startswith("cold_control:")
             out = peft_runner.ask_question(
@@ -11460,8 +11505,20 @@ class TestFix2Items:
         assert isinstance(direct_reply, str) and len(direct_reply) > 0
 
         # 2. End-to-end cohort run where Q2 emits MISSING_FACT: <sentence>
-        peft_model, peft_tok = s2i.build_cpu_qwen3_stub(with_adapter=True)
-        peft_runner = s2i.InterviewModelRunner(peft_model, peft_tok)
+        import torch
+
+        init_model, _ = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        with torch.no_grad():
+            for name, param in init_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        ckpt_dir = tmp_path / "cf_ckpt"
+        init_model.save_pretrained(str(ckpt_dir))
+        ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+        peft_model, peft_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=ckpt_dir)
+        peft_runner = s2i.InterviewModelRunner(
+            peft_model, peft_tok, expected_checkpoint_sha256=ckpt_sha
+        )
         seen_verifier_calls: list[tuple[str, int, int]] = []
         orig_gen = s2i.generate_two_stage_thinking
 
@@ -11918,6 +11975,558 @@ class TestFix2Items:
         assert s2.execute(a_uni_hold, build=s2.dry_bundle) == 0
         rec_uni = json.loads((out_uni_hold / "s2-hf.json").read_text(encoding="utf-8"))
         assert set(rec_uni["prompt_ids"]).isdisjoint(hold_set)
+
+
+class TestFix3Items:
+    @needs_torch
+    def test_fix3_item_01_checkpoint_policy_proves_named_checkpoint_and_nonzero_lora_b(
+        self, tmp_path: Path
+    ) -> None:
+        import s2_interview as s2i
+        import torch
+
+        row = _row("f3_1", claim="Buffer size is 64 bytes.", text="The local buffer is initialised.")
+        t1 = (
+            "<think>missing size</think>"
+            + json.dumps(
+                {
+                    "verdict": "cannot_tell",
+                    "reason": "missing",
+                    "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+                }
+            )
+        )
+
+        # 1. Fresh get_peft_model (checkpoint_path=None) has no _loaded_checkpoint_sha256 and all-zero lora_B.
+        # It must fail both checks: first missing/mismatched checkpoint sha, and even if sha is forged, all-zero lora_B.
+        fresh_model, fresh_tok = s2i.build_cpu_qwen3_stub(with_adapter=True)
+        assert getattr(fresh_model, "_loaded_checkpoint_sha256", None) is None
+        fresh_runner_no_exp = s2i.InterviewModelRunner(fresh_model, fresh_tok)
+        with pytest.raises(SystemExit, match="checkpoint_sha_missing"):
+            fresh_runner_no_exp.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+        fresh_runner = s2i.InterviewModelRunner(
+            fresh_model, fresh_tok, expected_checkpoint_sha256="deadbeef" * 8
+        )
+        with pytest.raises(SystemExit, match="checkpoint_sha_missing"):
+            fresh_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # Even if a zero-lora_B adapter is saved to disk and loaded via attach_or_load_adapter (so sha matches),
+        # _policy_context must refuse because every lora_B weight of the active adapter is 0.
+        zero_ckpt_dir = tmp_path / "zero_ckpt"
+        fresh_model.save_pretrained(str(zero_ckpt_dir))
+        zero_ckpt_sha = s2.checkpoint_sha256(zero_ckpt_dir)
+        zero_loaded_model, zero_loaded_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=zero_ckpt_dir)
+        assert getattr(zero_loaded_model, "_loaded_checkpoint_sha256", None) == zero_ckpt_sha
+        zero_runner = s2i.InterviewModelRunner(
+            zero_loaded_model, zero_loaded_tok, expected_checkpoint_sha256=zero_ckpt_sha
+        )
+        with pytest.raises(SystemExit, match="checkpoint_lora_b_all_zero"):
+            zero_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        # 2. A trained checkpoint (non-zero lora_B) loaded via attach_or_load_adapter records _loaded_checkpoint_sha256,
+        # refuses on sha mismatch, and succeeds when expected_checkpoint_sha256 matches.
+        with torch.no_grad():
+            for name, param in fresh_model.named_parameters():
+                if "lora_B" in name:
+                    param.fill_(0.05)
+        trained_ckpt_dir = tmp_path / "trained_ckpt"
+        fresh_model.save_pretrained(str(trained_ckpt_dir))
+        trained_sha = s2.checkpoint_sha256(trained_ckpt_dir)
+
+        loaded_model, loaded_tok = s2i.build_cpu_qwen3_stub(checkpoint_path=trained_ckpt_dir)
+        assert getattr(loaded_model, "_loaded_checkpoint_sha256", None) == trained_sha
+
+        wrong_sha_runner = s2i.InterviewModelRunner(
+            loaded_model, loaded_tok, expected_checkpoint_sha256="00" * 32
+        )
+        with pytest.raises(SystemExit, match="checkpoint_sha_mismatch"):
+            wrong_sha_runner.ask_question(
+                row=row,
+                turn1_completion_text=t1,
+                question_id="Q1",
+                policy="checkpoint",
+                base_seed=1,
+                thinking_cap=4,
+                answer_cap=4,
+            )
+
+        ok_runner = s2i.InterviewModelRunner(
+            loaded_model, loaded_tok, expected_checkpoint_sha256=trained_sha
+        )
+        ans = ok_runner.ask_question(
+            row=row,
+            turn1_completion_text=t1,
+            question_id="Q1",
+            policy="checkpoint",
+            base_seed=1,
+            thinking_cap=4,
+            answer_cap=4,
+        )
+        assert ans["policy"] == "checkpoint"
+
+    def test_fix3_item_02_legacy_and_nondescriptive_pass_headers_accepted_consistently(
+        self, tmp_path: Path
+    ) -> None:
+        import hashlib
+
+        from s2_draw import _extract_k_by_id, _load_and_verify_prepass
+
+        # 1. Read real Pass A and Pass B2 headers from rnd-local if available, or verify exact shapes
+        real_pa_hdr_path = Path("E:/AI/rnd-local/projects/aspire-si-s2/run-prepass/s2-hf-prepass-header.json")
+        real_b2_hdr_path = Path("E:/AI/rnd-local/projects/aspire-si-s2/run-prepass-b2/s2-hf-prepass-header.json")
+        if real_pa_hdr_path.is_file():
+            pa_hdr = json.loads(real_pa_hdr_path.read_text(encoding="utf-8"))
+        else:
+            pa_hdr = {
+                "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
+                "script_sha256": "be8c800987ac982a9732158d1e48aa2a0e19ab96a8dd24b26085d3c674f5c63a",
+                "gold_files_sha256": {},
+                "g": 8,
+                "max_new": 2048,
+                "quote_reward": "v2",
+                "seed": 0,
+                "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            }
+        if real_b2_hdr_path.is_file():
+            b2_hdr = json.loads(real_b2_hdr_path.read_text(encoding="utf-8"))
+        else:
+            b2_hdr = {
+                "ids_sha256": "54848c6fa915b3a6ab0c366304b276ce42beac43252a7bf3b1291321c97b9e95",
+                "script_sha256": "4577ddba30c9b18661f12d4b0f35742dd02d73aa26243cd4f99754d2b453ab19",
+                "gold_files_sha256": {},
+                "g": 8,
+                "max_new": 2048,
+                "quote_reward": "v2",
+                "seed": 1,
+                "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+                "reproducible": True,
+            }
+        assert "descriptive" not in pa_hdr
+        assert "descriptive" not in b2_hdr
+
+        # Legacy records also lack 'pass_seed' and 'descriptive'
+        legacy_line = (
+            json.dumps(
+                {
+                    "id": "fe_0",
+                    "gold_file": "fever_500.jsonl",
+                    "gold_verdict": "cannot_tell",
+                    "g": 8,
+                    "k_correct": 4,
+                    "supported": 4,
+                    "unsupported": 0,
+                    "cannot_tell": 4,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "quote_pass": 0,
+                    "reward_mean": 0.25,
+                    "reward_std": 0.65,
+                    "zero_variance": False,
+                    "prompt_tokens": 227,
+                    "completion_tokens_mean": 300.5,
+                }
+            )
+            + "\n"
+        ).encode("utf-8")
+        legacy_sha = hashlib.sha256(legacy_line).hexdigest()
+
+        pa_dir = tmp_path / "legacy_pa"
+        pa_dir.mkdir()
+        (pa_dir / "s2-hf-prepass-header.json").write_text(json.dumps(pa_hdr), encoding="utf-8")
+        pa_jsonl = pa_dir / "s2-hf-prepass.jsonl"
+        pa_jsonl.write_bytes(legacy_line)
+
+        assert s2._check_header_not_descriptive(pa_jsonl, expected_seeds=(0,)) == (True, True)
+        k_pa, _ = s2.load_prepass_baseline(pa_jsonl, legacy_sha, ["fe_0"], g=8, expected_seeds=(0,))
+        assert k_pa == {"fe_0": 4}
+
+        b2_dir = tmp_path / "legacy_b2"
+        b2_dir.mkdir()
+        (b2_dir / "s2-hf-prepass-header.json").write_text(json.dumps(b2_hdr), encoding="utf-8")
+        b2_jsonl = b2_dir / "s2-hf-prepass.jsonl"
+        b2_jsonl.write_bytes(legacy_line)
+
+        assert s2._check_header_not_descriptive(b2_jsonl, expected_seeds=(1,)) == (True, True)
+        k_b2, _ = s2.load_prepass_baseline(b2_jsonl, legacy_sha, ["fe_0"], g=8, expected_seeds=(1,))
+        assert k_b2 == {"fe_0": 4}
+
+        # 2. Non-bool 'descriptive' in header or record is refused everywhere
+        for bad_desc in ("false", "true", 0, 1, None, ["no"]):
+            bad_hdr_dir = tmp_path / f"bad_hdr_{type(bad_desc).__name__}_{bad_desc}"
+            bad_hdr_dir.mkdir(exist_ok=True)
+            (bad_hdr_dir / "s2-hf-prepass-header.json").write_text(
+                json.dumps({**pa_hdr, "descriptive": bad_desc}), encoding="utf-8"
+            )
+            bad_hdr_jsonl = bad_hdr_dir / "s2-hf-prepass.jsonl"
+            bad_hdr_jsonl.write_bytes(legacy_line)
+            with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+                s2._check_header_not_descriptive(bad_hdr_jsonl, expected_seeds=(0,))
+            with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+                s2.load_prepass_baseline(bad_hdr_jsonl, legacy_sha, ["fe_0"], g=8)
+            with pytest.raises(SystemExit, match="prepass_descriptive"):
+                _load_and_verify_prepass((bad_hdr_jsonl, legacy_sha), {"fe_0"})
+
+            bad_rec_dir = tmp_path / f"bad_rec_{type(bad_desc).__name__}_{bad_desc}"
+            bad_rec_dir.mkdir(exist_ok=True)
+            bad_rec_bytes = (
+                json.dumps({"id": "fe_0", "g": 8, "k_correct": 4, "pass_seed": 0, "descriptive": bad_desc})
+                + "\n"
+            ).encode("utf-8")
+            bad_rec_jsonl = bad_rec_dir / "s2-hf-prepass.jsonl"
+            bad_rec_jsonl.write_bytes(bad_rec_bytes)
+            bad_rec_sha = hashlib.sha256(bad_rec_bytes).hexdigest()
+            with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+                s2.load_prepass_baseline(bad_rec_jsonl, bad_rec_sha, ["fe_0"], g=8)
+            with pytest.raises(SystemExit, match="prepass_descriptive"):
+                _load_and_verify_prepass((bad_rec_jsonl, bad_rec_sha), {"fe_0"})
+            with pytest.raises(SystemExit, match="prepass_descriptive"):
+                _extract_k_by_id(
+                    {"fe_0": {"k_correct": 4, "pass_seed": 0, "descriptive": bad_desc}},
+                    {"fe_0"},
+                )
+            with pytest.raises(SystemExit, match="paired_estimator_descriptive"):
+                s2._verify_pass_provenance(
+                    [{"id": "fe_0", "k_correct": 4, "pass_seed": 0, "descriptive": bad_desc}],
+                    role="Pass A",
+                )
+
+        # 3. Newly written non-descriptive pass headers explicitly include "descriptive": False
+        new_hdr = s2.build_prepass_header(
+            prompt_ids=["fe_0"],
+            gold_hashes={"fever_500.jsonl": "aa" * 32},
+            g=8,
+            max_new=2048,
+            quote_reward="v2",
+            seed=2,
+            model_revision=s2.STUDENT_FULL_REVISION,
+            descriptive=False,
+        )
+        assert "descriptive" in new_hdr and new_hdr["descriptive"] is False
+
+    def test_fix3_item_03_logging_pass_requires_and_records_b2_replay_settings(
+        self, tmp_path: Path
+    ) -> None:
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+
+        # 1. Verify --logging-pass refuses when B2 replay settings are missing or altered
+        a_default_missing_b2 = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "out_missing_b2"),
+                "--logging-pass",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_b2_settings_mismatch"):
+            s2.validate_pass_mode_args(a_default_missing_b2)
+
+        expected_b2 = {
+            "path": "hf",
+            "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+            "bf16_restore": True,
+            "logprob_microbatch": 2,
+            "attention_mask": True,
+            "alloc_conf": "expandable",
+            "empty_cache_phases": True,
+            "quote_reward": "v2",
+            "g": 8,
+            "max_new": 2048,
+        }
+        assert s2.B2_REPLAY_SETTINGS == expected_b2
+
+        base_cli = [
+            "--gold",
+            str(gold_dir),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "out"),
+            "--logging-pass",
+            "--path",
+            "hf",
+            "--revision",
+            "b968826d9c46dd6066d109eabc6255188de91218",
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--quote-reward",
+            "v2",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+            "--replay-check-off-reason",
+            "unit test",
+        ]
+        a_ok = ap.parse_args(base_cli)
+        assert s2.validate_pass_mode_args(a_ok)[:3] == (True, True, 1)
+
+        # Verify each B2 replay setting is enforced and refused when missing or altered
+        for key, bad_val in (
+            ("path", "llamacpp"),
+            ("revision", "b968826d"),
+            ("bf16_restore", False),
+            ("logprob_microbatch", 1),
+            ("logprob_microbatch", None),
+            ("attention_mask", False),
+            ("alloc_conf", None),
+            ("empty_cache_phases", False),
+            ("quote_reward", "v1"),
+            ("g", 4),
+            ("max_new", 1024),
+        ):
+            a_bad = ap.parse_args(base_cli)
+            setattr(a_bad, key, bad_val)
+            with pytest.raises(SystemExit, match=f"logging_pass_b2_settings_mismatch.*{key}"):
+                s2.validate_pass_mode_args(a_bad)
+
+        hdr = s2.build_prepass_header(
+            prompt_ids=["t_a"],
+            gold_hashes={"grounded.jsonl": "11" * 32},
+            g=8,
+            max_new=2048,
+            quote_reward="v2",
+            seed=1,
+            model_revision=s2.STUDENT_FULL_REVISION,
+            descriptive=True,
+        )
+        assert hdr["descriptive"] is True
+        assert hdr["b2_replay_settings"] == expected_b2
+
+    @needs_torch
+    def test_fix3_item_04_logging_pass_replay_check_and_mismatch_halt(
+        self, tmp_path: Path
+    ) -> None:
+        import hashlib
+        from contextlib import nullcontext
+
+        import torch
+
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        tune_ids = ["t_a", "t_b", "t_d", "t_k", "t_m", "t_z"]
+
+        b2_cli_flags = [
+            "--logging-pass",
+            "--path",
+            "hf",
+            "--revision",
+            "b968826d9c46dd6066d109eabc6255188de91218",
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--quote-reward",
+            "v2",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+        ]
+
+        # 1. --logging-pass without --replay-check and without --replay-check-off-reason is refused
+        a_no_rc = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "no_rc"),
+                *b2_cli_flags,
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_requires_replay_check"):
+            s2.validate_pass_mode_args(a_no_rc)
+
+        # Empty/whitespace --replay-check-off-reason is also refused
+        a_empty_reason = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "empty_reason"),
+                *b2_cli_flags,
+                "--replay-check-off-reason",
+                "   ",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_requires_replay_check"):
+            s2.validate_pass_mode_args(a_empty_reason)
+
+        # Write a B2 JSONL where every item has k_correct=8 except t_d which has k_correct=7
+        b2_jsonl = tmp_path / "b2_baseline.jsonl"
+        b2_rows = [
+            {"id": cid, "g": 8, "k_correct": 7 if cid == "t_d" else 8, "pass_seed": 1, "descriptive": False}
+            for cid in tune_ids
+        ]
+        b2_jsonl.write_text(
+            "".join(json.dumps(r) + "\n" for r in b2_rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        b2_sha = hashlib.sha256(b2_jsonl.read_bytes()).hexdigest()
+
+        seen_prompts: list[str] = []
+
+        def make_bundle(_args_ns):
+            fake_cuda = _FakeCuda()
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                seen_prompts.append(prompt_text)
+                p_ids = tok.encode(prompt_text)
+                # Make t_b (the 2nd item, index 1) return only 5 correct completions instead of 8!
+                n_wrong = 3 if "Claim tb" in prompt_text else 0
+                comps = []
+                truncs = []
+                for idx in range(g_cnt):
+                    if idx < n_wrong:
+                        comps.append(
+                            tok.encode(_reply("unsupported", "alpha beta gamma", think="wrong"))
+                            + [tok.eos_token_id]
+                        )
+                    else:
+                        comps.append(
+                            tok.encode(_reply("supported", "alpha beta gamma", think="ok"))
+                            + [tok.eos_token_id]
+                        )
+                    truncs.append(False)
+                return p_ids, comps, truncs
+
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 100,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+                "adapter_loaded": False,
+            }
+
+        # 2. Run --logging-pass with --replay-check: t_a (index 0) matches (k=8),
+        # t_b (index 1) mismatches (k_correct=5 vs b2_k_correct=8) -> halts immediately with LOGGING_PASS_REPLAY_MISMATCH
+        mismatch_dir = tmp_path / "logging_mismatch"
+        a_mismatch = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(mismatch_dir),
+                *b2_cli_flags,
+                "--replay-check",
+                str(b2_jsonl),
+                "--replay-check-sha256",
+                b2_sha,
+            ]
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            s2.execute(a_mismatch, build=make_bundle, rig=_FakeRig(a_mismatch))
+        err_msg = str(exc_info.value)
+        assert "LOGGING_PASS_REPLAY_MISMATCH" in err_msg
+        assert "t_b" in err_msg
+        assert "k_correct=3" in err_msg
+        assert "b2_k_correct=8" in err_msg
+
+        # Only t_a and t_b were evaluated; subsequent items (t_d, t_k, t_m, t_z) were not run
+        assert len(seen_prompts) == 2
+        partial_jsonl = mismatch_dir / "s2-hf-prepass.jsonl"
+        assert partial_jsonl.is_file()
+        partial_recs = [
+            json.loads(line) for line in partial_jsonl.read_text(encoding="utf-8").splitlines() if line.strip()
+        ]
+        assert [r["id"] for r in partial_recs] == ["t_a", "t_b"]
+
+        partial_sa = s2.read_save_all(mismatch_dir / "s2-hf-save-all.jsonl.gz")
+        assert len(partial_sa) == 2 * 8
+
+        partial_summary = json.loads(
+            (mismatch_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8")
+        )
+        assert partial_summary["item_count"] == 2
+        assert partial_summary["stopped"]["reason"] == "LOGGING_PASS_REPLAY_MISMATCH"
+        assert partial_summary["stopped"]["item_id"] == "t_b"
+        assert partial_summary["stopped"]["k_correct"] == 3
+        assert partial_summary["stopped"]["b2_k_correct"] == 8
+
+        partial_receipt = json.loads((mismatch_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert partial_receipt["stopped"]["reason"] == "LOGGING_PASS_REPLAY_MISMATCH"
+        assert partial_receipt["run"]["replay_check_sha256"] == b2_sha
+        hdr_mismatch = json.loads(
+            (mismatch_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8")
+        )
+        assert hdr_mismatch["replay_check_sha256"] == b2_sha
+
+        # 3. Also verify --replay-check-off-reason is recorded when provided
+        off_dir = tmp_path / "logging_rc_off"
+        a_off = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(off_dir),
+                *b2_cli_flags,
+                "--replay-check-off-reason",
+                "explicitly bypassed in unit test",
+            ]
+        )
+        assert s2.execute(a_off, build=make_bundle, rig=_FakeRig(a_off)) == 0
+        hdr_off = json.loads((off_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert hdr_off["replay_check_off_reason"] == "explicitly bypassed in unit test"
+        rec_off = json.loads((off_dir / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec_off["run"]["replay_check_off_reason"] == "explicitly bypassed in unit test"
+
 
 
 

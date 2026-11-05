@@ -80,6 +80,19 @@ GOLD_FILES = ("grounded.jsonl", "prs/grounded-prs.jsonl", "diffs/reasoning-diffs
 VERDICTS = ("supported", "unsupported", "cannot_tell")
 DRY_PREPASS_ITEMS = 4
 PREPASS_BASE_SEED = 0
+STUDENT_FULL_REVISION = "b968826d9c46dd6066d109eabc6255188de91218"
+B2_REPLAY_SETTINGS: dict[str, Any] = {
+    "path": "hf",
+    "revision": STUDENT_FULL_REVISION,
+    "bf16_restore": True,
+    "logprob_microbatch": 2,
+    "attention_mask": True,
+    "alloc_conf": "expandable",
+    "empty_cache_phases": True,
+    "quote_reward": "v2",
+    "g": G,
+    "max_new": MAX_NEW_TOKENS,
+}
 PREPASS_RECORD_KEYS = (
     "id",
     "gold_file",
@@ -1020,7 +1033,8 @@ def check_frozen_env(
     if eff_freeze_path is None and require_exact_versions:
         raise SystemExit(
             "refusing to start (frozen_env_missing_file): "
-            "--frozen-pip-freeze was not provided and FROZEN-pip-freeze-2026-11-05.txt is missing at sys.prefix"
+            "--frozen-pip-freeze was not provided and "
+            "FROZEN-pip-freeze-2026-11-05.txt is missing at sys.prefix"
         )
     if eff_freeze_path is not None:
         pf_path = Path(eff_freeze_path)
@@ -3480,7 +3494,41 @@ def attach_or_load_adapter(
             f"refusing to start (checkpoint_adapter_not_loaded): "
             f"failed to load adapter from {cp.name}: {exc}"
         ) from exc
+    model._loaded_checkpoint_sha256 = combined_sha
+    model._loaded_checkpoint_files_sha256 = files_sha
     return model, True, files_sha, combined_sha
+
+
+def validate_replay_check_args(a: argparse.Namespace) -> tuple[Path | None, str | None, str | None]:
+    """Validate ``--replay-check``, ``--replay-check-sha256``, and ``--replay-check-off-reason``.
+
+    Returns ``(replay_check_path, replay_check_sha256, replay_check_off_reason)``.
+    """
+    logging_pass = bool(getattr(a, "logging_pass", False))
+    rc_path_raw = getattr(a, "replay_check", None)
+    rc_path = Path(rc_path_raw) if rc_path_raw is not None else None
+    rc_sha_raw = getattr(a, "replay_check_sha256", None)
+    rc_sha = str(rc_sha_raw).strip().lower() if rc_sha_raw and str(rc_sha_raw).strip() else None
+    rc_off_raw = getattr(a, "replay_check_off_reason", None)
+    rc_off_reason = str(rc_off_raw).strip() if rc_off_raw and str(rc_off_raw).strip() else None
+
+    if rc_path is not None and rc_off_reason is not None:
+        raise SystemExit(
+            "refusing to start (replay_check_conflicting_args): "
+            "--replay-check and --replay-check-off-reason cannot both be set"
+        )
+    if (rc_path is None) != (rc_sha is None):
+        raise SystemExit(
+            "refusing to start (replay_check_missing_arg): "
+            "--replay-check and --replay-check-sha256 must be given together"
+        )
+    if logging_pass and rc_path is None and rc_off_reason is None:
+        raise SystemExit(
+            "refusing to start (logging_pass_requires_replay_check): "
+            "--logging-pass requires --replay-check <b2.jsonl> --replay-check-sha256 <sha> "
+            "unless a non-empty --replay-check-off-reason is provided"
+        )
+    return rc_path, rc_sha, rc_off_reason
 
 
 def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str | None]:
@@ -3517,9 +3565,19 @@ def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str
                 f"refusing to start (logging_pass_seed_must_be_1): "
                 f"--logging-pass requires post-pass seed 1, got {prepass_seed_arg}"
             )
+        for setting_key, expected_val in B2_REPLAY_SETTINGS.items():
+            actual_val = getattr(a, setting_key, None)
+            if type(actual_val) is not type(expected_val) or actual_val != expected_val:
+                raise SystemExit(
+                    f"refusing to start (logging_pass_b2_settings_mismatch): "
+                    f"--logging-pass requires B2 replay setting {setting_key}={expected_val!r}, "
+                    f"got {actual_val!r}"
+                )
+        validate_replay_check_args(a)
         eff_seed = 1
         descriptive = True
     elif postpass or ckpt_path is not None:
+        validate_replay_check_args(a)
         eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
         if eff_seed in (0, 1):
             raise SystemExit(
@@ -3534,6 +3592,7 @@ def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str
             )
         descriptive = False
     else:
+        validate_replay_check_args(a)
         eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
         descriptive = False
 
@@ -3559,6 +3618,9 @@ def build_prepass_header(
     pass_a_sha: str | None = None,
     stack_versions: Mapping[str, str | None] | None = None,
     pip_freeze_sha256: str | None = None,
+    b2_replay_settings: Mapping[str, Any] | None = None,
+    replay_check_sha256: str | None = None,
+    replay_check_off_reason: str | None = None,
 ) -> dict:
     hdr: dict = {
         "ids_sha256": ids_sha256(prompt_ids),
@@ -3570,6 +3632,7 @@ def build_prepass_header(
         "seed": int(seed),
         "model_revision": model_revision,
         "reproducible": bool(reproducible),
+        "descriptive": bool(descriptive),
         "stack_versions": (
             dict(stack_versions)
             if stack_versions is not None
@@ -3580,7 +3643,13 @@ def build_prepass_header(
     if not save_all:
         hdr["save_all"] = False
     if descriptive:
-        hdr["descriptive"] = True
+        hdr["b2_replay_settings"] = dict(
+            b2_replay_settings if b2_replay_settings is not None else B2_REPLAY_SETTINGS
+        )
+    if replay_check_sha256 is not None:
+        hdr["replay_check_sha256"] = str(replay_check_sha256)
+    if replay_check_off_reason is not None:
+        hdr["replay_check_off_reason"] = str(replay_check_off_reason)
     if checkpoint_sha is not None:
         hdr["checkpoint_sha256"] = checkpoint_sha
     if checkpoint_files_sha is not None:
@@ -3779,7 +3848,10 @@ def _verify_pass_provenance(
     require_seeds: bool = True,
 ) -> int | None:
     """Verify pass records and optional header are not descriptive and have the expected seed provenance."""
-    if header is not None and header.get("descriptive") is True:
+    if header is not None and (
+        header.get("descriptive") is True
+        or ("descriptive" in header and not isinstance(header["descriptive"], bool))
+    ):
         raise SystemExit(
             f"refusing paired estimators (paired_estimator_descriptive): "
             f"{role} header has descriptive=true"
@@ -3788,7 +3860,9 @@ def _verify_pass_provenance(
     if header is not None and "seed" in header and not isinstance(header["seed"], bool):
         observed_seed = int(header["seed"])
     for r in records:
-        if r.get("descriptive") is True:
+        if r.get("descriptive") is True or (
+            "descriptive" in r and not isinstance(r["descriptive"], bool)
+        ):
             raise SystemExit(
                 f"refusing paired estimators (paired_estimator_descriptive): "
                 f"{role} record {r.get('id')!r} has descriptive=true"
@@ -4217,6 +4291,8 @@ def _prepare_prepass_resume(
         existing_cmp = dict(existing_header)
         if "reproducible" not in existing_cmp and expected_header.get("reproducible") is True:
             existing_cmp["reproducible"] = True
+        if "descriptive" not in existing_cmp and expected_header.get("descriptive") is False:
+            existing_cmp["descriptive"] = False
         for k_opt in ("stack_versions", "pip_freeze_sha256"):
             if k_opt not in existing_cmp and k_opt in expected_header:
                 existing_cmp[k_opt] = expected_header[k_opt]
@@ -4286,6 +4362,9 @@ def run_prepass(
     checkpoint_files_sha: Mapping[str, str] | None = None,
     pass_a_k: dict[str, int] | None = None,
     pass_a_sha: str | None = None,
+    replay_check_k: Mapping[str, int] | None = None,
+    replay_check_sha: str | None = None,
+    replay_check_off_reason: str | None = None,
     stack_versions: Mapping[str, str | None] | None = None,
     pip_freeze_sha256: str | None = None,
     fsync: Callable[[int], None] = os.fsync,
@@ -4326,6 +4405,12 @@ def run_prepass(
         else f"prepass_seed{eff_seed}"
     )
     pass_id_str = str(getattr(a, "pass_id", None) or default_pass_id)
+    eff_rc_sha = replay_check_sha
+    eff_rc_off = replay_check_off_reason
+    if eff_rc_sha is None and getattr(a, "replay_check_sha256", None):
+        eff_rc_sha = str(a.replay_check_sha256).strip().lower()
+    if eff_rc_off is None and getattr(a, "replay_check_off_reason", None):
+        eff_rc_off = str(a.replay_check_off_reason).strip() or None
     expected_header = build_prepass_header(
         prompt_ids=[r["id"] for r in prompts],
         gold_hashes=gold_hashes,
@@ -4342,6 +4427,8 @@ def run_prepass(
         pass_a_sha=pass_a_sha,
         stack_versions=stack_versions,
         pip_freeze_sha256=pip_freeze_sha256,
+        replay_check_sha256=eff_rc_sha,
+        replay_check_off_reason=eff_rc_off,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
@@ -4368,6 +4455,7 @@ def run_prepass(
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     step_rows: list[dict] = []
     new_count = 0
+    stopped_mismatch: dict | None = None
 
     try:
         with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
@@ -4471,6 +4559,23 @@ def run_prepass(
                             "grad_ckpt_rollout": ckpt_rollout,
                         }
                     )
+                    if replay_check_k is not None:
+                        b2_k = int(replay_check_k[item_id])
+                        cur_k = int(rec["k_correct"])
+                        if cur_k != b2_k:
+                            mismatch_msg = (
+                                f"LOGGING_PASS_REPLAY_MISMATCH: item_id={item_id} "
+                                f"k_correct={cur_k} b2_k_correct={b2_k}"
+                            )
+                            stopped_mismatch = {
+                                "step": item_idx,
+                                "reason": "LOGGING_PASS_REPLAY_MISMATCH",
+                                "error": mismatch_msg,
+                                "item_id": item_id,
+                                "k_correct": cur_k,
+                                "b2_k_correct": b2_k,
+                            }
+                            break
                 except oom_types:
                     return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
                 except TimeoutError as exc:
@@ -4484,7 +4589,7 @@ def run_prepass(
         if save_all_on:
             write_save_all(save_all_path, pass_save_records, fsync=fsync)
 
-    if len(completed_records) == len(prompts):
+    if len(completed_records) == len(prompts) or stopped_mismatch is not None:
         summary_doc = prepass_summary(
             completed_records,
             g=a.g,
@@ -4495,11 +4600,13 @@ def run_prepass(
             checkpoint_sha=checkpoint_sha,
             checkpoint_files_sha=checkpoint_files_sha,
         )
+        if stopped_mismatch is not None:
+            summary_doc["stopped"] = dict(stopped_mismatch)
         with summary_path.open("w", encoding="utf-8", newline="\n") as sfh:
             sfh.write(json.dumps(summary_doc, indent=1) + "\n")
             sfh.flush()
             fsync(sfh.fileno())
-    return step_rows, completed_records, None, False
+    return step_rows, completed_records, stopped_mismatch, False
 
 
 def _check_header_not_descriptive(
@@ -4527,13 +4634,15 @@ def _check_header_not_descriptive(
             continue
         if not isinstance(hdr_obj, dict):
             continue
-        if "descriptive" in hdr_obj and isinstance(hdr_obj.get("descriptive"), bool):
-            if hdr_obj.get("descriptive") is True:
-                raise SystemExit(
-                    "refusing to start (prepass_baseline_descriptive): "
-                    "pass header has descriptive=true; the starting-policy logging pass "
-                    "is never accepted as --prepass-baseline"
-                )
+        if hdr_obj.get("descriptive") is True or (
+            "descriptive" in hdr_obj and not isinstance(hdr_obj["descriptive"], bool)
+        ):
+            raise SystemExit(
+                "refusing to start (prepass_baseline_descriptive): "
+                "pass header has descriptive=true; the starting-policy logging pass "
+                "is never accepted as --prepass-baseline"
+            )
+        if "descriptive" in hdr_obj and hdr_obj["descriptive"] is False:
             header_has_descriptive = True
         if "seed" in hdr_obj:
             hdr_seed = hdr_obj.get("seed")
@@ -4543,6 +4652,8 @@ def _check_header_not_descriptive(
                     f"pass header has seed={hdr_seed!r}, expected one of {sorted(allowed_seeds)}"
                 )
             header_has_seed = True
+            if "ids_sha256" in hdr_obj and "descriptive" not in hdr_obj:
+                header_has_descriptive = True
     return header_has_seed, header_has_descriptive
 
 
@@ -4594,7 +4705,7 @@ def load_prepass_baseline(
             ) from exc
         rec_has_descriptive = False
         if isinstance(obj, dict) and "descriptive" in obj:
-            if obj.get("descriptive") is True:
+            if obj.get("descriptive") is True or not isinstance(obj.get("descriptive"), bool):
                 raise SystemExit(
                     "refusing to start (prepass_baseline_descriptive): "
                     "record has descriptive=true; the starting-policy logging pass "
@@ -4656,6 +4767,92 @@ def load_prepass_baseline(
     if missing:
         raise SystemExit(
             f"refusing to start (prepass_baseline_missing_id): prompt {missing[0]!r} has no baseline record "
+            f"({len(missing)} missing)"
+        )
+    return k_by_id, actual_sha
+
+
+def load_replay_check_jsonl(
+    replay_path: Path | None,
+    replay_sha256: str | None,
+    required_ids: Sequence[str],
+    *,
+    g: int | None = G,
+) -> tuple[dict[str, int] | None, str | None]:
+    """Load and SHA-check a B2 JSONL file for ``--replay-check`` during ``--logging-pass``."""
+    if replay_path is None and replay_sha256 is None:
+        return None, None
+    if replay_path is None or not replay_sha256:
+        raise SystemExit(
+            "refusing to start (replay_check_missing_arg): "
+            "--replay-check and --replay-check-sha256 must be given together"
+        )
+    path = Path(replay_path)
+    if not path.is_file():
+        raise SystemExit(
+            f"refusing to start (replay_check_missing_file): replay-check file does not exist: {path.name}"
+        )
+    _check_header_not_descriptive(path, expected_seeds=(1,))
+    raw_bytes = path.read_bytes()
+    actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+    expected_sha = str(replay_sha256).strip().lower()
+    if actual_sha != expected_sha:
+        raise SystemExit(
+            f"refusing to start (replay_check_sha_mismatch): "
+            f"expected sha256 {expected_sha}, got {actual_sha}"
+        )
+    expected_g = int(g) if g is not None else None
+    k_by_id: dict[str, int] = {}
+    for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                f"refusing to start (replay_check_corrupt_json): invalid JSON on line {line_no}"
+            ) from exc
+        if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
+            raise SystemExit(
+                f"refusing to start (replay_check_invalid_record): "
+                f"line {line_no} is missing 'id' or 'k_correct'"
+            )
+        if "descriptive" in obj and (
+            obj.get("descriptive") is True or not isinstance(obj.get("descriptive"), bool)
+        ):
+            raise SystemExit(
+                "refusing to start (replay_check_descriptive): "
+                f"line {line_no} has descriptive=true; --replay-check requires non-descriptive Pass B2"
+            )
+        if "pass_seed" in obj or "seed" in obj:
+            rec_seed = obj.get("pass_seed", obj.get("seed"))
+            if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed != 1:
+                raise SystemExit(
+                    f"refusing to start (replay_check_wrong_seed): "
+                    f"record on line {line_no} has seed={rec_seed!r}, expected 1"
+                )
+        rec_id = str(obj["id"])
+        if rec_id in k_by_id:
+            raise SystemExit(
+                f"refusing to start (replay_check_duplicate_id): duplicate record for id {rec_id!r}"
+            )
+        k_val = obj["k_correct"]
+        if isinstance(k_val, bool) or not isinstance(k_val, int) or k_val < 0:
+            raise SystemExit(
+                f"refusing to start (replay_check_k_out_of_range): "
+                f"record for id {rec_id!r} has invalid k_correct={k_val!r}"
+            )
+        if expected_g is not None and k_val > expected_g:
+            raise SystemExit(
+                f"refusing to start (replay_check_k_out_of_range): "
+                f"record for id {rec_id!r} has k_correct={k_val!r} > g={expected_g}"
+            )
+        k_by_id[rec_id] = k_val
+    missing = [str(cid) for cid in required_ids if str(cid) not in k_by_id]
+    if missing:
+        raise SystemExit(
+            f"refusing to start (replay_check_missing_id): prompt {missing[0]!r} has no replay-check record "
             f"({len(missing)} missing)"
         )
     return k_by_id, actual_sha
@@ -4738,6 +4935,10 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["prepass_baseline_sha256"] = str(a.prepass_baseline_sha256).strip().lower()
     if getattr(a, "pass_a_sha256", None):
         flags["pass_a_sha256"] = str(a.pass_a_sha256).strip().lower()
+    if getattr(a, "replay_check_sha256", None) and str(getattr(a, "replay_check_sha256")).strip():
+        flags["replay_check_sha256"] = str(a.replay_check_sha256).strip().lower()
+    if getattr(a, "replay_check_off_reason", None) and str(getattr(a, "replay_check_off_reason")).strip():
+        flags["replay_check_off_reason"] = str(a.replay_check_off_reason).strip()
     if getattr(a, "log_sdpa_backend", False):
         flags["log_sdpa_backend"] = True
     if not bool(getattr(a, "save_all", True)):
@@ -4785,7 +4986,7 @@ def execute(
 ) -> int:
     """One S2 run: guards, prompts, steps, readout, receipt. ``build`` makes the model bundle; ``rig`` is the
     machine's side (the GPU query, the heartbeat, the sampler), None for a dry rehearsal."""
-    if getattr(a, "alloc_conf", None) is not None:
+    if getattr(a, "alloc_conf", None) is not None and not a.dry and build is real_bundle:
         configure_alloc_conf(a.alloc_conf)
     if getattr(a, "paired_estimators", None) is not None:
         run_paired_estimators_from_spec(Path(a.paired_estimators), a.out)
@@ -4929,6 +5130,13 @@ def execute(
         [r["id"] for r in prompts],
         g=None,
     )
+    rc_path_val, rc_sha_val, rc_off_val = validate_replay_check_args(a)
+    replay_check_k, replay_check_sha = load_replay_check_jsonl(
+        rc_path_val,
+        rc_sha_val,
+        [r["id"] for r in prompts],
+        g=a.g,
+    )
     if pass_a_k is None and not rollout_only and getattr(a, "prepass_jsonl", None) is not None:
         pass_a_k, pass_a_sha = load_prepass_baseline(
             getattr(a, "prepass_jsonl", None),
@@ -5055,6 +5263,9 @@ def execute(
                         checkpoint_files_sha=ckpt_files_sha,
                         pass_a_k=pass_a_k,
                         pass_a_sha=pass_a_sha,
+                        replay_check_k=replay_check_k,
+                        replay_check_sha=replay_check_sha,
+                        replay_check_off_reason=rc_off_val,
                         stack_versions=frozen_env["stack_versions"],
                         pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                     )
@@ -5074,6 +5285,9 @@ def execute(
                         checkpoint_files_sha=ckpt_files_sha,
                         pass_a_k=pass_a_k,
                         pass_a_sha=pass_a_sha,
+                        replay_check_k=replay_check_k,
+                        replay_check_sha=replay_check_sha,
+                        replay_check_off_reason=rc_off_val,
                         stack_versions=frozen_env["stack_versions"],
                         pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                     )
@@ -5092,6 +5306,9 @@ def execute(
                     checkpoint_files_sha=ckpt_files_sha,
                     pass_a_k=pass_a_k,
                     pass_a_sha=pass_a_sha,
+                    replay_check_k=replay_check_k,
+                    replay_check_sha=replay_check_sha,
+                    replay_check_off_reason=rc_off_val,
                     stack_versions=frozen_env["stack_versions"],
                     pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
                 )
@@ -5318,6 +5535,8 @@ def execute(
             summary_out["ignored_flags"] = result["ignored_flags"]
         print(json.dumps(summary_out))
         print(line)
+        if isinstance(stopped, dict) and stopped.get("reason") == "LOGGING_PASS_REPLAY_MISMATCH":
+            raise SystemExit(str(stopped.get("error") or "LOGGING_PASS_REPLAY_MISMATCH"))
         return exit_status(line)
     finally:
         if group_logger is not None:
@@ -5584,6 +5803,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="expected sha256 hex digest of --pass-a-jsonl",
     )
     ap.add_argument(
+        "--replay-check",
+        type=Path,
+        default=None,
+        help="Pass-B2 pre-pass JSONL used to verify item-by-item k_correct replay during --logging-pass",
+    )
+    ap.add_argument(
+        "--replay-check-sha256",
+        default=None,
+        help="expected sha256 hex digest of --replay-check",
+    )
+    ap.add_argument(
+        "--replay-check-off-reason",
+        default=None,
+        help="explicit non-empty reason required when running --logging-pass without --replay-check",
+    )
+    ap.add_argument(
         "--frozen-pip-freeze",
         type=Path,
         default=None,
@@ -5653,7 +5888,7 @@ def apply_dry_defaults(a: argparse.Namespace) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - the real run needs the rig
     a = build_parser().parse_args(argv)
-    if getattr(a, "alloc_conf", None) is not None:
+    if getattr(a, "alloc_conf", None) is not None and not a.dry:
         configure_alloc_conf(a.alloc_conf)
     if a.dry:
         return execute(apply_dry_defaults(a), build=dry_bundle)
