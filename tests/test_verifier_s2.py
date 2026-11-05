@@ -8629,3 +8629,342 @@ class TestSaveAll:
         assert strip_save_all_fields(rec_tr_on) == strip_save_all_fields(rec_tr_off)
         assert strip_save_all_fields(rec_pass_on) == strip_save_all_fields(rec_pass_off)
 
+
+class TestLoggingPassAndPostpass:
+    def test_pass_mode_validation_and_checkpoint_sha(self, tmp_path: Path) -> None:
+        import hashlib
+
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+
+        # Conflicting --logging-pass and --postpass
+        a_conflict = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "conflict"),
+                "--logging-pass",
+                "--postpass",
+            ]
+        )
+        with pytest.raises(SystemExit, match="conflicting_pass_flags"):
+            s2.validate_pass_mode_args(a_conflict)
+
+        # --logging-pass cannot take --checkpoint
+        ckpt_file = tmp_path / "adapter.bin"
+        ckpt_file.write_bytes(b"weights-v1")
+        a_log_ckpt = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "log_ckpt"),
+                "--logging-pass",
+                "--checkpoint",
+                str(ckpt_file),
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_checkpoint_forbidden"):
+            s2.validate_pass_mode_args(a_log_ckpt)
+
+        # --logging-pass refuses seed != 1 via --pass-seed or --prepass-seed
+        a_log_bad_seed = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "log_bad_seed"),
+                "--logging-pass",
+                "--pass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_seed_must_be_1"):
+            s2.validate_pass_mode_args(a_log_bad_seed)
+
+        a_log_bad_pre_seed = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "log_bad_pre_seed"),
+                "--logging-pass",
+                "--prepass-seed",
+                "2",
+            ]
+        )
+        with pytest.raises(SystemExit, match="logging_pass_seed_must_be_1"):
+            s2.validate_pass_mode_args(a_log_bad_pre_seed)
+
+        # --postpass refuses reserved seeds 0 and 1
+        for bad_seed in ("0", "1"):
+            a_post_reserved = ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / f"post_reserved_{bad_seed}"),
+                    "--postpass",
+                    "--pass-seed",
+                    bad_seed,
+                ]
+            )
+            with pytest.raises(SystemExit, match="postpass_reserved_seed"):
+                s2.validate_pass_mode_args(a_post_reserved)
+
+        # Missing checkpoint and empty directory checkpoint are refused
+        with pytest.raises(SystemExit, match="checkpoint_missing"):
+            s2.checkpoint_sha256(tmp_path / "no_such_ckpt")
+        empty_ckpt_dir = tmp_path / "empty_ckpt"
+        empty_ckpt_dir.mkdir()
+        with pytest.raises(SystemExit, match="checkpoint_empty"):
+            s2.checkpoint_sha256(empty_ckpt_dir)
+
+        # Directory checkpoint hashing is deterministic
+        ckpt_dir = tmp_path / "lora_ckpt"
+        (ckpt_dir / "sub").mkdir(parents=True)
+        (ckpt_dir / "adapter_config.json").write_text('{"r": 16}\n', encoding="utf-8")
+        (ckpt_dir / "sub" / "adapter_model.safetensors").write_bytes(b"safetensor-bytes")
+        sha_dir_1 = s2.checkpoint_sha256(ckpt_dir)
+        sha_dir_2 = s2.checkpoint_sha256(ckpt_dir)
+        assert sha_dir_1 is not None and len(sha_dir_1) == 64 and sha_dir_1 == sha_dir_2
+
+        # File checkpoint hashing
+        sha_file = s2.checkpoint_sha256(ckpt_file)
+        assert sha_file == hashlib.sha256(b"weights-v1").hexdigest()
+
+        # Valid --postpass with --checkpoint and --pass-seed 2
+        a_post_ok = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "post_ok"),
+                "--postpass",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--pass-seed",
+                "2",
+            ]
+        )
+        is_pm, is_desc, eff_seed, ckpt_sha = s2.validate_pass_mode_args(a_post_ok)
+        assert (is_pm, is_desc, eff_seed, ckpt_sha) == (True, False, 2, sha_dir_1)
+        assert s2.active_flags(a_post_ok)["postpass"] is True
+        assert s2.active_flags(a_post_ok)["prepass_seed"] == 2
+
+    def test_logging_pass_descriptive_guard_and_postpass_truncation_by_band(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import hashlib
+        from contextlib import nullcontext
+
+        torch = pytest.importorskip("torch")
+        ap = s2.build_parser()
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        fixed_script_sha = "77" * 32
+        monkeypatch.setattr(s2, "script_sha256", lambda: fixed_script_sha)
+
+        # Create a Pass-A baseline JSONL (seed 0, non-descriptive) with items across all 3 bands:
+        # t_a, t_b in [0,5] (k=2, 5); t_d, t_k in [6,7] (k=6, 7); t_m, t_z in 8 (k=8, 8)
+        pass_a_dir = tmp_path / "pass_a"
+        pass_a_dir.mkdir(parents=True)
+        pass_a_jsonl = pass_a_dir / "s2-hf-prepass.jsonl"
+        pass_a_rows = [
+            {"id": "t_a", "g": 8, "k_correct": 2},
+            {"id": "t_b", "g": 8, "k_correct": 5},
+            {"id": "t_d", "g": 8, "k_correct": 6},
+            {"id": "t_k", "g": 8, "k_correct": 7},
+            {"id": "t_m", "g": 8, "k_correct": 8},
+            {"id": "t_z", "g": 8, "k_correct": 8},
+        ]
+        pass_a_jsonl.write_text(
+            "".join(json.dumps(r) + "\n" for r in pass_a_rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        pass_a_sha = hashlib.sha256(pass_a_jsonl.read_bytes()).hexdigest()
+
+        def make_bundle(_args_ns):
+            fake_cuda = _FakeCuda()
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                # Make t_a (band [0,5]) have 2 truncations, t_d (band [6,7]) have 1 truncation,
+                # and t_m (band 8) have 3 truncations.
+                if "Claim ta" in prompt_text:
+                    n_trunc = 2
+                elif "Claim td" in prompt_text:
+                    n_trunc = 1
+                elif "Claim tm" in prompt_text:
+                    n_trunc = 3
+                else:
+                    n_trunc = 0
+                comps = []
+                truncs = []
+                for idx in range(g_cnt):
+                    if idx < n_trunc:
+                        comps.append(tok.encode("<think>unclosed"))
+                        truncs.append(True)
+                    else:
+                        comps.append(
+                            tok.encode(_reply("supported", "alpha beta gamma", think="ok"))
+                            + [tok.eos_token_id]
+                        )
+                        truncs.append(False)
+                return p_ids, comps, truncs
+
+            return {
+                "model": Namespace(device=torch.device("cpu"), parameters=lambda: []),
+                "tok": tok,
+                "cuda": fake_cuda,
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 100,
+                "revision": "rev_pass_test",
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        # 1. Run starting-policy --logging-pass (uses seed 1, sets descriptive: true)
+        log_dir = tmp_path / "logging_pass"
+        a_log = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(log_dir),
+                "--logging-pass",
+                "--g",
+                "8",
+                "--max-new",
+                "2048",
+                "--quote-reward",
+                "v2",
+                "--pass-a-jsonl",
+                str(pass_a_jsonl),
+                "--pass-a-sha256",
+                pass_a_sha,
+            ]
+        )
+        assert s2.execute(a_log, build=make_bundle, rig=_FakeRig(a_log)) == 0
+
+        log_hdr = json.loads((log_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert log_hdr["seed"] == 1
+        assert log_hdr["descriptive"] is True
+        assert log_hdr["pass_a_sha256"] == pass_a_sha
+
+        log_summary = json.loads((log_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert log_summary["descriptive"] is True
+        assert log_summary["total_truncations"] == 6
+        assert log_summary["truncations_by_band"] == {"[0,5]": 2, "[6,7]": 1, "8": 3}
+
+        log_jsonl_path = log_dir / "s2-hf-prepass.jsonl"
+        log_recs = [
+            json.loads(line) for line in log_jsonl_path.read_text(encoding="utf-8").splitlines() if line
+        ]
+        assert len(log_recs) == 6
+        assert all(r.get("descriptive") is True for r in log_recs)
+        by_id = {r["id"]: r for r in log_recs}
+        assert by_id["t_a"]["pass_a_k"] == 2 and by_id["t_a"]["pass_a_band"] == "[0,5]"
+        assert by_id["t_d"]["pass_a_k"] == 6 and by_id["t_d"]["pass_a_band"] == "[6,7]"
+        assert by_id["t_m"]["pass_a_k"] == 8 and by_id["t_m"]["pass_a_band"] == "8"
+
+        sa_log_recs = s2.read_save_all(log_dir / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_log_recs) == 6 * 8
+        assert all(r["pass_id"] == "logging_seed1" and r["pass_seed"] == 1 for r in sa_log_recs)
+
+        # 2. Refusal when passing the descriptive logging pass as --prepass-baseline
+        log_sha = hashlib.sha256(log_jsonl_path.read_bytes()).hexdigest()
+        with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+            s2.load_prepass_baseline(log_jsonl_path, log_sha, ["t_a"], g=8)
+
+        # Even if the companion header is removed, the per-record descriptive=true guard still refuses
+        copied_jsonl = tmp_path / "copied_descriptive.jsonl"
+        copied_jsonl.write_bytes(log_jsonl_path.read_bytes())
+        with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+            s2.load_prepass_baseline(copied_jsonl, log_sha, ["t_a"], g=8)
+
+        # And if a record has descriptive omitted but companion *-header.json has descriptive=true, it refuses
+        hdr_only_dir = tmp_path / "hdr_only_desc"
+        hdr_only_dir.mkdir()
+        hdr_only_jsonl = hdr_only_dir / "s2-hf-prepass.jsonl"
+        hdr_only_jsonl.write_bytes(pass_a_jsonl.read_bytes())
+        (hdr_only_dir / "s2-hf-prepass-header.json").write_text(
+            json.dumps({"descriptive": True}), encoding="utf-8"
+        )
+        with pytest.raises(SystemExit, match="prepass_baseline_descriptive"):
+            s2.load_prepass_baseline(hdr_only_jsonl, pass_a_sha, ["t_a"], g=8)
+
+        # 3. Run --postpass for a trained checkpoint with seed 2 and verify header, summary, and resume
+        ckpt_dir = tmp_path / "trained_ckpt"
+        ckpt_dir.mkdir()
+        (ckpt_dir / "adapter_model.bin").write_bytes(b"trained-adapter-bytes")
+        expected_ckpt_sha = s2.checkpoint_sha256(ckpt_dir)
+
+        post_dir = tmp_path / "postpass_seed2"
+        a_post = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(post_dir),
+                "--postpass",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--pass-seed",
+                "2",
+                "--g",
+                "8",
+                "--max-new",
+                "2048",
+                "--quote-reward",
+                "v2",
+                "--pass-a-jsonl",
+                str(pass_a_jsonl),
+                "--pass-a-sha256",
+                pass_a_sha,
+            ]
+        )
+        assert s2.execute(a_post, build=make_bundle, rig=_FakeRig(a_post)) == 0
+
+        post_hdr = json.loads((post_dir / "s2-hf-prepass-header.json").read_text(encoding="utf-8"))
+        assert post_hdr["seed"] == 2
+        assert "descriptive" not in post_hdr
+        assert post_hdr["checkpoint_sha256"] == expected_ckpt_sha
+        assert post_hdr["pass_a_sha256"] == pass_a_sha
+
+        post_summary = json.loads((post_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert "descriptive" not in post_summary
+        assert post_summary["checkpoint_sha256"] == expected_ckpt_sha
+        assert post_summary["truncations_by_band"] == {"[0,5]": 2, "[6,7]": 1, "8": 3}
+
+        sa_post_recs = s2.read_save_all(post_dir / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_post_recs) == 6 * 8
+        assert all(r["pass_id"] == "postpass_seed2" and r["pass_seed"] == 2 for r in sa_post_recs)
+
+

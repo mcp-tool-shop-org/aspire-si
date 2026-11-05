@@ -3031,6 +3031,91 @@ def ids_sha256(ids: Sequence[str]) -> str:
     return hashlib.sha256("\n".join(ids).encode()).hexdigest()
 
 
+def k_band_name(k_correct: int) -> str:
+    """Return the pre-registered Pass-A difficulty band ('[0,5]', '[6,7]', or '8') for ``k_correct``."""
+    k_val = int(k_correct)
+    if k_val <= 5:
+        return "[0,5]"
+    if k_val <= 7:
+        return "[6,7]"
+    return "8"
+
+
+def checkpoint_sha256(checkpoint_path: Path | None) -> str | None:
+    """Return a deterministic sha256 digest of a checkpoint file or directory, or None when omitted."""
+    if checkpoint_path is None:
+        return None
+    cp = Path(checkpoint_path)
+    if not cp.exists():
+        raise SystemExit(
+            f"refusing to start (checkpoint_missing): checkpoint does not exist: {cp.name}"
+        )
+    if cp.is_file():
+        return hashlib.sha256(cp.read_bytes()).hexdigest()
+    files = sorted(p for p in cp.rglob("*") if p.is_file())
+    if not files:
+        raise SystemExit(
+            f"refusing to start (checkpoint_empty): checkpoint directory has no files: {cp.name}"
+        )
+    entries = [
+        f"{p.relative_to(cp).as_posix()}:{hashlib.sha256(p.read_bytes()).hexdigest()}" for p in files
+    ]
+    return hashlib.sha256("\n".join(entries).encode("utf-8")).hexdigest()
+
+
+def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str | None]:
+    """Validate ``--logging-pass``, ``--postpass``, ``--checkpoint``, and pass seeds.
+
+    Returns ``(is_pass_mode, is_descriptive, effective_seed, checkpoint_sha256)``.
+    """
+    logging_pass = bool(getattr(a, "logging_pass", False))
+    postpass = bool(getattr(a, "postpass", False))
+    rollout_only = bool(getattr(a, "rollout_only", False))
+    ckpt_path = getattr(a, "checkpoint", None)
+
+    if logging_pass and postpass:
+        raise SystemExit(
+            "refusing to start (conflicting_pass_flags): --logging-pass and --postpass cannot be combined"
+        )
+    if logging_pass and ckpt_path is not None:
+        raise SystemExit(
+            "refusing to start (logging_pass_checkpoint_forbidden): "
+            "--logging-pass is for the starting policy and cannot take --checkpoint"
+        )
+    ckpt_sha = checkpoint_sha256(ckpt_path)
+
+    pass_seed_arg = getattr(a, "pass_seed", None)
+    prepass_seed_arg = getattr(a, "prepass_seed", PREPASS_BASE_SEED)
+    if logging_pass:
+        if pass_seed_arg is not None and int(pass_seed_arg) != 1:
+            raise SystemExit(
+                f"refusing to start (logging_pass_seed_must_be_1): "
+                f"--logging-pass requires post-pass seed 1, got {pass_seed_arg}"
+            )
+        if prepass_seed_arg not in (PREPASS_BASE_SEED, 1):
+            raise SystemExit(
+                f"refusing to start (logging_pass_seed_must_be_1): "
+                f"--logging-pass requires post-pass seed 1, got {prepass_seed_arg}"
+            )
+        eff_seed = 1
+        descriptive = True
+    elif postpass or ckpt_path is not None:
+        eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
+        if eff_seed in (0, 1):
+            raise SystemExit(
+                f"refusing to start (postpass_reserved_seed): "
+                f"post-pass for a trained checkpoint refuses seed {eff_seed} "
+                f"(seeds 0 and 1 are reserved for pre-pass and starting-policy logging pass)"
+            )
+        descriptive = False
+    else:
+        eff_seed = int(pass_seed_arg if pass_seed_arg is not None else prepass_seed_arg)
+        descriptive = False
+
+    is_pass_mode = bool(rollout_only or logging_pass or postpass)
+    return is_pass_mode, descriptive, eff_seed, ckpt_sha
+
+
 def build_prepass_header(
     *,
     prompt_ids: Sequence[str],
@@ -3043,8 +3128,11 @@ def build_prepass_header(
     script_hash: str | None = None,
     reproducible: bool = True,
     save_all: bool = True,
+    descriptive: bool = False,
+    checkpoint_sha: str | None = None,
+    pass_a_sha: str | None = None,
 ) -> dict:
-    hdr = {
+    hdr: dict = {
         "ids_sha256": ids_sha256(prompt_ids),
         "script_sha256": script_hash if script_hash is not None else script_sha256(),
         "gold_files_sha256": dict(gold_hashes),
@@ -3057,6 +3145,12 @@ def build_prepass_header(
     }
     if not save_all:
         hdr["save_all"] = False
+    if descriptive:
+        hdr["descriptive"] = True
+    if checkpoint_sha is not None:
+        hdr["checkpoint_sha256"] = checkpoint_sha
+    if pass_a_sha is not None:
+        hdr["pass_a_sha256"] = pass_a_sha
     return hdr
 
 
@@ -3073,6 +3167,8 @@ def prepass_item_record(
     pass_id: str = "prepass_seed0",
     item_seed_val: int = 0,
     pass_seed: int = 0,
+    descriptive: bool = False,
+    pass_a_k: dict[str, int] | None = None,
 ) -> tuple[dict, list[dict]]:
     """Score one item's G completions and return (the text-free JSONL record, eval rollout outcomes)."""
     gold_verdict = str(row.get("label", "supported"))
@@ -3155,6 +3251,12 @@ def prepass_item_record(
         "prompt_tokens": len(prompt_ids),
         "completion_tokens_mean": round(float(statistics.fmean(comp_lens)), 2) if comp_lens else 0.0,
     }
+    if descriptive:
+        rec["descriptive"] = True
+    item_id_key = str(row["id"])
+    if pass_a_k is not None and item_id_key in pass_a_k:
+        rec["pass_a_k"] = int(pass_a_k[item_id_key])
+        rec["pass_a_band"] = k_band_name(rec["pass_a_k"])
     return rec, rollout_outcomes
 
 
@@ -3172,8 +3274,11 @@ def prepass_summary(
     g: int,
     quote_reward: str = "v1",
     reproducible: bool = True,
+    descriptive: bool = False,
+    pass_a_k: dict[str, int] | None = None,
+    checkpoint_sha: str | None = None,
 ) -> dict:
-    """Summary of a rollout-only pre-pass: counts, histograms (0..G), and ratios only."""
+    """Summary of a rollout-only pre-pass: counts, histograms (0..G), per-band truncations, and ratios."""
     n = len(records)
     hist = _k_correct_hist(records, g)
     all_correct = sum(1 for r in records if int(r["k_correct"]) == g)
@@ -3185,11 +3290,20 @@ def prepass_summary(
     for gv in VERDICTS:
         by_verdict[gv] = _k_correct_hist([r for r in records if r.get("gold_verdict") == gv], g)
     total_truncs = sum(int(r["truncations"]) for r in records)
+    truncs_by_band: dict[str, int] = {"[0,5]": 0, "[6,7]": 0, "8": 0}
+    for r in records:
+        rid = str(r["id"])
+        k_ref = (
+            int(pass_a_k[rid])
+            if (pass_a_k is not None and rid in pass_a_k)
+            else int(r.get("pass_a_k", r["k_correct"]))
+        )
+        truncs_by_band[k_band_name(k_ref)] += int(r["truncations"])
     total_quote_pass = sum(int(r.get("quote_pass", 0)) for r in records)
     gold_sup_completions = sum(int(r["g"]) for r in records if r.get("gold_verdict") == "supported")
     ct_on_gold_sup = sum(int(r["cannot_tell"]) for r in records if r.get("gold_verdict") == "supported")
     p_ct_given_sup = (ct_on_gold_sup / gold_sup_completions) if gold_sup_completions > 0 else 0.0
-    return {
+    out: dict = {
         "item_count": n,
         "g": int(g),
         "k_correct_histogram": hist,
@@ -3200,11 +3314,17 @@ def prepass_summary(
         "by_gold_file": by_file,
         "by_gold_verdict": by_verdict,
         "total_truncations": total_truncs,
+        "truncations_by_band": truncs_by_band,
         "quote_pass": total_quote_pass,
         "quote_pass_role": quote_pass_role_text(quote_reward),
         "p_cannot_tell_given_gold_supported": p_ct_given_sup,
         "reproducible": bool(reproducible),
     }
+    if descriptive:
+        out["descriptive"] = True
+    if checkpoint_sha is not None:
+        out["checkpoint_sha256"] = checkpoint_sha
+    return out
 
 
 def _prepare_prepass_resume(
@@ -3294,6 +3414,10 @@ def run_prepass(
     eval_records: list[dict] | None = None,
     base_seed: int | None = None,
     stop_after_new: int | None = None,
+    descriptive: bool = False,
+    checkpoint_sha: str | None = None,
+    pass_a_k: dict[str, int] | None = None,
+    pass_a_sha: str | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> tuple[list[dict], list[dict], dict | None, bool]:
     """Run the rollout-only pre-pass over ``prompts`` with resume support.
@@ -3324,7 +3448,14 @@ def run_prepass(
     path_name = str(getattr(a, "path", "hf") or "hf")
     reproducible = path_name != "llamacpp"
     save_all_on = bool(getattr(a, "save_all", True))
-    pass_id_str = str(getattr(a, "pass_id", None) or f"prepass_seed{eff_seed}")
+    default_pass_id = (
+        f"logging_seed{eff_seed}"
+        if descriptive
+        else f"postpass_seed{eff_seed}"
+        if (bool(getattr(a, "postpass", False)) or checkpoint_sha is not None)
+        else f"prepass_seed{eff_seed}"
+    )
+    pass_id_str = str(getattr(a, "pass_id", None) or default_pass_id)
     expected_header = build_prepass_header(
         prompt_ids=[r["id"] for r in prompts],
         gold_hashes=gold_hashes,
@@ -3335,6 +3466,9 @@ def run_prepass(
         model_revision=model_rev,
         reproducible=reproducible,
         save_all=save_all_on,
+        descriptive=descriptive,
+        checkpoint_sha=checkpoint_sha,
+        pass_a_sha=pass_a_sha,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
@@ -3420,6 +3554,8 @@ def run_prepass(
                         pass_id=pass_id_str,
                         item_seed_val=seed_for_item,
                         pass_seed=eff_seed,
+                        descriptive=descriptive,
+                        pass_a_k=pass_a_k,
                     )
                     if eval_records is not None:
                         rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
@@ -3477,13 +3613,43 @@ def run_prepass(
 
     if len(completed_records) == len(prompts):
         summary_doc = prepass_summary(
-            completed_records, g=a.g, quote_reward=quote_rew, reproducible=reproducible
+            completed_records,
+            g=a.g,
+            quote_reward=quote_rew,
+            reproducible=reproducible,
+            descriptive=descriptive,
+            pass_a_k=pass_a_k,
+            checkpoint_sha=checkpoint_sha,
         )
         with summary_path.open("w", encoding="utf-8", newline="\n") as sfh:
             sfh.write(json.dumps(summary_doc, indent=1) + "\n")
             sfh.flush()
             fsync(sfh.fileno())
     return step_rows, completed_records, None, False
+
+
+def _check_header_not_descriptive(baseline_path: Path) -> None:
+    """Refuse if any companion header beside ``baseline_path`` has ``descriptive: true``."""
+    candidates = [
+        baseline_path.with_name(baseline_path.stem + "-header.json"),
+        baseline_path.parent / "s2-hf-prepass-header.json",
+        baseline_path.parent / "s2-llamacpp-prepass-header.json",
+    ]
+    seen: set[Path] = set()
+    for hdr_path in candidates:
+        if hdr_path in seen or not hdr_path.is_file():
+            continue
+        seen.add(hdr_path)
+        try:
+            hdr_obj = json.loads(hdr_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(hdr_obj, dict) and hdr_obj.get("descriptive") is True:
+            raise SystemExit(
+                "refusing to start (prepass_baseline_descriptive): "
+                "pass header has descriptive=true; the starting-policy logging pass "
+                "is never accepted as --prepass-baseline"
+            )
 
 
 # -- the run -------------------------------------------------------------------------------------------------
@@ -3507,6 +3673,7 @@ def load_prepass_baseline(
         raise SystemExit(
             f"refusing to start (prepass_baseline_missing_file): baseline file does not exist: {path.name}"
         )
+    _check_header_not_descriptive(path)
     raw_bytes = path.read_bytes()
     actual_sha = hashlib.sha256(raw_bytes).hexdigest()
     expected_sha = str(baseline_sha256).strip().lower()
@@ -3527,6 +3694,12 @@ def load_prepass_baseline(
             raise SystemExit(
                 f"refusing to start (prepass_baseline_corrupt_json): invalid JSON on line {line_no}"
             ) from exc
+        if isinstance(obj, dict) and obj.get("descriptive") is True:
+            raise SystemExit(
+                "refusing to start (prepass_baseline_descriptive): "
+                "record has descriptive=true; the starting-policy logging pass "
+                "is never accepted as --prepass-baseline"
+            )
         if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj:
             raise SystemExit(
                 f"refusing to start (prepass_baseline_invalid_record): "
@@ -3615,14 +3788,28 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["mask_truncated"] = True
     if getattr(a, "quote_reward", "v1") != "v1":
         flags["quote_reward"] = a.quote_reward
-    if getattr(a, "rollout_only", False):
+    if any(getattr(a, attr, False) for attr in ("rollout_only", "logging_pass", "postpass")):
         flags["rollout_only"] = True
-    if int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
+    if getattr(a, "logging_pass", False):
+        flags["logging_pass"] = True
+        flags["descriptive"] = True
+        flags["prepass_seed"] = 1
+    elif getattr(a, "postpass", False):
+        flags["postpass"] = True
+        if getattr(a, "pass_seed", None) is not None:
+            flags["prepass_seed"] = int(a.pass_seed)
+        elif int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
+            flags["prepass_seed"] = int(a.prepass_seed)
+    elif int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0) != PREPASS_BASE_SEED:
         flags["prepass_seed"] = int(a.prepass_seed)
+    elif getattr(a, "pass_seed", None) != PREPASS_BASE_SEED and getattr(a, "pass_seed", None) is not None:
+        flags["prepass_seed"] = int(a.pass_seed)
     if getattr(a, "sign_diagnostics", False):
         flags["sign_diagnostics"] = True
     if getattr(a, "prepass_baseline_sha256", None):
         flags["prepass_baseline_sha256"] = str(a.prepass_baseline_sha256).strip().lower()
+    if getattr(a, "pass_a_sha256", None):
+        flags["pass_a_sha256"] = str(a.pass_a_sha256).strip().lower()
     if getattr(a, "log_sdpa_backend", False):
         flags["log_sdpa_backend"] = True
     if not bool(getattr(a, "save_all", True)):
@@ -3635,7 +3822,7 @@ def active_flags(a: argparse.Namespace) -> dict:
 
 def is_cut(a: argparse.Namespace) -> bool:
     """Whether the run is not the registered shape: --steps, --prompts, --g or --max-new changed."""
-    if getattr(a, "rollout_only", False):
+    if any(getattr(a, attr, False) for attr in ("rollout_only", "logging_pass", "postpass")):
         return a.g != G or a.max_new != MAX_NEW_TOKENS
     return a.steps != STEPS or a.prompts != PROMPTS or a.g != G or a.max_new != MAX_NEW_TOKENS
 
@@ -3652,13 +3839,13 @@ def execute(
     if getattr(a, "alloc_conf", None) is not None:
         configure_alloc_conf(a.alloc_conf)
     save_all_on, save_all_reason = validate_save_all_args(a)
+    rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
     if getattr(a, "logprob_microbatch", None) is not None and a.logprob_microbatch < 1:
         raise SystemExit(f"--logprob-microbatch must be >= 1, got {a.logprob_microbatch}")
     if getattr(a, "stress_prefix", 0) < 0:
         raise SystemExit(f"--stress-prefix must be >= 0, got {a.stress_prefix}")
     if getattr(a, "groups_per_update", GROUPS_PER_STEP) < 1:
         raise SystemExit(f"--groups-per-update must be >= 1, got {a.groups_per_update}")
-    rollout_only = bool(getattr(a, "rollout_only", False))
     if rollout_only and getattr(a, "stress_prefix", 0) > 0:
         raise SystemExit("refusing to start: --rollout-only cannot be used with --stress-prefix > 0")
     draw_mode = str(getattr(a, "draw", "first") or "first")
@@ -3711,6 +3898,12 @@ def execute(
         [r["id"] for r in prompts],
         g=a.g,
     )
+    pass_a_k, pass_a_sha = load_prepass_baseline(
+        getattr(a, "pass_a_jsonl", None),
+        getattr(a, "pass_a_sha256", None),
+        [r["id"] for r in prompts],
+        g=a.g,
+    )
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -3756,7 +3949,6 @@ def execute(
         )
         log_sdpa = bool(getattr(a, "log_sdpa_backend", False))
         sign_diag = bool(getattr(a, "sign_diagnostics", False))
-        prepass_seed_val = int(getattr(a, "prepass_seed", PREPASS_BASE_SEED) or 0)
         phase_logger = PhaseLogger(
             a.out / f"s2-{a.path}-phases.jsonl",
             enabled=rig is not None and not a.dry,
@@ -3812,6 +4004,10 @@ def execute(
                         eval_records=eval_records,
                         base_seed=prepass_seed_val,
                         stop_after_new=half,
+                        descriptive=descriptive_pass,
+                        checkpoint_sha=ckpt_sha,
+                        pass_a_k=pass_a_k,
+                        pass_a_sha=pass_a_sha,
                     )
                     with jsonl_path.open("a", encoding="utf-8", newline="\n") as pfh:
                         pfh.write('{"id": "dry_partial_line"')
@@ -3824,6 +4020,10 @@ def execute(
                         phase_logger=phase_logger,
                         eval_records=eval_records,
                         base_seed=prepass_seed_val,
+                        descriptive=descriptive_pass,
+                        checkpoint_sha=ckpt_sha,
+                        pass_a_k=pass_a_k,
+                        pass_a_sha=pass_a_sha,
                     )
                     prepass_records = recs_p2
                     return rows_p1 + rows_p2, stop_p2, oom_p2
@@ -3835,6 +4035,10 @@ def execute(
                     phase_logger=phase_logger,
                     eval_records=eval_records,
                     base_seed=prepass_seed_val,
+                    descriptive=descriptive_pass,
+                    checkpoint_sha=ckpt_sha,
+                    pass_a_k=pass_a_k,
+                    pass_a_sha=pass_a_sha,
                 )
                 prepass_records = recs_ro
                 return rows_ro, stop_ro, oom_ro
@@ -3944,6 +4148,9 @@ def execute(
                 g=a.g,
                 quote_reward=quote_rew,
                 reproducible=(a.path != "llamacpp"),
+                descriptive=descriptive_pass,
+                pass_a_k=pass_a_k,
+                checkpoint_sha=ckpt_sha,
             )
             if rollout_only and prepass_records
             else None
@@ -4250,6 +4457,39 @@ def build_parser() -> argparse.ArgumentParser:
         "--pass-id",
         default=None,
         help="optional pass identifier recorded in save-all completion rows",
+    )
+    ap.add_argument(
+        "--logging-pass",
+        action="store_true",
+        help="run the starting-policy logging pass (seed 1, descriptive=true, never accepted as baseline)",
+    )
+    ap.add_argument(
+        "--postpass",
+        action="store_true",
+        help="run a post-training evaluation pass over all tune items (refuses seeds 0 and 1)",
+    )
+    ap.add_argument(
+        "--pass-seed",
+        type=int,
+        default=None,
+        help="sampling seed for --logging-pass (must be 1) or --postpass (must not be 0 or 1)",
+    )
+    ap.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="LoRA checkpoint directory or file for --postpass evaluation",
+    )
+    ap.add_argument(
+        "--pass-a-jsonl",
+        type=Path,
+        default=None,
+        help="Pass-A pre-pass JSONL used to assign fixed [0,5], [6,7], 8 bands for truncation counts",
+    )
+    ap.add_argument(
+        "--pass-a-sha256",
+        default=None,
+        help="expected sha256 hex digest of --pass-a-jsonl",
     )
     return ap
 
