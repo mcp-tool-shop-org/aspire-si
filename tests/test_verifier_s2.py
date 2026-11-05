@@ -4394,7 +4394,7 @@ class TestRolloutOnlyPrepass:
         expected_truth = [
             ("t_a", "prs/grounded-prs.jsonl", "supported", 4, 4, 0, 0, 0, 0, 4, True),
             ("t_b", "grounded.jsonl", "unsupported", 2, 1, 2, 0, 1, 0, 3, False),
-            ("t_d", "diffs/reasoning-diffs.jsonl", "supported", 1, 1, 0, 2, 1, 1, 1, False),
+            ("t_d", "diffs/reasoning-diffs.jsonl", "supported", 1, 1, 0, 2, 0, 1, 1, False),
             ("t_k", "diffs/reasoning-diffs.jsonl", "unsupported", 0, 4, 0, 0, 0, 0, 4, True),
             ("t_m", "prs/grounded-prs.jsonl", "cannot_tell", 3, 1, 1, 2, 0, 0, 2, False),
             ("t_z", "grounded.jsonl", "supported", 1, 2, 1, 0, 1, 0, 2, False),
@@ -9153,6 +9153,7 @@ class TestTrainingSideRulesPartC:
             mode="class_stratified",
             seed=101,
             prepass=(prepass_path, prepass_sha),
+            holdout_seed="pr79-holdout-v1",
         )
         assert len(sched_800) == 800
         assert sched_rec["draw_mode"] == "class_stratified"
@@ -10489,6 +10490,418 @@ class TestFix1Items:
             s2.compute_paired_arm_estimators(
                 pa_ok, pb_ok, [([{**base_rec, "pass_seed": 2, "descriptive": True}], post3_ok)]
             )
+
+    @needs_torch
+    def test_item_06_guard_halts_before_optimiser_step_and_records_all_groups_in_step(self) -> None:
+        from contextlib import nullcontext
+        import torch
+
+        class _TinyModel(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.w = torch.nn.Parameter(torch.zeros((1, 256), dtype=torch.float32))
+                self.device = torch.device("cpu")
+
+            def forward(self, input_ids, attention_mask=None, logits_to_keep=None):
+                b, t = input_ids.shape
+                k = logits_to_keep if logits_to_keep is not None else t
+                logits = self.w.unsqueeze(0).expand(b, k, 256)
+                return Namespace(logits=logits)
+
+        tok = s2.DryTokenizer()
+        prompts_u = [
+            {
+                "id": f"u_easy_{i}",
+                "split": "tune",
+                "gold_file": "grounded.jsonl",
+                "claim": f"Unsupported claim {i}.",
+                "label": "unsupported",
+                "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+            }
+            for i in range(4)
+        ]
+        opt_steps = {"count": 0}
+        zero_grads = {"count": 0}
+        guard = s2.CtCollapseGuard(
+            window_groups=2,
+            pass_a_k={f"u_easy_{i}": 8 for i in range(4)},
+        )
+        steps_out, stopped_out, oom_out = s2.run_steps(
+            model=_TinyModel(),
+            ref_adapter_off=nullcontext,
+            tok=tok,
+            optimiser=Namespace(
+                zero_grad=lambda set_to_none=True: zero_grads.__setitem__("count", zero_grads["count"] + 1),
+                step=lambda: opt_steps.__setitem__("count", opt_steps["count"] + 1),
+            ),
+            prompts=prompts_u,
+            rollout=lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [
+                    tok.encode(_reply("cannot_tell", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                ][:g_cnt],
+                [False] * g_cnt,
+            ),
+            steps=2,
+            g=2,
+            max_new=32,
+            reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            groups_per_update=3,
+            ct_guard=guard,
+        )
+        assert not oom_out
+        assert len(steps_out) == 1
+        assert stopped_out is not None
+        assert opt_steps["count"] == 0
+        assert zero_grads["count"] >= 2
+        assert len(guard.records) == 3
+
+    @needs_torch
+    def test_item_07_guard_computes_ct_pos_adv_on_unclamped_advantages(self) -> None:
+        from contextlib import nullcontext
+        import torch
+
+        class _TinyModel(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.w = torch.nn.Parameter(torch.zeros((1, 256), dtype=torch.float32))
+                self.device = torch.device("cpu")
+
+            def forward(self, input_ids, attention_mask=None, logits_to_keep=None):
+                b, t = input_ids.shape
+                k = logits_to_keep if logits_to_keep is not None else t
+                logits = self.w.unsqueeze(0).expand(b, k, 256)
+                return Namespace(logits=logits)
+
+        tok = s2.DryTokenizer()
+        prompts_sup = [
+            {
+                "id": f"sup_item_{i}",
+                "split": "tune",
+                "gold_file": "grounded.jsonl",
+                "claim": f"Supported claim {i}.",
+                "label": "supported",
+                "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+            }
+            for i in range(4)
+        ]
+        # On gold supported: 1 completion is 'cannot_tell' (-0.3) and 3 are 'unsupported' (-1.0).
+        # Raw unclamped advantage on 'cannot_tell' is positive (-0.3 > mean -0.825),
+        # while clamp_wrong_positive_advantages clamps it to 0.0.
+        # S1 must still see ct_pos_adv=True on the unclamped advantages!
+        guard = s2.CtCollapseGuard(window_groups=4)
+        _, stopped_out, _ = s2.run_steps(
+            model=_TinyModel(),
+            ref_adapter_off=nullcontext,
+            tok=tok,
+            optimiser=Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+            prompts=prompts_sup,
+            rollout=lambda text, g_cnt, max_n, temp: (
+                tok.encode(text),
+                [
+                    tok.encode(_reply("cannot_tell", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                    tok.encode(_reply("unsupported", "alpha beta gamma")) + [tok.eos_token_id],
+                ][:g_cnt],
+                [False] * g_cnt,
+            ),
+            steps=2,
+            g=4,
+            max_new=32,
+            reward_fn=lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: 100,
+            groups_per_update=2,
+            mask_wrong_positive_advantage=True,
+            ct_guard=guard,
+        )
+        assert stopped_out is not None
+        assert "S1" in stopped_out["triggered_rules"]
+        assert all(r["ct_pos_adv"] is True for r in guard.records)
+
+    @needs_torch
+    def test_item_08_u2_loads_pass_a_k_from_prepass_jsonl_and_refuses_without_pass_a_k(
+        self, tmp_path: Path
+    ) -> None:
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "pass_a.jsonl"
+        prepass_sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda _i: 7, g=8)
+
+        # 1. Refuses --ct-guard when neither --pass-a-jsonl nor --prepass-jsonl is given
+        a_no_pa = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "no_pa"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--ct-guard",
+            ]
+        )
+        with pytest.raises(SystemExit, match="ct_guard_requires_pass_a_k"):
+            s2.execute(a_no_pa, build=s2.dry_bundle)
+
+        # 2. Loads pass_a_k from --prepass-jsonl when --pass-a-jsonl is not separately passed
+        a_with_prepass = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "with_prepass"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "1",
+                "--prompts",
+                "2",
+                "--g",
+                "2",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--prepass-jsonl",
+                str(prepass_path),
+                "--prepass-sha256",
+                prepass_sha,
+                "--ct-guard",
+            ]
+        )
+        assert s2.execute(a_with_prepass, build=s2.dry_bundle) == 0
+
+    def test_item_09_prepass_item_record_does_not_count_truncations_in_malformed(self) -> None:
+        tok = s2.DryTokenizer()
+        row = {
+            "id": "item_trunc",
+            "gold_file": "grounded.jsonl",
+            "label": "supported",
+            "context": [{"title": "T", "sentences": ["alpha beta gamma"]}],
+        }
+        c_ok = tok.encode(_reply("supported", "alpha beta gamma"))
+        c_trunc = tok.encode("<think>unclosed thinking that got truncated")
+        rec, _ = s2.prepass_item_record(
+            row=row,
+            prompt_ids=[1, 2, 3],
+            comps=[c_ok, c_trunc],
+            truncs=[False, True],
+            tok=tok,
+            reward_fn=lambda text, r, tt, truncated=False: s2.reward(
+                text, r["label"], s2.passages_of(r), tt, truncated=truncated
+            ),
+        )
+        assert rec["truncations"] == 1
+        assert rec["malformed"] == 0
+        assert (
+            rec["supported"]
+            + rec["unsupported"]
+            + rec["cannot_tell"]
+            + rec["malformed"]
+            + rec["truncations"]
+            == rec["g"]
+        )
+
+    def test_item_10_paired_estimators_by_band_and_gold_class_and_cli_entry(
+        self, tmp_path: Path
+    ) -> None:
+        # 3 bands x 3 gold classes = 9 items
+        items = []
+        idx = 0
+        for band_k in (2, 6, 8):
+            for gv in ("supported", "unsupported", "cannot_tell"):
+                items.append((f"id_{idx}", gv, band_k))
+                idx += 1
+
+        def _make_records(seed_val: int, delta_k: int = 0) -> list[dict]:
+            out = []
+            for cid, gv, bk in items:
+                k_c = min(8, max(0, bk + delta_k))
+                out.append(
+                    {
+                        "id": cid,
+                        "gold_verdict": gv,
+                        "g": 8,
+                        "k_correct": k_c,
+                        "supported": k_c if gv == "supported" else (8 - k_c),
+                        "unsupported": k_c if gv == "unsupported" else 0,
+                        "cannot_tell": k_c if gv == "cannot_tell" else 0,
+                        "malformed": 0,
+                        "truncations": 0,
+                        "reward_mean": 0.5,
+                        "pass_seed": seed_val,
+                    }
+                )
+            return out
+
+        pa = _make_records(0, 0)
+        pb = _make_records(1, 0)
+        p2 = _make_records(2, 1)
+        p3 = _make_records(3, 1)
+
+        doc = s2.compute_paired_arm_estimators(pa, pb, [(p2, p3)])
+        assert "by_band_and_gold_class" in doc
+        for band in ("[0,5]", "[6,7]", "8"):
+            assert set(doc["by_band_and_gold_class"][band].keys()) == {
+                "supported",
+                "unsupported",
+                "cannot_tell",
+            }
+            for gv in ("supported", "unsupported", "cannot_tell"):
+                cell = doc["by_band_and_gold_class"][band][gv]
+                assert cell["n_items"] == 1
+                assert cell["estimator"] == "post_mean - B"
+
+        # Verify CLI entry --paired-estimators writes s2-paired-estimators.json
+        def _write_pass_dir(name: str, seed_val: int, recs: list[dict]) -> dict[str, str]:
+            d = tmp_path / name
+            d.mkdir(parents=True, exist_ok=True)
+            jpath = d / "s2-hf-prepass.jsonl"
+            raw = "".join(json.dumps(r) + "\n" for r in recs).encode("utf-8")
+            jpath.write_bytes(raw)
+            (d / "s2-hf-prepass-header.json").write_text(
+                json.dumps({"seed": seed_val, "g": 8}) + "\n", encoding="utf-8"
+            )
+            return {"jsonl": str(jpath), "sha256": s2.hashlib.sha256(raw).hexdigest()}
+
+        spec_path = tmp_path / "paired_spec.json"
+        spec_path.write_text(
+            json.dumps(
+                {
+                    "pass_a": _write_pass_dir("pa", 0, pa),
+                    "pass_b": _write_pass_dir("pb", 1, pb),
+                    "seed_postpasses": [[_write_pass_dir("p2", 2, p2), _write_pass_dir("p3", 3, p3)]],
+                }
+            ),
+            encoding="utf-8",
+        )
+        out_cli = tmp_path / "paired_out"
+        a_cli = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(tmp_path),
+                "--rnd-commit",
+                "deadbee",
+                "--out",
+                str(out_cli),
+                "--paired-estimators",
+                str(spec_path),
+            ]
+        )
+        assert s2.execute(a_cli, build=s2.dry_bundle) == 0
+        written = json.loads((out_cli / "s2-paired-estimators.json").read_text(encoding="utf-8"))
+        assert written["by_band_and_gold_class"] == doc["by_band_and_gold_class"]
+
+    @needs_torch
+    def test_item_11_class_stratified_total_groups_and_explicit_holdout_seed_required(
+        self, tmp_path: Path
+    ) -> None:
+        from s2_draw import draw_prompts, split_stratified_holdout
+
+        gold_dir = _draw_gold_40(tmp_path / "gold")
+        rows, _ = s2.read_gold(gold_dir)
+        tune_ids = [f"t{i:02d}" for i in range(40)]
+        prepass_path = tmp_path / "pass_a.jsonl"
+        prepass_sha = _write_fake_prepass(prepass_path, tune_ids, k_fn=lambda i: i % 9, g=8)
+
+        # 1. Missing holdout_seed is refused by split_stratified_holdout and draw_prompts
+        with pytest.raises(SystemExit, match="missing_holdout_seed"):
+            split_stratified_holdout(rows, (prepass_path, prepass_sha))
+        with pytest.raises(SystemExit, match="missing_holdout_seed"):
+            draw_prompts(
+                rows,
+                10,
+                mode="class_stratified",
+                seed=42,
+                prepass=(prepass_path, prepass_sha),
+            )
+
+        # 2. Under --draw class_stratified, explicit --prompts < steps * groups_per_update is refused
+        a_too_small = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(tmp_path / "too_small"),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "5",
+                "--groups-per-update",
+                "2",
+                "--prompts",
+                "6",
+                "--g",
+                "2",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--prepass-jsonl",
+                str(prepass_path),
+                "--prepass-sha256",
+                prepass_sha,
+            ]
+        )
+        with pytest.raises(SystemExit, match="prompts_smaller_than_total_groups"):
+            s2.execute(a_too_small, build=s2.dry_bundle)
+
+        # 3. When --prompts is omitted under --draw class_stratified, it defaults to steps * groups_per_update
+        out_ok = tmp_path / "cs_default_prompts"
+        a_ok = s2.build_parser().parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--out",
+                str(out_ok),
+                "--rnd-commit",
+                "deadbee",
+                "--dry",
+                "--steps",
+                "3",
+                "--groups-per-update",
+                "2",
+                "--g",
+                "2",
+                "--draw",
+                "class_stratified",
+                "--draw-seed",
+                "42",
+                "--holdout-seed",
+                "pr79-holdout-v1",
+                "--prepass-jsonl",
+                str(prepass_path),
+                "--prepass-sha256",
+                prepass_sha,
+            ]
+        )
+        assert s2.execute(a_ok, build=s2.dry_bundle) == 0
+        rec = json.loads((out_ok / "s2-hf.json").read_text(encoding="utf-8"))
+        assert rec["draw_n"] == 6
+        assert len(rec["prompt_ids"]) == 6
+        assert rec["holdout_seed"] == "pr79-holdout-v1"
+
 
 
 

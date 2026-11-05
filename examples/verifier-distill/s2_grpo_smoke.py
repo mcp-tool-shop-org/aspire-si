@@ -505,6 +505,7 @@ class CtCollapseGuard:
         self.window_index = 0
         self.total_groups_sampled = 0
         self._window: list[dict[str, Any]] = []
+        self.records: list[dict[str, Any]] = []
         self.cum_sup_answers = 0
         self.cum_sup_ct_answers = 0
         self.cum_sup_ct_items: set[str] = set()
@@ -539,18 +540,18 @@ class CtCollapseGuard:
                 self.cum_sup_ct_items.add(cid)
 
         self.total_groups_sampled += 1
-        self._window.append(
-            {
-                "step": int(step),
-                "group": int(group),
-                "item_id": cid,
-                "gold_verdict": gold,
-                "n": len(v_list),
-                "ct_count": ct_count,
-                "correct_count": correct_count,
-                "ct_pos_adv": bool(ct_pos_adv),
-            }
-        )
+        rec_entry = {
+            "step": int(step),
+            "group": int(group),
+            "item_id": cid,
+            "gold_verdict": gold,
+            "n": len(v_list),
+            "ct_count": ct_count,
+            "correct_count": correct_count,
+            "ct_pos_adv": bool(ct_pos_adv),
+        }
+        self.records.append(rec_entry)
+        self._window.append(rec_entry)
         if len(self._window) < self.window_groups:
             return None
         return self._evaluate_window(step=int(step))
@@ -1453,6 +1454,10 @@ def build_receipt(
         "k_min",
         "k_max",
         "band_pool_size",
+        "holdout_seed",
+        "holdout_count",
+        "holdout_ids_sha256",
+        "train_ids_sha256",
     ):
         if k in args:
             out[k] = args[k]
@@ -2485,11 +2490,12 @@ def run_steps(
                     is_zv = zero_variance(rewards)
                     adv_list = advantages(rewards, mode=advantage_mode)
 
+                unclamped_adv_list = list(adv_list)
                 if mask_wrong_positive_advantage:
                     correct_flags = [bool(s.get("correct")) for s in group_samples]
                     adv_list = clamp_wrong_positive_advantages(adv_list, correct_flags)
 
-                if ct_guard is not None and step_guard_stop is None:
+                if ct_guard is not None:
                     guard_stop = ct_guard.record_group(
                         step=step,
                         group=k,
@@ -2497,7 +2503,7 @@ def run_steps(
                         gold_verdict=str(row.get("label", "supported")),
                         verdicts=[s.get("verdict") for s in group_samples],
                         correct_flags=[bool(s.get("correct")) for s in group_samples],
-                        advantages_list=adv_list,
+                        advantages_list=unclamped_adv_list,
                         is_zero_variance=bool(is_zv),
                     )
                     if guard_stop is not None:
@@ -2751,7 +2757,16 @@ def run_steps(
                     )
                 train_s += time.time() - t1
             t2 = time.time()
-            if zero_variance_mask:
+            if step_guard_stop is not None:
+                optimiser.zero_grad(set_to_none=True)
+                if hasattr(model, "parameters"):
+                    for p in model.parameters():
+                        if getattr(p, "grad", None) is not None:
+                            p.grad = None
+                reported_loss = (
+                    (step_loss_sum / groups_per_update) if zero_variance_mask else step_loss_sum
+                )
+            elif zero_variance_mask:
                 if active_groups > 0:
                     for p in model.parameters():
                         if p.requires_grad and p.grad is not None:
@@ -3606,10 +3621,11 @@ def prepass_item_record(
             quote_reward=quote_reward,
         )
         v = det.get("verdict")
-        if v in VERDICTS:
-            verdict_counts[v] += 1
-        else:
-            verdict_counts["malformed"] += 1
+        if not is_trunc:
+            if v in VERDICTS:
+                verdict_counts[v] += 1
+            else:
+                verdict_counts["malformed"] += 1
         if det.get("correct"):
             k_correct += 1
         parsed = None if is_trunc else parse_reply(text)
@@ -3952,6 +3968,18 @@ def compute_paired_arm_estimators(
         gv_ids = [cid for cid in item_ids if str(a_by_id[cid].get("gold_verdict")) == gv]
         by_gold_class[gv] = _subset_unbanded(gv_ids)
 
+    by_band_and_gold_class: dict[str, dict[str, Any]] = {}
+    for band in ("[0,5]", "[6,7]", "8"):
+        by_band_and_gold_class[band] = {}
+        for gv in VERDICTS:
+            cell_ids = [
+                cid
+                for cid in item_ids
+                if k_band_name(int(a_by_id[cid]["k_correct"])) == band
+                and str(a_by_id[cid].get("gold_verdict")) == gv
+            ]
+            by_band_and_gold_class[band][gv] = _subset_banded(cell_ids)
+
     hold_list = [cid for cid in item_ids if cid in holdout_set]
     train_list = [cid for cid in item_ids if cid not in holdout_set]
 
@@ -3965,6 +3993,7 @@ def compute_paired_arm_estimators(
         },
         "by_pass_a_band": by_band,
         "by_gold_class": by_gold_class,
+        "by_band_and_gold_class": by_band_and_gold_class,
         "confusion_matrix_before": {
             "pass_a": build_confusion_matrix_3x3(pass_a_records),
             "pass_b": build_confusion_matrix_3x3(pass_b_records),
@@ -3974,6 +4003,98 @@ def compute_paired_arm_estimators(
         "per_item_post_mean_k": {cid: round(post_mean_k[cid], 6) for cid in item_ids},
         "per_item_post_mean_confident_errors": {cid: round(post_mean_ce[cid], 6) for cid in item_ids},
     }
+
+
+def _load_verified_pass_entry(entry: Mapping[str, Any], role: str) -> tuple[list[dict], dict | None]:
+    """Load a pass JSONL + companion header from a paired-estimator spec entry, verifying sha256."""
+    jsonl_val = entry.get("jsonl") or entry.get("path")
+    sha_val = entry.get("sha256")
+    if not jsonl_val or not sha_val:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_missing_arg): "
+            f"{role} requires both 'jsonl' and 'sha256'"
+        )
+    jpath = Path(str(jsonl_val))
+    if not jpath.is_file():
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_missing_file): "
+            f"{role} file does not exist: {jpath.name}"
+        )
+    raw_bytes = jpath.read_bytes()
+    actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+    expected_sha = str(sha_val).strip().lower()
+    if actual_sha != expected_sha:
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_sha_mismatch): "
+            f"{role} expected sha256 {expected_sha}, got {actual_sha}"
+        )
+    recs = [json.loads(line) for line in raw_bytes.decode("utf-8").splitlines() if line.strip()]
+    hdr_val = entry.get("header")
+    hdr_obj: dict | None = None
+    candidates = (
+        [Path(str(hdr_val))]
+        if hdr_val
+        else [
+            jpath.with_name(jpath.stem + "-header.json"),
+            jpath.parent / "s2-hf-prepass-header.json",
+            jpath.parent / "s2-llamacpp-prepass-header.json",
+        ]
+    )
+    for cpath in candidates:
+        if cpath.is_file():
+            loaded = json.loads(cpath.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                hdr_obj = loaded
+                break
+    return recs, hdr_obj
+
+
+def run_paired_estimators_from_spec(spec_path: Path, out_dir: Path) -> dict[str, Any]:
+    """Read Pass A, Pass B, and seed post-pass pairs from ``spec_path`` and write ``s2-paired-estimators.json``."""
+    spath = Path(spec_path)
+    if not spath.is_file():
+        raise SystemExit(
+            f"refusing paired estimators (paired_estimator_missing_spec): spec file does not exist: {spath.name}"
+        )
+    spec = json.loads(spath.read_text(encoding="utf-8"))
+    if not isinstance(spec, dict):
+        raise SystemExit("refusing paired estimators (paired_estimator_invalid_spec): spec must be a JSON object")
+    if "pass_a" not in spec or "pass_b" not in spec or "seed_postpasses" not in spec:
+        raise SystemExit(
+            "refusing paired estimators (paired_estimator_invalid_spec): "
+            "spec requires 'pass_a', 'pass_b', and 'seed_postpasses'"
+        )
+    pa_recs, pa_hdr = _load_verified_pass_entry(spec["pass_a"], "pass_a")
+    pb_recs, pb_hdr = _load_verified_pass_entry(spec["pass_b"], "pass_b")
+    post_pairs: list[tuple[list[dict], list[dict]]] = []
+    post_hdrs: list[tuple[dict | None, dict | None]] = []
+    for idx, pair in enumerate(spec["seed_postpasses"]):
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise SystemExit(
+                f"refusing paired estimators (paired_estimator_invalid_spec): "
+                f"seed_postpasses[{idx}] must be a 2-element list"
+            )
+        p1_recs, p1_hdr = _load_verified_pass_entry(pair[0], f"seed_postpasses[{idx}][0]")
+        p2_recs, p2_hdr = _load_verified_pass_entry(pair[1], f"seed_postpasses[{idx}][1]")
+        post_pairs.append((p1_recs, p2_recs))
+        post_hdrs.append((p1_hdr, p2_hdr))
+    doc = compute_paired_arm_estimators(
+        pa_recs,
+        pb_recs,
+        post_pairs,
+        holdout_ids=spec.get("holdout_ids"),
+        baseline_ct_share=float(spec.get("baseline_ct_share", 0.42)),
+        pass_a_header=pa_hdr,
+        pass_b_header=pb_hdr,
+        postpass_headers=post_hdrs,
+        require_seeds=True,
+    )
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "s2-paired-estimators.json").write_text(
+        json.dumps(doc, indent=1) + "\n", encoding="utf-8", newline="\n"
+    )
+    return doc
 
 
 def prepass_summary(
@@ -4410,7 +4531,7 @@ def load_prepass_baseline(
     baseline_sha256: str | None,
     required_ids: Sequence[str],
     *,
-    g: int = G,
+    g: int | None = G,
     expected_seeds: Sequence[int] = (0,),
 ) -> tuple[dict[str, int] | None, str | None]:
     """Load and SHA-check a pre-pass baseline JSONL. Never records item text or full file paths."""
@@ -4436,7 +4557,7 @@ def load_prepass_baseline(
             f"refusing to start (prepass_baseline_sha_mismatch): "
             f"expected sha256 {expected_sha}, got {actual_sha}"
         )
-    expected_g = int(g)
+    expected_g = int(g) if g is not None else None
     k_by_id: dict[str, int] = {}
     for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
         line = raw_line.strip()
@@ -4473,7 +4594,14 @@ def load_prepass_baseline(
                 f"duplicate baseline record for id {rec_id!r}"
             )
         g_val = obj.get("g")
-        if isinstance(g_val, bool) or not isinstance(g_val, int) or g_val != expected_g:
+        if isinstance(g_val, bool) or not isinstance(g_val, int) or g_val < 1:
+            raise SystemExit(
+                f"refusing to start (prepass_baseline_g_mismatch): "
+                f"baseline record for id {rec_id!r} has g={g_val!r}, expected {expected_g}"
+            )
+        if expected_g is None:
+            expected_g = g_val
+        elif g_val != expected_g:
             raise SystemExit(
                 f"refusing to start (prepass_baseline_g_mismatch): "
                 f"baseline record for id {rec_id!r} has g={g_val!r}, expected {expected_g}"
@@ -4589,7 +4717,10 @@ def active_flags(a: argparse.Namespace) -> dict:
     if getattr(a, "holdout", False):
         flags["holdout"] = True
         flags["holdout_fraction"] = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
-        flags["holdout_seed"] = str(getattr(a, "holdout_seed", HOLDOUT_DEFAULT_SEED))
+        if getattr(a, "holdout_seed", None) is not None:
+            flags["holdout_seed"] = str(a.holdout_seed)
+    elif getattr(a, "holdout_seed", None) is not None:
+        flags["holdout_seed"] = str(a.holdout_seed)
     return flags
 
 
@@ -4597,7 +4728,13 @@ def is_cut(a: argparse.Namespace) -> bool:
     """Whether the run is not the registered shape: --steps, --prompts, --g or --max-new changed."""
     if any(getattr(a, attr, False) for attr in ("rollout_only", "logging_pass", "postpass")):
         return a.g != G or a.max_new != MAX_NEW_TOKENS
-    return a.steps != STEPS or a.prompts != PROMPTS or a.g != G or a.max_new != MAX_NEW_TOKENS
+    expected_prompts = (
+        int(a.steps) * int(getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP)
+        if str(getattr(a, "draw", "first") or "first") == "class_stratified"
+        and not getattr(a, "_prompts_explicit", False)
+        else PROMPTS
+    )
+    return a.steps != STEPS or a.prompts != expected_prompts or a.g != G or a.max_new != MAX_NEW_TOKENS
 
 
 def execute(
@@ -4611,6 +4748,9 @@ def execute(
     machine's side (the GPU query, the heartbeat, the sampler), None for a dry rehearsal."""
     if getattr(a, "alloc_conf", None) is not None:
         configure_alloc_conf(a.alloc_conf)
+    if getattr(a, "paired_estimators", None) is not None:
+        run_paired_estimators_from_spec(Path(a.paired_estimators), a.out)
+        return 0
     save_all_on, save_all_reason = validate_save_all_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
@@ -4680,7 +4820,23 @@ def execute(
             else None
         )
         hold_frac = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
-        hold_seed = str(getattr(a, "holdout_seed", HOLDOUT_DEFAULT_SEED))
+        hold_seed_raw = getattr(a, "holdout_seed", None)
+        hold_seed = (
+            str(hold_seed_raw)
+            if (hold_seed_raw is not None and not isinstance(hold_seed_raw, bool) and str(hold_seed_raw).strip())
+            else None
+        )
+        if draw_mode == "class_stratified":
+            total_groups_needed = int(a.steps) * int(
+                getattr(a, "groups_per_update", GROUPS_PER_STEP) or GROUPS_PER_STEP
+            )
+            if not getattr(a, "_prompts_explicit", False):
+                a.prompts = total_groups_needed
+            elif int(a.prompts) < total_groups_needed:
+                raise SystemExit(
+                    f"refusing to start (prompts_smaller_than_total_groups): "
+                    f"--draw class_stratified requires --prompts ({a.prompts}) >= steps * groups_per_update ({total_groups_needed})"
+                )
         if getattr(a, "holdout", False):
             hold_spec = prepass_spec or (
                 (getattr(a, "pass_a_jsonl", None), getattr(a, "pass_a_sha256", None))
@@ -4699,6 +4855,7 @@ def execute(
                 holdout_seed=hold_seed,
             )
             holdout_ids_list = list(hold_meta["holdout_ids"])
+            draw_record["holdout_seed"] = hold_meta["holdout_seed"]
             draw_record["holdout_count"] = hold_meta["holdout_count"]
             draw_record["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
             draw_record["train_ids_sha256"] = hold_meta["train_ids_sha256"]
@@ -4723,6 +4880,7 @@ def execute(
                 holdout_seed=hold_seed,
             )
             holdout_ids_list = list(hold_meta["holdout_ids"])
+            draw_record["holdout_seed"] = hold_meta["holdout_seed"]
     prepass_baseline_k, _ = load_prepass_baseline(
         getattr(a, "prepass_baseline", None),
         getattr(a, "prepass_baseline_sha256", None),
@@ -4733,8 +4891,20 @@ def execute(
         getattr(a, "pass_a_jsonl", None),
         getattr(a, "pass_a_sha256", None),
         [r["id"] for r in prompts],
-        g=a.g,
+        g=None,
     )
+    if pass_a_k is None and not rollout_only and getattr(a, "prepass_jsonl", None) is not None:
+        pass_a_k, pass_a_sha = load_prepass_baseline(
+            getattr(a, "prepass_jsonl", None),
+            getattr(a, "prepass_sha256", None),
+            [r["id"] for r in prompts],
+            g=None,
+        )
+    if getattr(a, "ct_guard", False) and not pass_a_k:
+        raise SystemExit(
+            "refusing to start (ct_guard_requires_pass_a_k): "
+            "--ct-guard requires Pass-A k_correct (--pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256)"
+        )
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -4941,7 +5111,7 @@ def execute(
             ct_guard_obj = (
                 CtCollapseGuard(
                     window_groups=int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS)),
-                    pass_a_k=pass_a_k or prepass_baseline_k,
+                    pass_a_k=pass_a_k,
                 )
                 if getattr(a, "ct_guard", False)
                 else None
@@ -5120,12 +5290,22 @@ def execute(
             close()
 
 
+class _TrackPromptsAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        setattr(namespace, "_prompts_explicit", True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--path", choices=("hf", "llamacpp"), default="hf")
     ap.add_argument("--steps", type=int, default=STEPS, help="a value other than 20 makes the run S2-LIMITED")
     ap.add_argument(
-        "--prompts", type=int, default=PROMPTS, help="a value other than 32 makes the run S2-LIMITED"
+        "--prompts",
+        type=int,
+        default=PROMPTS,
+        action=_TrackPromptsAction,
+        help="a value other than 32 makes the run S2-LIMITED",
     )
     ap.add_argument("--g", type=int, default=G, help="a value other than 8 makes the run S2-LIMITED")
     ap.add_argument(
@@ -5388,8 +5568,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ap.add_argument(
         "--holdout-seed",
-        default=HOLDOUT_DEFAULT_SEED,
-        help="deterministic seed string for the stratified holdout split",
+        default=None,
+        help="deterministic seed string for the stratified holdout split (required when --holdout is set)",
+    )
+    ap.add_argument(
+        "--paired-estimators",
+        type=Path,
+        default=None,
+        help="JSON spec path to compute paired estimators across Pass A, Pass B, and post-pass pairs",
     )
     ap.add_argument(
         "--ct-guard",

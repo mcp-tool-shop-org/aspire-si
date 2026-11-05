@@ -244,7 +244,7 @@ def split_stratified_holdout(
     prepass_records_or_spec,
     *,
     holdout_fraction: float = HOLDOUT_DEFAULT_FRACTION,
-    holdout_seed: str | int = HOLDOUT_DEFAULT_SEED,
+    holdout_seed: str | int | None = None,
     split: str = PROMPT_SPLIT,
 ) -> tuple[list[dict], list[dict], dict]:
     """Split ``rows`` in ``split`` into ``(train_rows, holdout_rows, meta)`` by Pass-A band x gold class.
@@ -255,6 +255,8 @@ def split_stratified_holdout(
     - Within each cell, ranks items by ``sha256(f"{holdout_seed}:{band}:{gold_class}:{id}")`` so the held-out
       IDs are identical across all training runs and seeds.
     """
+    if holdout_seed is None or isinstance(holdout_seed, bool) or not str(holdout_seed).strip():
+        _refuse("missing_holdout_seed", "stratified holdout requires an explicit non-empty holdout_seed")
     if not (0.0 < float(holdout_fraction) < 1.0):
         _refuse("invalid_holdout_fraction", f"holdout_fraction must be in (0, 1), got {holdout_fraction!r}")
     pool = sorted((r for r in rows if r.get("split") == split), key=lambda r: str(r["id"]))
@@ -438,7 +440,7 @@ def draw_prompts(
     k_max: int | None = None,
     split: str = PROMPT_SPLIT,
     holdout_fraction: float = HOLDOUT_DEFAULT_FRACTION,
-    holdout_seed: str | int = HOLDOUT_DEFAULT_SEED,
+    holdout_seed: str | int | None = None,
 ) -> tuple[list[dict], dict]:
     """Select ``n`` prompts from ``rows`` in ``split`` according to ``mode`` and return ``(prompts, record)``.
 
@@ -507,6 +509,7 @@ def draw_prompts(
                 seed=seed,
                 holdout_ids=hold_meta["holdout_ids"],
             )
+            sched_rec["holdout_seed"] = hold_meta["holdout_seed"]
             sched_rec["holdout_count"] = hold_meta["holdout_count"]
             sched_rec["holdout_ids_sha256"] = hold_meta["holdout_ids_sha256"]
             sched_rec["train_ids_sha256"] = hold_meta["train_ids_sha256"]
