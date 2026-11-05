@@ -9668,4 +9668,476 @@ class TestTrainingSideRulesPartC:
         assert est["confusion_matrix_after"]["cannot_tell"]["unsupported"] == 42
 
 
+# ---------------------------------------------------------------------------
+# 2026-11-05 Part D: CT Interview Runner & Two-Judge Tagging Pipeline
+# ---------------------------------------------------------------------------
+class TestInterviewAndTagging:
+    def test_cohort_selection_first_ct_rates_and_resolution_mcnemar(self):
+        import s2_interview as s2i
+
+        def _samp(cid: str, idx: int, verdict: str, part: str = "subclaim A") -> dict:
+            body = json.dumps(
+                {
+                    "verdict": verdict,
+                    "reason": "r",
+                    "evidence_quotes": [{"part": part, "verdict": verdict, "quote": ""}],
+                }
+            )
+            return {
+                "item_id": cid,
+                "sample_index": idx,
+                "verdict": verdict,
+                "text": f"<think>trace {cid} s{idx}</think>{body}",
+            }
+
+        # Item 1: both_CT (baseline has CT at sample 1 and 2 -> 2/4 = 0.5, not majority (>2);
+        # checkpoint has CT at sample 0, 1, 2 -> 3/4 = 0.75, majority)
+        # Item 2: baseline_only_CT (baseline has CT at sample 2; checkpoint has 0 CT)
+        # Item 3: checkpoint_only_CT (baseline has 0 CT; checkpoint has CT at sample 3)
+        # Item 4: neither CT (excluded)
+        base_recs = [
+            _samp("item_1", 0, "supported"),
+            _samp("item_1", 2, "cannot_tell", "second ct"),
+            _samp("item_1", 1, "cannot_tell", "first ct"),
+            _samp("item_1", 3, "unsupported"),
+            _samp("item_2", 0, "supported"),
+            _samp("item_2", 1, "cannot_tell", "b_only ct"),
+            _samp("item_3", 0, "supported"),
+            _samp("item_4", 0, "supported"),
+        ]
+        ckpt_recs = [
+            _samp("item_1", 0, "cannot_tell", "ckpt first ct"),
+            _samp("item_1", 1, "cannot_tell"),
+            _samp("item_1", 2, "cannot_tell"),
+            _samp("item_1", 3, "supported"),
+            _samp("item_2", 0, "supported"),
+            _samp("item_2", 1, "supported"),
+            _samp("item_3", 0, "unsupported"),
+            _samp("item_3", 1, "cannot_tell", "ckpt_only ct"),
+            _samp("item_4", 0, "unsupported"),
+        ]
+
+        cohort = s2i.select_interview_cohort(base_recs, ckpt_recs)
+        assert [c["item_id"] for c in cohort] == ["item_1", "item_2", "item_3"]
+        c1, c2, c3 = cohort
+        assert c1["cohort"] == "both_CT"
+        assert c1["baseline_ct_rate"] == pytest.approx(0.5)
+        assert c1["baseline_majority_ct"] is False
+        assert c1["baseline_first_ct"]["sample_index"] == 1
+        assert "first ct" in c1["baseline_first_ct"]["text"]
+        assert c1["checkpoint_ct_rate"] == pytest.approx(0.75)
+        assert c1["checkpoint_majority_ct"] is True
+        assert c1["checkpoint_first_ct"]["sample_index"] == 0
+
+        assert c2["cohort"] == "baseline_only_CT"
+        assert c2["baseline_first_ct"]["sample_index"] == 1
+        assert c2["checkpoint_first_ct"] is None
+
+        assert c3["cohort"] == "checkpoint_only_CT"
+        assert c3["baseline_first_ct"] is None
+        assert c3["checkpoint_first_ct"]["sample_index"] == 1
+
+        res = s2i.summarize_cohort_resolution(
+            cohort,
+            checkpoint_verdicts_by_item={"item_2": "supported"},
+            baseline_q3_lean_by_item={"item_2": "supported"},
+            both_ct_paired_outcomes={"item_1": (False, True)},
+        )
+        assert res["cohort_counts"] == {
+            "both_CT": 1,
+            "baseline_only_CT": 1,
+            "checkpoint_only_CT": 1,
+        }
+        assert res["resolved_cross_tab_lean_vs_checkpoint"]["supported"]["supported"] == 1
+        assert res["both_ct_mcnemar"] == {
+            "both_true": 0,
+            "baseline_only_true_minus": 0,
+            "checkpoint_only_true_plus": 1,
+            "both_false": 0,
+        }
+
+    def test_turn1_thinking_stripped_in_turn2_prompt_and_violation_caught(self):
+        import s2_interview as s2i
+
+        tok = s2i.Qwen3ChatStubTokenizer()
+        row = _row("item_strip_01", claim="The cache timeout is 30 seconds.")
+        secret_think = "SECRET_TURN1_THINKING_TRACE_THAT_MUST_BE_STRIPPED"
+        turn1_reply = (
+            f"<think>{secret_think}</think>"
+            '{"verdict":"cannot_tell","reason":"no timeout given",'
+            '"evidence_quotes":[{"part":"timeout is 30 seconds","verdict":"cannot_tell","quote":""}]}'
+        )
+        msgs = s2i.build_interview_messages(row, turn1_reply, "Q1")
+        rendered_text, prompt_ids = s2i.render_interview_prompt(tok, msgs)
+
+        assert s2i.verify_turn1_thinking_stripped(rendered_text, prompt_ids, secret_think) is True
+        assert secret_think not in rendered_text
+        assert s2i.QWEN3_END_THINK_TOKEN_ID not in prompt_ids
+        # Generation prompt at the end opens Turn 2 thinking (`<think>\n`), so exactly 1 `<think>` token is at the tail
+        assert prompt_ids.count(s2i.QWEN3_THINK_TOKEN_ID) == 1
+
+        # Verify assertion triggers if `</think>` or Turn 1 thinking text leaks into prompt
+        with pytest.raises(AssertionError, match="leaked"):
+            s2i.verify_turn1_thinking_stripped(
+                rendered_text + "</think>",
+                [*prompt_ids, s2i.QWEN3_END_THINK_TOKEN_ID],
+                secret_think,
+            )
+        with pytest.raises(AssertionError, match="leaked"):
+            s2i.verify_turn1_thinking_stripped(
+                rendered_text + secret_think,
+                prompt_ids,
+                secret_think,
+            )
+
+    @needs_torch
+    def test_two_stage_thinking_cap_truncates_at_256_and_natural_close_not_truncated(self):
+        import s2_interview as s2i
+        import torch
+
+        tok = s2i.Qwen3ChatStubTokenizer()
+
+        class _UnclosedThinkModel:
+            device = torch.device("cpu")
+
+            def __init__(self):
+                self.calls = []
+
+            def generate(self, input_ids, max_new_tokens, **kwargs):
+                self.calls.append((int(input_ids.shape[1]), int(max_new_tokens)))
+                if len(self.calls) == 1:
+                    # Emit max_new_tokens of 'a' without closing </think>
+                    new_toks = tok.encode("thinking word " * 40)[:max_new_tokens]
+                else:
+                    # Stage 2 answer tokens after forced \n</think>\n\n
+                    new_toks = tok.encode("The missing piece is the cache TTL.")[:max_new_tokens]
+                out = torch.tensor([list(input_ids[0].tolist()) + new_toks], dtype=torch.long)
+                return out
+
+        m_trunc = _UnclosedThinkModel()
+        res_trunc = s2i.generate_two_stage_thinking(
+            m_trunc,
+            tok,
+            [10, 11, 12],
+            seed=42,
+            thinking_cap=256,
+            answer_cap=200,
+        )
+        assert res_trunc["think_truncated"] is True
+        assert res_trunc["thinking_tokens"] == 256
+        assert len(m_trunc.calls) == 2
+        assert m_trunc.calls[0][1] == 256
+        assert m_trunc.calls[1][1] == 200
+        assert "The missing piece is the cache TTL." in res_trunc["answer"]
+        assert res_trunc["ngram_4_rep_rate"] > 0.0
+
+        class _ClosedThinkModel:
+            device = torch.device("cpu")
+
+            def generate(self, input_ids, max_new_tokens, **kwargs):
+                # Emit short thinking + </think> + answer + EOS inside Stage 1
+                seq = (
+                    tok.encode("short reasoning")
+                    + [s2i.QWEN3_END_THINK_TOKEN_ID]
+                    + tok.encode("LEAN: supported — matches context.")
+                    + [s2i.QWEN3_EOS_TOKEN_ID]
+                )
+                return torch.tensor([list(input_ids[0].tolist()) + seq], dtype=torch.long)
+
+        res_closed = s2i.generate_two_stage_thinking(
+            _ClosedThinkModel(),
+            tok,
+            [10, 11, 12],
+            seed=99,
+            thinking_cap=256,
+            answer_cap=200,
+        )
+        assert res_closed["think_truncated"] is False
+        assert "short reasoning" in res_closed["thinking"]
+        assert res_closed["answer"].startswith("LEAN: supported")
+
+    def test_mechanical_measures_part_match_whole_claim_guard_quotes_counterfactual_and_q3_lean(self):
+        import s2_interview as s2i
+
+        claim = (
+            "The authentication service rotates signing keys every twenty four hours "
+            "and stores backup keys in an offline hardware security module."
+        )
+        json_ct_parts = ["stores backup keys in an offline hardware security module"]
+
+        # Specific Q1 answer matching the CT sub-claim -> high containment & match_at_0_3/0_5/0_7 True
+        good_q1 = "I marked 'stores backup keys in an offline hardware security module' cannot_tell."
+        sc_good = s2i.score_part_match(good_q1, json_ct_parts, claim)
+        assert sc_good["whole_claim_copy"] is False
+        assert sc_good["containment"] >= 0.7
+        assert sc_good["match_at_0_3"] is True
+        assert sc_good["match_at_0_5"] is True
+        assert sc_good["match_at_0_7"] is True
+
+        # Whole-claim copy (>85% of claim tokens while JSON CT part is <70% of claim tokens) -> gated off
+        copy_q1 = (
+            "The authentication service rotates signing keys every twenty four hours "
+            "and stores backup keys in an offline hardware security module."
+        )
+        sc_copy = s2i.score_part_match(copy_q1, json_ct_parts, claim)
+        assert sc_copy["whole_claim_copy"] is True
+        assert sc_copy["match_at_0_3"] is False
+        assert sc_copy["match_at_0_5"] is False
+        assert sc_copy["match_at_0_7"] is False
+
+        # Quote validity & consistency (Q4)
+        evidence = ["The authentication service rotates signing keys every 24 hours."]
+        t1_json = json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "backup storage not mentioned",
+                "evidence_quotes": [
+                    {
+                        "part": "rotates signing keys",
+                        "verdict": "supported",
+                        "quote": "rotates signing keys every 24 hours",
+                    }
+                ],
+            }
+        )
+        q4_valid = s2i.score_quote_validity_and_consistency(
+            "rotates signing keys every 24 hours", evidence, t1_json
+        )
+        assert q4_valid["quote_valid"] is True
+        assert q4_valid["in_evidence"] is True
+        assert q4_valid["quote_consistency_f1"] == pytest.approx(1.0)
+
+        q4_none = s2i.score_quote_validity_and_consistency("NONE", evidence, t1_json)
+        assert q4_none["is_none"] is True
+        assert q4_none["quote_valid"] is True
+
+        q4_hallucinated = s2i.score_quote_validity_and_consistency(
+            "backup keys are kept in AWS KMS vault", evidence, t1_json
+        )
+        assert q4_hallucinated["quote_valid"] is False
+
+        # Counterfactual check (Q2 MISSING_FACT)
+        row = _row("cf_item_1", claim=claim, text=evidence[0])
+        q2_ans = "MISSING_FACT: Backup keys are stored in an offline hardware security module."
+
+        def fake_verifier(cf_row: dict, seed: int) -> str:
+            joined = " ".join(c["text"] for c in cf_row["context"])
+            assert "offline hardware security module" in joined
+            return json.dumps(
+                {
+                    "verdict": "supported",
+                    "reason": "now supported",
+                    "evidence_quotes": [
+                        {
+                            "part": "offline hardware security module",
+                            "verdict": "supported",
+                            "quote": "Backup keys are stored in an offline hardware security module",
+                        }
+                    ],
+                }
+            )
+
+        cf_res = s2i.run_counterfactual_check(row, q2_ans, fake_verifier, base_seed=7)
+        assert cf_res["format_ok"] is True
+        assert cf_res["left_cannot_tell"] is True
+        assert cf_res["new_verdict"] == "supported"
+        assert cf_res["direction"] == "supported"
+
+        cf_bad = s2i.run_counterfactual_check(row, "No prefix here.", fake_verifier, base_seed=7)
+        assert cf_bad["format_ok"] is False
+        assert cf_bad["left_cannot_tell"] is False
+
+        # Q3 forced lean & counterbalancing
+        orders = {s2i.q3_choice_order(f"id_{i}") for i in range(20)}
+        assert orders == {("supported", "unsupported"), ("unsupported", "supported")}
+
+        l_sup = s2i.score_q3_lean_item(
+            "LEAN: supported — partial evidence aligns.", "supported", "id_1"
+        )
+        l_unsup = s2i.score_q3_lean_item(
+            "LEAN: supported — partial evidence aligns.", "unsupported", "id_2"
+        )
+        l_ct = s2i.score_q3_lean_item(
+            "LEAN: unsupported — leans against.", "cannot_tell", "id_3"
+        )
+        assert l_sup["accuracy_scored"] is True and l_sup["correct"] is True
+        assert l_unsup["accuracy_scored"] is True and l_unsup["correct"] is False
+        assert l_ct["accuracy_scored"] is False and l_ct["correct"] is None
+
+        lean_summary = s2i.summarize_q3_lean([l_sup, l_unsup, l_ct])
+        assert lean_summary["balanced_accuracy"] == pytest.approx(0.5)
+        assert lean_summary["gold_cannot_tell"]["accuracy_scored"] is False
+        assert lean_summary["gold_cannot_tell"]["unsupported_share"] == pytest.approx(1.0)
+
+    @needs_torch
+    def test_cpu_3_item_synthetic_interview_end_to_end(self, tmp_path):
+        import hashlib
+
+        import s2_interview as s2i
+
+        model, tok = s2i.build_cpu_qwen3_stub()
+        runner = s2i.InterviewModelRunner(model, tok)
+
+        rows_by_id = {
+            f"syn_{i}": _row(
+                f"syn_{i}",
+                claim=f"Synthetic claim number {i} states the buffer size is 64 bytes.",
+                text=f"Passage for item {i}: the module initialises a local buffer.",
+                label="supported" if i == 0 else ("unsupported" if i == 1 else "cannot_tell"),
+            )
+            for i in range(3)
+        }
+
+        def _make_ct_rec(cid: str) -> dict:
+            t1 = (
+                f"<think>Thinking for {cid}: buffer size 64 bytes is missing.</think>"
+                + json.dumps(
+                    {
+                        "verdict": "cannot_tell",
+                        "reason": "size missing",
+                        "evidence_quotes": [
+                            {"part": "buffer size is 64 bytes", "verdict": "cannot_tell", "quote": ""}
+                        ],
+                    }
+                )
+            )
+            return {"item_id": cid, "sample_index": 0, "verdict": "cannot_tell", "text": t1}
+
+        base_pass = [_make_ct_rec("syn_0"), _make_ct_rec("syn_1")]
+        ckpt_pass = [_make_ct_rec("syn_0"), _make_ct_rec("syn_2")]
+        cohort = s2i.select_interview_cohort(base_pass, ckpt_pass)
+        assert len(cohort) == 3
+
+        out_dir = tmp_path / "interview_out"
+        receipt = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=runner,
+            out_dir=out_dir,
+            base_seed=20261105,
+            thinking_cap=8,
+            answer_cap=8,
+            include_cold_control=True,
+        )
+        assert receipt["cohort_size"] == 3
+        # syn_0 (both_CT -> 2*4 + 2 cold = 10), syn_1 (baseline_only -> 4 + 2 = 6), syn_2 (ckpt_only -> 4 + 2 = 6) => 22 turns
+        assert receipt["total_turns_recorded"] == 22
+        save_all_file = out_dir / receipt["save_all_path"]
+        assert save_all_file.exists()
+        assert hashlib.sha256(save_all_file.read_bytes()).hexdigest() == receipt["save_all_sha256"]
+        records = s2.read_save_all(save_all_file)
+        assert len(records) == 22
+        assert all("ngram_4_rep_rate" in r and "think_truncated" in r for r in records)
+
+    def test_two_judge_tagging_refuses_qwen_gates_controls_computes_ac1_and_exports_blinded_audit(
+        self, tmp_path
+    ):
+        import s2_interview_tag as s2t
+
+        # 1. Refuse Qwen-family judges or duplicate judges
+        with pytest.raises(SystemExit, match="judge_qwen_family_forbidden"):
+            s2t.validate_judge_name("Qwen/Qwen3-32B-Instruct")
+        with pytest.raises(SystemExit, match="judge_qwen_family_forbidden"):
+            s2t.require_two_non_qwen_judges("claude-3-5-sonnet", "qwen2.5-72b")
+        with pytest.raises(SystemExit, match="judges_must_be_distinct"):
+            s2t.require_two_non_qwen_judges("llama-3.3-70b", "Llama-3.3-70B")
+
+        # 2. Build 30 shuffled, 30 verbatim, 15 empty-thinking controls
+        controls = s2t.build_judge_controls([])
+        assert len(controls["shuffled"]) == 30
+        assert len(controls["verbatim"]) == 30
+        assert len(controls["empty_thinking"]) == 15
+
+        def accurate_judge(thinking: str, q1_answer: str) -> dict[str, str]:
+            t_clean = thinking.strip()
+            if not t_clean or "not enough information to decide" in t_clean or "not sure whether" in t_clean or "Cannot tell from" in t_clean:
+                return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+            if t_clean in q1_answer or "release date" in t_clean and "release date" in q1_answer and t_clean.split()[-1] == q1_answer.split()[-1]:
+                return {"missing_element_match": "same", "reason_type": "lacks"}
+            return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+        def bad_judge(thinking: str, q1_answer: str) -> dict[str, str]:
+            return {"missing_element_match": "same", "reason_type": "lacks"}
+
+        # Gate fails when accuracy < 0.90
+        with pytest.raises(SystemExit, match="judge_control_gate_failed"):
+            s2t.evaluate_judge_controls(controls, bad_judge, min_accuracy=0.90, enforce_gate=True)
+
+        # Gate passes for accurate judge
+        gate_ok = s2t.evaluate_judge_controls(controls, accurate_judge, min_accuracy=0.90, enforce_gate=True)
+        assert gate_ok["passed"] is True
+        assert all(acc >= 0.90 for acc in gate_ok["accuracies"].values())
+
+        # 3. Run full two-judge pipeline over 35 synthetic Q1 records (with 10 disagreements + 25 agreements)
+        q1_records = []
+        for i in range(35):
+            q1_records.append(
+                {
+                    "item_id": f"item_{i:02d}",
+                    "policy": "baseline" if i % 2 == 0 else "checkpoint",
+                    "original_turn1_thinking_tokens": 50 + i * 3,
+                    "turn1_thinking": f"Thinking trace {i}: release date for module {i} is missing.",
+                    "q1_answer": (
+                        f"As noted in the reasoning, Thinking trace {i}: release date for module {i} is missing."
+                        if i < 20
+                        else f"Different explanation {i}"
+                    ),
+                }
+            )
+
+        call_counter = {"b": 0}
+
+        def judge_b_with_disagreements(thinking: str, q1_answer: str) -> dict[str, str]:
+            base = accurate_judge(thinking, q1_answer)
+            # Only flip on non-control items (which start with "Thinking trace ")
+            if thinking.startswith("Thinking trace "):
+                idx = call_counter["b"]
+                call_counter["b"] += 1
+                if idx < 10:
+                    return {
+                        "missing_element_match": "different"
+                        if base["missing_element_match"] == "same"
+                        else "same",
+                        "reason_type": "conflicts",
+                    }
+            return base
+
+        out_dir = tmp_path / "tagging_out"
+        summary = s2t.run_two_judge_tagging(
+            interview_q1_records=q1_records,
+            judge_a_name="meta-llama/Llama-3.3-70B-Instruct",
+            judge_b_name="mistralai/Mistral-Large-Instruct",
+            judge_a_fn=accurate_judge,
+            judge_b_fn=judge_b_with_disagreements,
+            out_dir=out_dir,
+            controls=controls,
+        )
+        assert summary["agreement_missing_element_match"]["n"] == 35
+        assert summary["agreement_missing_element_match"]["disagreements"] == 10
+        assert summary["agreement_missing_element_match"]["raw_agreement"] == pytest.approx(25.0 / 35.0, abs=1e-5)
+        assert summary["agreement_missing_element_match"]["cohens_kappa"] is not None
+        assert summary["agreement_missing_element_match"]["gwets_ac1"] is not None
+        assert summary["thinking_length_confound"]["n"] == 35
+
+        # 4. Verify 30-item blinded human audit export (10 disagreements + 20 stratified)
+        audit_meta = summary["blinded_human_audit"]
+        assert audit_meta["audit_count"] == 30
+        assert audit_meta["disagreements_included"] == 10
+        assert audit_meta["stratified_agreements_included"] == 20
+
+        audit_lines = [
+            json.loads(line)
+            for line in (out_dir / "s2-interview-blinded-audit.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        ]
+        assert len(audit_lines) == 30
+        for row in audit_lines:
+            assert "policy" not in row
+            assert "model" not in row
+            assert "item_id" not in row
+            assert row["blind_source_code"].startswith("BLIND_")
+
+
+
 
