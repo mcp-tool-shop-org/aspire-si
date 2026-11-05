@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import random
 import statistics
 from collections.abc import Callable, Mapping, Sequence
@@ -31,6 +32,20 @@ from typing import Any
 MISSING_ELEMENT_LABELS = ("same", "different", "none")
 REASON_TYPE_LABELS = ("lacks", "conflicts", "generic_or_none")
 CONTROL_GATE_MIN_ACCURACY = 0.90
+TAG_RECORD_KEYS = (
+    "item_id",
+    "policy",
+    "question_id",
+    "original_turn1_thinking_tokens",
+    "turn1_thinking_sha256",
+    "q2_answer_sha256",
+    "judge_a_missing_element_match",
+    "judge_b_missing_element_match",
+    "consensus_missing_element_match",
+    "judge_a_reason_type",
+    "judge_b_reason_type",
+    "consensus_reason_type",
+)
 
 
 def validate_judge_name(judge_name: str) -> str:
@@ -454,16 +469,15 @@ def export_blinded_human_audit(
     out_dir.mkdir(parents=True, exist_ok=True)
     audit_path = out_dir / "s2-interview-blinded-audit.jsonl"
     key_path = out_dir / "s2-interview-blinded-audit-key.json"
-    audit_path.write_text(
-        "".join(json.dumps(r) + "\n" for r in blinded_rows),
-        encoding="utf-8",
-        newline="\n",
-    )
-    key_path.write_text(
-        json.dumps({"seed": seed, "count": len(key_mapping), "items": key_mapping}, indent=1) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
+    with audit_path.open("w", encoding="utf-8", newline="\n") as afh:
+        afh.write("".join(json.dumps(r) + "\n" for r in blinded_rows))
+        afh.flush()
+        os.fsync(afh.fileno())
+    with key_path.open("w", encoding="utf-8", newline="\n") as kfh:
+        key_doc = {"seed": seed, "count": len(key_mapping), "items": key_mapping}
+        kfh.write(json.dumps(key_doc, indent=1) + "\n")
+        kfh.flush()
+        os.fsync(kfh.fileno())
     return {
         "audit_count": len(blinded_rows),
         "disagreements_included": sum(1 for k in key_mapping if k["is_disagreement"]),
@@ -471,6 +485,62 @@ def export_blinded_human_audit(
         "audit_path": audit_path.name,
         "key_path": key_path.name,
     }
+
+
+def _prepare_tags_resume(
+    tags_path: Path,
+    *,
+    fsync: Callable[[int], None] = os.fsync,
+) -> list[dict[str, Any]]:
+    """Read back completed tag rows from ``s2-interview-tags.jsonl`` and truncate partial/duplicate lines."""
+    if not tags_path.exists():
+        return []
+    raw = tags_path.read_bytes()
+    if not raw:
+        return []
+    raw_lines = raw.splitlines(keepends=True)
+    completed: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    clean_chunks: list[bytes] = []
+    modified = False
+    for idx, line_bytes in enumerate(raw_lines):
+        is_last = idx == len(raw_lines) - 1
+        has_nl = line_bytes.endswith(b"\n")
+        try:
+            text_line = line_bytes.decode("utf-8").strip()
+            obj = json.loads(text_line) if text_line else None
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            if is_last:
+                modified = True
+                break
+            raise SystemExit(
+                f"refusing to resume interview tagging: corrupt line {idx + 1} in {tags_path}"
+            ) from exc
+        if not has_nl or not isinstance(obj, dict) or not set(TAG_RECORD_KEYS).issubset(obj.keys()):
+            if is_last:
+                modified = True
+                break
+            raise SystemExit(
+                f"refusing to resume interview tagging: incomplete record on line {idx + 1} in {tags_path}"
+            )
+        rk = (str(obj.get("item_id", "")), str(obj.get("policy", "baseline")))
+        if rk in seen_keys:
+            modified = True
+            continue
+        seen_keys.add(rk)
+        completed.append(obj)
+        clean_chunks.append(line_bytes)
+
+    clean_bytes = b"".join(clean_chunks)
+    if modified or len(clean_bytes) != len(raw):
+        with tags_path.open("r+b") as tfh:
+            tfh.seek(0)
+            if clean_bytes:
+                tfh.write(clean_bytes)
+            tfh.truncate(len(clean_bytes))
+            tfh.flush()
+            fsync(tfh.fileno())
+    return completed
 
 
 # -- Full two-judge tagging pipeline -------------------------------------------------------------------------
@@ -486,6 +556,7 @@ def run_two_judge_tagging(
     controls: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
     min_control_accuracy: float = CONTROL_GATE_MIN_ACCURACY,
     audit_seed: int = 20261105,
+    fsync: Callable[[int], None] = os.fsync,
 ) -> dict[str, Any]:
     """Validate two non-Qwen judges on the 3 control sets (>=90% gate), tag all Q2 records against
     ``turn1_thinking`` (requiring ``turn1_thinking`` with no fallback to Turn 2's thinking),
@@ -519,6 +590,14 @@ def run_two_judge_tagging(
         ctrl_sets, judge_b_fn, min_accuracy=min_control_accuracy, enforce_gate=True
     )
 
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tags_path = out_dir / "s2-interview-tags.jsonl"
+    resumed_tags = _prepare_tags_resume(tags_path, fsync=fsync)
+    resumed_by_key: dict[tuple[str, str], dict[str, Any]] = {
+        (str(r.get("item_id", "")), str(r.get("policy", "baseline"))): r for r in resumed_tags
+    }
+
     tagged_records: list[dict[str, Any]] = []
     audit_source_records: list[dict[str, Any]] = []
     mem_a: list[str] = []
@@ -526,57 +605,64 @@ def run_two_judge_tagging(
     rt_a: list[str] = []
     rt_b: list[str] = []
 
-    for rec in q2_records:
-        t1_think = str(rec["turn1_thinking"])
-        q2_ans = str(rec.get("q2_answer", rec.get("answer", rec.get("q1_answer", ""))))
-        tag_a = validate_tag_record(judge_a_fn(t1_think, q2_ans))
-        tag_b = validate_tag_record(judge_b_fn(t1_think, q2_ans))
+    with tags_path.open("a", encoding="utf-8", newline="\n") as tfh:
+        for rec in q2_records:
+            item_key = (str(rec.get("item_id", "")), str(rec.get("policy", "baseline")))
+            t1_think = str(rec["turn1_thinking"])
+            q2_ans = str(rec.get("q2_answer", rec.get("answer", rec.get("q1_answer", ""))))
+            if item_key in resumed_by_key:
+                tag_row = resumed_by_key[item_key]
+                ma = str(tag_row["judge_a_missing_element_match"])
+                mb = str(tag_row["judge_b_missing_element_match"])
+                ra = str(tag_row["judge_a_reason_type"])
+                rb = str(tag_row["judge_b_reason_type"])
+            else:
+                tag_a = validate_tag_record(judge_a_fn(t1_think, q2_ans))
+                tag_b = validate_tag_record(judge_b_fn(t1_think, q2_ans))
+                ma, mb = tag_a["missing_element_match"], tag_b["missing_element_match"]
+                ra, rb = tag_a["reason_type"], tag_b["reason_type"]
+                consensus_mem = ma if ma == mb else "disagreement"
+                consensus_rt = ra if ra == rb else "disagreement"
+                tag_row = {
+                    "item_id": item_key[0],
+                    "policy": item_key[1],
+                    "question_id": "Q2",
+                    "original_turn1_thinking_tokens": int(rec.get("original_turn1_thinking_tokens", 0)),
+                    "turn1_thinking_sha256": hashlib.sha256(t1_think.encode("utf-8")).hexdigest(),
+                    "q2_answer_sha256": hashlib.sha256(q2_ans.encode("utf-8")).hexdigest(),
+                    "judge_a_missing_element_match": ma,
+                    "judge_b_missing_element_match": mb,
+                    "consensus_missing_element_match": consensus_mem,
+                    "judge_a_reason_type": ra,
+                    "judge_b_reason_type": rb,
+                    "consensus_reason_type": consensus_rt,
+                }
+                tfh.write(json.dumps(tag_row) + "\n")
+                tfh.flush()
+                fsync(tfh.fileno())
+                resumed_by_key[item_key] = tag_row
 
-        ma, mb = tag_a["missing_element_match"], tag_b["missing_element_match"]
-        ra, rb = tag_a["reason_type"], tag_b["reason_type"]
-        mem_a.append(ma)
-        mem_b.append(mb)
-        rt_a.append(ra)
-        rt_b.append(rb)
-
-        consensus_mem = ma if ma == mb else "disagreement"
-        consensus_rt = ra if ra == rb else "disagreement"
-        tag_row = {
-            "item_id": str(rec.get("item_id", "")),
-            "policy": str(rec.get("policy", "baseline")),
-            "question_id": "Q2",
-            "original_turn1_thinking_tokens": int(rec.get("original_turn1_thinking_tokens", 0)),
-            "turn1_thinking_sha256": hashlib.sha256(t1_think.encode("utf-8")).hexdigest(),
-            "q2_answer_sha256": hashlib.sha256(q2_ans.encode("utf-8")).hexdigest(),
-            "judge_a_missing_element_match": ma,
-            "judge_b_missing_element_match": mb,
-            "consensus_missing_element_match": consensus_mem,
-            "judge_a_reason_type": ra,
-            "judge_b_reason_type": rb,
-            "consensus_reason_type": consensus_rt,
-        }
-        tagged_records.append(tag_row)
-        audit_source_records.append(
-            {
-                **tag_row,
-                "turn1_thinking": t1_think,
-                "q2_answer": q2_ans,
-            }
-        )
+            mem_a.append(ma)
+            mem_b.append(mb)
+            rt_a.append(ra)
+            rt_b.append(rb)
+            tagged_records.append(tag_row)
+            audit_source_records.append(
+                {
+                    **tag_row,
+                    "turn1_thinking": t1_think,
+                    "q2_answer": q2_ans,
+                }
+            )
+        if not q2_records:
+            tfh.flush()
+            fsync(tfh.fileno())
 
     agreement_mem = compute_agreement_stats(mem_a, mem_b, categories=MISSING_ELEMENT_LABELS)
     agreement_rt = compute_agreement_stats(rt_a, rt_b, categories=REASON_TYPE_LABELS)
     confound_log = compute_thinking_length_confound(tagged_records)
     audit_meta = export_blinded_human_audit(audit_source_records, out_dir, seed=audit_seed)
 
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    tags_path = out_dir / "s2-interview-tags.jsonl"
-    tags_path.write_text(
-        "".join(json.dumps(r) + "\n" for r in tagged_records),
-        encoding="utf-8",
-        newline="\n",
-    )
     summary = {
         "judge_a": ja_name,
         "judge_b": jb_name,

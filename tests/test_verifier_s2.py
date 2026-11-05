@@ -12702,10 +12702,749 @@ class TestFix3Items:
         assert ans_b["policy"] == "checkpoint:adapter_b"
 
 
+class _SimulatedHardKill(BaseException):
+    """Simulates a hard process kill (taskkill /T /F) that aborts execution immediately."""
 
 
+class TestSaveAllCrashSafeAndStopAfterNew:
+    @needs_torch
+    def test_crashsafe_01_kill_and_resume_pass(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        out_dir = tmp_path / "pass_kill_resume"
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+                "--quote-reward",
+                "v2",
+                "--pass-id",
+                "pass_kill_test",
+            ]
+        )
+        rows, gold_hashes = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, None)
+        assert len(prompts) == 6
 
+        calls = 0
+        kill_after = 2
+        sa_path = s2.save_all_file_path(out_dir, "hf")
+        sa_bytes_at_kill: bytes | None = None
 
+        def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            nonlocal calls, sa_bytes_at_kill
+            calls += 1
+            if calls == kill_after + 1:
+                sa_bytes_at_kill = sa_path.read_bytes() if sa_path.exists() else None
+                raise _SimulatedHardKill("taskkill /T /F after 2 items")
+            p_ids = tok.encode(prompt_text)
+            c_ok = tok.encode(_reply("supported", "alpha beta gamma", think=f"thought_{calls}")) + [
+                tok.eos_token_id
+            ]
+            c_ct = tok.encode(_reply("cannot_tell", "", think=f"ct_{calls}")) + [tok.eos_token_id]
+            return p_ids, [c_ok, c_ct][:g_cnt], [False, False][:g_cnt]
 
+        bundle = {
+            "tok": tok,
+            "rollout": rollout,
+            "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+            ),
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: 300,
+            "revision": s2.STUDENT_FULL_REVISION,
+        }
 
+        with pytest.raises(_SimulatedHardKill):
+            s2.run_prepass(a=a, prompts=prompts, gold_hashes=gold_hashes, bundle=bundle)
+
+        # At the exact instant of the hard kill (before any finally block could ever run),
+        # save-all on disk must already hold the K=2 completed items (4 records).
+        assert sa_bytes_at_kill is not None
+        sa_path.write_bytes(sa_bytes_at_kill)
+        partial_records = s2.read_save_all(sa_path)
+        assert len(partial_records) == kill_after * 2
+        assert [r["item_id"] for r in partial_records] == [
+            prompts[0]["id"],
+            prompts[0]["id"],
+            prompts[1]["id"],
+            prompts[1]["id"],
+        ]
+
+        # Also simulate a truncated trailing gzip member on disk from a kill mid-write, then resume:
+        sa_path.write_bytes(sa_bytes_at_kill + b"\x1f\x8b\x08\x00truncated_gzip")
+        _, completed, stopped, oom = s2.run_prepass(
+            a=a, prompts=prompts, gold_hashes=gold_hashes, bundle=bundle
+        )
+        assert stopped is None and not oom
+        assert len(completed) == len(prompts)
+
+        final_records = s2.read_save_all(sa_path)
+        assert len(final_records) == len(prompts) * 2
+        seen_pairs = [(r["item_id"], r["sample_index"]) for r in final_records]
+        expected_pairs = [(p["id"], s_idx) for p in prompts for s_idx in range(2)]
+        assert seen_pairs == expected_pairs
+
+    @needs_torch
+    def test_crashsafe_02_no_duplicates_kill_mid_item_before_jsonl(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        out_dir = tmp_path / "pass_mid_item_kill"
+        a = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_dir),
+                "--rollout-only",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        rows, gold_hashes = s2.read_gold(a.gold)
+        prompts = s2.select_prompts(rows, None)
+        sa_path = s2.save_all_file_path(out_dir, "hf")
+        jsonl_path = out_dir / "s2-hf-prepass.jsonl"
+
+        def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+            p_ids = tok.encode(prompt_text)
+            c0 = tok.encode(_reply("supported", "alpha beta gamma", think="t0")) + [tok.eos_token_id]
+            c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="t1")) + [tok.eos_token_id]
+            return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+        bundle = {
+            "tok": tok,
+            "rollout": rollout,
+            "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                text, row["label"], s2.passages_of(row), tt, truncated=truncated
+            ),
+            "sync": lambda: None,
+            "peak_alloc_mib": lambda: 300,
+            "revision": s2.STUDENT_FULL_REVISION,
+        }
+
+        # Kill on the 2nd item right after append_save_all fsyncs the 2nd item's save-all records,
+        # BEFORE jfh.write writes the 2nd item's line to s2-hf-prepass.jsonl.
+        sa_fsync_count = 0
+
+        def kill_after_second_save_all_fsync(fd: int) -> None:
+            nonlocal sa_fsync_count
+            os.fsync(fd)
+            if sa_path.exists() and jsonl_path.exists():
+                sa_rows_now = s2.read_save_all(sa_path)
+                jsonl_lines_now = [
+                    ln for ln in jsonl_path.read_text(encoding="utf-8").splitlines() if ln.strip()
+                ]
+                # When item 2's save-all member has just been fsynced (4 records total),
+                # but jsonl_path still only has item 1 (1 line): kill!
+                if len(sa_rows_now) == 4 and len(jsonl_lines_now) == 1:
+                    sa_fsync_count += 1
+                    raise _SimulatedHardKill("killed after save-all write before jsonl write")
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.run_prepass(
+                a=a,
+                prompts=prompts,
+                gold_hashes=gold_hashes,
+                bundle=bundle,
+                fsync=kill_after_second_save_all_fsync,
+            )
+
+        assert sa_fsync_count == 1
+        # At this point save-all has 4 records (items 0 and 1), while prepass.jsonl has 1 line (item 0).
+        assert len(s2.read_save_all(sa_path)) == 4
+        assert len(jsonl_path.read_text(encoding="utf-8").splitlines()) == 1
+
+        # Now resume to completion: item 1 must be rewritten cleanly on its redo with zero duplicate records.
+        _, completed, stopped, oom = s2.run_prepass(
+            a=a, prompts=prompts, gold_hashes=gold_hashes, bundle=bundle
+        )
+        assert stopped is None and not oom
+        assert len(completed) == len(prompts)
+        final_sa = s2.read_save_all(sa_path)
+        assert len(final_sa) == len(prompts) * 2
+        assert [(r["item_id"], r["sample_index"]) for r in final_sa] == [
+            (p["id"], s_idx) for p in prompts for s_idx in range(2)
+        ]
+
+    @needs_torch
+    def test_crashsafe_03_replay_check_survives_resume(self, tmp_path: Path) -> None:
+        import hashlib
+        from contextlib import nullcontext
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+        rows, _ = s2.read_gold(gold_dir)
+        prompts = s2.select_prompts(rows, None)
+        tune_ids = [r["id"] for r in prompts]
+        assert len(tune_ids) == 6
+
+        # Plant a B2 k_correct mismatch on item index 3 (the 4th item, which runs in chunk 2 after resume).
+        b2_dir = tmp_path / "b2_ref"
+        b2_dir.mkdir(parents=True, exist_ok=True)
+        b2_jsonl = b2_dir / "s2-hf-prepass.jsonl"
+        b2_records = []
+        for idx, p_row in enumerate(prompts):
+            tid = p_row["id"]
+            gv = str(p_row.get("label", "supported"))
+            expected_k = 8 if gv == "supported" else 0
+            b2_records.append(
+                {
+                    "id": tid,
+                    "gold_file": "grounded.jsonl",
+                    "gold_verdict": gv,
+                    "g": 8,
+                    "k_correct": expected_k if idx != 3 else (0 if expected_k == 8 else 8),
+                    "supported": 8,
+                    "unsupported": 0,
+                    "cannot_tell": 0,
+                    "malformed": 0,
+                    "truncations": 0,
+                    "quote_pass": 8,
+                    "reward_mean": 1.0,
+                    "reward_std": 0.0,
+                    "zero_variance": True,
+                    "prompt_tokens": 12,
+                    "completion_tokens_mean": 10.0,
+                    "descriptive": False,
+                    "pass_seed": 1,
+                }
+            )
+        b2_jsonl.write_text("".join(json.dumps(r) + "\n" for r in b2_records), encoding="utf-8", newline="\n")
+        b2_sha = hashlib.sha256(b2_jsonl.read_bytes()).hexdigest()
+
+        def make_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c_ok = tok.encode(_reply("supported", "alpha beta gamma", think="b2 thought")) + [
+                    tok.eos_token_id
+                ]
+                return p_ids, [list(c_ok) for _ in range(g_cnt)], [False] * g_cnt
+
+            return {
+                "model": Namespace(device="cpu"),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: 1.0,
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 400,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        out_dir = tmp_path / "logging_chunked_mismatch"
+        common_flags = [
+            "--gold",
+            str(gold_dir),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(out_dir),
+            "--logging-pass",
+            "--path",
+            "hf",
+            "--revision",
+            s2.STUDENT_FULL_REVISION,
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--quote-reward",
+            "v2",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+            "--replay-check",
+            str(b2_jsonl),
+            "--replay-check-sha256",
+            b2_sha,
+        ]
+
+        # Chunk 1: run first 2 items cleanly via --stop-after-new 2
+        a_chunk1 = ap.parse_args([*common_flags, "--stop-after-new", "2"])
+        assert s2.execute(a_chunk1, build=make_bundle, rig=_FakeRig(a_chunk1)) == 1
+        sa_path = out_dir / "s2-hf-save-all.jsonl.gz"
+        assert len(s2.read_save_all(sa_path)) == 2 * 8
+
+        # Chunk 2: resume with --stop-after-new 3; item index 3 (the 4th item) triggers LOGGING_PASS_REPLAY_MISMATCH
+        a_chunk2 = ap.parse_args([*common_flags, "--stop-after-new", "3"])
+        with pytest.raises(SystemExit, match="LOGGING_PASS_REPLAY_MISMATCH"):
+            s2.execute(a_chunk2, build=make_bundle, rig=_FakeRig(a_chunk2))
+
+        # Verify the first 4 items (including the mismatching 4th item) are all preserved in save-all on disk
+        assert len(s2.read_save_all(sa_path)) == 4 * 8
+        summary = json.loads((out_dir / "s2-hf-prepass-summary.json").read_text(encoding="utf-8"))
+        assert summary["stopped"]["reason"] == "LOGGING_PASS_REPLAY_MISMATCH"
+        assert summary["stopped"]["item_id"] == tune_ids[3]
+
+    @needs_torch
+    def test_crashsafe_04_chunking_byte_equal_to_straight_through(self, tmp_path: Path) -> None:
+        from contextlib import nullcontext
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+
+        def make_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="chunk test 0")) + [
+                    tok.eos_token_id
+                ]
+                c1 = tok.encode(_reply("cannot_tell", "", think="chunk test 1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": Namespace(device="cpu"),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated, quote_reward="v2"
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 350,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        straight_dir = tmp_path / "straight"
+        chunked_dir = tmp_path / "chunked"
+        base_args = [
+            "--gold",
+            str(gold_dir),
+            "--rnd-commit",
+            "e48cc90c",
+            "--rollout-only",
+            "--g",
+            "2",
+            "--max-new",
+            "32",
+            "--quote-reward",
+            "v2",
+            "--pass-id",
+            "replay_eq_pass",
+        ]
+
+        # 1. Run straight through
+        a_straight = ap.parse_args([*base_args, "--out", str(straight_dir)])
+        assert s2.execute(a_straight, build=make_bundle, rig=_FakeRig(a_straight)) == 0
+
+        # 2. Run in 3 chunks of --stop-after-new 2 (6 items total)
+        for chunk_idx in range(3):
+            a_chunk = ap.parse_args([*base_args, "--out", str(chunked_dir), "--stop-after-new", "2"])
+            rc = s2.execute(a_chunk, build=make_bundle, rig=_FakeRig(a_chunk))
+            if chunk_idx < 2:
+                assert rc == 1
+                assert (chunked_dir / "s2-hf-prepass-summary.json").is_file()
+                assert (chunked_dir / "s2-hf.json").is_file()
+            else:
+                assert rc == 0
+
+        # Assert byte-equal s2-hf-prepass.jsonl, s2-hf-prepass-summary.json, and s2-hf-save-all.jsonl.gz!
+        assert (straight_dir / "s2-hf-prepass.jsonl").read_bytes() == (
+            chunked_dir / "s2-hf-prepass.jsonl"
+        ).read_bytes()
+        assert (straight_dir / "s2-hf-prepass-summary.json").read_bytes() == (
+            chunked_dir / "s2-hf-prepass-summary.json"
+        ).read_bytes()
+        assert (straight_dir / "s2-hf-save-all.jsonl.gz").read_bytes() == (
+            chunked_dir / "s2-hf-save-all.jsonl.gz"
+        ).read_bytes()
+        assert s2.read_save_all(straight_dir / "s2-hf-save-all.jsonl.gz") == s2.read_save_all(
+            chunked_dir / "s2-hf-save-all.jsonl.gz"
+        )
+
+    @needs_torch
+    def test_crashsafe_05_all_item2_writers_crash_safe(self, tmp_path: Path) -> None:
+        from contextlib import nullcontext
+
+        import s2_interview as s2i
+        import s2_interview_tag as s2t
+        import torch
+
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        tok = s2.DryTokenizer()
+        ap = s2.build_parser()
+
+        # (A) Training-rollout save-all writer + steps.jsonl writer in s2_grpo_smoke.py
+        train_dir = tmp_path / "train_kill"
+        a_train = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(train_dir),
+                "--steps",
+                "2",
+                "--prompts",
+                "4",
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        train_rollout_calls = 0
+
+        def make_train_bundle(_args_ns):
+            class _TinyModel:
+                device = torch.device("cpu")
+
+                def __init__(self) -> None:
+                    self._p = torch.nn.Parameter(torch.zeros(1, dtype=torch.float32))
+
+                def parameters(self):
+                    return [self._p]
+
+                def __call__(self, input_ids, attention_mask=None, **kwargs):
+                    logits = (
+                        torch.zeros(
+                            (input_ids.shape[0], input_ids.shape[1], tok.vocab_size), dtype=torch.float32
+                        )
+                        + self._p * 0.0
+                    )
+                    return Namespace(logits=logits)
+
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                nonlocal train_rollout_calls
+                train_rollout_calls += 1
+                # Step 0 has 2 groups (calls 1 and 2). Step 1 has 2 groups (calls 3 and 4).
+                # Kill on call 4 (after step 0 committed and step 1 group 0 wrote save-all, before step 1 finishes).
+                if train_rollout_calls == 4:
+                    raise _SimulatedHardKill("kill mid step 1 in training")
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="tr0")) + [tok.eos_token_id]
+                c1 = tok.encode(_reply("unsupported", "alpha beta gamma", think="tr1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": _TinyModel(),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": True},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 250,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.execute(a_train, build=make_train_bundle, rig=_FakeRig(a_train))
+
+        sa_train_path = train_dir / "s2-hf-save-all.jsonl.gz"
+        assert sa_train_path.is_file()
+        # Step 0 (2 groups * 2 samples = 4) + Step 1 Group 0 (2 samples) = 6 records on disk at kill
+        assert len(s2.read_save_all(sa_train_path)) == 6
+
+        # Resume training run: the 3 already-completed groups are kept and only the remaining group is run
+        assert s2.execute(a_train, build=make_train_bundle, rig=_FakeRig(a_train)) == 1
+        final_train_sa = s2.read_save_all(sa_train_path)
+        assert len(final_train_sa) == 2 * 2 * 2  # 2 steps * 2 groups * 2 samples = 8
+        assert [(r["step"], r["group"], r["sample_index"]) for r in final_train_sa] == [
+            (s_i, g_i, samp_i) for s_i in range(2) for g_i in range(2) for samp_i in range(2)
+        ]
+
+        # (B) Post-pass writer in s2_grpo_smoke.py
+        ckpt_dir = tmp_path / "ckpt_post"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        (ckpt_dir / "adapter_model.safetensors").write_bytes(b"postpass-ckpt-bytes")
+        post_dir = tmp_path / "postpass_kill"
+        a_post = ap.parse_args(
+            [
+                "--gold",
+                str(gold_dir),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(post_dir),
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--g",
+                "2",
+                "--max-new",
+                "32",
+            ]
+        )
+        post_calls = 0
+
+        def make_post_bundle(_args_ns):
+            def rollout(prompt_text: str, g_cnt: int, max_n: int, temp: float):
+                nonlocal post_calls
+                post_calls += 1
+                if post_calls == 3:
+                    raise _SimulatedHardKill("kill postpass on item 3")
+                p_ids = tok.encode(prompt_text)
+                c0 = tok.encode(_reply("supported", "alpha beta gamma", think="p0")) + [tok.eos_token_id]
+                c1 = tok.encode(_reply("cannot_tell", "", think="p1")) + [tok.eos_token_id]
+                return p_ids, [c0, c1][:g_cnt], [False, False][:g_cnt]
+
+            return {
+                "model": Namespace(device="cpu"),
+                "tok": tok,
+                "cuda": _FakeCuda(),
+                "mode": lambda training: None,
+                "state": lambda: {"grad_ckpt": False},
+                "optimiser": Namespace(zero_grad=lambda set_to_none=True: None, step=lambda: None),
+                "ref_adapter_off": nullcontext,
+                "rollout": rollout,
+                "reward_fn": lambda text, row, tt, truncated=False: s2.reward(
+                    text, row["label"], s2.passages_of(row), tt, truncated=truncated
+                ),
+                "sync": lambda: None,
+                "peak_alloc_mib": lambda: 300,
+                "revision": s2.STUDENT_FULL_REVISION,
+                "adapter_loaded": True,
+                "llama": None,
+                "dtype_census": None,
+            }
+
+        with pytest.raises(_SimulatedHardKill):
+            s2.execute(a_post, build=make_post_bundle, rig=_FakeRig(a_post))
+        sa_post_path = post_dir / "s2-hf-save-all.jsonl.gz"
+        assert len(s2.read_save_all(sa_post_path)) == 2 * 2
+        assert s2.execute(a_post, build=make_post_bundle, rig=_FakeRig(a_post)) == 0
+        assert len(s2.read_save_all(sa_post_path)) == 6 * 2
+
+        # (C) s2_interview.py writer (run_interview_for_cohort)
+        rows_by_id = {
+            f"iv_{i}": _row(f"iv_{i}", claim=f"Claim {i} has 64 bytes.", text="Passage text.")
+            for i in range(3)
+        }
+        t1_ct = "<think>missing bytes</think>" + json.dumps(
+            {
+                "verdict": "cannot_tell",
+                "reason": "missing",
+                "evidence_quotes": [{"part": "64 bytes", "verdict": "cannot_tell", "quote": ""}],
+            }
+        )
+        cohort = [
+            {
+                "item_id": f"iv_{i}",
+                "cohort": "unresolved_ct",
+                "baseline_ct_rate": 0.5,
+                "baseline_majority_ct": True,
+                "checkpoint_ct_rate": 0.0,
+                "checkpoint_majority_ct": False,
+                "baseline_first_ct": {"text": t1_ct, "sample_index": 0},
+                "checkpoint_first_ct": None,
+            }
+            for i in range(3)
+        ]
+
+        class _StubInterviewRunner:
+            def __init__(self, fail_on_item: str | None = None) -> None:
+                self.fail_on_item = fail_on_item
+
+            def ask_question(self, **kw) -> dict:
+                cid = str(kw["row"]["id"])
+                if self.fail_on_item == cid and kw["question_id"] == "Q2":
+                    raise _SimulatedHardKill(f"kill interview on {cid}")
+                q_id = kw["question_id"]
+                ans = (
+                    "64 bytes"
+                    if q_id == "Q1"
+                    else "NONE"
+                    if q_id == "Q4"
+                    else "Need size.\nMISSING_FACT: The buffer size is 64 bytes."
+                    if q_id == "Q2"
+                    else "I choose supported because of context."
+                )
+                return {
+                    "item_id": cid,
+                    "policy": kw["policy"],
+                    "question_id": q_id,
+                    "cold_control": bool(kw.get("cold_control", False)),
+                    "seed": 1,
+                    "turn1_ stripped_in_prompt": True,
+                    "original_turn1_thinking_tokens": 5,
+                    "turn1_thinking": "missing bytes",
+                    "prompt_tokens": 20,
+                    "thinking_tokens": 4,
+                    "answer_tokens": 6,
+                    "think_truncated": False,
+                    "answer_truncated": False,
+                    "thinking": "short thought",
+                    "answer": ans,
+                    "text": f"<think>short thought</think>{ans}",
+                    "ngram_repetition_rate_4": 0.0,
+                }
+
+            def run_verifier(self, cf_row, cf_seed, **kw) -> str:
+                return _reply("supported", "Passage text.", think="cf ok")
+
+        iv_kill_dir = tmp_path / "interview_kill"
+        with pytest.raises(_SimulatedHardKill):
+            s2i.run_interview_for_cohort(
+                cohort=cohort,
+                rows_by_id=rows_by_id,
+                runner=_StubInterviewRunner(fail_on_item="iv_1"),
+                out_dir=iv_kill_dir,
+                include_cold_control=False,
+            )
+        iv_sa_path = iv_kill_dir / "s2-interview-save-all.jsonl.gz"
+        assert iv_sa_path.is_file()
+        assert len(s2.read_save_all(iv_sa_path)) == 4  # item iv_0's 4 questions already on disk!
+
+        # Resume interview to completion and compare against a clean straight-through run
+        receipt_resumed = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubInterviewRunner(fail_on_item=None),
+            out_dir=iv_kill_dir,
+            include_cold_control=False,
+        )
+        iv_clean_dir = tmp_path / "interview_clean"
+        receipt_clean = s2i.run_interview_for_cohort(
+            cohort=cohort,
+            rows_by_id=rows_by_id,
+            runner=_StubInterviewRunner(fail_on_item=None),
+            out_dir=iv_clean_dir,
+            include_cold_control=False,
+        )
+        assert receipt_resumed == receipt_clean
+        assert s2.read_save_all(iv_sa_path) == s2.read_save_all(
+            iv_clean_dir / "s2-interview-save-all.jsonl.gz"
+        )
+
+        # (D) s2_interview_tag.py writer (run_two_judge_tagging)
+        q2_recs = [
+            {
+                "item_id": f"tag_{i}",
+                "policy": "baseline",
+                "question_id": "Q2",
+                "cold_control": False,
+                "original_turn1_thinking_tokens": 10 + i,
+                "turn1_thinking": f"missing fact {i} in evidence",
+                "answer": f"MISSING_FACT: missing fact {i} in evidence",
+            }
+            for i in range(4)
+        ]
+        controls = s2t.build_judge_controls(q2_recs, seed=123)
+
+        def make_judge(fail_on_call: int | None = None):
+            call_n = 0
+
+            def _judge(t1_think: str, q2_ans: str) -> dict[str, str]:
+                nonlocal call_n
+                if not t1_think.strip():
+                    return {"missing_element_match": "none", "reason_type": "generic_or_none"}
+                if t1_think.strip() in q2_ans:
+                    # Only count non-control tagging calls if we want, or count all calls after controls (75 controls)
+                    call_n += 1
+                    if fail_on_call is not None and call_n == fail_on_call:
+                        raise _SimulatedHardKill("kill tagging mid-loop")
+                    return {"missing_element_match": "same", "reason_type": "lacks"}
+                return {"missing_element_match": "different", "reason_type": "conflicts"}
+
+            return _judge
+
+        tag_kill_dir = tmp_path / "tag_kill"
+        # 30 verbatim controls have t1_think in q2_ans, so fail_on_call=33 fails on the 3rd real Q2 item (after 2 items written)
+        with pytest.raises(_SimulatedHardKill):
+            s2t.run_two_judge_tagging(
+                interview_q2_records=q2_recs,
+                judge_a_name="claude-3-5-sonnet",
+                judge_b_name="gpt-4o",
+                judge_a_fn=make_judge(fail_on_call=33),
+                judge_b_fn=make_judge(fail_on_call=None),
+                out_dir=tag_kill_dir,
+                controls=controls,
+            )
+        tags_path = tag_kill_dir / "s2-interview-tags.jsonl"
+        assert tags_path.is_file()
+        partial_tags = [json.loads(line) for line in tags_path.read_text(encoding="utf-8").splitlines() if line]
+        assert len(partial_tags) == 2
+
+        # Resume tagging to completion and compare against clean run
+        sum_resumed = s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=make_judge(fail_on_call=None),
+            judge_b_fn=make_judge(fail_on_call=None),
+            out_dir=tag_kill_dir,
+            controls=controls,
+        )
+        tag_clean_dir = tmp_path / "tag_clean"
+        sum_clean = s2t.run_two_judge_tagging(
+            interview_q2_records=q2_recs,
+            judge_a_name="claude-3-5-sonnet",
+            judge_b_name="gpt-4o",
+            judge_a_fn=make_judge(fail_on_call=None),
+            judge_b_fn=make_judge(fail_on_call=None),
+            out_dir=tag_clean_dir,
+            controls=controls,
+        )
+        assert sum_resumed == sum_clean
+        assert tags_path.read_bytes() == (tag_clean_dir / "s2-interview-tags.jsonl").read_bytes()
+
+    def test_crashsafe_06_stop_after_new_zero_refuses(self, tmp_path: Path) -> None:
+        gold_dir = _prepass_gold(tmp_path / "gold")
+        ap = s2.build_parser()
+        help_text = ap.format_help()
+        assert "--stop-after-new" in help_text
+
+        for bad_n in ("0", "-1"):
+            a_bad = ap.parse_args(
+                [
+                    "--gold",
+                    str(gold_dir),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / f"bad_{bad_n}"),
+                    "--rollout-only",
+                    "--stop-after-new",
+                    bad_n,
+                ]
+            )
+            with pytest.raises(SystemExit, match="invalid_stop_after_new"):
+                s2.validate_pass_mode_args(a_bad)
+            with pytest.raises(SystemExit, match="invalid_stop_after_new"):
+                s2.execute(a_bad, build=s2.dry_bundle)
 

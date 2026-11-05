@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import statistics
 import sys
@@ -33,13 +34,14 @@ if _HERE not in sys.path:
 from quote_rule import as_passages, normalise, quote_found  # noqa: E402
 from s2_grpo_smoke import (  # noqa: E402
     MAX_NEW_TOKENS,
+    _prepare_save_all_resume,
+    append_save_all,
     attach_or_load_adapter,
     build_prompt,
     loop_detected,
     parse_reply,
     passages_of,
     split_reply,
-    write_save_all,
 )
 
 QWEN3_THINK_TOKEN_ID = 151667
@@ -1136,6 +1138,7 @@ def run_interview_for_cohort(
     verifier_runner: Callable[[dict[str, Any], int], str] | None = None,
     include_cold_control: bool = True,
     checkpoint_sha256: str | None = None,
+    fsync: Callable[[int], None] = os.fsync,
 ) -> dict[str, Any]:
     """Run Q1 -> Q4 -> Q2 -> Q3 (plus Cold Control Q1 & Q2) across ``cohort`` and write keep-all archive."""
     eff_ckpt_sha_raw = (
@@ -1154,14 +1157,80 @@ def run_interview_for_cohort(
                 "refusing interview (checkpoint_sha_missing): "
                 "cohort includes checkpoint items; an explicit checkpoint_sha256 argument is required"
             )
-    all_records: list[dict[str, Any]] = []
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    save_all_path = out_dir / "s2-interview-save-all.jsonl.gz"
+
+    expected_turns_by_cid: dict[str, int] = {}
+    for item in cohort:
+        cid_key = str(item["item_id"])
+        n_pols = int(item.get("baseline_first_ct") is not None) + int(
+            item.get("checkpoint_first_ct") is not None
+        )
+        expected_turns_by_cid[cid_key] = n_pols * (
+            len(QUESTION_ORDER) + (2 if include_cold_control else 0)
+        )
+
+    resumed_records = _prepare_save_all_resume(
+        save_all_path,
+        valid_record=lambda r: str(r.get("item_id")) in expected_turns_by_cid,
+        record_key=lambda r: (
+            str(r.get("item_id")),
+            str(r.get("policy")),
+            str(r.get("question_id")),
+            bool(r.get("cold_control", False)),
+        ),
+        fsync=fsync,
+    )
+    counts_by_cid: dict[str, int] = {}
+    for r in resumed_records:
+        c_key = str(r.get("item_id"))
+        counts_by_cid[c_key] = counts_by_cid.get(c_key, 0) + 1
+    done_cids = {
+        c_key
+        for c_key, cnt in counts_by_cid.items()
+        if expected_turns_by_cid.get(c_key, 0) > 0 and cnt == expected_turns_by_cid[c_key]
+    }
+    if len(done_cids) != len(counts_by_cid):
+        resumed_records = _prepare_save_all_resume(
+            save_all_path,
+            valid_record=lambda r: str(r.get("item_id")) in done_cids,
+            record_key=lambda r: (
+                str(r.get("item_id")),
+                str(r.get("policy")),
+                str(r.get("question_id")),
+                bool(r.get("cold_control", False)),
+            ),
+            fsync=fsync,
+        )
+
+    all_records: list[dict[str, Any]] = list(resumed_records)
     q3_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     part_scores_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     cold_part_scores_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     cf_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
+    for r in resumed_records:
+        pol_raw = str(r.get("policy", ""))
+        q_id_r = str(r.get("question_id", ""))
+        mech = r.get("mechanical_score")
+        if not isinstance(mech, dict):
+            continue
+        if r.get("cold_control") or pol_raw.startswith("cold_control:"):
+            base_pol = pol_raw.split(":", 1)[-1]
+            if q_id_r == "Q1" and base_pol in cold_part_scores_by_policy:
+                cold_part_scores_by_policy[base_pol].append(mech)
+        elif pol_raw in part_scores_by_policy:
+            if q_id_r == "Q1":
+                part_scores_by_policy[pol_raw].append(mech)
+            elif q_id_r == "Q2":
+                cf_by_policy[pol_raw].append(mech)
+            elif q_id_r == "Q3":
+                q3_by_policy[pol_raw].append(mech)
 
     for item in cohort:
         cid = str(item["item_id"])
+        if cid in done_cids:
+            continue
         row = rows_by_id[cid]
         claim_text = str(row.get("claim", ""))
         gold_verdict = str(row.get("label", "supported"))
@@ -1173,6 +1242,7 @@ def run_interview_for_cohort(
         if item.get("checkpoint_first_ct") is not None:
             policies_to_run.append(("checkpoint", item["checkpoint_first_ct"]))
 
+        item_records: list[dict[str, Any]] = []
         for pol_name, first_ct in policies_to_run:
             assert first_ct is not None
             turn1_text = str(first_ct["text"])
@@ -1242,7 +1312,7 @@ def run_interview_for_cohort(
                     lean_sc = score_q3_lean_item(q_rec["answer"], gold_verdict, cid)
                     q_rec["mechanical_score"] = lean_sc
                     q3_by_policy[pol_name].append(lean_sc)
-                all_records.append(q_rec)
+                item_records.append(q_rec)
 
             if include_cold_control:
                 for cold_q_id in ("Q1", "Q2"):
@@ -1270,12 +1340,15 @@ def run_interview_for_cohort(
                         cold_pm = score_part_match(c_rec["answer"], ct_parts, claim_text)
                         c_rec["mechanical_score"] = cold_pm
                         cold_part_scores_by_policy[pol_name].append(cold_pm)
-                    all_records.append(c_rec)
+                    item_records.append(c_rec)
 
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    save_all_path = out_dir / "s2-interview-save-all.jsonl.gz"
-    save_all_sha = write_save_all(save_all_path, all_records)
+        append_save_all(save_all_path, item_records, fsync=fsync)
+        all_records.extend(item_records)
+        done_cids.add(cid)
+
+    if not save_all_path.exists():
+        append_save_all(save_all_path, (), fsync=fsync)
+    save_all_sha = hashlib.sha256(save_all_path.read_bytes()).hexdigest()
 
     def _summarize_part_scores(scores: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         if not scores:

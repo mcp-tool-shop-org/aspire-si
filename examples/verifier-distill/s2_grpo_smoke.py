@@ -36,6 +36,7 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
+import zlib
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -1477,6 +1478,7 @@ def build_receipt(
         "holdout_count",
         "holdout_ids_sha256",
         "train_ids_sha256",
+        "stop_after_new",
     ):
         if k in args:
             out[k] = args[k]
@@ -1506,10 +1508,137 @@ def write_save_all(
     return hashlib.sha256(gz_bytes).hexdigest()
 
 
+def append_save_all(
+    path: Path,
+    records: Sequence[dict],
+    *,
+    fsync: Callable[[int], None] = os.fsync,
+) -> None:
+    """Append ``records`` as one deterministic gzip member (mtime=0) with flush + fsync."""
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if not records:
+        if not out_path.exists():
+            gz_bytes = gzip.compress(b"", mtime=0)
+            with out_path.open("ab") as fh:
+                fh.write(gz_bytes)
+                fh.flush()
+                fsync(fh.fileno())
+        return
+    raw_bytes = "".join(json.dumps(r) + "\n" for r in records).encode("utf-8")
+    gz_bytes = gzip.compress(raw_bytes, mtime=0)
+    with out_path.open("ab") as fh:
+        fh.write(gz_bytes)
+        fh.flush()
+        fsync(fh.fileno())
+
+
+def _prepare_save_all_resume(
+    path: Path,
+    *,
+    valid_record: Callable[[dict], bool] | None = None,
+    record_key: Callable[[dict], Any] | None = None,
+    fsync: Callable[[int], None] = os.fsync,
+) -> list[dict]:
+    """Read back a ``.jsonl.gz`` save-all archive across gzip members, dropping uncommitted members."""
+    in_path = Path(path)
+    if not in_path.exists():
+        return []
+    raw = in_path.read_bytes()
+    if not raw:
+        return []
+    kept_records: list[dict] = []
+    seen_keys: set[Any] = set()
+    clean_chunks: list[bytes] = []
+    modified = False
+    pos = 0
+    total_len = len(raw)
+    while pos < total_len:
+        dobj = zlib.decompressobj(16 + zlib.MAX_WBITS)
+        try:
+            member_raw = dobj.decompress(raw[pos:])
+        except zlib.error:
+            modified = True
+            break
+        if not dobj.eof:
+            modified = True
+            break
+        consumed = len(raw[pos:]) - len(dobj.unused_data)
+        if consumed <= 0:
+            modified = True
+            break
+        member_bytes = raw[pos : pos + consumed]
+        pos += consumed
+        try:
+            text = member_raw.decode("utf-8")
+        except UnicodeDecodeError:
+            modified = True
+            break
+        if text and not text.endswith("\n"):
+            modified = True
+            break
+        member_records: list[dict] = []
+        parse_ok = True
+        for line in text.splitlines():
+            s = line.strip()
+            if not s:
+                continue
+            try:
+                obj = json.loads(s)
+            except json.JSONDecodeError:
+                parse_ok = False
+                break
+            if not isinstance(obj, dict):
+                parse_ok = False
+                break
+            member_records.append(obj)
+        if not parse_ok:
+            modified = True
+            break
+        filtered: list[dict] = []
+        member_kept_all = True
+        for rec in member_records:
+            if valid_record is not None and not valid_record(rec):
+                member_kept_all = False
+                continue
+            if record_key is not None:
+                rk = record_key(rec)
+                if rk in seen_keys:
+                    member_kept_all = False
+                    continue
+                seen_keys.add(rk)
+            filtered.append(rec)
+        if not member_records:
+            if not modified:
+                clean_chunks.append(member_bytes)
+            continue
+        if member_kept_all and not modified:
+            clean_chunks.append(member_bytes)
+        else:
+            modified = True
+            if filtered:
+                reencoded = "".join(json.dumps(r) + "\n" for r in filtered).encode("utf-8")
+                clean_chunks.append(gzip.compress(reencoded, mtime=0))
+        kept_records.extend(filtered)
+
+    clean_bytes = b"".join(clean_chunks)
+    if modified or len(clean_bytes) != len(raw):
+        with in_path.open("r+b") as fh:
+            fh.seek(0)
+            if clean_bytes:
+                fh.write(clean_bytes)
+            fh.truncate(len(clean_bytes))
+            fh.flush()
+            fsync(fh.fileno())
+    return kept_records
+
+
 def read_save_all(path: Path) -> list[dict]:
     """Read completion records from a ``.jsonl.gz`` (or plain ``.jsonl``) save-all archive."""
     in_path = Path(path)
     raw = in_path.read_bytes()
+    if not raw:
+        return []
     text = gzip.decompress(raw).decode("utf-8") if in_path.name.endswith(".gz") else raw.decode("utf-8")
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
@@ -2357,6 +2486,8 @@ def run_steps(
     prepass_baseline_k: dict[str, int] | None = None,
     group_residuals: list[tuple[str, int, float]] | None = None,
     save_all_records: list[dict] | None = None,
+    save_all_path: Path | None = None,
+    fsync: Callable[[int], None] = os.fsync,
     base_seed: int = 0,
     holdout_ids: Sequence[str] | set[str] | None = None,
     mask_wrong_positive_advantage: bool = False,
@@ -2395,8 +2526,65 @@ def run_steps(
         empty_cache = getattr(cuda_mod, "empty_cache", lambda: None)
     eos_ids = _eos_token_ids(tok)
     rows: list[dict] = []
+    if save_all_path is not None:
+        sa_p = Path(save_all_path)
+        resumed_sa = _prepare_save_all_resume(
+            sa_p,
+            record_key=lambda r: (
+                int(r.get("step", -1)),
+                int(r.get("group", -1)),
+                int(r.get("sample_index", -1)),
+            ),
+            fsync=fsync,
+        )
+        expected_total_groups = steps * groups_per_update
+        resumed_groups: dict[tuple[int, int], list[dict]] = {}
+        for r in resumed_sa:
+            s_val = int(r.get("step", -1))
+            g_val = int(r.get("group", -1))
+            if s_val >= 0 and g_val >= 0:
+                resumed_groups.setdefault((s_val, g_val), []).append(r)
+        if len(resumed_groups) >= expected_total_groups and sa_p.exists():
+            sa_p.unlink()
+            resumed_sa = []
+            resumed_groups = {}
+        if save_all_records is not None:
+            save_all_records.clear()
+            save_all_records.extend(resumed_sa)
+        if steps == 0 and not sa_p.exists():
+            append_save_all(sa_p, (), fsync=fsync)
+    else:
+        resumed_groups = {}
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     for step in range(steps):
+        if all((step, g_idx) in resumed_groups for g_idx in range(groups_per_update)):
+            step_rews = [
+                float(r.get("reward", 0.0))
+                for g_idx in range(groups_per_update)
+                for r in resumed_groups[(step, g_idx)]
+            ]
+            step_zv = sum(
+                int(zero_variance([float(r.get("reward", 0.0)) for r in resumed_groups[(step, g_idx)]]))
+                for g_idx in range(groups_per_update)
+            )
+            rows.append(
+                {
+                    "step": step,
+                    "groups": groups_per_update,
+                    "active_groups": groups_per_update - step_zv,
+                    "zero_variance_groups": step_zv,
+                    "tokens": 0,
+                    "rollout_s": 0.0,
+                    "train_s": 0.0,
+                    "step_s": 0.0,
+                    "mean_reward": round(statistics.fmean(step_rews), 4) if step_rews else 0.0,
+                    "loss": 0.0,
+                    "peak_alloc_mib": peak_alloc_mib(),
+                    "grad_ckpt": state()["grad_ckpt"] if state else None,
+                    "grad_ckpt_rollout": state()["grad_ckpt"] if state else None,
+                }
+            )
+            continue
         try:
             started = time.time()
             if before_step:
@@ -2424,6 +2612,14 @@ def run_steps(
                 or ct_guard is not None
             )
             for k in range(groups_per_update):
+                if (step, k) in resumed_groups:
+                    grp_rews = [float(r.get("reward", 0.0)) for r in resumed_groups[(step, k)]]
+                    rewards_all.extend(grp_rews)
+                    is_zv_resumed = zero_variance(grp_rews)
+                    zero_var += int(is_zv_resumed)
+                    if not is_zv_resumed:
+                        active_groups += 1
+                    continue
                 row = prompts[(step * groups_per_update + k) % len(prompts)]
                 if holdout_set and str(row.get("id", "")) in holdout_set:
                     raise SystemExit(
@@ -2481,7 +2677,7 @@ def run_steps(
                     think_counts.append(tt)
                     r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
                     rewards.append(r_val)
-                    if save_all_records is not None:
+                    if save_all_records is not None or save_all_path is not None:
                         group_decoded.append((text, think, answer, bool(trunc)))
                     if eval_records is not None:
                         rollout_outcomes.append(
@@ -2528,9 +2724,10 @@ def run_steps(
                     if guard_stop is not None:
                         step_guard_stop = guard_stop
 
-                if save_all_records is not None:
+                if save_all_records is not None or save_all_path is not None:
                     grp_item_id = str(row.get("id", k))
                     grp_seed = item_seed(grp_item_id, base_seed + step * groups_per_update + k)
+                    grp_save_rows: list[dict] = []
                     for sample_idx, ((text, think, answer, is_trunc), r_val, adv_val) in enumerate(
                         zip(group_decoded, rewards, adv_list, strict=True)
                     ):
@@ -2543,7 +2740,7 @@ def run_steps(
                             if parsed_obj is None
                             else ("cannot_tell" if loop_detected(text) else parsed_obj["verdict"])
                         )
-                        save_all_records.append(
+                        grp_save_rows.append(
                             {
                                 "kind": "rollout",
                                 "item_id": grp_item_id,
@@ -2561,6 +2758,10 @@ def run_steps(
                                 "truncated": bool(is_trunc),
                             }
                         )
+                    if save_all_path is not None:
+                        append_save_all(save_all_path, grp_save_rows, fsync=fsync)
+                    if save_all_records is not None:
+                        save_all_records.extend(grp_save_rows)
 
                 if eval_records is not None:
                     for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
@@ -3614,6 +3815,22 @@ def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str
         descriptive = False
 
     is_pass_mode = bool(rollout_only or logging_pass or postpass)
+    stop_after_new_raw = getattr(a, "stop_after_new", None)
+    if stop_after_new_raw is not None:
+        if (
+            isinstance(stop_after_new_raw, bool)
+            or not isinstance(stop_after_new_raw, int)
+            or stop_after_new_raw < 1
+        ):
+            raise SystemExit(
+                f"refusing to start (invalid_stop_after_new): "
+                f"--stop-after-new must be >= 1, got {stop_after_new_raw!r}"
+            )
+        if not is_pass_mode:
+            raise SystemExit(
+                "refusing to start (unused_stop_after_new): "
+                "--stop-after-new requires --rollout-only, --logging-pass, or --postpass"
+            )
     return is_pass_mode, descriptive, eff_seed, ckpt_sha
 
 
@@ -3638,6 +3855,7 @@ def build_prepass_header(
     b2_replay_settings: Mapping[str, Any] | None = None,
     replay_check_sha256: str | None = None,
     replay_check_off_reason: str | None = None,
+    stop_after_new: int | None = None,
 ) -> dict:
     hdr: dict = {
         "ids_sha256": ids_sha256(prompt_ids),
@@ -3673,6 +3891,8 @@ def build_prepass_header(
         hdr["checkpoint_files_sha256"] = dict(checkpoint_files_sha)
     if pass_a_sha is not None:
         hdr["pass_a_sha256"] = pass_a_sha
+    if stop_after_new is not None:
+        hdr["stop_after_new"] = int(stop_after_new)
     return hdr
 
 
@@ -4337,10 +4557,20 @@ def _prepare_prepass_resume(
         mismatched = [
             k
             for k in sorted(set(expected_header) | set(existing_cmp))
-            if existing_cmp.get(k) != expected_header.get(k)
+            if k != "stop_after_new" and existing_cmp.get(k) != expected_header.get(k)
         ]
         if mismatched:
             raise SystemExit(f"refusing to resume prepass: header mismatch on {', '.join(mismatched)}")
+        if existing_header.get("stop_after_new") != expected_header.get("stop_after_new"):
+            updated_header = dict(existing_header)
+            if "stop_after_new" in expected_header:
+                updated_header["stop_after_new"] = expected_header["stop_after_new"]
+            else:
+                updated_header.pop("stop_after_new", None)
+            with header_path.open("w", encoding="utf-8", newline="\n") as hfh:
+                hfh.write(json.dumps(updated_header, indent=1) + "\n")
+                hfh.flush()
+                fsync(hfh.fileno())
     elif jsonl_path.exists():
         raise SystemExit(f"refusing to resume prepass: {jsonl_path} exists without {header_path}")
     else:
@@ -4464,6 +4694,22 @@ def run_prepass(
         eff_rc_sha = str(a.replay_check_sha256).strip().lower()
     if eff_rc_off is None and getattr(a, "replay_check_off_reason", None):
         eff_rc_off = str(a.replay_check_off_reason).strip() or None
+    eff_stop_after_new = (
+        stop_after_new if stop_after_new is not None else getattr(a, "stop_after_new", None)
+    )
+    if eff_stop_after_new is not None:
+        if (
+            isinstance(eff_stop_after_new, bool)
+            or not isinstance(eff_stop_after_new, int)
+            or eff_stop_after_new < 1
+        ):
+            raise SystemExit(
+                f"refusing to start (invalid_stop_after_new): "
+                f"--stop-after-new must be >= 1, got {eff_stop_after_new!r}"
+            )
+    hdr_stop_after_new = getattr(a, "stop_after_new", None)
+    if hdr_stop_after_new is not None:
+        hdr_stop_after_new = int(hdr_stop_after_new)
     expected_header = build_prepass_header(
         prompt_ids=[r["id"] for r in prompts],
         gold_hashes=gold_hashes,
@@ -4482,6 +4728,7 @@ def run_prepass(
         pip_freeze_sha256=pip_freeze_sha256,
         replay_check_sha256=eff_rc_sha,
         replay_check_off_reason=eff_rc_off,
+        stop_after_new=hdr_stop_after_new,
     )
     a.out.mkdir(parents=True, exist_ok=True)
     header_path = a.out / f"s2-{a.path}-prepass-header.json"
@@ -4500,10 +4747,15 @@ def run_prepass(
     )
     done_ids = {str(r["id"]) for r in completed_records}
     pass_save_records: list[dict] = []
-    if save_all_on and done_ids and save_all_path.exists():
-        pass_save_records = [
-            r for r in read_save_all(save_all_path) if str(r.get("item_id")) in done_ids
-        ]
+    if save_all_on:
+        pass_save_records = _prepare_save_all_resume(
+            save_all_path,
+            valid_record=lambda r: str(r.get("item_id")) in done_ids,
+            record_key=lambda r: (str(r.get("item_id")), int(r.get("sample_index", -1))),
+            fsync=fsync,
+        )
+        if not prompts and not save_all_path.exists():
+            append_save_all(save_all_path, (), fsync=fsync)
 
     if mode:
         mode(False)
@@ -4516,139 +4768,143 @@ def run_prepass(
     new_count = 0
     stopped_mismatch: dict | None = None
 
-    try:
-        with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
-            for item_idx, row in enumerate(prompts):
-                item_id = str(row["id"])
-                if item_id in done_ids:
-                    continue
-                if stop_after_new is not None and new_count >= stop_after_new:
-                    break
-                try:
-                    started = time.time()
-                    seed_for_item = item_seed(item_id, eff_seed)
-                    torch.manual_seed(seed_for_item)
-                    prompt_text = build_prompt(row)
-                    ckpt_rollout = state()["grad_ckpt"] if state else None
-                    if phase_logger is not None:
-                        phase_logger.record(
-                            step=0,
-                            group=item_idx,
-                            phase="pre_rollout",
-                            prompt_tokens=len(tok.encode(prompt_text)),
-                            completion_lengths=(),
-                        )
-                    t0 = time.time()
-                    roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
-                    if len(roll_out) == 3:
-                        prompt_ids, comps, truncs = roll_out
-                        truncs = [bool(t) for t in truncs]
-                    else:
-                        prompt_ids, comps = roll_out
-                        truncs = [
-                            len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
-                            for c in comps
-                        ]
-                    device_sync()
-                    roll_s = time.time() - t0
-                    comp_lens = [len(c) for c in comps]
-                    if empty_cache_phases and empty_cache is not None:
-                        empty_cache()
-                    if phase_logger is not None:
-                        phase_logger.record(
-                            step=0,
-                            group=item_idx,
-                            phase="post_rollout",
-                            prompt_tokens=len(prompt_ids),
-                            completion_lengths=comp_lens,
-                        )
-                    rec, rollout_outcomes = prepass_item_record(
-                        row=row,
-                        prompt_ids=prompt_ids,
-                        comps=comps,
-                        truncs=truncs,
-                        tok=tok,
-                        reward_fn=reward_fn,
-                        quote_reward=quote_rew,
-                        save_all_out=pass_save_records if save_all_on else None,
-                        pass_id=pass_id_str,
-                        item_seed_val=seed_for_item,
-                        pass_seed=eff_seed,
-                        descriptive=descriptive,
-                        pass_a_k=pass_a_k,
+    with jsonl_path.open("a", encoding="utf-8", newline="\n") as jfh:
+        for item_idx, row in enumerate(prompts):
+            item_id = str(row["id"])
+            if item_id in done_ids:
+                continue
+            if eff_stop_after_new is not None and new_count >= eff_stop_after_new:
+                break
+            try:
+                started = time.time()
+                seed_for_item = item_seed(item_id, eff_seed)
+                torch.manual_seed(seed_for_item)
+                prompt_text = build_prompt(row)
+                ckpt_rollout = state()["grad_ckpt"] if state else None
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=0,
+                        group=item_idx,
+                        phase="pre_rollout",
+                        prompt_tokens=len(tok.encode(prompt_text)),
+                        completion_lengths=(),
                     )
-                    if eval_records is not None:
-                        rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
-                        adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
-                        for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
-                            ro_item["advantage"] = float(adv_val)
-                        eval_records.append(
-                            {
-                                "step": 0,
-                                "group": item_idx,
-                                "gold": str(row.get("label", "supported")),
-                                "rollouts": rollout_outcomes,
-                            }
-                        )
-                    jfh.write(json.dumps(rec) + "\n")
-                    jfh.flush()
-                    fsync(jfh.fileno())
-                    completed_records.append(rec)
-                    done_ids.add(item_id)
-                    new_count += 1
-                    is_zv = bool(rec["zero_variance"])
-                    step_rows.append(
+                t0 = time.time()
+                roll_out = rollout(prompt_text, a.g, a.max_new, TEMPERATURE)
+                if len(roll_out) == 3:
+                    prompt_ids, comps, truncs = roll_out
+                    truncs = [bool(t) for t in truncs]
+                else:
+                    prompt_ids, comps = roll_out
+                    truncs = [
+                        len(c) >= a.max_new and (not eos_ids or not any(t in eos_ids for t in c))
+                        for c in comps
+                    ]
+                device_sync()
+                roll_s = time.time() - t0
+                comp_lens = [len(c) for c in comps]
+                if empty_cache_phases and empty_cache is not None:
+                    empty_cache()
+                if phase_logger is not None:
+                    phase_logger.record(
+                        step=0,
+                        group=item_idx,
+                        phase="post_rollout",
+                        prompt_tokens=len(prompt_ids),
+                        completion_lengths=comp_lens,
+                    )
+                item_save_records: list[dict] = []
+                rec, rollout_outcomes = prepass_item_record(
+                    row=row,
+                    prompt_ids=prompt_ids,
+                    comps=comps,
+                    truncs=truncs,
+                    tok=tok,
+                    reward_fn=reward_fn,
+                    quote_reward=quote_rew,
+                    save_all_out=item_save_records if save_all_on else None,
+                    pass_id=pass_id_str,
+                    item_seed_val=seed_for_item,
+                    pass_seed=eff_seed,
+                    descriptive=descriptive,
+                    pass_a_k=pass_a_k,
+                )
+                if eval_records is not None:
+                    rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
+                    adv_list = advantages(rewards_list, mode=adv_mode) if rewards_list else []
+                    for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
+                        ro_item["advantage"] = float(adv_val)
+                    eval_records.append(
                         {
-                            "step": item_idx,
-                            "groups": 1,
-                            "active_groups": int(not is_zv),
-                            "zero_variance_groups": int(is_zv),
-                            "tokens": sum(comp_lens),
-                            "rollout_s": round(roll_s, 4),
-                            "train_s": 0.0,
-                            "step_s": round(time.time() - started, 4),
-                            "mean_reward": rec["reward_mean"],
-                            "loss": 0.0,
-                            "peak_alloc_mib": (
-                                phase_logger.peak_alloc_mib()
-                                if phase_logger is not None and phase_logger.max_memory_allocated is not None
-                                else peak_alloc_mib()
-                            ),
-                            "grad_ckpt": None,
-                            "grad_ckpt_rollout": ckpt_rollout,
+                            "step": 0,
+                            "group": item_idx,
+                            "gold": str(row.get("label", "supported")),
+                            "rollouts": rollout_outcomes,
                         }
                     )
-                    if replay_check_k is not None:
-                        b2_k = int(replay_check_k[item_id])
-                        cur_k = int(rec["k_correct"])
-                        if cur_k != b2_k:
-                            mismatch_msg = (
-                                f"LOGGING_PASS_REPLAY_MISMATCH: item_id={item_id} "
-                                f"k_correct={cur_k} b2_k_correct={b2_k}"
-                            )
-                            stopped_mismatch = {
-                                "step": item_idx,
-                                "reason": "LOGGING_PASS_REPLAY_MISMATCH",
-                                "error": mismatch_msg,
-                                "item_id": item_id,
-                                "k_correct": cur_k,
-                                "b2_k_correct": b2_k,
-                            }
-                            break
-                except oom_types:
-                    return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
-                except TimeoutError as exc:
-                    return (
-                        step_rows,
-                        completed_records,
-                        {"step": item_idx, "error": f"timeout: {exc}"},
-                        False,
-                    )
-    finally:
-        if save_all_on:
-            write_save_all(save_all_path, pass_save_records, fsync=fsync)
+                if save_all_on:
+                    append_save_all(save_all_path, item_save_records, fsync=fsync)
+                    pass_save_records.extend(item_save_records)
+                jfh.write(json.dumps(rec) + "\n")
+                jfh.flush()
+                fsync(jfh.fileno())
+                completed_records.append(rec)
+                done_ids.add(item_id)
+                new_count += 1
+                is_zv = bool(rec["zero_variance"])
+                step_rows.append(
+                    {
+                        "step": item_idx,
+                        "groups": 1,
+                        "active_groups": int(not is_zv),
+                        "zero_variance_groups": int(is_zv),
+                        "tokens": sum(comp_lens),
+                        "rollout_s": round(roll_s, 4),
+                        "train_s": 0.0,
+                        "step_s": round(time.time() - started, 4),
+                        "mean_reward": rec["reward_mean"],
+                        "loss": 0.0,
+                        "peak_alloc_mib": (
+                            phase_logger.peak_alloc_mib()
+                            if phase_logger is not None and phase_logger.max_memory_allocated is not None
+                            else peak_alloc_mib()
+                        ),
+                        "grad_ckpt": None,
+                        "grad_ckpt_rollout": ckpt_rollout,
+                    }
+                )
+                if replay_check_k is not None:
+                    b2_k = int(replay_check_k[item_id])
+                    cur_k = int(rec["k_correct"])
+                    if cur_k != b2_k:
+                        mismatch_msg = (
+                            f"LOGGING_PASS_REPLAY_MISMATCH: item_id={item_id} "
+                            f"k_correct={cur_k} b2_k_correct={b2_k}"
+                        )
+                        stopped_mismatch = {
+                            "step": item_idx,
+                            "reason": "LOGGING_PASS_REPLAY_MISMATCH",
+                            "error": mismatch_msg,
+                            "item_id": item_id,
+                            "k_correct": cur_k,
+                            "b2_k_correct": b2_k,
+                        }
+                        break
+            except oom_types:
+                return step_rows, completed_records, {"step": item_idx, "error": "out of memory"}, True
+            except TimeoutError as exc:
+                return (
+                    step_rows,
+                    completed_records,
+                    {"step": item_idx, "error": f"timeout: {exc}"},
+                    False,
+                )
 
-    if len(completed_records) == len(prompts) or stopped_mismatch is not None:
+    if (
+        len(completed_records) == len(prompts)
+        or stopped_mismatch is not None
+        or eff_stop_after_new is not None
+    ):
         summary_doc = prepass_summary(
             completed_records,
             g=a.g,
@@ -5005,6 +5261,8 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["save_all_off_reason"] = (getattr(a, "save_all_off_reason", None) or "").strip()
     if getattr(a, "pass_id", None):
         flags["pass_id"] = str(a.pass_id)
+    if getattr(a, "stop_after_new", None) is not None:
+        flags["stop_after_new"] = int(a.stop_after_new)
     if getattr(a, "mask_wrong_positive_advantage", False):
         flags["mask_wrong_positive_advantage"] = True
         flags["dual_clip_c"] = float(getattr(a, "dual_clip_c", None) or DUAL_CLIP_C)
@@ -5302,6 +5560,7 @@ def execute(
                 exercise_dry_resume = (
                     a.dry
                     and bundle.get("dry_prepass_cap") is not None
+                    and getattr(a, "stop_after_new", None) is None
                     and not header_path.exists()
                     and not jsonl_path.exists()
                     and len(prompts) >= 2
@@ -5462,6 +5721,7 @@ def execute(
                 prepass_baseline_k=prepass_baseline_k,
                 group_residuals=group_residuals if prepass_baseline_k is not None else None,
                 save_all_records=rollout_save_records if save_all_on else None,
+                save_all_path=save_all_file_path(a.out, a.path) if save_all_on else None,
                 base_seed=int(getattr(a, "draw_seed", None) or 0),
                 holdout_ids=holdout_ids_list or None,
                 mask_wrong_positive_advantage=bool(getattr(a, "mask_wrong_positive_advantage", False)),
@@ -5477,10 +5737,9 @@ def execute(
         save_all_sha: str | None = None
         if save_all_on:
             sa_path = save_all_file_path(a.out, a.path)
-            if rollout_only:
-                save_all_sha = hashlib.sha256(sa_path.read_bytes()).hexdigest()
-            else:
-                save_all_sha = write_save_all(sa_path, rollout_save_records)
+            if not sa_path.exists():
+                append_save_all(sa_path, ())
+            save_all_sha = hashlib.sha256(sa_path.read_bytes()).hexdigest()
         eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
@@ -5829,6 +6088,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional pass identifier recorded in save-all completion rows",
     )
     ap.add_argument(
+        "--stop-after-new",
+        type=int,
+        default=None,
+        help=(
+            "stop cleanly after N >= 1 newly completed items in --rollout-only, "
+            "--logging-pass, or --postpass mode so summaries and receipts run"
+        ),
+    )
+    ap.add_argument(
         "--logging-pass",
         action="store_true",
         help="run the starting-policy logging pass (seed 1, descriptive=true, never accepted as baseline)",
@@ -5891,7 +6159,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--holdout",
         action="store_true",
-        help="hold out a stratified 20% (Pass-A band x gold class) from all training draws",
+        help="hold out a stratified 20%% (Pass-A band x gold class) from all training draws",
     )
     ap.add_argument(
         "--holdout-fraction",
