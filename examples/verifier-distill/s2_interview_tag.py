@@ -19,15 +19,23 @@ Implements the descriptive tagging layer of DESIGN-ct-interview-v2-2026-11-05.md
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import math
 import os
 import random
 import statistics
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
+
+_HERE = str(Path(__file__).resolve().parent)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
+from s2_grpo_smoke import _append_dropped_entries  # noqa: E402
 
 MISSING_ELEMENT_LABELS = ("same", "different", "none")
 REASON_TYPE_LABELS = ("lacks", "conflicts", "generic_or_none")
@@ -492,7 +500,7 @@ def _prepare_tags_resume(
     *,
     fsync: Callable[[int], None] = os.fsync,
 ) -> list[dict[str, Any]]:
-    """Read back completed tag rows from ``s2-interview-tags.jsonl`` and truncate partial/duplicate lines."""
+    """Read back completed tag rows and move dropped lines/records to ``.dropped.jsonl.gz``."""
     if not tags_path.exists():
         return []
     raw = tags_path.read_bytes()
@@ -502,6 +510,7 @@ def _prepare_tags_resume(
     completed: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str]] = set()
     clean_chunks: list[bytes] = []
+    dropped_entries: list[dict[str, Any]] = []
     modified = False
     for idx, line_bytes in enumerate(raw_lines):
         is_last = idx == len(raw_lines) - 1
@@ -511,6 +520,13 @@ def _prepare_tags_resume(
             obj = json.loads(text_line) if text_line else None
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             if is_last:
+                dropped_entries.append(
+                    {
+                        "reason": "torn_member",
+                        "line_index": idx + 1,
+                        "raw_bytes_b64": base64.b64encode(line_bytes).decode("ascii"),
+                    }
+                )
                 modified = True
                 break
             raise SystemExit(
@@ -518,6 +534,14 @@ def _prepare_tags_resume(
             ) from exc
         if not has_nl or not isinstance(obj, dict) or not set(TAG_RECORD_KEYS).issubset(obj.keys()):
             if is_last:
+                entry: dict[str, Any] = {
+                    "reason": "torn_member",
+                    "line_index": idx + 1,
+                    "raw_bytes_b64": base64.b64encode(line_bytes).decode("ascii"),
+                }
+                if isinstance(obj, dict):
+                    entry.update({**obj, "reason": "torn_member", "record": obj})
+                dropped_entries.append(entry)
                 modified = True
                 break
             raise SystemExit(
@@ -525,6 +549,7 @@ def _prepare_tags_resume(
             )
         rk = (str(obj.get("item_id", "")), str(obj.get("policy", "baseline")))
         if rk in seen_keys:
+            dropped_entries.append({**obj, "reason": "duplicate_record", "record": obj})
             modified = True
             continue
         seen_keys.add(rk)
@@ -533,6 +558,8 @@ def _prepare_tags_resume(
 
     clean_bytes = b"".join(clean_chunks)
     if modified or len(clean_bytes) != len(raw):
+        if dropped_entries:
+            _append_dropped_entries(tags_path, dropped_entries, fsync=fsync)
         with tags_path.open("r+b") as tfh:
             tfh.seek(0)
             if clean_bytes:
@@ -556,6 +583,7 @@ def run_two_judge_tagging(
     controls: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
     min_control_accuracy: float = CONTROL_GATE_MIN_ACCURACY,
     audit_seed: int = 20261105,
+    checkpoint_sha256: str | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> dict[str, Any]:
     """Validate two non-Qwen judges on the 3 control sets (>=90% gate), tag all Q2 records against
@@ -577,6 +605,120 @@ def run_two_judge_tagging(
             )
 
     ja_name, jb_name = require_two_non_qwen_judges(judge_a_name, judge_b_name)
+    eff_ckpt_sha = (
+        str(checkpoint_sha256).strip().lower()
+        if checkpoint_sha256 is not None and str(checkpoint_sha256).strip()
+        else None
+    )
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tags_path = out_dir / "s2-interview-tags.jsonl"
+    header_path = out_dir / "s2-interview-tags-header.json"
+
+    current_row_shas: dict[str, dict[str, str]] = {}
+    for rec in q2_records:
+        rk_str = f"{rec.get('item_id', '')}:{rec.get('policy', 'baseline')}"
+        t1_s = hashlib.sha256(str(rec["turn1_thinking"]).encode("utf-8")).hexdigest()
+        q2_s = hashlib.sha256(
+            str(rec.get("q2_answer", rec.get("answer", rec.get("q1_answer", "")))).encode("utf-8")
+        ).hexdigest()
+        current_row_shas[rk_str] = {
+            "turn1_thinking_sha256": t1_s,
+            "q2_answer_sha256": q2_s,
+        }
+
+    expected_header: dict[str, Any] = {
+        "checkpoint_sha256": eff_ckpt_sha,
+        "judge_a": ja_name,
+        "judge_b": jb_name,
+        "tagged_question_id": "Q2",
+        "min_control_accuracy": float(min_control_accuracy),
+        "audit_seed": int(audit_seed),
+        "rows": dict(current_row_shas),
+    }
+
+    if header_path.exists():
+        try:
+            existing_header = json.loads(header_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise SystemExit(
+                f"refusing to resume interview tagging (RESUME_HEADER_MISMATCH): "
+                f"corrupt header {header_path.name}"
+            ) from exc
+        if not isinstance(existing_header, dict):
+            raise SystemExit(
+                f"refusing to resume interview tagging (RESUME_HEADER_MISMATCH): "
+                f"invalid header {header_path.name}"
+            )
+        mismatched = [
+            k
+            for k in (
+                "checkpoint_sha256",
+                "judge_a",
+                "judge_b",
+                "tagged_question_id",
+                "min_control_accuracy",
+                "audit_seed",
+            )
+            if existing_header.get(k) != expected_header.get(k)
+        ]
+        prev_rows = existing_header.get("rows")
+        if isinstance(prev_rows, Mapping):
+            for rk_str, cur_shas in current_row_shas.items():
+                if rk_str in prev_rows and prev_rows[rk_str] != cur_shas:
+                    mismatched.append(f"rows[{rk_str}]")
+        if mismatched:
+            raise SystemExit(
+                f"refusing to resume interview tagging (RESUME_HEADER_MISMATCH): "
+                f"header mismatch on {', '.join(mismatched)}"
+            )
+    elif tags_path.exists() and tags_path.stat().st_size > 0:
+        raise SystemExit(
+            f"refusing to resume interview tagging (RESUME_HEADER_MISMATCH): "
+            f"{tags_path.name} exists without {header_path.name}"
+        )
+
+    resumed_tags = _prepare_tags_resume(tags_path, fsync=fsync)
+    resumed_by_key: dict[tuple[str, str], dict[str, Any]] = {
+        (str(r.get("item_id", "")), str(r.get("policy", "baseline"))): r for r in resumed_tags
+    }
+    for rec in q2_records:
+        item_key = (str(rec.get("item_id", "")), str(rec.get("policy", "baseline")))
+        if item_key in resumed_by_key:
+            tag_row = resumed_by_key[item_key]
+            rk_str = f"{item_key[0]}:{item_key[1]}"
+            cur_shas = current_row_shas[rk_str]
+            if (
+                str(tag_row.get("turn1_thinking_sha256", "")) != cur_shas["turn1_thinking_sha256"]
+                or str(tag_row.get("q2_answer_sha256", "")) != cur_shas["q2_answer_sha256"]
+            ):
+                raise SystemExit(
+                    f"refusing to resume interview tagging (RESUME_HEADER_MISMATCH): "
+                    f"sha256 mismatch on resumed row {rk_str}"
+                )
+
+    merged_rows: dict[str, dict[str, str]] = {}
+    if header_path.exists():
+        prev_rows_obj = existing_header.get("rows")
+        if isinstance(prev_rows_obj, Mapping):
+            for k_r, v_r in prev_rows_obj.items():
+                if isinstance(v_r, Mapping):
+                    merged_rows[str(k_r)] = {
+                        "turn1_thinking_sha256": str(v_r.get("turn1_thinking_sha256", "")),
+                        "q2_answer_sha256": str(v_r.get("q2_answer_sha256", "")),
+                    }
+    for (r_id, r_pol), r_row in resumed_by_key.items():
+        merged_rows[f"{r_id}:{r_pol}"] = {
+            "turn1_thinking_sha256": str(r_row.get("turn1_thinking_sha256", "")),
+            "q2_answer_sha256": str(r_row.get("q2_answer_sha256", "")),
+        }
+    merged_rows.update(current_row_shas)
+    expected_header["rows"] = merged_rows
+    with header_path.open("w", encoding="utf-8", newline="\n") as hfh:
+        hfh.write(json.dumps(expected_header, indent=1) + "\n")
+        hfh.flush()
+        fsync(hfh.fileno())
+
     ctrl_sets = (
         controls
         if controls is not None
@@ -589,14 +731,6 @@ def run_two_judge_tagging(
     ctrl_res_b = evaluate_judge_controls(
         ctrl_sets, judge_b_fn, min_accuracy=min_control_accuracy, enforce_gate=True
     )
-
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    tags_path = out_dir / "s2-interview-tags.jsonl"
-    resumed_tags = _prepare_tags_resume(tags_path, fsync=fsync)
-    resumed_by_key: dict[tuple[str, str], dict[str, Any]] = {
-        (str(r.get("item_id", "")), str(r.get("policy", "baseline"))): r for r in resumed_tags
-    }
 
     tagged_records: list[dict[str, Any]] = []
     audit_source_records: list[dict[str, Any]] = []

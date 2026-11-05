@@ -17,6 +17,7 @@ functions that need them, so the pass line, the prompt rule, the reward and the 
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import fnmatch
 import gc
@@ -1533,6 +1534,32 @@ def append_save_all(
         fsync(fh.fileno())
 
 
+def dropped_archive_path(path: Path) -> Path:
+    """Return the companion ``<archive>.dropped.jsonl.gz`` path for ``path``."""
+    in_path = Path(path)
+    name = in_path.name
+    if name.endswith(".jsonl.gz"):
+        base = name[: -len(".jsonl.gz")]
+    elif name.endswith(".jsonl"):
+        base = name[: -len(".jsonl")]
+    else:
+        base = name
+    return in_path.with_name(f"{base}.dropped.jsonl.gz")
+
+
+def _append_dropped_entries(
+    archive_path: Path,
+    entries: Sequence[dict],
+    *,
+    fsync: Callable[[int], None] = os.fsync,
+) -> Path:
+    """Append dropped record/byte entries to ``<archive>.dropped.jsonl.gz`` with flush + fsync."""
+    drop_path = dropped_archive_path(archive_path)
+    if entries:
+        append_save_all(drop_path, entries, fsync=fsync)
+    return drop_path
+
+
 def _prepare_save_all_resume(
     path: Path,
     *,
@@ -1540,7 +1567,7 @@ def _prepare_save_all_resume(
     record_key: Callable[[dict], Any] | None = None,
     fsync: Callable[[int], None] = os.fsync,
 ) -> list[dict]:
-    """Read back a ``.jsonl.gz`` save-all archive across gzip members, dropping uncommitted members."""
+    """Read back a ``.jsonl.gz`` save-all archive and move dropped text to ``.dropped.jsonl.gz``."""
     in_path = Path(path)
     if not in_path.exists():
         return []
@@ -1550,6 +1577,7 @@ def _prepare_save_all_resume(
     kept_records: list[dict] = []
     seen_keys: set[Any] = set()
     clean_chunks: list[bytes] = []
+    dropped_entries: list[dict] = []
     modified = False
     pos = 0
     total_len = len(raw)
@@ -1558,23 +1586,49 @@ def _prepare_save_all_resume(
         try:
             member_raw = dobj.decompress(raw[pos:])
         except zlib.error:
+            dropped_entries.append(
+                {
+                    "reason": "torn_member",
+                    "byte_offset": pos,
+                    "raw_bytes_b64": base64.b64encode(raw[pos:]).decode("ascii"),
+                }
+            )
             modified = True
             break
-        if not dobj.eof:
+        if not dobj.eof or (len(raw[pos:]) - len(dobj.unused_data)) <= 0:
+            dropped_entries.append(
+                {
+                    "reason": "torn_member",
+                    "byte_offset": pos,
+                    "raw_bytes_b64": base64.b64encode(raw[pos:]).decode("ascii"),
+                }
+            )
             modified = True
             break
         consumed = len(raw[pos:]) - len(dobj.unused_data)
-        if consumed <= 0:
-            modified = True
-            break
         member_bytes = raw[pos : pos + consumed]
+        member_start = pos
         pos += consumed
         try:
             text = member_raw.decode("utf-8")
         except UnicodeDecodeError:
+            dropped_entries.append(
+                {
+                    "reason": "corrupt_member",
+                    "byte_offset": member_start,
+                    "raw_bytes_b64": base64.b64encode(raw[member_start:]).decode("ascii"),
+                }
+            )
             modified = True
             break
         if text and not text.endswith("\n"):
+            dropped_entries.append(
+                {
+                    "reason": "torn_member",
+                    "byte_offset": member_start,
+                    "raw_bytes_b64": base64.b64encode(raw[member_start:]).decode("ascii"),
+                }
+            )
             modified = True
             break
         member_records: list[dict] = []
@@ -1593,6 +1647,13 @@ def _prepare_save_all_resume(
                 break
             member_records.append(obj)
         if not parse_ok:
+            dropped_entries.append(
+                {
+                    "reason": "corrupt_member",
+                    "byte_offset": member_start,
+                    "raw_bytes_b64": base64.b64encode(raw[member_start:]).decode("ascii"),
+                }
+            )
             modified = True
             break
         filtered: list[dict] = []
@@ -1600,11 +1661,13 @@ def _prepare_save_all_resume(
         for rec in member_records:
             if valid_record is not None and not valid_record(rec):
                 member_kept_all = False
+                dropped_entries.append({**rec, "reason": "uncommitted_member", "record": rec})
                 continue
             if record_key is not None:
                 rk = record_key(rec)
                 if rk in seen_keys:
                     member_kept_all = False
+                    dropped_entries.append({**rec, "reason": "duplicate_record", "record": rec})
                     continue
                 seen_keys.add(rk)
             filtered.append(rec)
@@ -1623,6 +1686,8 @@ def _prepare_save_all_resume(
 
     clean_bytes = b"".join(clean_chunks)
     if modified or len(clean_bytes) != len(raw):
+        if dropped_entries:
+            _append_dropped_entries(in_path, dropped_entries, fsync=fsync)
         with in_path.open("r+b") as fh:
             fh.seek(0)
             if clean_bytes:
@@ -2538,53 +2603,29 @@ def run_steps(
             fsync=fsync,
         )
         expected_total_groups = steps * groups_per_update
-        resumed_groups: dict[tuple[int, int], list[dict]] = {}
-        for r in resumed_sa:
-            s_val = int(r.get("step", -1))
-            g_val = int(r.get("group", -1))
-            if s_val >= 0 and g_val >= 0:
-                resumed_groups.setdefault((s_val, g_val), []).append(r)
-        if len(resumed_groups) >= expected_total_groups and sa_p.exists():
-            sa_p.unlink()
-            resumed_sa = []
-            resumed_groups = {}
+        resumed_groups = {
+            (int(r.get("step", -1)), int(r.get("group", -1)))
+            for r in resumed_sa
+            if int(r.get("step", -1)) >= 0 and int(r.get("group", -1)) >= 0
+        }
+        if resumed_sa:
+            if expected_total_groups > 0 and len(resumed_groups) >= expected_total_groups:
+                raise SystemExit(
+                    f"refusing to train (OUT_DIR_HAS_ARCHIVE, TRAINING_RESUME_UNSUPPORTED): "
+                    f"complete training save-all archive {sa_p.name} already exists with "
+                    f"{len(resumed_sa)} records across {len(resumed_groups)} groups"
+                )
+            raise SystemExit(
+                f"refusing to train (TRAINING_RESUME_UNSUPPORTED, OUT_DIR_HAS_ARCHIVE): "
+                f"training save-all archive {sa_p.name} already holds {len(resumed_sa)} records; "
+                f"checkpoint-resume is not implemented"
+            )
         if save_all_records is not None:
             save_all_records.clear()
-            save_all_records.extend(resumed_sa)
         if steps == 0 and not sa_p.exists():
             append_save_all(sa_p, (), fsync=fsync)
-    else:
-        resumed_groups = {}
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     for step in range(steps):
-        if all((step, g_idx) in resumed_groups for g_idx in range(groups_per_update)):
-            step_rews = [
-                float(r.get("reward", 0.0))
-                for g_idx in range(groups_per_update)
-                for r in resumed_groups[(step, g_idx)]
-            ]
-            step_zv = sum(
-                int(zero_variance([float(r.get("reward", 0.0)) for r in resumed_groups[(step, g_idx)]]))
-                for g_idx in range(groups_per_update)
-            )
-            rows.append(
-                {
-                    "step": step,
-                    "groups": groups_per_update,
-                    "active_groups": groups_per_update - step_zv,
-                    "zero_variance_groups": step_zv,
-                    "tokens": 0,
-                    "rollout_s": 0.0,
-                    "train_s": 0.0,
-                    "step_s": 0.0,
-                    "mean_reward": round(statistics.fmean(step_rews), 4) if step_rews else 0.0,
-                    "loss": 0.0,
-                    "peak_alloc_mib": peak_alloc_mib(),
-                    "grad_ckpt": state()["grad_ckpt"] if state else None,
-                    "grad_ckpt_rollout": state()["grad_ckpt"] if state else None,
-                }
-            )
-            continue
         try:
             started = time.time()
             if before_step:
@@ -2612,14 +2653,6 @@ def run_steps(
                 or ct_guard is not None
             )
             for k in range(groups_per_update):
-                if (step, k) in resumed_groups:
-                    grp_rews = [float(r.get("reward", 0.0)) for r in resumed_groups[(step, k)]]
-                    rewards_all.extend(grp_rews)
-                    is_zv_resumed = zero_variance(grp_rews)
-                    zero_var += int(is_zv_resumed)
-                    if not is_zv_resumed:
-                        active_groups += 1
-                    continue
                 row = prompts[(step * groups_per_update + k) % len(prompts)]
                 if holdout_set and str(row.get("id", "")) in holdout_set:
                     raise SystemExit(
@@ -4608,6 +4641,17 @@ def _prepare_prepass_resume(
         valid_bytes += len(line_bytes)
 
     if valid_bytes < len(raw):
+        _append_dropped_entries(
+            jsonl_path,
+            [
+                {
+                    "reason": "torn_member",
+                    "byte_offset": valid_bytes,
+                    "raw_bytes_b64": base64.b64encode(raw[valid_bytes:]).decode("ascii"),
+                }
+            ],
+            fsync=fsync,
+        )
         with jsonl_path.open("r+b") as tfh:
             tfh.truncate(valid_bytes)
             tfh.flush()

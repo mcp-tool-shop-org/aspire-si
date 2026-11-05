@@ -1160,20 +1160,97 @@ def run_interview_for_cohort(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     save_all_path = out_dir / "s2-interview-save-all.jsonl.gz"
+    header_path = out_dir / "s2-interview-header.json"
 
     expected_turns_by_cid: dict[str, int] = {}
+    cohort_turn1_shas: dict[str, dict[str, str | None]] = {}
     for item in cohort:
         cid_key = str(item["item_id"])
-        n_pols = int(item.get("baseline_first_ct") is not None) + int(
-            item.get("checkpoint_first_ct") is not None
-        )
+        b_ct = item.get("baseline_first_ct")
+        c_ct = item.get("checkpoint_first_ct")
+        n_pols = int(b_ct is not None) + int(c_ct is not None)
         expected_turns_by_cid[cid_key] = n_pols * (
             len(QUESTION_ORDER) + (2 if include_cold_control else 0)
         )
+        cohort_turn1_shas[cid_key] = {
+            "baseline_turn1_sha256": (
+                hashlib.sha256(str(b_ct.get("text", "")).encode("utf-8")).hexdigest()
+                if isinstance(b_ct, Mapping)
+                else None
+            ),
+            "checkpoint_turn1_sha256": (
+                hashlib.sha256(str(c_ct.get("text", "")).encode("utf-8")).hexdigest()
+                if isinstance(c_ct, Mapping)
+                else None
+            ),
+        }
+
+    expected_header: dict[str, Any] = {
+        "checkpoint_sha256": eff_ckpt_sha,
+        "base_seed": int(base_seed),
+        "thinking_cap": int(thinking_cap),
+        "answer_cap": int(answer_cap),
+        "verifier_max_new_tokens": int(verifier_max_new_tokens),
+        "include_cold_control": bool(include_cold_control),
+        "sampling": dict(INTERVIEW_SAMPLING),
+        "question_order": list(QUESTION_ORDER),
+        "cohort_turn1_shas": dict(cohort_turn1_shas),
+    }
+    if header_path.exists():
+        try:
+            existing_header = json.loads(header_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise SystemExit(
+                f"refusing to resume interview (RESUME_HEADER_MISMATCH): corrupt header {header_path.name}"
+            ) from exc
+        if not isinstance(existing_header, dict):
+            raise SystemExit(
+                f"refusing to resume interview (RESUME_HEADER_MISMATCH): invalid header {header_path.name}"
+            )
+        mismatched = [
+            k
+            for k in (
+                "checkpoint_sha256",
+                "base_seed",
+                "thinking_cap",
+                "answer_cap",
+                "verifier_max_new_tokens",
+                "include_cold_control",
+                "sampling",
+                "question_order",
+            )
+            if existing_header.get(k) != expected_header.get(k)
+        ]
+        prev_shas = existing_header.get("cohort_turn1_shas")
+        if isinstance(prev_shas, Mapping):
+            for cid_key, cur_sha_map in cohort_turn1_shas.items():
+                if cid_key in prev_shas and prev_shas[cid_key] != cur_sha_map:
+                    mismatched.append(f"cohort_turn1_shas[{cid_key}]")
+        if mismatched:
+            raise SystemExit(
+                f"refusing to resume interview (RESUME_HEADER_MISMATCH): "
+                f"header mismatch on {', '.join(mismatched)}"
+            )
+        merged_shas = dict(prev_shas) if isinstance(prev_shas, Mapping) else {}
+        merged_shas.update(cohort_turn1_shas)
+        expected_header["cohort_turn1_shas"] = merged_shas
+        with header_path.open("w", encoding="utf-8", newline="\n") as hfh:
+            hfh.write(json.dumps(expected_header, indent=1) + "\n")
+            hfh.flush()
+            fsync(hfh.fileno())
+    elif save_all_path.exists():
+        raise SystemExit(
+            f"refusing to resume interview (RESUME_HEADER_MISMATCH): "
+            f"{save_all_path.name} exists without {header_path.name}"
+        )
+    else:
+        with header_path.open("w", encoding="utf-8", newline="\n") as hfh:
+            hfh.write(json.dumps(expected_header, indent=1) + "\n")
+            hfh.flush()
+            fsync(hfh.fileno())
 
     resumed_records = _prepare_save_all_resume(
         save_all_path,
-        valid_record=lambda r: str(r.get("item_id")) in expected_turns_by_cid,
         record_key=lambda r: (
             str(r.get("item_id")),
             str(r.get("policy")),
@@ -1191,10 +1268,18 @@ def run_interview_for_cohort(
         for c_key, cnt in counts_by_cid.items()
         if expected_turns_by_cid.get(c_key, 0) > 0 and cnt == expected_turns_by_cid[c_key]
     }
-    if len(done_cids) != len(counts_by_cid):
+    incomplete_in_cohort = {
+        c_key
+        for c_key in counts_by_cid
+        if c_key in expected_turns_by_cid and c_key not in done_cids
+    }
+    if incomplete_in_cohort:
         resumed_records = _prepare_save_all_resume(
             save_all_path,
-            valid_record=lambda r: str(r.get("item_id")) in done_cids,
+            valid_record=lambda r: (
+                str(r.get("item_id")) not in expected_turns_by_cid
+                or str(r.get("item_id")) in done_cids
+            ),
             record_key=lambda r: (
                 str(r.get("item_id")),
                 str(r.get("policy")),
@@ -1204,12 +1289,14 @@ def run_interview_for_cohort(
             fsync=fsync,
         )
 
-    all_records: list[dict[str, Any]] = list(resumed_records)
+    all_records: list[dict[str, Any]] = [
+        r for r in resumed_records if str(r.get("item_id")) in done_cids
+    ]
     q3_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     part_scores_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     cold_part_scores_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
     cf_by_policy: dict[str, list[dict[str, Any]]] = {"baseline": [], "checkpoint": []}
-    for r in resumed_records:
+    for r in all_records:
         pol_raw = str(r.get("policy", ""))
         q_id_r = str(r.get("question_id", ""))
         mech = r.get("mechanical_score")
