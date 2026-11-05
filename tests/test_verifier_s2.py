@@ -10357,7 +10357,7 @@ class TestFix1Items:
             {**s2.FROZEN_STACK_VERSIONS, "transformers": "999.0.0"},
         )
         with pytest.raises(SystemExit, match="frozen_env_version_mismatch"):
-            s2.execute(a_nondry, build=s2.dry_bundle, rig=_FakeRig(a_nondry))
+            s2.execute(a_nondry, build=s2.real_bundle, rig=_FakeRig(a_nondry))
 
         # 2. Restore FROZEN_STACK_VERSIONS and verify stack_versions + pip_freeze_sha256 in header and receipt
         monkeypatch.undo()

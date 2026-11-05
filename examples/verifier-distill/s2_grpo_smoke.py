@@ -4760,18 +4760,7 @@ def execute(
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
     require_frozen = bool(
         getattr(a, "require_frozen_stack", False)
-        or (
-            not a.dry
-            and (
-                build is real_bundle
-                or frozen_pip_freeze is not None
-                or any(
-                    v is not None and not str(package_version(k) or "").startswith(str(v).split("+")[0])
-                    for k, v in FROZEN_STACK_VERSIONS.items()
-                    if package_version(k) is not None
-                )
-            )
-        )
+        or (not a.dry and (build is real_bundle or frozen_pip_freeze is not None))
     )
     if not a.dry or frozen_pip_freeze is not None or require_frozen:
         frozen_env = check_frozen_env(frozen_pip_freeze, require_exact_versions=require_frozen)
