@@ -876,3 +876,28 @@ charts can read it.
 8. The quiz schedule (every 50 steps, 20 per type) and the curriculum formula are proposed here; the R&D session reviews them.
 9. Public training data (VitaminC, HoVer, FEVER once its dual tag is resolved): the maintainer's go for the downloads and for training on CC BY-SA data.
 10. The replay share (proposed 20%), the counterfactual-variant rules, and the general-capability panel are fixed before TEACH runs.
+
+## S2 training: stated deviations (2026-11-06; rulings by the Publisher, the Director informed)
+
+These are recorded before, or during, the runs they affect. None of them is an outcome criterion.
+
+1. **Starting point.** Training starts from the base model at b968826d with a fresh LoRA, not from an SFT checkpoint.
+   - **Reason:** no SFT adapter exists, and every S2 measurement (pre-passes A and B, the logging pass) is of the base model.
+2. **The critic arm is dropped as a training arm.**
+   - **Reason:** as pre-registered, hinted retries are kept out of the gradient, so the critic arm trains weights bit-identical to the mech arm. This was shown on the full dry run, and again on 2026-11-06: `dry-critic-bitwise/`, adapter, AdamW, RNG, save-all, steps and guard history all bitwise-equal over 40 updates.
+   - The registered runs are therefore mech × 3 seeds (42, 43, 44).
+3. **The critic retry diagnostic runs on seeds 43 and 44 only.**
+   - **How:** seeds 43 and 44 run with `--arm critic`. Their training weights are the same as mech (bitwise on the dry model; in distribution on the GPU, where kernels are not deterministic), plus the no-gradient retry diagnostic, at about +2% time.
+   - **What it records:** for each group with k_correct = 0, one hinted retry of g = 8 completions. It is scored and recorded (`s2-hf-critic-retries.jsonl.gz`, `in_gradient: false`) and never enters save-all, the loss or the guards.
+   - **Seed 42 ran as mech before this ruling and has no retry diagnostic.** An exact replay is not possible: the policy weights at its k_correct = 0 steps were not kept, and CUDA is not deterministic. No approximate replay will run unless the 43/44 data proves too thin.
+   - **GPU confirmation:** seed 43 chunk 1 is the GPU confirmation of the retry path. It must show the VRAM peak within the halt line, retry records written, the chunk checker VALID, and retries taking the real hint branches (quote-check and retrieval), counted by branch. If any item fails, seed 43 continues as mech, and that is recorded.
+4. **Truncation stops are operational, not outcome criteria.**
+   - The halt fires above 20% truncated, on a rolling 10-update window; it halts at the update boundary and saves the checkpoint.
+   - The flag fires above 4.2% (three times the starting 1.4%) and is reported at each chunk boundary.
+5. **Determinism.** The header records `cuda_deterministic: false`. A resumed chunk restores all state (LoRA, AdamW, RNG, guards, step), so it is equivalent in distribution to an uninterrupted run, not bitwise identical. On CPU it is bit-identical, as tested.
+6. **Zero-variance groups and dev-split stops.**
+   - The zero-variance rate is reported per chunk.
+   - The plan's >50% zero-variance resampling fallback is not built.
+   - The plan's dev-split stops are applied at the post-passes, not during training.
+7. **The holdout** is fixed by the seed string `pr79-holdout-v1`. The sorted held-out ids have sha256 e1cacacb734ec6fe761f8eb0784d76029012b7052a37a75db0e00e8cf67a0e96, and they are never trained on.
+8. **Adapter snapshots at k_correct = 0 groups** (which would enable an exact replay) are not added mid-study. They go into the guided-GRPO follow-up build.
