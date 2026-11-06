@@ -1432,3 +1432,55 @@ class TestCutRecheck:
         archive.write_bytes(b"Z" + archive.read_bytes()[1:])
         with pytest.raises(SystemExit, match="changed before it was cut"):
             s2.finish_resume(state, header=state["header"], out_dir=tmp_path / "r")
+
+
+# -- fix round 3: two resumes racing for one chunk --
+class TestResumeRace:
+    def _racing(self, tmp_path, *loser_extra, winner_steps=4, loser_steps=4, every=None):
+        """B passes the precheck first; while B builds its model, A resumes from the same chunk and finishes.
+        Both passed the precheck before either wrote a marker."""
+        gold = _gold(tmp_path)
+        c1, a_out, b_out = tmp_path / "c1", tmp_path / "A", tmp_path / "B"
+        extra = ("--state-every-updates", str(every)) if every else ()
+        assert _run(_argv(gold, c1, *extra, "--stop-after-updates", "1", steps=winner_steps)) == 0
+
+        def build_b(ns):
+            assert _run(_argv(gold, a_out, *extra, "--resume-from", str(c1), steps=winner_steps)) == 0
+            return s2.dry_bundle(ns)
+
+        rc = _run(
+            _argv(gold, b_out, *extra, *loser_extra, "--resume-from", str(c1), steps=loser_steps),
+            build=build_b,
+        )
+        return c1, a_out, b_out, rc
+
+    def test_exactly_one_of_two_racing_resumes_continues(self, tmp_path):
+        c1, a_out, b_out, rc = self._racing(tmp_path)
+        assert _receipt(a_out)["verdict"] == "S2-TRAIN-COMPLETE"
+        rec = _receipt(b_out)
+        assert rc == 2 and rec["verdict"] == "S2-TRAIN-HALT-RESUME_RACE_LOST"
+        assert (
+            rec["stopped"]["reason"] == "resume_race_lost" and "RESUME_RACE_LOST" in rec["stopped"]["error"]
+        )
+        assert not (b_out / s2.TRAIN_STATE_DIR).exists() and rec["training"]["train_state_saved"] is False
+        assert [m.name for m in s2.consumed_markers(c1)] == ["CONSUMED_BY.json"]
+        assert json.loads((c1 / "CONSUMED_BY.json").read_text(encoding="utf-8"))["consumed_by"] == "A"
+
+    def test_the_race_is_lost_at_a_periodic_save_before_the_state_is_written(self, tmp_path):
+        c1, a_out, b_out, rc = self._racing(tmp_path, every=1)
+        rec = _receipt(b_out)
+        assert rc == 2 and rec["verdict"] == "S2-TRAIN-HALT-RESUME_RACE_LOST"
+        assert rec["stopped"]["step"] == 2 and not (b_out / s2.TRAIN_STATE_DIR).exists()
+
+    def test_an_override_continues_marked_forked(self, tmp_path):
+        c1, a_out, b_out, rc = self._racing(tmp_path, "--resume-override-reason", "deliberate second branch")
+        rec = _receipt(b_out)
+        assert rc == 0 and rec["verdict"] == "S2-TRAIN-COMPLETE FORKED_OR_REWOUND"
+        assert [m.name for m in s2.consumed_markers(c1)] == ["CONSUMED_BY.1.json", "CONSUMED_BY.json"]
+
+    def test_a_marker_naming_this_chunk_is_its_own_claim(self, tmp_path):
+        rec = {"consumed_by": "A"}
+        first = s2.write_consumed_marker(tmp_path, rec)
+        assert s2.write_consumed_marker(tmp_path, rec) == first
+        with pytest.raises(s2.ResumeRaceLostError):
+            s2.write_consumed_marker(tmp_path, {"consumed_by": "B"})

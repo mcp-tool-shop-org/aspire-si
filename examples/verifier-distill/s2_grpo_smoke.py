@@ -4580,11 +4580,44 @@ def consumed_markers(chunk_dir: Path) -> list[Path]:
     return sorted(Path(chunk_dir).glob("CONSUMED_BY*.json"))
 
 
-def write_consumed_marker(resume_dir: Path, record: Mapping[str, Any]) -> Path:
-    """Mark a chunk's state as consumed (written when the resuming chunk saves its first state)."""
-    target = _free_name(resume_dir, "CONSUMED_BY")
-    _write_json_atomic(target, record)
-    return target
+class ResumeRaceLostError(Exception):
+    """Another resume claimed the same chunk first; this run halts before it saves anything."""
+
+
+def _create_exclusive(path: Path, obj: Mapping[str, Any]) -> None:
+    """Create ``path`` only if it does not exist (O_EXCL), write the JSON and fsync it."""
+    fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0))
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(json.dumps(obj, indent=1).encode("utf-8"))
+        fh.flush()
+        os.fsync(fh.fileno())
+
+
+def write_consumed_marker(
+    resume_dir: Path, record: Mapping[str, Any], *, override_reason: str | None = None
+) -> Path:
+    """Claim a chunk's state for one resume: ``CONSUMED_BY.json`` is created exclusively (O_EXCL), so of two
+    resumes that both passed the precheck exactly one wins. The other raises ResumeRaceLostError unless it
+    carries a --resume-override-reason; then its claim goes to the next free ``CONSUMED_BY.<k>.json``."""
+    target = Path(resume_dir) / "CONSUMED_BY.json"
+    try:
+        _create_exclusive(target, record)
+        return target
+    except FileExistsError:
+        try:
+            holder = json.loads(target.read_text(encoding="utf-8")).get("consumed_by")
+        except (OSError, ValueError):  # pragma: no cover - a marker being written this instant
+            holder = None
+        if holder == record.get("consumed_by") and holder is not None:
+            return target
+        if not override_reason:
+            raise ResumeRaceLostError(
+                f"RESUME_RACE_LOST: {Path(resume_dir).name} was already claimed by {holder!r}; this run "
+                f"halts before saving any state"
+            ) from None
+    free = _free_name(resume_dir, "CONSUMED_BY")
+    _create_exclusive(free, record)
+    return free
 
 
 def _lineage_problems(rdir: Path, sdir: Path, state: Mapping[str, Any]) -> list[str]:
@@ -4707,10 +4740,13 @@ def finish_resume(
                 f"refusing to resume (RESUME_SAVE_ALL_CHANGED): {cut['file']} changed before it was cut"
             )
         copy_path = rdir / cut["copy"]
-        if copy_path.exists():
-            copy_path = rdir / f"{cut['copy']}.{len(consumed_markers(rdir)) + 1}"
-            cut["copy"] = copy_path.name
-        _write_fsync(copy_path, lambda fh, d=data: fh.write(d))
+        if copy_path.exists() and _file_sha256(copy_path) == cut["sha256"]:
+            pass  # the same cut was made already (a racing or retried resume): reuse it
+        else:
+            if copy_path.exists():
+                copy_path = rdir / f"{cut['copy']}.{len(list(rdir.glob(cut['copy'] + '*'))) + 1}"
+                cut["copy"] = copy_path.name
+            _write_fsync(copy_path, lambda fh, d=data: fh.write(d))
         copy_sha = _file_sha256(copy_path)
         if copy_sha != cut["sha256"]:  # pragma: no cover - only a failing disk gets here
             raise SystemExit(
@@ -4722,9 +4758,9 @@ def finish_resume(
             "cut_copy": cut["copy"],
             "cut_copy_sha256": copy_sha,
         }
+    state["_cut_record"] = None
     if state["_cuts"]:
-        _write_json_atomic(
-            _free_name(rdir, "CUT"),
+        state["_cut_record"] = (
             {
                 "what": "this chunk was killed after a periodic save; the cut copies below are canonical",
                 "state_dir": state["_dir"].name,
@@ -4737,7 +4773,7 @@ def finish_resume(
                     }
                     for c in state["_cuts"]
                 },
-            },
+            }
         )
     sdir: Path = state["_dir"]
     state["_trainable"] = torch.load(sdir / "trainable.pt", map_location="cpu", weights_only=True)
@@ -6750,7 +6786,10 @@ def execute(
 
         steps_path = a.out / f"s2-{a.path}-steps.jsonl"
 
+        live_rows: list[dict] = []
+
         def append_step_row(rec: dict) -> None:
+            live_rows.append(rec)
             # training: each update's row is appended as it lands (flushed, fsynced), so a kill keeps the rows
             a.out.mkdir(parents=True, exist_ok=True)
             with steps_path.open("a", encoding="utf-8", newline="\n") as sfh:
@@ -6767,7 +6806,8 @@ def execute(
             }
 
         def mark_consumed(next_step_now: int) -> None:
-            # the previous chunk is consumed once this chunk holds a state of its own
+            # the previous chunk is claimed just before this chunk saves a state of its own; a lost race
+            # raises ResumeRaceLostError here, so the loser never writes a state
             if resume_state is None or consumed_marker:
                 return
             consumed_marker["path"] = write_consumed_marker(
@@ -6780,11 +6820,20 @@ def execute(
                     "first_state_at_step": int(next_step_now),
                     "override_reason": getattr(a, "resume_override_reason", None),
                 },
+                override_reason=getattr(a, "resume_override_reason", None),
             ).name
+            cut_record = resume_state.get("_cut_record")
+            if cut_record is not None:
+                cut_path = resume_state["_resume_dir"] / "CUT.json"
+                try:
+                    _create_exclusive(cut_path, cut_record)
+                except FileExistsError:  # only an override reaches here: record its own cut beside
+                    _create_exclusive(_free_name(resume_state["_resume_dir"], "CUT"), cut_record)
 
         def periodic_save(next_step_now: int, ending: bool) -> None:
             if ending or next_step_now % state_every_updates(a) != 0:
                 return
+            mark_consumed(next_step_now)
             save_train_state(
                 a.out,
                 model=bundle["model"],
@@ -6804,7 +6853,6 @@ def execute(
                 path=a.path,
                 lineage=lineage,
             )
-            mark_consumed(next_step_now)
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
             nonlocal prepass_records, stress_meta
@@ -6994,11 +7042,51 @@ def execute(
                 on_update_end=periodic_save if training_run else None,
             )
 
+        race_lost: str | None = None
+
+        def run_guarded() -> tuple[list[dict], dict | None, bool]:
+            nonlocal race_lost
+            try:
+                return run_it()
+            except ResumeRaceLostError as exc:
+                race_lost = str(exc)
+                halt_at = int(train_progress.get("next_step", start_step))
+                train_progress["halted"] = {"step": halt_at, "reason": "resume_race_lost"}
+                return (
+                    list(live_rows),
+                    {
+                        "step": halt_at,
+                        "reason": "resume_race_lost",
+                        "triggered_rules": ["RESUME_RACE_LOST"],
+                        "error": race_lost,
+                    },
+                    False,
+                )
+
         if sampler is not None:
             with sampler:
-                steps, stopped, oom = run_it()
+                steps, stopped, oom = run_guarded()
         else:
-            steps, stopped, oom = run_it()
+            steps, stopped, oom = run_guarded()
+        if (
+            training_run
+            and race_lost is None
+            and not oom
+            and (stopped is None or bool(stopped.get("triggered_rules")))
+        ):
+            # the final save claims the previous chunk first, as a periodic save does
+            try:
+                mark_consumed(int(train_progress.get("next_step", start_step)))
+            except ResumeRaceLostError as exc:
+                race_lost = str(exc)
+                halt_at = int(train_progress.get("next_step", start_step))
+                train_progress["halted"] = {"step": halt_at, "reason": "resume_race_lost"}
+                stopped = {
+                    "step": halt_at,
+                    "reason": "resume_race_lost",
+                    "triggered_rules": ["RESUME_RACE_LOST"],
+                    "error": race_lost,
+                }
         save_all_sha: str | None = None
         if save_all_on:
             sa_path = save_all_file_path(a.out, a.path)
@@ -7098,7 +7186,9 @@ def execute(
             if not steps_path.exists():
                 steps_path.write_bytes(b"")
             halted = train_progress.get("halted")
-            state_ok = not oom and (stopped is None or bool(stopped.get("triggered_rules")))
+            state_ok = (
+                not oom and race_lost is None and (stopped is None or bool(stopped.get("triggered_rules")))
+            )
             state_sha = (
                 save_train_state(
                     a.out,
@@ -7122,8 +7212,6 @@ def execute(
                 if state_ok
                 else None
             )
-            if state_sha is not None:
-                mark_consumed(next_step)
             gh_path = a.out / f"s2-{a.path}-guard-history.jsonl.gz"
             cr_path = a.out / f"s2-{a.path}-critic-retries.jsonl.gz"
             training_block = {
