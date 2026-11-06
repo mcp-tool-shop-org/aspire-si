@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `--state-every-updates` updates (default 10) and at the chunk's end; the last 2 saves are kept.
     `--resume-from <chunk dir>` continues into a fresh `--out` from the latest save. After a kill it cuts a
     copy of each archive back to the save point and records the cut.
+  - A resume marks the chunk it consumed (`CONSUMED_BY.json`). Resuming a consumed chunk, or any state that is
+    not the run's newest, is refused (`RESUME_ALREADY_CONSUMED`, `RESUME_NOT_LATEST`). The one escape,
+    `--resume-override-reason`, is recorded, and every later chunk of that run carries `forked_or_rewound: true`
+    and a verdict line ending `FORKED_OR_REWOUND`. A cut re-checks the saved prefix, hashes its copy, and leaves
+    `CUT.json` in the killed chunk naming the canonical copies.
   - Resume refuses any difference in the run header: settings, seeds, holdout and draw shas, aspire commit,
     and the sha256 of the script, `quote_rule.py` and `s2_draw.py`, model revision, frozen stack.
   - Resume is state-exact on the CPU. On CUDA it restores all state, but the kernels are not
