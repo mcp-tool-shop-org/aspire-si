@@ -29,6 +29,7 @@ import math
 import os
 import platform
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -2820,6 +2821,7 @@ def run_steps(
     critic_archive_path: Path | None = None,
     critic_stats: dict[str, int] | None = None,
     progress: dict[str, Any] | None = None,
+    on_update_end: Callable[[int, bool], None] | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -2833,6 +2835,8 @@ def run_steps(
     - ``arm == "critic"`` adds a tool-hinted retry to each all-wrong group. Retries are scored on gold and
       archived at ``critic_archive_path``; they never enter the loss, the guards or the training save-all.
     - ``progress`` receives ``next_step``, and ``chunk_stop`` or ``halted``.
+    - ``on_update_end(next_step, ending)`` runs after every applied update (the periodic train-state save);
+      ``ending`` is True when this update ends the chunk or the run, where the final save takes over.
 
     Each step is ``groups_per_update`` prompt groups of G samples, one group at a time (gradients accumulate),
     so peak memory is one group's. The reference is the same model with the adapter off.
@@ -3109,9 +3113,19 @@ def run_steps(
                     retry_seed = train_rollout_seed(
                         train_seed if train_seed is not None else 0, step, k, purpose="critic-retry"
                     )
-                    torch.manual_seed(retry_seed)
                     t_retry = time.time()
-                    retry_out = rollout(critic_retry_prompt(row, hint_rec["hint"]), g, max_new, TEMPERATURE)
+                    cuda_mod = getattr(torch, "cuda", None)
+                    fork_devices = (
+                        list(range(cuda_mod.device_count()))
+                        if cuda_mod is not None and cuda_mod.is_available()
+                        else []
+                    )
+                    # the retry draws from a forked generator, so the mech path's RNG never sees it
+                    with torch.random.fork_rng(devices=fork_devices):
+                        torch.manual_seed(retry_seed)
+                        retry_out = rollout(
+                            critic_retry_prompt(row, hint_rec["hint"]), g, max_new, TEMPERATURE
+                        )
                     device_sync()
                     roll_s += time.time() - t_retry
                     if len(retry_out) == 3:
@@ -3482,11 +3496,12 @@ def run_steps(
                 return rows, step_guard_stop, False
             if progress is not None:
                 progress["next_step"] = step + 1
-            if (
-                stop_after_updates is not None
-                and (step + 1 - int(start_step)) >= int(stop_after_updates)
-                and step + 1 < steps
-            ):
+            chunk_ends = (
+                stop_after_updates is not None and (step + 1 - int(start_step)) >= int(stop_after_updates)
+            )
+            if on_update_end is not None:
+                on_update_end(step + 1, bool(chunk_ends or step + 1 >= steps))
+            if chunk_ends and step + 1 < steps:
                 if progress is not None:
                     progress["chunk_stop"] = {
                         "reason": "stop_after_updates",
@@ -4177,7 +4192,10 @@ ARMS = ("mech", "critic")
 TRAIN_HEADER_SCHEMA = "s2-train-header-v1"
 TRAIN_STATE_DIR = "train-state"
 TRAIN_STATE_FILES = ("trainable.pt", "optimizer.pt", "rng.pt")
+STATE_EVERY_DEFAULT = 10  # updates between periodic train-state saves (a training run's default)
+STATE_KEEP = 2  # periodic and final states kept per chunk directory; older ones are removed
 TRAIN_ONLY_FLAGS = (
+    ("--state-every-updates", "state_every_updates"),
     ("--train-seed", "train_seed"),
     ("--stop-after-updates", "stop_after_updates"),
     ("--resume-from", "resume_from"),
@@ -4247,6 +4265,12 @@ def validate_training_args(a: argparse.Namespace) -> bool:
             f"refusing to start (invalid_train_seed): --train-seed must be an int >= 0, got {seed!r}"
         )
     TruncationHaltGuard(window_updates=a.trunc_window_updates, halt_rate=a.trunc_halt_rate)  # validates both
+    seu = getattr(a, "state_every_updates", None)
+    if seu is not None and (isinstance(seu, bool) or not isinstance(seu, int) or seu < 1):
+        raise SystemExit(
+            f"refusing to start (invalid_state_every_updates): "
+            f"--state-every-updates must be >= 1, got {seu!r}"
+        )
     sau = getattr(a, "stop_after_updates", None)
     if sau is not None and (isinstance(sau, bool) or not isinstance(sau, int) or sau < 1):
         raise SystemExit(
@@ -4260,9 +4284,9 @@ def validate_training_args(a: argparse.Namespace) -> bool:
                 "refusing to start (resume_with_checkpoint): --resume-from restores the run's own adapter; "
                 "it cannot be combined with --checkpoint"
             )
-        if not (rp / TRAIN_STATE_DIR / "state.json").is_file():
+        if latest_state_dir(rp) is None:
             raise SystemExit(
-                f"refusing to resume (RESUME_STATE_MISSING): {rp.name}/{TRAIN_STATE_DIR}/state.json not found"
+                f"refusing to resume (RESUME_STATE_MISSING): {rp.name}/{TRAIN_STATE_DIR} holds no saved state"
             )
         if rp.resolve() == Path(a.out).resolve():
             raise SystemExit(
@@ -4328,6 +4352,9 @@ def build_train_header(
         "prompt_ids_sha256": ids_sha256(list(prompt_ids)),
         "aspire_commit": commit,
         "script_sha256": script_sha256(),
+        **dependency_sha256s(),
+        **cuda_determinism_record(),
+        "state_every_updates": state_every_updates(a),
         "revision_requested": a.revision,
         "revision_resolved": revision_resolved,
         "stack_versions": dict(stack_versions) if stack_versions is not None else None,
@@ -4349,6 +4376,35 @@ def build_train_header(
     }
 
 
+def state_every_updates(a: argparse.Namespace) -> int:
+    """The periodic train-state interval of a training run: --state-every-updates, else 10."""
+    seu = getattr(a, "state_every_updates", None)
+    return int(seu) if seu is not None else STATE_EVERY_DEFAULT
+
+
+def dependency_sha256s() -> dict[str, str]:
+    """sha256 of the modules the reward and the draw come from, beside the script's own."""
+    here = Path(__file__).resolve().parent
+    return {
+        "quote_rule_sha256": _file_sha256(here / "quote_rule.py"),
+        "s2_draw_sha256": _file_sha256(here / "s2_draw.py"),
+    }
+
+
+def cuda_determinism_record() -> dict[str, Any]:
+    """What this process sets for GPU determinism. Nothing is switched on: resume is state-exact on the CPU;
+    on CUDA it restores all state, but the kernels are not bitwise-deterministic."""
+    torch = require_torch()
+    cudnn = getattr(getattr(torch, "backends", None), "cudnn", None)
+    return {
+        "cuda_deterministic": False,
+        "torch_deterministic_algorithms": bool(torch.are_deterministic_algorithms_enabled()),
+        "cudnn_deterministic": bool(getattr(cudnn, "deterministic", False)),
+        "cudnn_benchmark": bool(getattr(cudnn, "benchmark", False)),
+        "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
+    }
+
+
 def header_differences(saved: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
     """Dotted keys whose values differ between two headers (settings compared key by key)."""
     diffs: list[str] = []
@@ -4367,6 +4423,52 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def tracked_archives(path: str = "hf") -> dict[str, str]:
+    """The append-only files a chunk grows. Each save point records their length and sha256."""
+    return {
+        "save_all": f"s2-{path}-save-all.jsonl.gz",
+        "guard_history": f"s2-{path}-guard-history.jsonl.gz",
+        "critic_retries": f"s2-{path}-critic-retries.jsonl.gz",
+        "steps": f"s2-{path}-steps.jsonl",
+    }
+
+
+def archive_marks(out_dir: Path, path: str = "hf") -> dict[str, dict[str, Any]]:
+    """{archive: {file, bytes, sha256}} as the archives stand now (a missing file is 0 bytes)."""
+    marks: dict[str, dict[str, Any]] = {}
+    for key, name in tracked_archives(path).items():
+        fp = Path(out_dir) / name
+        data = fp.read_bytes() if fp.exists() else b""
+        marks[key] = {"file": name, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    return marks
+
+
+def _state_seq(d: Path) -> int:
+    m = re.fullmatch(r"(\d{4})-step-(\d{5})", d.name)
+    return int(m.group(1)) if m else -1
+
+
+def state_dirs(chunk_dir: Path) -> list[Path]:
+    """The chunk's complete saved states (each has its state.json, written last), oldest first."""
+    root = Path(chunk_dir) / TRAIN_STATE_DIR
+    if not root.is_dir():
+        return []
+    found = [d for d in root.iterdir() if d.is_dir() and _state_seq(d) >= 0 and (d / "state.json").is_file()]
+    return sorted(found, key=_state_seq)
+
+
+def latest_state_dir(chunk_dir: Path) -> Path | None:
+    dirs = state_dirs(chunk_dir)
+    return dirs[-1] if dirs else None
+
+
+def _write_fsync(path: Path, write: Callable[[Any], None]) -> None:
+    with Path(path).open("wb") as fh:
+        write(fh)
+        fh.flush()
+        os.fsync(fh.fileno())
+
+
 def save_train_state(
     out_dir: Path,
     *,
@@ -4378,32 +4480,40 @@ def save_train_state(
     chunk_index: int,
     ct_guard: CtCollapseGuard | None,
     trunc_guard: TruncationHaltGuard,
-    save_all_chain: Sequence[Mapping[str, Any]],
+    prior_chain: Sequence[Mapping[str, Any]],
+    chunk_link: Mapping[str, Any],
     adapter_sha: str | None,
     halted: Mapping[str, Any] | None,
     resumed_from: Mapping[str, Any] | None,
-) -> str:
-    """Write ``<out>/train-state`` (LoRA tensors, AdamW state, RNG states, guards, step, save-all chain).
+    kind: str,
+    path: str = "hf",
+    keep: int = STATE_KEEP,
+) -> tuple[str, Path]:
+    """Write one train state under ``<out>/train-state/<seq>-step-<next_step>``: the LoRA tensors, the AdamW
+    state, RNG states, guards, step, and the save-all chain with this chunk's archive lengths and sha256 now.
 
-    It is written to ``train-state.partial`` and renamed into place, so a crash never leaves a half state; the
-    returned sha256 is of ``state.json``, which lists every other file's sha256.
+    Every file is fsynced. The directory is written as ``.partial`` and renamed to a new name (never onto an
+    existing one); only then are states beyond the newest ``keep`` removed. Returns (state.json sha256, dir).
     """
     torch = require_torch()
-    final_dir = Path(out_dir) / TRAIN_STATE_DIR
-    tmp_dir = Path(out_dir) / f"{TRAIN_STATE_DIR}.partial"
-    if tmp_dir.exists():
-        for p in sorted(tmp_dir.iterdir()):
-            p.unlink()
-        tmp_dir.rmdir()
-    tmp_dir.mkdir(parents=True)
+    root = Path(out_dir) / TRAIN_STATE_DIR
+    root.mkdir(parents=True, exist_ok=True)
+    for leftover in root.glob("*.partial"):
+        shutil.rmtree(leftover)
+    seq = max((_state_seq(d) for d in root.iterdir() if d.is_dir()), default=-1) + 1
+    name = f"{seq:04d}-step-{int(next_step):05d}"
+    tmp_dir = root / f"{name}.partial"
+    tmp_dir.mkdir()
     trainable = {
-        name: p.detach().to("cpu").clone() for name, p in model.named_parameters() if p.requires_grad
+        pname: p.detach().to("cpu").clone() for pname, p in model.named_parameters() if p.requires_grad
     }
-    torch.save(trainable, tmp_dir / "trainable.pt")
-    torch.save(optimiser.state_dict(), tmp_dir / "optimizer.pt")
     rng_tensors, rng_plain = capture_rng_state()
-    torch.save(rng_tensors, tmp_dir / "rng.pt")
+    _write_fsync(tmp_dir / "trainable.pt", lambda fh: torch.save(trainable, fh))
+    _write_fsync(tmp_dir / "optimizer.pt", lambda fh: torch.save(optimiser.state_dict(), fh))
+    _write_fsync(tmp_dir / "rng.pt", lambda fh: torch.save(rng_tensors, fh))
+    link = {**dict(chunk_link), "archives": archive_marks(out_dir, path)}
     state = {
+        "kind": str(kind),
         "header": dict(header),
         "next_step": int(next_step),
         "steps_total": int(steps_total),
@@ -4414,36 +4524,47 @@ def save_train_state(
         "resumed_from": dict(resumed_from) if resumed_from is not None else None,
         "ct_guard": ct_guard.to_state() if ct_guard is not None else None,
         "trunc_guard": trunc_guard.to_state(),
-        "save_all_chain": [dict(c) for c in save_all_chain],
+        "save_all_chain": [dict(c) for c in prior_chain] + [link],
         "adapter_sha256": adapter_sha,
         "rng_plain": rng_plain,
         "trainable_names": sorted(trainable),
-        "files_sha256": {name: _file_sha256(tmp_dir / name) for name in TRAIN_STATE_FILES},
+        "files_sha256": {fname: _file_sha256(tmp_dir / fname) for fname in TRAIN_STATE_FILES},
     }
-    with (tmp_dir / "state.json").open("w", encoding="utf-8", newline="\n") as fh:
-        fh.write(json.dumps(state, indent=1))
-        fh.flush()
-        os.fsync(fh.fileno())
+    _write_fsync(tmp_dir / "state.json", lambda fh: fh.write(json.dumps(state, indent=1).encode("utf-8")))
+    final_dir = root / name
     os.replace(tmp_dir, final_dir)
-    return _file_sha256(final_dir / "state.json")
+    for old in state_dirs(out_dir)[: -max(int(keep), 1)]:
+        shutil.rmtree(old)
+    return _file_sha256(final_dir / "state.json"), final_dir
 
 
-def load_train_state(resume_dir: Path, *, header: Mapping[str, Any], steps_total: int) -> dict[str, Any]:
-    """Read and verify a chunk's train-state. Refuses on any header difference, a changed file, a halted or a
-    finished run, or a previous save-all archive that no longer matches the sha256 the state recorded."""
-    torch = require_torch()
-    sdir = Path(resume_dir) / TRAIN_STATE_DIR
+def _cut_copy_name(name: str, next_step: int) -> str:
+    for suffix in (".jsonl.gz", ".jsonl"):
+        if name.endswith(suffix):
+            return f"{name[: -len(suffix)]}.cut-step-{int(next_step):05d}{suffix}"
+    return f"{name}.cut-step-{int(next_step):05d}"  # pragma: no cover - every tracked archive has a suffix
+
+
+def precheck_resume(resume_dir: Path, *, steps_total: int, path: str = "hf") -> dict[str, Any]:
+    """Every resume check that needs no model, run before it is loaded: the latest state's files, a halted or
+    finished run, and the chunk's archives against the lengths and sha256 recorded at that save point.
+
+    An archive longer than its mark, whose first ``bytes`` still match, is a chunk killed after a periodic
+    save: it is planned for a cut copy (made only once the header matches). A final save's archives must match
+    exactly, and any change inside the recorded prefix refuses.
+    """
+    rdir = Path(resume_dir)
+    sdir = latest_state_dir(rdir)
+    if sdir is None:
+        raise SystemExit(
+            f"refusing to resume (RESUME_STATE_MISSING): {rdir.name}/{TRAIN_STATE_DIR} holds no state"
+        )
     state_path = sdir / "state.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     for name, want in dict(state.get("files_sha256") or {}).items():
         fp = sdir / name
         if not fp.is_file() or _file_sha256(fp) != want:
             raise SystemExit(f"refusing to resume (RESUME_STATE_FILE_CHANGED): {name} is missing or changed")
-    diffs = header_differences(state.get("header") or {}, header)
-    if diffs:
-        raise SystemExit(
-            f"refusing to resume (RESUME_HEADER_MISMATCH): the run header differs in {', '.join(diffs)}"
-        )
     if state.get("halted") is not None:
         raise SystemExit(
             f"refusing to resume (RESUME_FROM_HALTED): the run halted ({state['halted'].get('reason')}); "
@@ -4451,18 +4572,63 @@ def load_train_state(resume_dir: Path, *, header: Mapping[str, Any], steps_total
         )
     if int(state["next_step"]) >= int(steps_total):
         raise SystemExit("refusing to resume (RESUME_RUN_COMPLETE): the run already completed every update")
-    for link in state.get("save_all_chain") or []:
-        if link.get("chunk_dir") == Path(resume_dir).name and link.get("sha256") is not None:
-            archive = Path(resume_dir) / str(link["file"])
-            if not archive.is_file() or _file_sha256(archive) != link["sha256"]:
+    chain = list(state.get("save_all_chain") or [])
+    if not chain or chain[-1].get("chunk_dir") != rdir.name:
+        raise SystemExit(
+            "refusing to resume (RESUME_SAVE_ALL_CHANGED): the state's chain does not end at this chunk"
+        )
+    cuts: list[dict[str, Any]] = []
+    for key, mark in dict(chain[-1].get("archives") or {}).items():
+        fp = rdir / str(mark["file"])
+        data = fp.read_bytes() if fp.exists() else b""
+        n = int(mark["bytes"])
+        if len(data) < n or hashlib.sha256(data[:n]).hexdigest() != mark["sha256"]:
+            raise SystemExit(
+                f"refusing to resume (RESUME_SAVE_ALL_CHANGED): {mark['file']} no longer matches the state "
+                f"at its save point"
+            )
+        if len(data) > n:
+            if state.get("kind") != "periodic":
                 raise SystemExit(
-                    "refusing to resume (RESUME_SAVE_ALL_CHANGED): the previous chunk's save-all archive is "
-                    "missing or no longer matches the state"
+                    f"refusing to resume (RESUME_SAVE_ALL_CHANGED): {mark['file']} grew after a final save"
                 )
+            cuts.append(
+                {
+                    "archive": key,
+                    "file": mark["file"],
+                    "copy": _cut_copy_name(str(mark["file"]), int(state["next_step"])),
+                    "bytes": n,
+                    "sha256": mark["sha256"],
+                    "original_bytes": len(data),
+                    "original_sha256": hashlib.sha256(data).hexdigest(),
+                }
+            )
+    state["_dir"] = sdir
+    state["_resume_dir"] = rdir
+    state["_cuts"] = cuts
+    state["_state_sha256"] = _file_sha256(state_path)
+    return state
+
+
+def finish_resume(state: dict[str, Any], *, header: Mapping[str, Any]) -> dict[str, Any]:
+    """After the model is built: compare the full header, make any planned cut copies, load the tensors."""
+    torch = require_torch()
+    diffs = header_differences(state.get("header") or {}, header)
+    if diffs:
+        raise SystemExit(
+            f"refusing to resume (RESUME_HEADER_MISMATCH): the run header differs in {', '.join(diffs)}"
+        )
+    rdir: Path = state["_resume_dir"]
+    link = state["save_all_chain"][-1]
+    for cut in state["_cuts"]:
+        # the killed chunk's archive is kept whole; a copy cut back to the save point continues the chain
+        data = (rdir / cut["file"]).read_bytes()[: int(cut["bytes"])]
+        _write_fsync(rdir / cut["copy"], lambda fh, d=data: fh.write(d))
+        link["archives"][cut["archive"]] = {**link["archives"][cut["archive"]], "cut_copy": cut["copy"]}
+    sdir: Path = state["_dir"]
     state["_trainable"] = torch.load(sdir / "trainable.pt", map_location="cpu", weights_only=True)
     state["_optimizer"] = torch.load(sdir / "optimizer.pt", map_location="cpu", weights_only=True)
     state["_rng"] = torch.load(sdir / "rng.pt", map_location="cpu", weights_only=True)
-    state["_state_sha256"] = _file_sha256(state_path)
     return state
 
 
@@ -6096,6 +6262,8 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["trunc_halt_rate"] = float(a.trunc_halt_rate)
     if getattr(a, "stop_after_updates", None) is not None:
         flags["stop_after_updates"] = int(a.stop_after_updates)
+    if getattr(a, "arm", None) is not None or getattr(a, "state_every_updates", None) is not None:
+        flags["state_every_updates"] = state_every_updates(a)
     if getattr(a, "resume_from", None) is not None:
         flags["resume_from"] = Path(a.resume_from).name
     return flags
@@ -6131,6 +6299,10 @@ def execute(
     save_all_on, save_all_reason = validate_save_all_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
     training_run = validate_training_args(a)
+    resume_pre: dict[str, Any] | None = None
+    if training_run and getattr(a, "resume_from", None) is not None:
+        # every check that needs no model runs before the model loads: halted, finished, changed files
+        resume_pre = precheck_resume(Path(a.resume_from), steps_total=int(a.steps), path=a.path)
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
     require_frozen = bool(
@@ -6352,10 +6524,8 @@ def execute(
             commit=aspire_commit(),
             checkpoint_sha=ckpt_sha,
         )
-        if getattr(a, "resume_from", None) is not None:
-            resume_state = load_train_state(
-                Path(a.resume_from), header=train_header, steps_total=int(a.steps)
-            )
+        if resume_pre is not None:
+            resume_state = finish_resume(resume_pre, header=train_header)
             apply_train_state(resume_state, model=bundle["model"], optimiser=bundle["optimiser"])
             start_step = int(resume_state["next_step"])
             chunk_index = int(resume_state["chunk_index"]) + 1
@@ -6364,9 +6534,12 @@ def execute(
             trunc_guard_obj = TruncationHaltGuard.from_state(resume_state["trunc_guard"])
             resumed_from_rec = {
                 "chunk_dir": Path(a.resume_from).name,
+                "state_dir": resume_state["_dir"].name,
+                "state_kind": resume_state.get("kind"),
                 "state_sha256": resume_state["_state_sha256"],
                 "next_step": start_step,
                 "chunk_index": int(resume_state["chunk_index"]),
+                "cuts": resume_state["_cuts"],
             }
         a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}-train-header.json").write_text(
@@ -6427,6 +6600,46 @@ def execute(
             a.out.mkdir(parents=True, exist_ok=True)
             (a.out / f"s2-{a.path}-eval-summary.json").write_text(
                 json.dumps(summary_doc, indent=1), encoding="utf-8", newline="\n"
+            )
+
+        steps_path = a.out / f"s2-{a.path}-steps.jsonl"
+
+        def append_step_row(rec: dict) -> None:
+            # training: each update's row is appended as it lands (flushed, fsynced), so a kill keeps the rows
+            a.out.mkdir(parents=True, exist_ok=True)
+            with steps_path.open("a", encoding="utf-8", newline="\n") as sfh:
+                sfh.write(json.dumps(rec) + "\n")
+                sfh.flush()
+                os.fsync(sfh.fileno())
+
+        def chunk_link(next_step_now: int) -> dict[str, Any]:
+            return {
+                "chunk_dir": a.out.name,
+                "chunk_index": chunk_index,
+                "first_step": start_step,
+                "next_step": int(next_step_now),
+            }
+
+        def periodic_save(next_step_now: int, ending: bool) -> None:
+            if ending or next_step_now % state_every_updates(a) != 0:
+                return
+            save_train_state(
+                a.out,
+                model=bundle["model"],
+                optimiser=bundle["optimiser"],
+                header=train_header,
+                next_step=next_step_now,
+                steps_total=int(a.steps),
+                chunk_index=chunk_index,
+                ct_guard=ct_guard_obj,
+                trunc_guard=trunc_guard_obj,
+                prior_chain=list((resume_state or {}).get("save_all_chain") or []),
+                chunk_link=chunk_link(next_step_now),
+                adapter_sha=None,
+                halted=None,
+                resumed_from=resumed_from_rec,
+                kind="periodic",
+                path=a.path,
             )
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
@@ -6613,6 +6826,8 @@ def execute(
                 ),
                 critic_stats=critic_stats,
                 progress=train_progress,
+                on_step=append_step_row if training_run else None,
+                on_update_end=periodic_save if training_run else None,
             )
 
         if sampler is not None:
@@ -6714,19 +6929,8 @@ def execute(
             adapter_sha = checkpoint_sha256(adapter_dir)
         training_block: dict[str, Any] | None = None
         if training_run and train_header is not None and trunc_guard_obj is not None:
-            sa_file = save_all_file_path(a.out, a.path)
-            chain = list((resume_state or {}).get("save_all_chain") or [])
-            chain.append(
-                {
-                    "chunk_dir": a.out.name,
-                    "chunk_index": chunk_index,
-                    "file": sa_file.name,
-                    "sha256": save_all_sha,
-                    "records": len(read_save_all(sa_file)) if save_all_on and sa_file.exists() else None,
-                    "first_step": start_step,
-                    "next_step": next_step,
-                }
-            )
+            if not steps_path.exists():
+                steps_path.write_bytes(b"")
             halted = train_progress.get("halted")
             state_ok = not oom and (stopped is None or bool(stopped.get("triggered_rules")))
             state_sha = (
@@ -6740,11 +6944,14 @@ def execute(
                     chunk_index=chunk_index,
                     ct_guard=ct_guard_obj,
                     trunc_guard=trunc_guard_obj,
-                    save_all_chain=chain,
+                    prior_chain=list((resume_state or {}).get("save_all_chain") or []),
+                    chunk_link=chunk_link(next_step),
                     adapter_sha=adapter_sha,
                     halted=halted,
                     resumed_from=resumed_from_rec,
-                )
+                    kind="final",
+                    path=a.path,
+                )[0]
                 if state_ok
                 else None
             )
@@ -6765,6 +6972,9 @@ def execute(
                 ).hexdigest(),
                 "train_state_sha256": state_sha,
                 "train_state_saved": state_sha is not None,
+                "latest_state_dir": (lsd.name if (lsd := latest_state_dir(a.out)) is not None else None),
+                "state_every_updates": state_every_updates(a),
+                "cuda_deterministic": False,
                 "guard_history_sha256": _file_sha256(gh_path) if gh_path.exists() else None,
                 "start_policy": train_header["start_policy"],
                 "critic": (
@@ -6809,7 +7019,7 @@ def execute(
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )
-        if not rollout_only:
+        if not rollout_only and not training_run:
             (a.out / f"s2-{a.path}-steps.jsonl").write_text(
                 "".join(json.dumps(r) + "\n" for r in steps), encoding="utf-8", newline="\n"
             )
@@ -7205,6 +7415,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="training run: continue from the previous chunk's directory (its train-state); a fresh --out",
+    )
+    ap.add_argument(
+        "--state-every-updates",
+        type=int,
+        default=None,
+        help=(
+            f"training run: save the train state every N updates (default {STATE_EVERY_DEFAULT}); the last "
+            f"{STATE_KEEP} saves are kept, and a kill resumes from the latest"
+        ),
     )
     ap.add_argument(
         "--trunc-window-updates",

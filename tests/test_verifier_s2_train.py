@@ -104,7 +104,7 @@ def _untimed(rows):
 
 
 def _state(out):
-    sdir = Path(out) / s2.TRAIN_STATE_DIR
+    sdir = s2.latest_state_dir(Path(out))
     return (
         json.loads((sdir / "state.json").read_text(encoding="utf-8")),
         torch.load(sdir / "trainable.pt", weights_only=True),
@@ -174,7 +174,9 @@ class TestResumeEquivalence:
         assert _receipt(full)["adapter_sha256"] == _receipt(c2)["adapter_sha256"]
         chain = st_c2["save_all_chain"]
         assert [c["chunk_dir"] for c in chain] == ["chunk-1", "chunk-2"]
-        assert [c["records"] for c in chain] == [8, 8]
+        assert [c["next_step"] for c in chain] == [2, 4]
+        sa_mark = chain[0]["archives"]["save_all"]
+        assert sa_mark["bytes"] == (c1 / "s2-hf-save-all.jsonl.gz").stat().st_size
 
     def test_resume_refuses_a_different_train_seed_and_names_it(self, tmp_path):
         gold = _gold(tmp_path)
@@ -205,7 +207,7 @@ class TestResumeEquivalence:
         with pytest.raises(SystemExit, match="RESUME_SAVE_ALL_CHANGED"):
             _run(_argv(gold, tmp_path / "c2", "--resume-from", str(c1), steps=2))
         archive.write_bytes(original)
-        opt = c1 / s2.TRAIN_STATE_DIR / "optimizer.pt"
+        opt = s2.latest_state_dir(c1) / "optimizer.pt"
         opt.write_bytes(opt.read_bytes() + b"x")
         with pytest.raises(SystemExit, match="RESUME_STATE_FILE_CHANGED"):
             _run(_argv(gold, tmp_path / "c3", "--resume-from", str(c1), steps=2))
@@ -661,9 +663,23 @@ MECH_GOLDEN_REPLIES = [
 ]
 
 
+def _fix_weights(model):
+    """Overwrite every weight with a fixed pattern (lora_B stays zero), so a golden depends on torch's math only,
+    not on the random init of whichever transformers version is installed."""
+    with torch.no_grad():
+        for k, (name, p) in enumerate(sorted(model.named_parameters(), key=lambda x: x[0])):
+            if "lora_B" in name:
+                p.zero_()
+                continue
+            idx = torch.arange(p.numel(), dtype=torch.float64)
+            p.copy_((torch.sin(idx * 0.37 + k) * 0.05).reshape(p.shape).to(p.dtype))
+
+
 class TestMechArmMatchesTheBase:
-    """Rewards and advantages on fixed replies with the registered reward (v2, dr-grpo, masks on). The golden
-    values were produced by aspire-si 7f9b4cb3's run_steps on this exact scenario (counts only)."""
+    """Rewards, advantages, LoRA weights and AdamW state on fixed replies with the registered reward (v2,
+    dr-grpo, masks on). The golden values were produced by aspire-si 7f9b4cb3's run_steps on this exact
+    scenario, with the weights fixed by ``_fix_weights``. Weight summaries compare at rtol 1e-5 (float32 sums
+    differ in the last bits between BLAS builds); rewards and advantages compare exactly."""
 
     GOLDEN = {
         "rewards": [
@@ -680,9 +696,10 @@ class TestMechArmMatchesTheBase:
         ],
     }
 
-    def test_rewards_and_advantages_equal_the_base_commit(self, tmp_path):
+    def test_rewards_advantages_and_weights_equal_the_base_commit(self, tmp_path):
         a = _ns(_argv(_gold(tmp_path), tmp_path / "o", gpu=2, steps=2))
         bundle = s2.dry_bundle(a)
+        _fix_weights(bundle["model"])
         tok = bundle["tok"]
         calls = {"n": 0}
 
@@ -721,6 +738,22 @@ class TestMechArmMatchesTheBase:
         by_group = [records[i : i + 4] for i in range(0, len(records), 4)]
         assert [[r["reward"] for r in grp] for grp in by_group] == self.GOLDEN["rewards"]
         assert [[r["advantage"] for r in grp] for grp in by_group] == self.GOLDEN["advantages"]
+        ten = {n: p.detach() for n, p in bundle["model"].named_parameters() if p.requires_grad}
+        opt = bundle["optimiser"].state_dict()
+        names = sorted(ten)
+        got = {
+            "adapter_sum": [float(ten[n].double().sum()) for n in names],
+            "adapter_abs": [float(ten[n].double().abs().sum()) for n in names],
+            "exp_avg_abs": [
+                float(opt["state"][i]["exp_avg"].double().abs().sum()) for i in sorted(opt["state"])
+            ],
+            "exp_avg_sq_sum": [
+                float(opt["state"][i]["exp_avg_sq"].double().sum()) for i in sorted(opt["state"])
+            ],
+            "steps": [float(opt["state"][i]["step"]) for i in sorted(opt["state"])],
+        }
+        for key, want in WEIGHT_GOLDEN.items():
+            assert got[key] == pytest.approx(want, **WEIGHT_TOLERANCE[key]), key
 
 
 # -- B5: the guard history --
@@ -874,7 +907,7 @@ class TestRemainingPaths:
     def test_a_leftover_partial_state_is_replaced(self, tmp_path):
         a = _ns(_argv(_gold(tmp_path), tmp_path / "o"))
         bundle = s2.dry_bundle(a)
-        partial = tmp_path / "o" / f"{s2.TRAIN_STATE_DIR}.partial"
+        partial = tmp_path / "o" / s2.TRAIN_STATE_DIR / "0000-step-00001.partial"
         partial.mkdir(parents=True)
         (partial / "trainable.pt").write_bytes(b"torn")
         sha = s2.save_train_state(
@@ -887,13 +920,15 @@ class TestRemainingPaths:
             chunk_index=1,
             ct_guard=None,
             trunc_guard=s2.TruncationHaltGuard(window_updates=2, halt_rate=0.5),
-            save_all_chain=[],
+            prior_chain=[],
+            chunk_link={"chunk_dir": "o", "chunk_index": 1, "first_step": 0, "next_step": 1},
             adapter_sha=None,
             halted=None,
             resumed_from=None,
-        )
+            kind="periodic",
+        )[0]
         assert not partial.exists() and len(sha) == 64
-        state = json.loads((tmp_path / "o" / s2.TRAIN_STATE_DIR / "state.json").read_text(encoding="utf-8"))
+        state = json.loads((s2.latest_state_dir(tmp_path / "o") / "state.json").read_text(encoding="utf-8"))
         assert state["draw_position"] == 2 and state["complete"] is False
 
     def test_a_ct_halt_and_a_truncation_halt_in_one_update_report_both(self, tmp_path):
@@ -945,3 +980,316 @@ class TestRemainingPaths:
         assert len(retries) == 2 and all(r["truncated"] is True for r in retries)  # no EOS, at the cap
         hint = s2.critic_hint("The parser counts tokens.", ["\n\nthe parser\n\n"], [("x", False)])
         assert hint["retrieved_lines"] == 1
+
+
+# produced by aspire-si 7f9b4cb3's run_steps on TestMechArmMatchesTheBase's scenario (weights fixed by _fix_weights)
+WEIGHT_GOLDEN = {
+    "adapter_sum": [
+        0.11221737274900079,
+        -1.467938543797155e-07,
+        -0.11841878214181634,
+        0.0004240866308009572,
+        0.1222511813903111,
+        -5.9498903117122595e-08,
+        -0.12367147060467687,
+        -0.0001046644390498841,
+        0.019023898566956632,
+        1.9812342351563025e-09,
+        -0.0015931065572658554,
+        0.00014369369960931522,
+        -0.015869283677602652,
+        -5.605618079310495e-09,
+        0.033010219667630736,
+        -1.944665118003286e-05,
+    ],
+    "adapter_abs": [
+        16.329239549551858,
+        2.2071852011462494e-06,
+        16.33632168141048,
+        0.007749510997200559,
+        16.33952524005872,
+        2.1472643547480307e-06,
+        16.33451944163062,
+        0.009265968936006175,
+        16.2493128276692,
+        3.545148700628614e-07,
+        16.246568818794913,
+        0.005993998634995279,
+        16.24638309978036,
+        3.530535933554766e-07,
+        16.249476141449122,
+        0.009040659975738663,
+    ],
+    "exp_avg_abs": [
+        1.1823065158803245e-16,
+        2.0410817957342109e-10,
+        1.1984983962395848e-16,
+        2.0983857900890037e-10,
+        6.876127177889158e-08,
+        4.307385019964097e-05,
+        9.21304543429544e-09,
+        7.010995289331856e-06,
+        6.931776831251423e-18,
+        3.354488509807758e-11,
+        5.976704718076054e-18,
+        3.3684611447512194e-11,
+        5.89997650479214e-08,
+        1.6481723666410264e-05,
+        2.42833463982036e-09,
+        2.4420860536178597e-06,
+    ],
+    "exp_avg_sq_sum": [
+        5.330407891272278e-36,
+        1.0287616439962347e-23,
+        5.3577316376684366e-36,
+        1.1384675413815796e-23,
+        1.4944660222929677e-18,
+        3.196523365863784e-13,
+        2.1253887686191916e-20,
+        9.48587396932244e-15,
+        1.7387448672591834e-38,
+        3.058702808787274e-25,
+        1.1627373499926137e-38,
+        3.1490838380960952e-25,
+        9.270586980761244e-19,
+        4.281120372307123e-14,
+        1.5450553399022634e-21,
+        1.0874711056701404e-15,
+    ],
+    "steps": [
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+    ],
+}
+WEIGHT_TOLERANCE = {
+    "adapter_sum": {"abs": 1e-8, "rel": 0.0},
+    "adapter_abs": {"rel": 1e-5, "abs": 0.0},
+    "exp_avg_abs": {"rel": 1e-4, "abs": 0.0},
+    "exp_avg_sq_sum": {"rel": 1e-4, "abs": 0.0},
+    "steps": {"abs": 0.0},
+}
+
+
+# -- fix round 1: periodic saves, kill and resume, header, RNG restore, forked critic RNG --
+class _Killed(BaseException):
+    """A simulated kill: escapes every handler, as a hard stop would."""
+
+
+def _killing_build(kill_at_call, exc=_Killed):
+    calls = {"n": 0}
+
+    def build(a):
+        bundle = s2.dry_bundle(a)
+        real = bundle["rollout"]
+
+        def rollout(*args):
+            if calls["n"] == kill_at_call:
+                calls["n"] += 1
+                raise exc("killed mid-update")
+            calls["n"] += 1
+            return real(*args)
+
+        bundle["rollout"] = rollout
+        return bundle
+
+    return build
+
+
+def _segment(d, name, cut_copy=None):
+    path = Path(d) / (cut_copy or name)
+    if name.endswith(".gz"):
+        return s2.read_save_all(path) if path.exists() else []
+    return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+
+
+class TestPeriodicStateAndKill:
+    @pytest.mark.parametrize("exc", [_Killed, TimeoutError])
+    def test_k_in_one_go_equal_a_run_killed_after_a_periodic_save_and_resumed(self, tmp_path, exc):
+        """Required: K = 6 in one go == saves every 2, killed in update 3 (after the save at 2), resumed from 2."""
+        gold = _gold(tmp_path)
+        full, killed, resumed = tmp_path / "full", tmp_path / "killed", tmp_path / "resumed"
+        every = ("--state-every-updates", "2")
+        assert _run(_argv(gold, full, *every, steps=6)) == 0
+        build = _killing_build(kill_at_call=7, exc=exc)  # update 3, group 1 (2 groups per update)
+        if exc is _Killed:
+            with pytest.raises(_Killed):
+                _run(_argv(gold, killed, *every, steps=6), build=build)
+        else:  # a timeout is caught by the trainer: the chunk fails and saves no final state
+            assert _run(_argv(gold, killed, *every, steps=6), build=build) == 1
+            assert _receipt(killed)["verdict"] == "S2-TRAIN-FAIL"
+        killed_state, _, _ = _state(killed)
+        assert killed_state["kind"] == "periodic" and killed_state["next_step"] == 2
+        assert _run(_argv(gold, resumed, *every, "--resume-from", str(killed), steps=6)) == 0
+
+        st_f, ten_f, opt_f = _state(full)
+        st_r, ten_r, opt_r = _state(resumed)
+        _assert_tensors_equal(ten_f, ten_r)
+        _assert_optim_equal(opt_f, opt_r)
+        assert st_f["trunc_guard"] == st_r["trunc_guard"] and st_f["rng_plain"] == st_r["rng_plain"]
+        cuts = {c["archive"]: c for c in _receipt(resumed)["training"]["resumed_from"]["cuts"]}
+        assert {"save_all", "guard_history", "steps"} <= set(cuts)
+        for c in cuts.values():
+            assert c["original_bytes"] > c["bytes"] and (killed / c["copy"]).is_file()
+            assert (killed / c["file"]).stat().st_size == c["original_bytes"]  # the original is kept whole
+        names = s2.tracked_archives()
+        for key in ("save_all", "guard_history", "steps"):
+            whole = _segment(full, names[key])
+            split = _segment(killed, names[key], cuts[key]["copy"]) + _segment(resumed, names[key])
+            if key == "steps":
+                whole, split = _untimed(whole), _untimed(split)
+            assert whole == split, key
+        link = st_r["save_all_chain"][0]
+        assert link["chunk_dir"] == "killed"
+        assert link["archives"]["save_all"]["cut_copy"] == cuts["save_all"]["copy"]
+
+    def test_only_the_last_two_states_are_kept(self, tmp_path):
+        out = tmp_path / "o"
+        assert _run(_argv(_gold(tmp_path), out, "--state-every-updates", "1", steps=4)) == 0
+        dirs = s2.state_dirs(out)
+        assert [d.name for d in dirs] == ["0002-step-00003", "0003-step-00004"]
+        kinds = [json.loads((d / "state.json").read_text(encoding="utf-8"))["kind"] for d in dirs]
+        assert kinds == ["periodic", "final"]
+
+    def test_a_change_inside_the_saved_prefix_refuses(self, tmp_path):
+        gold = _gold(tmp_path)
+        killed = tmp_path / "killed"
+        with pytest.raises(_Killed):
+            _run(_argv(gold, killed, "--state-every-updates", "2", steps=6), build=_killing_build(7))
+        steps_file = killed / "s2-hf-steps.jsonl"
+        steps_file.write_bytes(b"X" + steps_file.read_bytes()[1:])
+        with pytest.raises(SystemExit, match="RESUME_SAVE_ALL_CHANGED"):
+            _run(
+                _argv(
+                    gold, tmp_path / "r", "--state-every-updates", "2", "--resume-from", str(killed), steps=6
+                )
+            )
+
+    def test_the_pt_files_are_fsynced(self, tmp_path, monkeypatch):
+        synced = []
+        real = s2.os.fsync
+
+        def spy(fd):
+            synced.append(fd)
+            real(fd)
+
+        monkeypatch.setattr(s2.os, "fsync", spy)
+        a = _ns(_argv(_gold(tmp_path), tmp_path / "o"))
+        bundle = s2.dry_bundle(a)
+        s2.save_train_state(
+            tmp_path / "o",
+            model=bundle["model"],
+            optimiser=bundle["optimiser"],
+            header={"settings": {}},
+            next_step=1,
+            steps_total=2,
+            chunk_index=1,
+            ct_guard=None,
+            trunc_guard=s2.TruncationHaltGuard(window_updates=2, halt_rate=0.5),
+            prior_chain=[],
+            chunk_link={"chunk_dir": "o"},
+            adapter_sha=None,
+            halted=None,
+            resumed_from=None,
+            kind="periodic",
+        )
+        assert len(synced) == 4  # trainable.pt, optimizer.pt, rng.pt, state.json
+
+    def test_bad_state_interval_is_refused_and_recorded_otherwise(self, tmp_path):
+        with pytest.raises(SystemExit, match="invalid_state_every_updates"):
+            s2.validate_training_args(
+                _ns(_argv(_gold(tmp_path), tmp_path / "o", "--state-every-updates", "0"))
+            )
+        with pytest.raises(SystemExit, match="training_flags_required"):
+            s2.validate_training_args(
+                _ns(_argv(_gold(tmp_path), tmp_path / "o", "--state-every-updates", "3", train=False))
+            )
+        out = tmp_path / "rec"
+        assert _run(_argv(_gold(tmp_path), out, steps=1)) == 0
+        hdr = json.loads((out / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr["state_every_updates"] == 10 and hdr["settings"]["state_every_updates"] == 10
+
+
+class TestHeaderFix:
+    @pytest.mark.parametrize("key", ["quote_rule_sha256", "s2_draw_sha256"])
+    def test_a_changed_reward_or_draw_module_refuses_resume(self, tmp_path, monkeypatch, key):
+        gold = _gold(tmp_path)
+        c1 = tmp_path / "c1"
+        assert _run(_argv(gold, c1, "--stop-after-updates", "1", steps=2)) == 0
+        hdr = json.loads((c1 / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert len(hdr[key]) == 64
+        real = s2.dependency_sha256s
+        monkeypatch.setattr(s2, "dependency_sha256s", lambda: {**real(), key: "0" * 64})
+        with pytest.raises(SystemExit, match=f"RESUME_HEADER_MISMATCH.*{key}"):
+            _run(_argv(gold, tmp_path / "c2", "--resume-from", str(c1), steps=2))
+
+    def test_the_header_records_that_cuda_kernels_are_not_deterministic(self, tmp_path):
+        out = tmp_path / "o"
+        assert _run(_argv(_gold(tmp_path), out, steps=1)) == 0
+        hdr = json.loads((out / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr["cuda_deterministic"] is False
+        for k in ("torch_deterministic_algorithms", "cudnn_deterministic", "cudnn_benchmark"):
+            assert isinstance(hdr[k], bool)
+        assert "cublas_workspace_config" in hdr
+
+    def test_model_free_checks_run_before_the_model_is_built(self, tmp_path):
+        gold = _gold(tmp_path)
+        done = tmp_path / "done"
+        assert _run(_argv(gold, done, steps=1)) == 0
+
+        def no_build(a):
+            raise AssertionError("the model was built before the resume checks")
+
+        with pytest.raises(SystemExit, match="RESUME_RUN_COMPLETE"):
+            _run(_argv(gold, tmp_path / "x", "--resume-from", str(done), steps=1), build=no_build)
+
+
+class TestRngRestore:
+    def test_resume_starts_training_from_the_saved_global_rng_state(self, tmp_path, monkeypatch):
+        """Fails if the RNG restore is removed: the generators at run_steps entry equal the saved ones."""
+        import random
+
+        import numpy as np
+
+        gold = _gold(tmp_path)
+        c1 = tmp_path / "c1"
+        assert _run(_argv(gold, c1, "--stop-after-updates", "1", steps=2)) == 0
+        sdir = s2.latest_state_dir(c1)
+        saved = torch.load(sdir / "rng.pt", weights_only=True)
+        plain = json.loads((sdir / "state.json").read_text(encoding="utf-8"))["rng_plain"]
+        seen = {}
+        real = s2.run_steps
+
+        def spy(**kw):
+            seen["torch"] = torch.get_rng_state().clone()
+            seen["python"] = random.getstate()
+            seen["numpy"] = np.random.get_state()
+            return real(**kw)
+
+        monkeypatch.setattr(s2, "run_steps", spy)
+        assert _run(_argv(gold, tmp_path / "c2", "--resume-from", str(c1), steps=2)) == 0
+        assert torch.equal(seen["torch"], saved["torch_cpu"])
+        assert list(seen["python"][1]) == plain["python"][1]
+        assert [int(x) for x in seen["numpy"][1]] == plain["numpy"][1]
+
+    def test_the_critic_retry_leaves_the_global_rng_where_the_mech_arm_leaves_it(self, tmp_path):
+        gold = _gold(tmp_path)
+        mech, critic = tmp_path / "mech", tmp_path / "critic"
+        assert _run(_argv(gold, mech, arm="mech", steps=2)) == 0
+        assert _run(_argv(gold, critic, arm="critic", steps=2)) == 0
+        rng_m = torch.load(s2.latest_state_dir(mech) / "rng.pt", weights_only=True)
+        rng_c = torch.load(s2.latest_state_dir(critic) / "rng.pt", weights_only=True)
+        assert torch.equal(rng_m["torch_cpu"], rng_c["torch_cpu"])
