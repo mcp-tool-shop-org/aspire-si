@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `examples/verifier-distill/s2_grpo_smoke.py`: the S2 GRPO training run, launchable in chunks.
+  - `--arm mech|critic`, `--train-seed`, `--trunc-window-updates` and `--trunc-halt-rate` name a training run.
+    All four are required, with no defaults, once any training flag is given.
+  - `--stop-after-updates N` ends a chunk cleanly. `--resume-from <chunk dir>` continues into a fresh `--out`
+    from the saved state: the LoRA tensors, AdamW state, RNG states, global step, CT guard, truncation window
+    and save-all chain. Resume refuses any difference in the run header (settings, seeds, holdout and draw
+    shas, aspire commit, script sha, model revision, frozen stack).
+  - Training is seeded: the fresh LoRA's init, and each rollout by (seed, step, group). Save-all records the
+    seed that was applied, and an unseeded smoke run records none.
+  - A rolling truncation halt beside the CT collapse guard, sharing its halt path. Every guard window (S1, S2,
+    U1, U2 and the truncation window) is appended to `s2-hf-guard-history.jsonl.gz`.
+  - The critic arm: each all-wrong group gets one retry with a mechanical tool hint (offrig's quote rule and
+    lexical retrieval; NLI stays off because S1 failed). Retries are scored on gold and archived in
+    `s2-hf-critic-retries.jsonl.gz`. They never enter the loss, the guards or the training save-all.
+  - Training verdicts: `S2-TRAIN-CHUNK-OK` and `S2-TRAIN-COMPLETE` (exit 0), `S2-TRAIN-HALT-<rule>` (exit 2),
+    `S2-TRAIN-FAIL` (exit 1).
+
 ## [1.4.0] - 2026-10-23
 
 ### Added

@@ -204,6 +204,7 @@ try:
         WATERFALL_RUNGS,
         as_passages,
         classify_quote_rung,
+        content_tokens,
         normalise,
         normalise_unmarked,
         quote_credit_v2,
@@ -230,6 +231,7 @@ except ModuleNotFoundError:  # pragma: no cover
         WATERFALL_RUNGS,
         as_passages,
         classify_quote_rung,
+        content_tokens,
         normalise,
         normalise_unmarked,
         quote_credit_v2,
@@ -624,7 +626,7 @@ class CtCollapseGuard:
             "u2_distinct_easy_ct_items": len(u2_easy_ct_items),
             "triggered_rules": list(triggered),
         }
-        self.window_history.append(metrics)
+        self.window_history.append({"step": int(step), **metrics})
         if not triggered:
             return None
         return {
@@ -635,6 +637,105 @@ class CtCollapseGuard:
             "total_groups_sampled": self.total_groups_sampled,
             "guard_metrics": metrics,
         }
+
+    def to_state(self) -> dict[str, Any]:
+        """Everything a resumed run needs to carry the guard on: the open window and the S2 counters."""
+        return {
+            "window_groups": self.window_groups,
+            "window_index": self.window_index,
+            "total_groups_sampled": self.total_groups_sampled,
+            "open_window": [dict(r) for r in self._window],
+            "records": [dict(r) for r in self.records],
+            "cum_sup_answers": self.cum_sup_answers,
+            "cum_sup_ct_answers": self.cum_sup_ct_answers,
+            "cum_sup_ct_items": sorted(self.cum_sup_ct_items),
+            "window_history": [dict(w) for w in self.window_history],
+        }
+
+    @classmethod
+    def from_state(cls, state: Mapping[str, Any], *, pass_a_k: Mapping[str, int] | None) -> CtCollapseGuard:
+        guard = cls(window_groups=int(state["window_groups"]), pass_a_k=pass_a_k)
+        guard.window_index = int(state["window_index"])
+        guard.total_groups_sampled = int(state["total_groups_sampled"])
+        guard._window = [dict(r) for r in state["open_window"]]
+        guard.records = [dict(r) for r in state["records"]]
+        guard.cum_sup_answers = int(state["cum_sup_answers"])
+        guard.cum_sup_ct_answers = int(state["cum_sup_ct_answers"])
+        guard.cum_sup_ct_items = {str(x) for x in state["cum_sup_ct_items"]}
+        guard.window_history = [dict(w) for w in state["window_history"]]
+        return guard
+
+
+class TruncationHaltGuard:
+    """The training run's truncation halt (an operational stop, not an outcome criterion).
+
+    Fed each update's completion and truncation counts (every sample of every group, zero-variance groups
+    included), it keeps a rolling window of the last ``window_updates`` updates. Once the window is full, a
+    window rate (truncated / completions) above ``halt_rate`` halts the run at that update boundary. The
+    descriptive flag (3x the starting rate) lives in the external chunk checker, not here.
+    """
+
+    def __init__(self, *, window_updates: int, halt_rate: float) -> None:
+        if isinstance(window_updates, bool) or int(window_updates) < 1:
+            raise SystemExit(f"--trunc-window-updates must be >= 1, got {window_updates!r}")
+        rate = float(halt_rate)
+        if not (0.0 < rate < 1.0):
+            raise SystemExit(f"--trunc-halt-rate must be in (0, 1), got {halt_rate!r}")
+        self.window_updates = int(window_updates)
+        self.halt_rate = rate
+        self.window: list[tuple[int, int, int]] = []  # (step, completions, truncated), oldest first
+        self.history: list[dict[str, Any]] = []
+
+    def record_update(self, *, step: int, completions: int, truncated: int) -> dict[str, Any] | None:
+        self.window.append((int(step), int(completions), int(truncated)))
+        if len(self.window) > self.window_updates:
+            self.window.pop(0)
+        n = sum(c for _, c, _ in self.window)
+        t = sum(x for _, _, x in self.window)
+        full = len(self.window) == self.window_updates
+        rate = (t / n) if n > 0 else 0.0
+        halt = bool(full and rate > self.halt_rate)
+        entry = {
+            "kind": "trunc_window",
+            "step": int(step),
+            "update_completions": int(completions),
+            "update_truncated": int(truncated),
+            "window_updates": len(self.window),
+            "window_full": full,
+            "window_completions": n,
+            "window_truncated": t,
+            "window_rate": round(rate, 6),
+            "halt_rate": self.halt_rate,
+            "halt": halt,
+        }
+        self.history.append(entry)
+        if not halt:
+            return None
+        return {
+            "step": int(step),
+            "reason": "trunc_halt",
+            "triggered_rules": ["TRUNC"],
+            "window_updates": self.window_updates,
+            "window_completions": n,
+            "window_truncated": t,
+            "window_rate": round(rate, 6),
+            "halt_rate": self.halt_rate,
+        }
+
+    def to_state(self) -> dict[str, Any]:
+        return {
+            "window_updates": self.window_updates,
+            "halt_rate": self.halt_rate,
+            "window": [list(w) for w in self.window],
+            "history": [dict(h) for h in self.history],
+        }
+
+    @classmethod
+    def from_state(cls, state: Mapping[str, Any]) -> TruncationHaltGuard:
+        guard = cls(window_updates=int(state["window_updates"]), halt_rate=float(state["halt_rate"]))
+        guard.window = [(int(s), int(c), int(t)) for s, c, t in state["window"]]
+        guard.history = [dict(h) for h in state["history"]]
+        return guard
 
 
 def zero_variance(rewards: Sequence[float]) -> bool:
@@ -964,8 +1065,11 @@ def verdict_line(
 
 
 def exit_status(line: str) -> int:
-    """0 for S2-OK, S2-PREPASS and for a finished rehearsal; anything else is non-zero."""
-    return 0 if line in ("S2-OK", "S2-DRY", "S2-PREPASS") else 1
+    """0 for S2-OK, S2-PREPASS, a finished rehearsal, and a training chunk or run that ended cleanly;
+    2 for a training halt (S2-TRAIN-HALT-<rule>: stop and report); anything else is 1."""
+    if line.startswith("S2-TRAIN-HALT-"):
+        return TRAIN_EXIT_HALT
+    return 0 if line in ("S2-OK", "S2-DRY", "S2-PREPASS", "S2-TRAIN-CHUNK-OK", "S2-TRAIN-COMPLETE") else 1
 
 
 # -- the environment, the guards and the receipt -------------------------------------------------------------
@@ -2517,6 +2621,155 @@ def _call_reward_fn(reward_fn: Callable, text: str, row: dict, think_toks: int, 
         return float(reward_fn(text, row, think_toks))
 
 
+# -- training seeds (B3) -------------------------------------------------------------------------------------
+ROLLOUT_SEED_RULE = (
+    "torch.manual_seed(sha256('s2-train:<purpose>:<train_seed>:<step>:<group>')[:8] & 2**63-1) before each "
+    "batched generate; sample i of a group is the i-th row of that seeded batch"
+)
+
+
+def train_rollout_seed(train_seed: int, step: int, group: int, *, purpose: str = "rollout") -> int:
+    """The seed applied before one training rollout, fixed by (train seed, global step, group, purpose)."""
+    key = f"s2-train:{purpose}:{int(train_seed)}:{int(step)}:{int(group)}"
+    digest = hashlib.sha256(key.encode()).digest()
+    return int.from_bytes(digest[:8], "big") & 0x7FFF_FFFF_FFFF_FFFF
+
+
+def seed_everything(seed: int) -> None:
+    """Seed python's random, numpy's global generator and torch (CPU and every CUDA device)."""
+    import random
+
+    random.seed(int(seed))
+    try:
+        import numpy as np
+
+        np.random.seed(int(seed) % 2**32)
+    except ModuleNotFoundError:  # pragma: no cover - numpy ships with torch
+        pass
+    require_torch().manual_seed(int(seed))
+
+
+def capture_rng_state() -> tuple[dict[str, Any], dict[str, Any]]:
+    """(tensors for torch.save, JSON-able python and numpy states) of every random generator in play."""
+    import random
+
+    torch = require_torch()
+    cuda_mod = getattr(torch, "cuda", None)
+    cuda_on = bool(cuda_mod is not None and cuda_mod.is_available())
+    tensors = {
+        "torch_cpu": torch.get_rng_state(),
+        "torch_cuda": list(cuda_mod.get_rng_state_all()) if cuda_on else [],
+    }
+    py_ver, py_state, py_gauss = random.getstate()
+    plain: dict[str, Any] = {"python": [py_ver, list(py_state), py_gauss], "numpy": None}
+    try:
+        import numpy as np
+
+        name, keys, pos, has_gauss, cached = np.random.get_state()
+        plain["numpy"] = [name, [int(k) for k in keys], int(pos), int(has_gauss), float(cached)]
+    except ModuleNotFoundError:  # pragma: no cover - numpy ships with torch
+        pass
+    return tensors, plain
+
+
+def restore_rng_state(tensors: Mapping[str, Any], plain: Mapping[str, Any]) -> None:
+    import random
+
+    torch = require_torch()
+    torch.set_rng_state(tensors["torch_cpu"])
+    cuda_states = list(tensors.get("torch_cuda") or [])
+    cuda_mod = getattr(torch, "cuda", None)
+    cuda_on = bool(cuda_mod is not None and cuda_mod.is_available())
+    if cuda_states and not cuda_on:
+        raise SystemExit(
+            "refusing to resume (RESUME_RNG_DEVICE_MISMATCH): the saved state has CUDA generator states "
+            "and this process has no CUDA device"
+        )
+    if cuda_states:  # pragma: no cover - needs the 5090
+        cuda_mod.set_rng_state_all(cuda_states)
+    py_ver, py_state, py_gauss = plain["python"]
+    random.setstate((int(py_ver), tuple(int(x) for x in py_state), py_gauss))
+    if plain.get("numpy") is not None:
+        import numpy as np
+
+        name, keys, pos, has_gauss, cached = plain["numpy"]
+        np.random.set_state(
+            (str(name), np.array(keys, dtype=np.uint32), int(pos), int(has_gauss), float(cached))
+        )
+
+
+# -- the critic arm (B4): mechanical tool hints, no learned model -------------------------------------------
+CRITIC_HINT_SOURCE = (
+    "mechanical: offrig quote rule 2 (quote_rule.quote_found) + lexical retrieval over the evidence"
+)
+CRITIC_NLI_STATUS = "off: smoke test S1 failed its pass line on both check types (receipts 2026-10-27, #172)"
+CRITIC_RETRY_LINES = 2
+CRITIC_LINE_CHARS = 200
+CRITIC_PART_CHARS = 80
+
+
+def critic_hint(claim: str, passages: Sequence[str], decoded: Sequence[tuple[str, bool]]) -> dict[str, Any]:
+    """A tool-derived hint for an all-wrong group. It sees the claim, the evidence and the group's answers,
+    never the gold label, so it cannot name the answer.
+
+    Quote check: the first answer (in sample order) whose quote is not found in the evidence by offrig's rule
+    is named by part. Retrieval: the evidence lines sharing the most content tokens with the claim.
+    """
+    quote_note: str
+    quote_kind: str
+    parsed_any = False
+    unfound: tuple[int, str] | None = None
+    for text, truncated in decoded:
+        if truncated:
+            continue
+        parsed = parse_reply(text)
+        if parsed is None:
+            continue
+        parsed_any = True
+        for p_i, part in enumerate(parsed["evidence_quotes"], start=1):
+            if not quote_found(str(part["quote"]), list(passages)):
+                unfound = (p_i, str(part.get("part", "")))
+                break
+        if unfound is not None:
+            break
+    if unfound is not None:
+        part_txt = " ".join(unfound[1].split())[:CRITIC_PART_CHARS]
+        quote_kind = "quote_not_found"
+        quote_note = f'The quote given for part {unfound[0]} ("{part_txt}") is not in the evidence.'
+    elif parsed_any:
+        quote_kind = "quotes_found"
+        quote_note = (
+            "Every quote in the earlier answers is in the evidence; check what those lines actually say."
+        )
+    else:
+        quote_kind = "no_parseable_answer"
+        quote_note = (
+            "No earlier answer followed the reply contract; finish thinking and give the JSON object."
+        )
+    claim_toks = content_tokens(claim)
+    scored: list[tuple[int, int, int, str]] = []
+    for p_idx, passage in enumerate(passages):
+        for l_idx, line in enumerate(str(passage).splitlines()):
+            text_line = line.strip()
+            if not text_line:
+                continue
+            overlap = len(content_tokens(text_line) & claim_toks)
+            if overlap > 0:
+                scored.append((-overlap, p_idx, l_idx, text_line[:CRITIC_LINE_CHARS]))
+    lines = [s[3] for s in sorted(scored)[:CRITIC_RETRY_LINES]]
+    hint = "Hint from a tool check of earlier attempts (it does not give the answer):\n- " + quote_note
+    if lines:
+        hint += "\n- Evidence lines that share the most terms with the claim:\n" + "\n".join(
+            f"  {ln}" for ln in lines
+        )
+    return {"hint": hint, "quote_check": quote_kind, "retrieved_lines": len(lines)}
+
+
+def critic_retry_prompt(row: dict, hint: str) -> str:
+    """The retry's prompt: the unchanged task prompt with the hint appended."""
+    return build_prompt(row) + "\n" + hint + "\n"
+
+
 def run_steps(
     *,
     model,
@@ -2558,8 +2811,28 @@ def run_steps(
     mask_wrong_positive_advantage: bool = False,
     dual_clip_c: float | None = None,
     ct_guard: CtCollapseGuard | None = None,
+    start_step: int = 0,
+    stop_after_updates: int | None = None,
+    train_seed: int | None = None,
+    trunc_guard: TruncationHaltGuard | None = None,
+    guard_history_path: Path | None = None,
+    arm: str | None = None,
+    critic_archive_path: Path | None = None,
+    critic_stats: dict[str, int] | None = None,
+    progress: dict[str, Any] | None = None,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
+
+    Training-run additions (all off by default, so the smoke run is unchanged):
+    - ``start_step`` resumes the global step, so the draw position ``prompts[(step*gpu+k) % len]`` and the
+      save-all step numbers carry on; ``stop_after_updates`` ends a chunk cleanly at an update boundary.
+    - ``train_seed`` seeds every training rollout by (seed, step, group); save-all records the applied seed.
+    - ``trunc_guard`` is the rolling truncation halt, checked at the update boundary beside the CT guard and
+      sharing its halt path (the update's gradients are discarded).
+    - ``guard_history_path`` appends every guard window (CT and truncation) to a crash-safe archive.
+    - ``arm == "critic"`` adds a tool-hinted retry to each all-wrong group. Retries are scored on gold and
+      archived at ``critic_archive_path``; they never enter the loss, the guards or the training save-all.
+    - ``progress`` receives ``next_step``, and ``chunk_stop`` or ``halted``.
 
     Each step is ``groups_per_update`` prompt groups of G samples, one group at a time (gradients accumulate),
     so peak memory is one group's. The reference is the same model with the adapter off.
@@ -2618,18 +2891,34 @@ def run_steps(
             raise SystemExit(
                 f"refusing to train (TRAINING_RESUME_UNSUPPORTED, OUT_DIR_HAS_ARCHIVE): "
                 f"training save-all archive {sa_p.name} already holds {len(resumed_sa)} records; "
-                f"checkpoint-resume is not implemented"
+                f"in-place resume is not supported: resume with --resume-from <chunk dir> and a fresh --out"
             )
         if save_all_records is not None:
             save_all_records.clear()
         if steps == 0 and not sa_p.exists():
             append_save_all(sa_p, (), fsync=fsync)
+    if stop_after_updates is not None and int(stop_after_updates) < 1:
+        raise SystemExit(f"--stop-after-updates must be >= 1, got {stop_after_updates!r}")
+    is_critic = arm == "critic"
+    if progress is not None:
+        progress["next_step"] = int(start_step)
+
+    ct_guard_written: dict[int, int] = {}
+    if ct_guard is not None:
+        ct_guard_written[id(ct_guard)] = len(ct_guard.window_history)
+
+    def _append_history(entries: Sequence[dict]) -> None:
+        if guard_history_path is not None and entries:
+            append_save_all(guard_history_path, list(entries), fsync=fsync)
+
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
-    for step in range(steps):
+    for step in range(int(start_step), steps):
         try:
             started = time.time()
             if before_step:
                 before_step(step)
+            step_comp_n = step_trunc_n = 0
+            step_hinted = step_retry_n = step_retry_correct = 0
             roll_s = train_s = 0.0
             tokens = zero_var = active_groups = 0
             rewards_all: list[float] = []
@@ -2651,6 +2940,7 @@ def run_steps(
                 or prepass_baseline_k is not None
                 or mask_wrong_positive_advantage
                 or ct_guard is not None
+                or is_critic
             )
             for k in range(groups_per_update):
                 row = prompts[(step * groups_per_update + k) % len(prompts)]
@@ -2672,6 +2962,10 @@ def run_steps(
                         completion_lengths=(),
                     )
                 t0 = time.time()
+                applied_seed: int | None = None
+                if train_seed is not None:
+                    applied_seed = train_rollout_seed(train_seed, step, k)
+                    torch.manual_seed(applied_seed)
                 roll_out = rollout(prompt_text, g, max_new, TEMPERATURE)
                 if len(roll_out) == 3:
                     prompt_ids, comps, truncs = roll_out
@@ -2710,7 +3004,7 @@ def run_steps(
                     think_counts.append(tt)
                     r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
                     rewards.append(r_val)
-                    if save_all_records is not None or save_all_path is not None:
+                    if save_all_records is not None or save_all_path is not None or is_critic:
                         group_decoded.append((text, think, answer, bool(trunc)))
                     if eval_records is not None:
                         rollout_outcomes.append(
@@ -2756,10 +3050,17 @@ def run_steps(
                     )
                     if guard_stop is not None:
                         step_guard_stop = guard_stop
+                    written = ct_guard_written.get(id(ct_guard), 0)
+                    if guard_history_path is not None and len(ct_guard.window_history) > written:
+                        _append_history(
+                            [{"kind": "ct_guard_window", **w} for w in ct_guard.window_history[written:]]
+                        )
+                    ct_guard_written[id(ct_guard)] = len(ct_guard.window_history)
 
                 if save_all_records is not None or save_all_path is not None:
                     grp_item_id = str(row.get("id", k))
-                    grp_seed = item_seed(grp_item_id, base_seed + step * groups_per_update + k)
+                    # the seed actually applied to this group's rollout; None when the run is unseeded
+                    grp_seed = applied_seed
                     grp_save_rows: list[dict] = []
                     for sample_idx, ((text, think, answer, is_trunc), r_val, adv_val) in enumerate(
                         zip(group_decoded, rewards, adv_list, strict=True)
@@ -2777,7 +3078,7 @@ def run_steps(
                             {
                                 "kind": "rollout",
                                 "item_id": grp_item_id,
-                                "seed": int(grp_seed),
+                                "seed": grp_seed,
                                 "step": int(step),
                                 "group": int(k),
                                 "sample_index": int(sample_idx),
@@ -2789,12 +3090,79 @@ def run_steps(
                                 "reward": round(float(r_val), 6),
                                 "advantage": round(float(adv_val), 6),
                                 "truncated": bool(is_trunc),
+                                **({"arm": arm} if arm is not None else {}),
                             }
                         )
                     if save_all_path is not None:
                         append_save_all(save_all_path, grp_save_rows, fsync=fsync)
                     if save_all_records is not None:
                         save_all_records.extend(grp_save_rows)
+
+                if is_critic and group_samples and not any(s.get("correct") for s in group_samples):
+                    # the critic arm: one tool-hinted retry of an all-wrong group, scored on gold,
+                    # never trained on
+                    hint_rec = critic_hint(
+                        str(row.get("claim", "")),
+                        passages_of(row) if "context" in row else [],
+                        [(d[0], d[3]) for d in group_decoded],
+                    )
+                    retry_seed = train_rollout_seed(
+                        train_seed if train_seed is not None else 0, step, k, purpose="critic-retry"
+                    )
+                    torch.manual_seed(retry_seed)
+                    t_retry = time.time()
+                    retry_out = rollout(critic_retry_prompt(row, hint_rec["hint"]), g, max_new, TEMPERATURE)
+                    device_sync()
+                    roll_s += time.time() - t_retry
+                    if len(retry_out) == 3:
+                        _, retry_comps, retry_truncs = retry_out
+                        retry_truncs = [bool(t) for t in retry_truncs]
+                    else:
+                        _, retry_comps = retry_out
+                        retry_truncs = [
+                            len(c) >= max_new and (not eos_ids or not any(t in eos_ids for t in c))
+                            for c in retry_comps
+                        ]
+                    retry_rows: list[dict] = []
+                    for r_idx, (rc, r_tr) in enumerate(zip(retry_comps, retry_truncs, strict=True)):
+                        r_text = tok.decode(rc, skip_special_tokens=True)
+                        r_think, r_answer = split_reply(r_text)
+                        r_tt = len(tok.encode(r_think)) if r_think else 0
+                        r_det = reward_details(
+                            r_text,
+                            str(row.get("label", "supported")),
+                            passages_of(row) if "context" in row else "",
+                            r_tt,
+                            truncated=r_tr,
+                            quote_reward=quote_reward,
+                        )
+                        r_correct = bool(r_det["correct"])
+                        step_retry_correct += int(r_correct)
+                        retry_rows.append(
+                            {
+                                "kind": "critic_retry",
+                                "arm": "critic",
+                                "item_id": str(row.get("id", k)),
+                                "seed": int(retry_seed),
+                                "step": int(step),
+                                "group": int(k),
+                                "sample_index": int(r_idx),
+                                "hint": hint_rec["hint"],
+                                "quote_check": hint_rec["quote_check"],
+                                "text": r_text,
+                                "thinking": r_think,
+                                "answer": r_answer.strip(),
+                                "verdict": r_det["verdict"],
+                                "reward": round(_call_reward_fn(reward_fn, r_text, row, r_tt, r_tr), 6),
+                                "correct": r_correct,
+                                "truncated": bool(r_tr),
+                                "in_gradient": False,
+                            }
+                        )
+                    step_hinted += 1
+                    step_retry_n += len(retry_rows)
+                    if critic_archive_path is not None:
+                        append_save_all(critic_archive_path, retry_rows, fsync=fsync)
 
                 if eval_records is not None:
                     for ro_item, adv_val in zip(rollout_outcomes, adv_list, strict=True):
@@ -2815,6 +3183,8 @@ def run_steps(
 
                 grp_k_correct = sum(1 for s in group_samples if s.get("correct")) if need_details else 0
                 grp_trunc_n = sum(1 for tr in truncs if tr)
+                step_trunc_n += grp_trunc_n
+                step_comp_n += len(truncs)
                 grp_correct_n: int | None = None
                 grp_correct_neg_adv_n: int | None = None
                 grp_outcome_var: float | None = None
@@ -3009,6 +3379,16 @@ def run_steps(
                         completion_lengths=comp_lens,
                     )
                 train_s += time.time() - t1
+            if trunc_guard is not None:
+                trunc_stop = trunc_guard.record_update(
+                    step=step, completions=step_comp_n, truncated=step_trunc_n
+                )
+                _append_history(trunc_guard.history[-1:])
+                if trunc_stop is not None:
+                    if step_guard_stop is None:
+                        step_guard_stop = trunc_stop
+                    else:
+                        step_guard_stop = {**step_guard_stop, "also_triggered": trunc_stop}
             t2 = time.time()
             if step_guard_stop is not None:
                 optimiser.zero_grad(set_to_none=True)
@@ -3078,13 +3458,42 @@ def run_steps(
                     if active_total_var_sum > 0.0
                     else None
                 )
+            if trunc_guard is not None:
+                rec["completions_n"] = step_comp_n
+                rec["truncated_n"] = step_trunc_n
+            if is_critic:
+                rec["critic_hinted_groups"] = step_hinted
+                rec["critic_retry_samples"] = step_retry_n
+                rec["critic_retry_correct"] = step_retry_correct
+                if critic_stats is not None:
+                    critic_stats["hinted_groups"] = critic_stats.get("hinted_groups", 0) + step_hinted
+                    critic_stats["retry_samples"] = critic_stats.get("retry_samples", 0) + step_retry_n
+                    critic_stats["retry_correct"] = critic_stats.get("retry_correct", 0) + step_retry_correct
             rows.append(rec)
             if on_step:
                 on_step(rec)
             if on_eval is not None and eval_records is not None:
                 on_eval(evaluation_summary(eval_records, advantage_mode=advantage_mode))
             if step_guard_stop is not None:
+                if progress is not None:
+                    # the halted update was discarded: the model is the state after the previous update
+                    progress["next_step"] = step
+                    progress["halted"] = step_guard_stop
                 return rows, step_guard_stop, False
+            if progress is not None:
+                progress["next_step"] = step + 1
+            if (
+                stop_after_updates is not None
+                and (step + 1 - int(start_step)) >= int(stop_after_updates)
+                and step + 1 < steps
+            ):
+                if progress is not None:
+                    progress["chunk_stop"] = {
+                        "reason": "stop_after_updates",
+                        "updates": step + 1 - int(start_step),
+                        "next_step": step + 1,
+                    }
+                break
         except oom_types:
             return rows, {"step": step, "error": "out of memory"}, True
         except TimeoutError as exc:
@@ -3161,7 +3570,10 @@ def dry_bundle(a: argparse.Namespace) -> dict:
         or getattr(a, "postpass", False)
     )
     model, adapter_loaded, ckpt_files_sha, ckpt_sha = attach_or_load_adapter(
-        LlamaForCausalLM(cfg), getattr(a, "checkpoint", None), for_pass=for_pass
+        LlamaForCausalLM(cfg),
+        getattr(a, "checkpoint", None),
+        for_pass=for_pass,
+        init_seed=getattr(a, "train_seed", None),
     )
     census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     params = [p for p in model.parameters() if p.requires_grad]
@@ -3266,7 +3678,10 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         or getattr(a, "postpass", False)
     )
     model, adapter_loaded, ckpt_files_sha, ckpt_sha = attach_or_load_adapter(
-        base, getattr(a, "checkpoint", None), for_pass=for_pass
+        base,
+        getattr(a, "checkpoint", None),
+        for_pass=for_pass,
+        init_seed=getattr(a, "train_seed", None),
     )
     census = restore_bf16(model) if getattr(a, "bf16_restore", False) else None
     model.print_trainable_parameters()
@@ -3704,11 +4119,18 @@ def attach_or_load_adapter(
     *,
     for_pass: bool = False,
     adapter_name: str = "default",
+    init_seed: int | None = None,
 ) -> tuple[Any, bool, dict[str, str] | None, str | None]:
-    """Attach a fresh LoRA adapter or load an existing PEFT checkpoint into ``base``."""
+    """Attach a fresh LoRA adapter or load an existing PEFT checkpoint into ``base``.
+
+    ``init_seed`` (a training run's --train-seed) seeds every generator just before a fresh LoRA is made, so
+    its random init (lora_A) is a function of the seed alone.
+    """
     from peft import LoraConfig, PeftModel, get_peft_model
 
     if checkpoint_path is None:
+        if init_seed is not None:
+            seed_everything(init_seed)
         model = get_peft_model(
             base,
             LoraConfig(
@@ -3748,6 +4170,348 @@ def attach_or_load_adapter(
     model._loaded_checkpoint_sha256 = combined_sha
     model._loaded_checkpoint_files_sha256 = files_sha
     return model, True, files_sha, combined_sha
+
+
+# -- the training run: arguments, header, chunk state, resume and verdict (B1, B2, B4, B6) -------------------
+ARMS = ("mech", "critic")
+TRAIN_HEADER_SCHEMA = "s2-train-header-v1"
+TRAIN_STATE_DIR = "train-state"
+TRAIN_STATE_FILES = ("trainable.pt", "optimizer.pt", "rng.pt")
+TRAIN_ONLY_FLAGS = (
+    ("--train-seed", "train_seed"),
+    ("--stop-after-updates", "stop_after_updates"),
+    ("--resume-from", "resume_from"),
+    ("--trunc-window-updates", "trunc_window_updates"),
+    ("--trunc-halt-rate", "trunc_halt_rate"),
+)
+# active_flags keys that change from chunk to chunk of one run; everything else must match on resume
+CHUNK_LOCAL_FLAGS = ("stop_after_updates", "resume_from")
+TRAIN_EXIT_HALT = 2
+
+
+def is_training_run(a: argparse.Namespace) -> bool:
+    """A training run is named by --arm, or by any training-only flag (which then requires --arm)."""
+    return getattr(a, "arm", None) is not None or any(
+        getattr(a, attr, None) is not None for _, attr in TRAIN_ONLY_FLAGS
+    )
+
+
+def validate_training_args(a: argparse.Namespace) -> bool:
+    """Refuse a training run that does not name every required setting. Returns whether this is one.
+
+    Required, with no defaults: --arm, --train-seed, --trunc-window-updates and --trunc-halt-rate.
+    """
+    if not is_training_run(a):
+        return False
+    missing = [
+        flag
+        for flag, attr in (
+            ("--arm", "arm"),
+            ("--train-seed", "train_seed"),
+            ("--trunc-window-updates", "trunc_window_updates"),
+            ("--trunc-halt-rate", "trunc_halt_rate"),
+        )
+        if getattr(a, attr, None) is None
+    ]
+    if missing:
+        raise SystemExit(
+            f"refusing to start (training_flags_required): a training run needs {', '.join(missing)} "
+            f"(no defaults)"
+        )
+    if a.arm not in ARMS:
+        raise SystemExit(f"refusing to start (unknown_arm): --arm must be one of {ARMS}, got {a.arm!r}")
+    for flag in ("rollout_only", "logging_pass", "postpass", "probe_memory", "prompt_lengths"):
+        if getattr(a, flag, False):
+            raise SystemExit(
+                f"refusing to start (training_flags_in_other_mode): training flags cannot be combined with "
+                f"--{flag.replace('_', '-')}"
+            )
+    if getattr(a, "paired_estimators", None) is not None:
+        raise SystemExit(
+            "refusing to start (training_flags_in_other_mode): training flags cannot be combined with "
+            "--paired-estimators"
+        )
+    if int(getattr(a, "stress_prefix", 0) or 0) > 0:
+        raise SystemExit(
+            "refusing to start (training_stress_prefix): a training run cannot take --stress-prefix "
+            "(it would train on the stress prompt)"
+        )
+    if getattr(a, "path", "hf") != "hf":
+        raise SystemExit(
+            "refusing to start (training_path_hf_only): training runs use path (a), --path hf; llama.cpp "
+            "rollouts are not seeded by --train-seed"
+        )
+    seed = a.train_seed
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise SystemExit(
+            f"refusing to start (invalid_train_seed): --train-seed must be an int >= 0, got {seed!r}"
+        )
+    TruncationHaltGuard(window_updates=a.trunc_window_updates, halt_rate=a.trunc_halt_rate)  # validates both
+    sau = getattr(a, "stop_after_updates", None)
+    if sau is not None and (isinstance(sau, bool) or not isinstance(sau, int) or sau < 1):
+        raise SystemExit(
+            f"refusing to start (invalid_stop_after_updates): --stop-after-updates must be >= 1, got {sau!r}"
+        )
+    resume = getattr(a, "resume_from", None)
+    if resume is not None:
+        rp = Path(resume)
+        if getattr(a, "checkpoint", None) is not None:
+            raise SystemExit(
+                "refusing to start (resume_with_checkpoint): --resume-from restores the run's own adapter; "
+                "it cannot be combined with --checkpoint"
+            )
+        if not (rp / TRAIN_STATE_DIR / "state.json").is_file():
+            raise SystemExit(
+                f"refusing to resume (RESUME_STATE_MISSING): {rp.name}/{TRAIN_STATE_DIR}/state.json not found"
+            )
+        if rp.resolve() == Path(a.out).resolve():
+            raise SystemExit(
+                "refusing to resume (RESUME_SAME_DIR): each chunk writes to its own --out; "
+                "--resume-from names the previous chunk's directory"
+            )
+    if (Path(a.out) / TRAIN_STATE_DIR).exists():
+        raise SystemExit(
+            f"refusing to start (OUT_DIR_HAS_TRAIN_STATE): "
+            f"{Path(a.out).name}/{TRAIN_STATE_DIR} already exists"
+        )
+    return True
+
+
+def aspire_commit(cwd: Path | None = None) -> str | None:
+    """The aspire-si commit this script runs from (git HEAD of its checkout), or None outside a checkout."""
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(cwd or Path(__file__).resolve().parent),
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    sha = out.stdout.strip()
+    return sha if re.fullmatch(r"[0-9a-f]{40}", sha) else None
+
+
+def build_train_header(
+    a: argparse.Namespace,
+    *,
+    flags: Mapping[str, Any],
+    draw_record: Mapping[str, Any],
+    prompt_ids: Sequence[str],
+    gold_hashes: Mapping[str, str],
+    revision_resolved: str | None,
+    stack_versions: Mapping[str, Any] | None,
+    pip_freeze_sha256: str | None,
+    commit: str | None,
+    checkpoint_sha: str | None,
+) -> dict[str, Any]:
+    """Everything that must be identical across the chunks of one run. Resume refuses on any difference."""
+    settings = {
+        "steps": int(a.steps),
+        "prompts": int(a.prompts),
+        "g": int(a.g),
+        "max_new": int(a.max_new),
+        "dry": bool(a.dry),
+        **{k: v for k, v in flags.items() if k not in CHUNK_LOCAL_FLAGS},
+    }
+    return {
+        "schema": TRAIN_HEADER_SCHEMA,
+        "arm": a.arm,
+        "train_seed": int(a.train_seed),
+        "draw_seed": getattr(a, "draw_seed", None),
+        "holdout_seed": draw_record.get("holdout_seed"),
+        "holdout_ids_sha256": draw_record.get("holdout_ids_sha256"),
+        "train_ids_sha256": draw_record.get("train_ids_sha256"),
+        "drawn_ids_sha256": draw_record.get("drawn_ids_sha256"),
+        "prompt_ids_sha256": ids_sha256(list(prompt_ids)),
+        "aspire_commit": commit,
+        "script_sha256": script_sha256(),
+        "revision_requested": a.revision,
+        "revision_resolved": revision_resolved,
+        "stack_versions": dict(stack_versions) if stack_versions is not None else None,
+        "pip_freeze_sha256": pip_freeze_sha256,
+        "rnd_commit": a.rnd_commit,
+        "gold_files_sha256": dict(gold_hashes),
+        "start_policy": "base_fresh_lora" if checkpoint_sha is None else "checkpoint",
+        "start_checkpoint_sha256": checkpoint_sha,
+        "rollout_seed_rule": ROLLOUT_SEED_RULE,
+        "scheduler": None,  # constant learning rate: the trainer has no LR scheduler
+        "trunc_window_updates": int(a.trunc_window_updates),
+        "trunc_halt_rate": float(a.trunc_halt_rate),
+        "critic": (
+            {"hint_source": CRITIC_HINT_SOURCE, "nli": CRITIC_NLI_STATUS, "retries_in_gradient": False}
+            if a.arm == "critic"
+            else None
+        ),
+        "settings": settings,
+    }
+
+
+def header_differences(saved: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
+    """Dotted keys whose values differ between two headers (settings compared key by key)."""
+    diffs: list[str] = []
+    for key in sorted(set(saved) | set(current)):
+        if key == "settings":
+            s_set, c_set = dict(saved.get(key) or {}), dict(current.get(key) or {})
+            diffs.extend(
+                f"settings.{k}" for k in sorted(set(s_set) | set(c_set)) if s_set.get(k) != c_set.get(k)
+            )
+        elif saved.get(key) != current.get(key):
+            diffs.append(key)
+    return diffs
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def save_train_state(
+    out_dir: Path,
+    *,
+    model,
+    optimiser,
+    header: Mapping[str, Any],
+    next_step: int,
+    steps_total: int,
+    chunk_index: int,
+    ct_guard: CtCollapseGuard | None,
+    trunc_guard: TruncationHaltGuard,
+    save_all_chain: Sequence[Mapping[str, Any]],
+    adapter_sha: str | None,
+    halted: Mapping[str, Any] | None,
+    resumed_from: Mapping[str, Any] | None,
+) -> str:
+    """Write ``<out>/train-state`` (LoRA tensors, AdamW state, RNG states, guards, step, save-all chain).
+
+    It is written to ``train-state.partial`` and renamed into place, so a crash never leaves a half state; the
+    returned sha256 is of ``state.json``, which lists every other file's sha256.
+    """
+    torch = require_torch()
+    final_dir = Path(out_dir) / TRAIN_STATE_DIR
+    tmp_dir = Path(out_dir) / f"{TRAIN_STATE_DIR}.partial"
+    if tmp_dir.exists():
+        for p in sorted(tmp_dir.iterdir()):
+            p.unlink()
+        tmp_dir.rmdir()
+    tmp_dir.mkdir(parents=True)
+    trainable = {
+        name: p.detach().to("cpu").clone() for name, p in model.named_parameters() if p.requires_grad
+    }
+    torch.save(trainable, tmp_dir / "trainable.pt")
+    torch.save(optimiser.state_dict(), tmp_dir / "optimizer.pt")
+    rng_tensors, rng_plain = capture_rng_state()
+    torch.save(rng_tensors, tmp_dir / "rng.pt")
+    state = {
+        "header": dict(header),
+        "next_step": int(next_step),
+        "steps_total": int(steps_total),
+        "draw_position": int(next_step) * int(header["settings"].get("groups_per_update", GROUPS_PER_STEP)),
+        "chunk_index": int(chunk_index),
+        "complete": int(next_step) >= int(steps_total),
+        "halted": dict(halted) if halted is not None else None,
+        "resumed_from": dict(resumed_from) if resumed_from is not None else None,
+        "ct_guard": ct_guard.to_state() if ct_guard is not None else None,
+        "trunc_guard": trunc_guard.to_state(),
+        "save_all_chain": [dict(c) for c in save_all_chain],
+        "adapter_sha256": adapter_sha,
+        "rng_plain": rng_plain,
+        "trainable_names": sorted(trainable),
+        "files_sha256": {name: _file_sha256(tmp_dir / name) for name in TRAIN_STATE_FILES},
+    }
+    with (tmp_dir / "state.json").open("w", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps(state, indent=1))
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp_dir, final_dir)
+    return _file_sha256(final_dir / "state.json")
+
+
+def load_train_state(resume_dir: Path, *, header: Mapping[str, Any], steps_total: int) -> dict[str, Any]:
+    """Read and verify a chunk's train-state. Refuses on any header difference, a changed file, a halted or a
+    finished run, or a previous save-all archive that no longer matches the sha256 the state recorded."""
+    torch = require_torch()
+    sdir = Path(resume_dir) / TRAIN_STATE_DIR
+    state_path = sdir / "state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    for name, want in dict(state.get("files_sha256") or {}).items():
+        fp = sdir / name
+        if not fp.is_file() or _file_sha256(fp) != want:
+            raise SystemExit(f"refusing to resume (RESUME_STATE_FILE_CHANGED): {name} is missing or changed")
+    diffs = header_differences(state.get("header") or {}, header)
+    if diffs:
+        raise SystemExit(
+            f"refusing to resume (RESUME_HEADER_MISMATCH): the run header differs in {', '.join(diffs)}"
+        )
+    if state.get("halted") is not None:
+        raise SystemExit(
+            f"refusing to resume (RESUME_FROM_HALTED): the run halted ({state['halted'].get('reason')}); "
+            f"a halt is stop-and-report, not resumable"
+        )
+    if int(state["next_step"]) >= int(steps_total):
+        raise SystemExit("refusing to resume (RESUME_RUN_COMPLETE): the run already completed every update")
+    for link in state.get("save_all_chain") or []:
+        if link.get("chunk_dir") == Path(resume_dir).name and link.get("sha256") is not None:
+            archive = Path(resume_dir) / str(link["file"])
+            if not archive.is_file() or _file_sha256(archive) != link["sha256"]:
+                raise SystemExit(
+                    "refusing to resume (RESUME_SAVE_ALL_CHANGED): the previous chunk's save-all archive is "
+                    "missing or no longer matches the state"
+                )
+    state["_trainable"] = torch.load(sdir / "trainable.pt", map_location="cpu", weights_only=True)
+    state["_optimizer"] = torch.load(sdir / "optimizer.pt", map_location="cpu", weights_only=True)
+    state["_rng"] = torch.load(sdir / "rng.pt", map_location="cpu", weights_only=True)
+    state["_state_sha256"] = _file_sha256(state_path)
+    return state
+
+
+def apply_train_state(state: Mapping[str, Any], *, model, optimiser) -> None:
+    """Put the saved LoRA tensors and AdamW state into a freshly built model, then restore every RNG."""
+    saved = state["_trainable"]
+    live = {name: p for name, p in model.named_parameters() if p.requires_grad}
+    if sorted(live) != sorted(saved):
+        raise SystemExit(
+            "refusing to resume (RESUME_PARAMS_MISMATCH): the model's trainable parameters differ from the "
+            "saved state's"
+        )
+    for name, p in live.items():
+        src = saved[name]
+        if tuple(src.shape) != tuple(p.shape) or src.dtype != p.dtype:
+            raise SystemExit(f"refusing to resume (RESUME_PARAMS_MISMATCH): {name} shape or dtype differs")
+        with require_torch().no_grad():
+            p.copy_(src.to(p.device))
+    optimiser.load_state_dict(state["_optimizer"])
+    restore_rng_state(state["_rng"], state["rng_plain"])
+
+
+def train_verdict_line(
+    *,
+    stopped: Mapping[str, Any] | None,
+    oom: bool,
+    next_step: int,
+    steps_total: int,
+    chunk_stop: Mapping[str, Any] | None,
+    fits: bool | None,
+    dry: bool,
+) -> str:
+    """The training run's verdict. S2-TRAIN-HALT-<rule>: a guard or truncation halt (stop and report).
+    S2-TRAIN-COMPLETE: every update ran. S2-TRAIN-CHUNK-OK: a chunk ended cleanly at --stop-after-updates.
+    S2-TRAIN-FAIL: anything else (an OOM, a non-finite loss, a timeout, a VRAM peak over the line)."""
+    if oom:
+        return "S2-TRAIN-FAIL"
+    if stopped:
+        rules = stopped.get("triggered_rules") or []
+        if rules:
+            return f"S2-TRAIN-HALT-{rules[0]}"
+        return "S2-TRAIN-FAIL"
+    if not dry and fits is False:
+        return "S2-TRAIN-FAIL"
+    if int(next_step) >= int(steps_total):
+        return "S2-TRAIN-COMPLETE"
+    if chunk_stop is not None:
+        return "S2-TRAIN-CHUNK-OK"
+    return "S2-TRAIN-FAIL"
 
 
 def validate_replay_check_args(a: argparse.Namespace) -> tuple[Path | None, str | None, str | None]:
@@ -5322,6 +6086,18 @@ def active_flags(a: argparse.Namespace) -> dict:
             flags["holdout_seed"] = str(a.holdout_seed)
     elif getattr(a, "holdout_seed", None) is not None:
         flags["holdout_seed"] = str(a.holdout_seed)
+    if getattr(a, "arm", None) is not None:
+        flags["arm"] = str(a.arm)
+    if getattr(a, "train_seed", None) is not None:
+        flags["train_seed"] = int(a.train_seed)
+    if getattr(a, "trunc_window_updates", None) is not None:
+        flags["trunc_window_updates"] = int(a.trunc_window_updates)
+    if getattr(a, "trunc_halt_rate", None) is not None:
+        flags["trunc_halt_rate"] = float(a.trunc_halt_rate)
+    if getattr(a, "stop_after_updates", None) is not None:
+        flags["stop_after_updates"] = int(a.stop_after_updates)
+    if getattr(a, "resume_from", None) is not None:
+        flags["resume_from"] = Path(a.resume_from).name
     return flags
 
 
@@ -5354,6 +6130,7 @@ def execute(
         return 0
     save_all_on, save_all_reason = validate_save_all_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
+    training_run = validate_training_args(a)
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
     require_frozen = bool(
@@ -5543,6 +6320,62 @@ def execute(
             )
     if rollout_only and a.dry and bundle.get("dry_prepass_cap") is not None:
         prompts = prompts[: int(bundle["dry_prepass_cap"])]
+    ct_guard_obj = (
+        CtCollapseGuard(
+            window_groups=int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS)),
+            pass_a_k=pass_a_k,
+        )
+        if getattr(a, "ct_guard", False)
+        else None
+    )
+    trunc_guard_obj: TruncationHaltGuard | None = None
+    train_header: dict[str, Any] | None = None
+    resume_state: dict[str, Any] | None = None
+    resumed_from_rec: dict[str, Any] | None = None
+    start_step = 0
+    chunk_index = 1
+    train_progress: dict[str, Any] = {}
+    critic_stats: dict[str, int] = {}
+    if training_run:
+        trunc_guard_obj = TruncationHaltGuard(
+            window_updates=int(a.trunc_window_updates), halt_rate=float(a.trunc_halt_rate)
+        )
+        train_header = build_train_header(
+            a,
+            flags={**active_flags(a), **draw_record},
+            draw_record=draw_record,
+            prompt_ids=[r["id"] for r in prompts],
+            gold_hashes=gold_hashes,
+            revision_resolved=bundle.get("revision"),
+            stack_versions=frozen_env.get("stack_versions"),
+            pip_freeze_sha256=frozen_env.get("pip_freeze_sha256"),
+            commit=aspire_commit(),
+            checkpoint_sha=ckpt_sha,
+        )
+        if getattr(a, "resume_from", None) is not None:
+            resume_state = load_train_state(
+                Path(a.resume_from), header=train_header, steps_total=int(a.steps)
+            )
+            apply_train_state(resume_state, model=bundle["model"], optimiser=bundle["optimiser"])
+            start_step = int(resume_state["next_step"])
+            chunk_index = int(resume_state["chunk_index"]) + 1
+            if ct_guard_obj is not None and resume_state.get("ct_guard") is not None:
+                ct_guard_obj = CtCollapseGuard.from_state(resume_state["ct_guard"], pass_a_k=pass_a_k)
+            trunc_guard_obj = TruncationHaltGuard.from_state(resume_state["trunc_guard"])
+            resumed_from_rec = {
+                "chunk_dir": Path(a.resume_from).name,
+                "state_sha256": resume_state["_state_sha256"],
+                "next_step": start_step,
+                "chunk_index": int(resume_state["chunk_index"]),
+            }
+        a.out.mkdir(parents=True, exist_ok=True)
+        (a.out / f"s2-{a.path}-train-header.json").write_text(
+            json.dumps(
+                {**train_header, "chunk_index": chunk_index, "resumed_from": resumed_from_rec}, indent=1
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
     phase_logger: PhaseLogger | None = None
     group_logger: GroupLogger | None = None
     try:
@@ -5726,14 +6559,6 @@ def execute(
                 )
                 if stress_stopped is not None or stress_oom:
                     return [], stress_stopped, stress_oom
-            ct_guard_obj = (
-                CtCollapseGuard(
-                    window_groups=int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS)),
-                    pass_a_k=pass_a_k,
-                )
-                if getattr(a, "ct_guard", False)
-                else None
-            )
             return run_steps(
                 model=bundle["model"],
                 ref_adapter_off=bundle["ref_adapter_off"],
@@ -5771,6 +6596,23 @@ def execute(
                 mask_wrong_positive_advantage=bool(getattr(a, "mask_wrong_positive_advantage", False)),
                 dual_clip_c=getattr(a, "dual_clip_c", None),
                 ct_guard=ct_guard_obj,
+                start_step=start_step,
+                stop_after_updates=getattr(a, "stop_after_updates", None) if training_run else None,
+                train_seed=int(a.train_seed) if training_run else None,
+                trunc_guard=trunc_guard_obj,
+                guard_history_path=(
+                    a.out / f"s2-{a.path}-guard-history.jsonl.gz"
+                    if (ct_guard_obj is not None or trunc_guard_obj is not None)
+                    else None
+                ),
+                arm=getattr(a, "arm", None) if training_run else None,
+                critic_archive_path=(
+                    a.out / f"s2-{a.path}-critic-retries.jsonl.gz"
+                    if training_run and a.arm == "critic" and save_all_on
+                    else None
+                ),
+                critic_stats=critic_stats,
+                progress=train_progress,
             )
 
         if sampler is not None:
@@ -5805,10 +6647,16 @@ def execute(
         residual_band_doc = (
             mean_residual_by_k_band(group_residuals) if prepass_baseline_k is not None else None
         )
+        if training_run:
+            remaining = int(a.steps) - start_step
+            sau = getattr(a, "stop_after_updates", None)
+            requested_now = min(int(sau), remaining) if sau is not None else remaining
         result = readout(
             steps,
             peak_mib=peak,
-            steps_requested=len(prompts) if rollout_only else a.steps,
+            steps_requested=(
+                len(prompts) if rollout_only else (requested_now if training_run else a.steps)
+            ),
             stopped=stopped,
             oom=oom,
             cut=cut,
@@ -5824,7 +6672,19 @@ def execute(
             quote_reward=quote_rew,
             mean_residual_by_k_band_record=residual_band_doc,
         )
-        line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
+        next_step = int(train_progress.get("next_step", start_step))
+        if training_run:
+            line = train_verdict_line(
+                stopped=stopped,
+                oom=oom,
+                next_step=next_step,
+                steps_total=int(a.steps),
+                chunk_stop=train_progress.get("chunk_stop"),
+                fits=result.get("fits"),
+                dry=a.dry,
+            )
+        else:
+            line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
         env = environment(
             gpu=gpu,
             dtype="float32 (dry, CPU)" if a.dry else "bfloat16 compute on a 4-bit base",
@@ -5852,6 +6712,74 @@ def execute(
             bundle["model"].save_pretrained(str(adapter_dir))
             adapter_files_sha = checkpoint_file_shas(adapter_dir)
             adapter_sha = checkpoint_sha256(adapter_dir)
+        training_block: dict[str, Any] | None = None
+        if training_run and train_header is not None and trunc_guard_obj is not None:
+            sa_file = save_all_file_path(a.out, a.path)
+            chain = list((resume_state or {}).get("save_all_chain") or [])
+            chain.append(
+                {
+                    "chunk_dir": a.out.name,
+                    "chunk_index": chunk_index,
+                    "file": sa_file.name,
+                    "sha256": save_all_sha,
+                    "records": len(read_save_all(sa_file)) if save_all_on and sa_file.exists() else None,
+                    "first_step": start_step,
+                    "next_step": next_step,
+                }
+            )
+            halted = train_progress.get("halted")
+            state_ok = not oom and (stopped is None or bool(stopped.get("triggered_rules")))
+            state_sha = (
+                save_train_state(
+                    a.out,
+                    model=bundle["model"],
+                    optimiser=bundle["optimiser"],
+                    header=train_header,
+                    next_step=next_step,
+                    steps_total=int(a.steps),
+                    chunk_index=chunk_index,
+                    ct_guard=ct_guard_obj,
+                    trunc_guard=trunc_guard_obj,
+                    save_all_chain=chain,
+                    adapter_sha=adapter_sha,
+                    halted=halted,
+                    resumed_from=resumed_from_rec,
+                )
+                if state_ok
+                else None
+            )
+            gh_path = a.out / f"s2-{a.path}-guard-history.jsonl.gz"
+            cr_path = a.out / f"s2-{a.path}-critic-retries.jsonl.gz"
+            training_block = {
+                "arm": a.arm,
+                "train_seed": int(a.train_seed),
+                "chunk_index": chunk_index,
+                "start_step": start_step,
+                "next_step": next_step,
+                "steps_total": int(a.steps),
+                "chunk_stop": train_progress.get("chunk_stop"),
+                "halted": halted,
+                "resumed_from": resumed_from_rec,
+                "header_sha256": hashlib.sha256(
+                    (a.out / f"s2-{a.path}-train-header.json").read_bytes()
+                ).hexdigest(),
+                "train_state_sha256": state_sha,
+                "train_state_saved": state_sha is not None,
+                "guard_history_sha256": _file_sha256(gh_path) if gh_path.exists() else None,
+                "start_policy": train_header["start_policy"],
+                "critic": (
+                    {
+                        **(train_header.get("critic") or {}),
+                        "hinted_groups": critic_stats.get("hinted_groups", 0),
+                        "retry_samples": critic_stats.get("retry_samples", 0),
+                        "retry_correct": critic_stats.get("retry_correct", 0),
+                        "signal_drops": 0,
+                        "retries_sha256": _file_sha256(cr_path) if cr_path.exists() else None,
+                    }
+                    if a.arm == "critic"
+                    else None
+                ),
+            }
         receipt = build_receipt(
             path=a.path,
             dry=a.dry,
@@ -5876,6 +6804,8 @@ def execute(
             stack_versions=frozen_env["stack_versions"],
             pip_freeze_sha256=frozen_env["pip_freeze_sha256"],
         )
+        if training_block is not None:
+            receipt["training"] = training_block
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )
@@ -5895,6 +6825,10 @@ def execute(
         if rollout_only:
             summary_out["items_completed"] = result["items_completed"]
             summary_out["ignored_flags"] = result["ignored_flags"]
+        if training_block is not None:
+            summary_out["training"] = {
+                k: training_block[k] for k in ("arm", "chunk_index", "start_step", "next_step", "steps_total")
+            }
         print(json.dumps(summary_out))
         print(line)
         if isinstance(stopped, dict) and stopped.get("reason") == "LOGGING_PASS_REPLAY_MISMATCH":
@@ -6243,6 +7177,46 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="dual-clip coefficient c on negative advantages (default 3.0 when masking wrong positive adv)",
+    )
+    ap.add_argument(
+        "--arm",
+        choices=ARMS,
+        default=None,
+        help=(
+            "names a training run and its arm: 'mech' (mechanical reward only) or 'critic' (the same reward, "
+            "plus a tool-hinted retry of each all-wrong group, scored and archived, never trained on). "
+            "Required, with no default, whenever any training flag is given"
+        ),
+    )
+    ap.add_argument(
+        "--train-seed",
+        type=int,
+        default=None,
+        help="training run: seeds the fresh LoRA's init and every training rollout (required, no default)",
+    )
+    ap.add_argument(
+        "--stop-after-updates",
+        type=int,
+        default=None,
+        help="training run: end this chunk cleanly after N >= 1 updates and save the train state",
+    )
+    ap.add_argument(
+        "--resume-from",
+        type=Path,
+        default=None,
+        help="training run: continue from the previous chunk's directory (its train-state); a fresh --out",
+    )
+    ap.add_argument(
+        "--trunc-window-updates",
+        type=int,
+        default=None,
+        help="training run: rolling truncation window in updates (required, no default)",
+    )
+    ap.add_argument(
+        "--trunc-halt-rate",
+        type=float,
+        default=None,
+        help="training run: halt when the full window's truncated share exceeds this (required, no default)",
     )
     return ap
 
