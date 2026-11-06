@@ -1068,6 +1068,7 @@ def verdict_line(
 def exit_status(line: str) -> int:
     """0 for S2-OK, S2-PREPASS, a finished rehearsal, and a training chunk or run that ended cleanly;
     2 for a training halt (S2-TRAIN-HALT-<rule>: stop and report); anything else is 1."""
+    line = line.split()[0] if line.split() else line  # a training verdict may carry FORKED_OR_REWOUND
     if line.startswith("S2-TRAIN-HALT-"):
         return TRAIN_EXIT_HALT
     return 0 if line in ("S2-OK", "S2-DRY", "S2-PREPASS", "S2-TRAIN-CHUNK-OK", "S2-TRAIN-COMPLETE") else 1
@@ -4199,11 +4200,15 @@ TRAIN_ONLY_FLAGS = (
     ("--train-seed", "train_seed"),
     ("--stop-after-updates", "stop_after_updates"),
     ("--resume-from", "resume_from"),
+    ("--resume-override-reason", "resume_override_reason"),
     ("--trunc-window-updates", "trunc_window_updates"),
     ("--trunc-halt-rate", "trunc_halt_rate"),
 )
 # active_flags keys that change from chunk to chunk of one run; everything else must match on resume
-CHUNK_LOCAL_FLAGS = ("stop_after_updates", "resume_from")
+CHUNK_LOCAL_FLAGS = ("stop_after_updates", "resume_from", "resume_override_reason")
+# appended to the verdict line of every chunk in a run that used a resume override
+FORKED_MARK = "FORKED_OR_REWOUND"
+CLEAN_LINEAGE: dict[str, Any] = {"forked_or_rewound": False, "override_reasons": []}
 TRAIN_EXIT_HALT = 2
 
 
@@ -4277,6 +4282,12 @@ def validate_training_args(a: argparse.Namespace) -> bool:
             f"refusing to start (invalid_stop_after_updates): --stop-after-updates must be >= 1, got {sau!r}"
         )
     resume = getattr(a, "resume_from", None)
+    reason = getattr(a, "resume_override_reason", None)
+    if reason is not None and (not str(reason).strip() or resume is None):
+        raise SystemExit(
+            "refusing to start (invalid_resume_override_reason): --resume-override-reason needs non-empty "
+            "text and --resume-from"
+        )
     if resume is not None:
         rp = Path(resume)
         if getattr(a, "checkpoint", None) is not None:
@@ -4488,6 +4499,7 @@ def save_train_state(
     kind: str,
     path: str = "hf",
     keep: int = STATE_KEEP,
+    lineage: Mapping[str, Any] | None = None,
 ) -> tuple[str, Path]:
     """Write one train state under ``<out>/train-state/<seq>-step-<next_step>``: the LoRA tensors, the AdamW
     state, RNG states, guards, step, and the save-all chain with this chunk's archive lengths and sha256 now.
@@ -4526,6 +4538,7 @@ def save_train_state(
         "trunc_guard": trunc_guard.to_state(),
         "save_all_chain": [dict(c) for c in prior_chain] + [link],
         "adapter_sha256": adapter_sha,
+        "lineage": dict(lineage) if lineage is not None else dict(CLEAN_LINEAGE),
         "rng_plain": rng_plain,
         "trainable_names": sorted(trainable),
         "files_sha256": {fname: _file_sha256(tmp_dir / fname) for fname in TRAIN_STATE_FILES},
@@ -4545,7 +4558,61 @@ def _cut_copy_name(name: str, next_step: int) -> str:
     return f"{name}.cut-step-{int(next_step):05d}"  # pragma: no cover - every tracked archive has a suffix
 
 
-def precheck_resume(resume_dir: Path, *, steps_total: int, path: str = "hf") -> dict[str, Any]:
+def _write_json_atomic(path: Path, obj: Mapping[str, Any]) -> None:
+    """Write JSON to a temporary name, fsync it, and rename it into place (the target must not exist)."""
+    tmp = Path(path).with_name(Path(path).name + ".partial")
+    _write_fsync(tmp, lambda fh: fh.write(json.dumps(obj, indent=1).encode("utf-8")))
+    os.replace(tmp, path)
+
+
+def _free_name(directory: Path, stem: str) -> Path:
+    """``<stem>.json``, or ``<stem>.<k>.json`` for the first k not taken (an override can consume twice)."""
+    first = Path(directory) / f"{stem}.json"
+    if not first.exists():
+        return first
+    k = 1
+    while (Path(directory) / f"{stem}.{k}.json").exists():
+        k += 1
+    return Path(directory) / f"{stem}.{k}.json"
+
+
+def consumed_markers(chunk_dir: Path) -> list[Path]:
+    return sorted(Path(chunk_dir).glob("CONSUMED_BY*.json"))
+
+
+def write_consumed_marker(resume_dir: Path, record: Mapping[str, Any]) -> Path:
+    """Mark a chunk's state as consumed (written when the resuming chunk saves its first state)."""
+    target = _free_name(resume_dir, "CONSUMED_BY")
+    _write_json_atomic(target, record)
+    return target
+
+
+def _lineage_problems(rdir: Path, sdir: Path, state: Mapping[str, Any]) -> list[str]:
+    """Why resuming from this state would fork or rewind the run (empty when it is the run's newest state)."""
+    problems: list[str] = []
+    if consumed_markers(rdir):
+        problems.append("RESUME_ALREADY_CONSUMED")
+    steps_here = [
+        int(json.loads((d / "state.json").read_text(encoding="utf-8"))["next_step"]) for d in state_dirs(rdir)
+    ]
+    descendants = []
+    for sib in sorted(rdir.parent.iterdir()) if rdir.parent.is_dir() else []:
+        if sib == rdir or not sib.is_dir():
+            continue
+        latest = latest_state_dir(sib)
+        if latest is None:
+            continue
+        chain = json.loads((latest / "state.json").read_text(encoding="utf-8")).get("save_all_chain") or []
+        if any(link.get("chunk_dir") == rdir.name for link in chain[:-1]):
+            descendants.append(sib.name)
+    if int(state["next_step"]) < max(steps_here, default=0) or descendants:
+        problems.append("RESUME_NOT_LATEST")
+    return problems
+
+
+def precheck_resume(
+    resume_dir: Path, *, steps_total: int, path: str = "hf", override_reason: str | None = None
+) -> dict[str, Any]:
     """Every resume check that needs no model, run before it is loaded: the latest state's files, a halted or
     finished run, and the chunk's archives against the lengths and sha256 recorded at that save point.
 
@@ -4572,6 +4639,14 @@ def precheck_resume(resume_dir: Path, *, steps_total: int, path: str = "hf") -> 
         )
     if int(state["next_step"]) >= int(steps_total):
         raise SystemExit("refusing to resume (RESUME_RUN_COMPLETE): the run already completed every update")
+    problems = _lineage_problems(rdir, sdir, state)
+    if problems and not override_reason:
+        raise SystemExit(
+            f"refusing to resume ({problems[0]}): {rdir.name}'s state was already resumed from, or a newer "
+            f"state of this run exists ({', '.join(problems)}); resuming here would fork or rewind the run. "
+            f"--resume-override-reason records a deliberate override"
+        )
+    state["_overridden"] = problems
     chain = list(state.get("save_all_chain") or [])
     if not chain or chain[-1].get("chunk_dir") != rdir.name:
         raise SystemExit(
@@ -4610,8 +4685,11 @@ def precheck_resume(resume_dir: Path, *, steps_total: int, path: str = "hf") -> 
     return state
 
 
-def finish_resume(state: dict[str, Any], *, header: Mapping[str, Any]) -> dict[str, Any]:
-    """After the model is built: compare the full header, make any planned cut copies, load the tensors."""
+def finish_resume(
+    state: dict[str, Any], *, header: Mapping[str, Any], out_dir: Path | None = None
+) -> dict[str, Any]:
+    """After the model is built: compare the full header, make any planned cut copies (re-checking the
+    prefix and hashing each copy), mark the killed chunk with CUT.json, and load the tensors."""
     torch = require_torch()
     diffs = header_differences(state.get("header") or {}, header)
     if diffs:
@@ -4622,9 +4700,45 @@ def finish_resume(state: dict[str, Any], *, header: Mapping[str, Any]) -> dict[s
     link = state["save_all_chain"][-1]
     for cut in state["_cuts"]:
         # the killed chunk's archive is kept whole; a copy cut back to the save point continues the chain
-        data = (rdir / cut["file"]).read_bytes()[: int(cut["bytes"])]
-        _write_fsync(rdir / cut["copy"], lambda fh, d=data: fh.write(d))
-        link["archives"][cut["archive"]] = {**link["archives"][cut["archive"]], "cut_copy": cut["copy"]}
+        src = rdir / cut["file"]
+        data = (src.read_bytes() if src.exists() else b"")[: int(cut["bytes"])]
+        if len(data) != int(cut["bytes"]) or hashlib.sha256(data).hexdigest() != cut["sha256"]:
+            raise SystemExit(
+                f"refusing to resume (RESUME_SAVE_ALL_CHANGED): {cut['file']} changed before it was cut"
+            )
+        copy_path = rdir / cut["copy"]
+        if copy_path.exists():
+            copy_path = rdir / f"{cut['copy']}.{len(consumed_markers(rdir)) + 1}"
+            cut["copy"] = copy_path.name
+        _write_fsync(copy_path, lambda fh, d=data: fh.write(d))
+        copy_sha = _file_sha256(copy_path)
+        if copy_sha != cut["sha256"]:  # pragma: no cover - only a failing disk gets here
+            raise SystemExit(
+                f"refusing to resume (RESUME_CUT_COPY_MISMATCH): {cut['copy']} did not read back"
+            )
+        cut["copy_sha256"] = copy_sha
+        link["archives"][cut["archive"]] = {
+            **link["archives"][cut["archive"]],
+            "cut_copy": cut["copy"],
+            "cut_copy_sha256": copy_sha,
+        }
+    if state["_cuts"]:
+        _write_json_atomic(
+            _free_name(rdir, "CUT"),
+            {
+                "what": "this chunk was killed after a periodic save; the cut copies below are canonical",
+                "state_dir": state["_dir"].name,
+                "first_step": link.get("first_step"),
+                "next_step": int(state["next_step"]),
+                "resumed_by": Path(out_dir).name if out_dir is not None else None,
+                "copies": {
+                    c["archive"]: {
+                        k: c[k] for k in ("file", "copy", "bytes", "sha256", "copy_sha256", "original_bytes")
+                    }
+                    for c in state["_cuts"]
+                },
+            },
+        )
     sdir: Path = state["_dir"]
     state["_trainable"] = torch.load(sdir / "trainable.pt", map_location="cpu", weights_only=True)
     state["_optimizer"] = torch.load(sdir / "optimizer.pt", map_location="cpu", weights_only=True)
@@ -6266,6 +6380,8 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["state_every_updates"] = state_every_updates(a)
     if getattr(a, "resume_from", None) is not None:
         flags["resume_from"] = Path(a.resume_from).name
+    if getattr(a, "resume_override_reason", None):
+        flags["resume_override_reason"] = str(a.resume_override_reason).strip()
     return flags
 
 
@@ -6302,7 +6418,12 @@ def execute(
     resume_pre: dict[str, Any] | None = None
     if training_run and getattr(a, "resume_from", None) is not None:
         # every check that needs no model runs before the model loads: halted, finished, changed files
-        resume_pre = precheck_resume(Path(a.resume_from), steps_total=int(a.steps), path=a.path)
+        resume_pre = precheck_resume(
+            Path(a.resume_from),
+            steps_total=int(a.steps),
+            path=a.path,
+            override_reason=getattr(a, "resume_override_reason", None),
+        )
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
     require_frozen = bool(
@@ -6508,6 +6629,8 @@ def execute(
     chunk_index = 1
     train_progress: dict[str, Any] = {}
     critic_stats: dict[str, int] = {}
+    lineage: dict[str, Any] = dict(CLEAN_LINEAGE)
+    consumed_marker: dict[str, Any] = {}
     if training_run:
         trunc_guard_obj = TruncationHaltGuard(
             window_updates=int(a.trunc_window_updates), halt_rate=float(a.trunc_halt_rate)
@@ -6525,7 +6648,7 @@ def execute(
             checkpoint_sha=ckpt_sha,
         )
         if resume_pre is not None:
-            resume_state = finish_resume(resume_pre, header=train_header)
+            resume_state = finish_resume(resume_pre, header=train_header, out_dir=a.out)
             apply_train_state(resume_state, model=bundle["model"], optimiser=bundle["optimiser"])
             start_step = int(resume_state["next_step"])
             chunk_index = int(resume_state["chunk_index"]) + 1
@@ -6540,11 +6663,34 @@ def execute(
                 "next_step": start_step,
                 "chunk_index": int(resume_state["chunk_index"]),
                 "cuts": resume_state["_cuts"],
+                "overridden": resume_state["_overridden"],
             }
+        lineage = dict((resume_state or {}).get("lineage") or CLEAN_LINEAGE)
+        lineage["override_reasons"] = list(lineage.get("override_reasons") or [])
+        override_reason = getattr(a, "resume_override_reason", None)
+        if override_reason:
+            lineage["forked_or_rewound"] = True
+            lineage["override_reasons"].append(
+                {
+                    "chunk_dir": a.out.name,
+                    "resumed_from": Path(a.resume_from).name,
+                    "step": start_step,
+                    "reason": str(override_reason).strip(),
+                    "overridden": list((resume_state or {}).get("_overridden") or []),
+                }
+            )
         a.out.mkdir(parents=True, exist_ok=True)
         (a.out / f"s2-{a.path}-train-header.json").write_text(
             json.dumps(
-                {**train_header, "chunk_index": chunk_index, "resumed_from": resumed_from_rec}, indent=1
+                {
+                    **train_header,
+                    "chunk_index": chunk_index,
+                    "resumed_from": resumed_from_rec,
+                    "resume_override_reason": getattr(a, "resume_override_reason", None),
+                    "forked_or_rewound": bool(lineage["forked_or_rewound"]),
+                    "override_reasons": lineage["override_reasons"],
+                },
+                indent=1,
             ),
             encoding="utf-8",
             newline="\n",
@@ -6620,6 +6766,22 @@ def execute(
                 "next_step": int(next_step_now),
             }
 
+        def mark_consumed(next_step_now: int) -> None:
+            # the previous chunk is consumed once this chunk holds a state of its own
+            if resume_state is None or consumed_marker:
+                return
+            consumed_marker["path"] = write_consumed_marker(
+                resume_state["_resume_dir"],
+                {
+                    "consumed_by": a.out.name,
+                    "parent_dir": a.out.parent.name,
+                    "from_state": resume_state["_dir"].name,
+                    "resumed_at_step": start_step,
+                    "first_state_at_step": int(next_step_now),
+                    "override_reason": getattr(a, "resume_override_reason", None),
+                },
+            ).name
+
         def periodic_save(next_step_now: int, ending: bool) -> None:
             if ending or next_step_now % state_every_updates(a) != 0:
                 return
@@ -6640,7 +6802,9 @@ def execute(
                 resumed_from=resumed_from_rec,
                 kind="periodic",
                 path=a.path,
+                lineage=lineage,
             )
+            mark_consumed(next_step_now)
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
             nonlocal prepass_records, stress_meta
@@ -6898,6 +7062,8 @@ def execute(
                 fits=result.get("fits"),
                 dry=a.dry,
             )
+            if lineage["forked_or_rewound"]:
+                line = f"{line} {FORKED_MARK}"
         else:
             line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
         env = environment(
@@ -6951,10 +7117,13 @@ def execute(
                     resumed_from=resumed_from_rec,
                     kind="final",
                     path=a.path,
+                    lineage=lineage,
                 )[0]
                 if state_ok
                 else None
             )
+            if state_sha is not None:
+                mark_consumed(next_step)
             gh_path = a.out / f"s2-{a.path}-guard-history.jsonl.gz"
             cr_path = a.out / f"s2-{a.path}-critic-retries.jsonl.gz"
             training_block = {
@@ -6975,6 +7144,9 @@ def execute(
                 "latest_state_dir": (lsd.name if (lsd := latest_state_dir(a.out)) is not None else None),
                 "state_every_updates": state_every_updates(a),
                 "cuda_deterministic": False,
+                "forked_or_rewound": bool(lineage["forked_or_rewound"]),
+                "override_reasons": lineage["override_reasons"],
+                "consumed_marker_written": consumed_marker.get("path"),
                 "guard_history_sha256": _file_sha256(gh_path) if gh_path.exists() else None,
                 "start_policy": train_header["start_policy"],
                 "critic": (
@@ -7415,6 +7587,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="training run: continue from the previous chunk's directory (its train-state); a fresh --out",
+    )
+    ap.add_argument(
+        "--resume-override-reason",
+        default=None,
+        help=(
+            "training run: resume although the state was already resumed from, or a newer state exists "
+            "(a fork or rewind). The reason is recorded, and every later chunk is marked FORKED_OR_REWOUND"
+        ),
     )
     ap.add_argument(
         "--state-every-updates",

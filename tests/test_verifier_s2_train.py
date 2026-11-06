@@ -664,15 +664,16 @@ MECH_GOLDEN_REPLIES = [
 
 
 def _fix_weights(model):
-    """Overwrite every weight with a fixed pattern (lora_B stays zero): a golden then depends on torch math,
-    not on the random init of whichever transformers version is installed."""
+    """Overwrite every weight with a fixed pattern, lora_B included, so the policy starts away from the
+    reference (the KL term moves the weights from update 0), and a golden depends on torch math, not on the
+    random init of whichever transformers version is installed."""
     with torch.no_grad():
         for k, (name, p) in enumerate(sorted(model.named_parameters(), key=lambda x: x[0])):
-            if "lora_B" in name:
-                p.zero_()
-                continue
             idx = torch.arange(p.numel(), dtype=torch.float64)
-            p.copy_((torch.sin(idx * 0.37 + k) * 0.05).reshape(p.shape).to(p.dtype))
+            scale = (
+                1.0 if "lora_B" in name else 0.05
+            )  # a large adapter: the policy sits far from the reference
+            p.copy_((torch.sin(idx * 0.37 + k) * scale).reshape(p.shape).to(p.dtype))
 
 
 class TestMechArmMatchesTheBase:
@@ -687,8 +688,16 @@ class TestMechArmMatchesTheBase:
             [1.0, -0.3, -1.0, -3.0],
             [1.05, -1.0, -1.0, -1.0],
             [1.0, -0.3, -1.0, -3.0],
+            [1.05, -1.0, -1.0, -1.0],
+            [1.0, -0.3, -1.0, -3.0],
+            [1.05, -1.0, -1.0, -1.0],
+            [1.0, -0.3, -1.0, -3.0],
         ],
         "advantages": [
+            [1.366667, -0.683333, 0.0, -0.683333],
+            [1.766667, 0.466667, 0.0, -2.233333],
+            [1.366667, -0.683333, 0.0, -0.683333],
+            [1.766667, 0.466667, 0.0, -2.233333],
             [1.366667, -0.683333, 0.0, -0.683333],
             [1.766667, 0.466667, 0.0, -2.233333],
             [1.366667, -0.683333, 0.0, -0.683333],
@@ -717,7 +726,7 @@ class TestMechArmMatchesTheBase:
             optimiser=bundle["optimiser"],
             prompts=prompts,
             rollout=rollout,
-            steps=2,
+            steps=4,
             g=4,
             max_new=64,
             reward_fn=lambda text, row, tt, truncated=False: s2.reward(
@@ -982,99 +991,101 @@ class TestRemainingPaths:
         assert hint["retrieved_lines"] == 1
 
 
-# produced by aspire-si 7f9b4cb3's run_steps on TestMechArmMatchesTheBase's scenario (_fix_weights)
+# produced by aspire-si 7f9b4cb3's run_steps on TestMechArmMatchesTheBase's scenario: 4 updates, _fix_weights
 WEIGHT_GOLDEN = {
     "adapter_sum": [
-        0.11221737274900079,
-        -1.467938543797155e-07,
-        -0.11841878214181634,
-        0.0004240866308009572,
-        0.1222511813903111,
-        -5.9498903117122595e-08,
-        -0.12367147060467687,
-        -0.0001046644390498841,
-        0.019023898566956632,
-        1.9812342351563025e-09,
-        -0.0015931065572658554,
-        0.00014369369960931522,
-        -0.015869283677602652,
-        -5.605618079310495e-09,
-        0.033010219667630736,
-        -1.944665118003286e-05,
+        0.11292799317743629,
+        0.3390660954755731,
+        -0.11871607862121891,
+        -0.6830788990482688,
+        0.12282950707594864,
+        1.0100286953384057,
+        -0.12478516815463081,
+        -1.3184345296467654,
+        0.019002936824108474,
+        2.2615917898219777,
+        -0.0015995634021237493,
+        -2.098695441207383,
+        -0.015840491112612654,
+        1.8920997587265447,
+        0.03313214038826118,
+        -1.648422405931342,
     ],
     "adapter_abs": [
-        16.329239549551858,
-        2.2071852011462494e-06,
-        16.33632168141048,
-        0.007749510997200559,
-        16.33952524005872,
-        2.1472643547480307e-06,
-        16.33451944163062,
-        0.009265968936006175,
-        16.2493128276692,
-        3.545148700628614e-07,
-        16.246568818794913,
-        0.005993998634995279,
-        16.24638309978036,
-        3.530535933554766e-07,
-        16.249476141449122,
-        0.009040659975738663,
+        16.329101423209067,
+        324.9488071927917,
+        16.335935196679202,
+        324.9901679949835,
+        16.339718816656386,
+        325.30805834999774,
+        16.334276767491247,
+        325.68734987609787,
+        16.24931084875425,
+        326.57224320569367,
+        16.246759076049784,
+        326.38898786896607,
+        16.246399645686324,
+        326.19154973712284,
+        16.249602493664497,
+        326.0166613989204,
     ],
     "exp_avg_abs": [
-        1.1823065158803245e-16,
-        2.0410817957342109e-10,
-        1.1984983962395848e-16,
-        2.0983857900890037e-10,
-        6.876127177889158e-08,
-        4.307385019964097e-05,
-        9.21304543429544e-09,
-        7.010995289331856e-06,
-        6.931776831251423e-18,
-        3.354488509807758e-11,
-        5.976704718076054e-18,
-        3.3684611447512194e-11,
-        5.89997650479214e-08,
-        1.6481723666410264e-05,
-        2.42833463982036e-09,
-        2.4420860536178597e-06,
+        9.014724451591495e-06,
+        7.186527331337405e-08,
+        5.682040783887732e-06,
+        6.726039318142088e-08,
+        0.02120312451855,
+        0.00014203357862163646,
+        0.0005873367884721148,
+        0.0006613491875258615,
+        7.221958479316061e-08,
+        7.670555628221431e-10,
+        4.025583206394097e-08,
+        7.678001072381164e-10,
+        0.013829851717034103,
+        0.00015453866363772384,
+        0.0005963033239355653,
+        0.00040298870662480724,
     ],
     "exp_avg_sq_sum": [
-        5.330407891272278e-36,
-        1.0287616439962347e-23,
-        5.3577316376684366e-36,
-        1.1384675413815796e-23,
-        1.4944660222929677e-18,
-        3.196523365863784e-13,
-        2.1253887686191916e-20,
-        9.48587396932244e-15,
-        1.7387448672591834e-38,
-        3.058702808787274e-25,
-        1.1627373499926137e-38,
-        3.1490838380960952e-25,
-        9.270586980761244e-19,
-        4.281120372307123e-14,
-        1.5450553399022634e-21,
-        1.0874711056701404e-15,
+        1.0660882610803158e-14,
+        7.645731326004864e-19,
+        4.1046141239414e-15,
+        6.752353964837532e-19,
+        5.7853564927994384e-08,
+        2.1036079562680724e-12,
+        3.554067441640244e-11,
+        5.1113971188619555e-11,
+        6.368710167929185e-19,
+        6.491283415209773e-23,
+        2.6850480494990146e-19,
+        8.90216374269743e-23,
+        2.0877380041983172e-08,
+        2.3937062620664808e-12,
+        4.0839744395778257e-11,
+        2.0065377914235978e-11,
     ],
     "steps": [
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
-        2.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
     ],
 }
+# A KL beta of 0.05 instead of 0.04 moves exp_avg_abs by 5.5e-4 and exp_avg_sq_sum by 7.7e-4 (relative), so
+# the 1e-4 lines catch it with a 5x margin over float32 BLAS noise.
 WEIGHT_TOLERANCE = {
     "adapter_sum": {"abs": 1e-8, "rel": 0.0},
     "adapter_abs": {"rel": 1e-5, "abs": 0.0},
@@ -1293,3 +1304,131 @@ class TestRngRestore:
         rng_m = torch.load(s2.latest_state_dir(mech) / "rng.pt", weights_only=True)
         rng_c = torch.load(s2.latest_state_dir(critic) / "rng.pt", weights_only=True)
         assert torch.equal(rng_m["torch_cpu"], rng_c["torch_cpu"])
+
+
+# -- fix round 2: resume lineage, overrides, the cut re-check, CUT.json --
+class TestResumeLineage:
+    def _chain(self, tmp_path):
+        gold = _gold(tmp_path)
+        c1, c2 = tmp_path / "c1", tmp_path / "c2"
+        assert _run(_argv(gold, c1, "--stop-after-updates", "1", steps=4)) == 0
+        assert _run(_argv(gold, c2, "--stop-after-updates", "1", "--resume-from", str(c1), steps=4)) == 0
+        return gold, c1, c2
+
+    def test_the_normal_chain_marks_each_consumed_chunk_once(self, tmp_path):
+        gold, c1, c2 = self._chain(tmp_path)
+        markers = s2.consumed_markers(c1)
+        assert [m.name for m in markers] == ["CONSUMED_BY.json"]
+        mark = json.loads(markers[0].read_text(encoding="utf-8"))
+        assert mark["consumed_by"] == "c2" and mark["resumed_at_step"] == 1
+        assert s2.consumed_markers(c2) == []
+        c3 = tmp_path / "c3"
+        assert _run(_argv(gold, c3, "--resume-from", str(c2), steps=4)) == 0
+        assert _receipt(c3)["verdict"] == "S2-TRAIN-COMPLETE"
+        assert _receipt(c3)["training"]["forked_or_rewound"] is False
+
+    def test_resuming_an_older_chunk_and_forking_are_refused(self, tmp_path):
+        gold, c1, c2 = self._chain(tmp_path)
+        with pytest.raises(SystemExit, match="RESUME_ALREADY_CONSUMED"):  # older chunk / a second child
+            _run(_argv(gold, tmp_path / "fork", "--resume-from", str(c1), steps=4))
+        for m in s2.consumed_markers(c1):  # with the marker gone, the descendant chunk still shows it
+            m.unlink()
+        with pytest.raises(SystemExit, match="RESUME_NOT_LATEST"):
+            _run(_argv(gold, tmp_path / "fork2", "--resume-from", str(c1), steps=4))
+
+    def test_an_older_state_than_the_chunks_newest_is_refused(self, tmp_path):
+        gold = _gold(tmp_path)
+        c1 = tmp_path / "c1"
+        assert _run(_argv(gold, c1, "--stop-after-updates", "2", "--state-every-updates", "1", steps=4)) == 0
+        newer, older = s2.state_dirs(c1)[-1], s2.state_dirs(c1)[0]
+        import shutil
+
+        # a later-step state that sorts first: the latest-by-sequence state is then not the newest step
+        shutil.copytree(newer, c1 / s2.TRAIN_STATE_DIR / "0000-step-00009")
+        shutil.rmtree(older)
+        state = json.loads(
+            (c1 / s2.TRAIN_STATE_DIR / "0000-step-00009" / "state.json").read_text(encoding="utf-8")
+        )
+        state["next_step"] = 3
+        (c1 / s2.TRAIN_STATE_DIR / "0000-step-00009" / "state.json").write_text(
+            json.dumps(state), encoding="utf-8"
+        )
+        with pytest.raises(SystemExit, match="RESUME_NOT_LATEST"):
+            s2.precheck_resume(c1, steps_total=4)
+
+    def test_an_override_is_recorded_and_marks_the_chunk_and_every_later_one(self, tmp_path):
+        gold, c1, c2 = self._chain(tmp_path)
+        fork = tmp_path / "fork"
+        reason = ["--resume-override-reason", "rewind to chunk 1 after a bad node"]
+        assert (
+            _run(_argv(gold, fork, "--stop-after-updates", "1", "--resume-from", str(c1), *reason, steps=4))
+            == 0
+        )
+        rec = _receipt(fork)
+        assert rec["verdict"] == "S2-TRAIN-CHUNK-OK FORKED_OR_REWOUND"
+        assert rec["training"]["forked_or_rewound"] is True
+        assert rec["training"]["override_reasons"][0]["reason"] == "rewind to chunk 1 after a bad node"
+        assert rec["training"]["override_reasons"][0]["overridden"] == [
+            "RESUME_ALREADY_CONSUMED",
+            "RESUME_NOT_LATEST",
+        ]
+        assert rec["run"]["resume_override_reason"] == "rewind to chunk 1 after a bad node"
+        hdr = json.loads((fork / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr["forked_or_rewound"] is True and hdr["resume_override_reason"].startswith("rewind")
+        assert [m.name for m in s2.consumed_markers(c1)] == ["CONSUMED_BY.1.json", "CONSUMED_BY.json"]
+        later = tmp_path / "later"
+        assert _run(_argv(gold, later, "--resume-from", str(fork), steps=4)) == 0
+        rec2 = _receipt(later)
+        assert (
+            rec2["verdict"] == "S2-TRAIN-COMPLETE FORKED_OR_REWOUND" and s2.exit_status(rec2["verdict"]) == 0
+        )
+        hdr2 = json.loads((later / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr2["forked_or_rewound"] is True and hdr2["resume_override_reason"] is None
+        assert hdr2["override_reasons"][0]["chunk_dir"] == "fork"
+        assert _state(later)[0]["lineage"]["forked_or_rewound"] is True
+
+    def test_an_empty_or_orphan_override_reason_is_refused(self, tmp_path):
+        with pytest.raises(SystemExit, match="invalid_resume_override_reason"):
+            s2.validate_training_args(
+                _ns(_argv(_gold(tmp_path), tmp_path / "o", "--resume-override-reason", "x"))
+            )
+        with pytest.raises(SystemExit, match="invalid_resume_override_reason"):
+            s2.validate_training_args(
+                _ns(
+                    _argv(
+                        _gold(tmp_path), tmp_path / "o", "--resume-from", "p", "--resume-override-reason", " "
+                    )
+                )
+            )
+
+
+class TestCutRecheck:
+    def test_the_cut_rechecks_the_prefix_hashes_the_copy_and_writes_cut_json(self, tmp_path):
+        gold = _gold(tmp_path)
+        killed, resumed = tmp_path / "killed", tmp_path / "resumed"
+        with pytest.raises(_Killed):
+            _run(_argv(gold, killed, "--state-every-updates", "2", steps=6), build=_killing_build(7))
+        assert (
+            _run(_argv(gold, resumed, "--state-every-updates", "2", "--resume-from", str(killed), steps=6))
+            == 0
+        )
+        cut = json.loads((killed / "CUT.json").read_text(encoding="utf-8"))
+        assert cut["resumed_by"] == "resumed" and cut["next_step"] == 2
+        for entry in cut["copies"].values():
+            assert entry["copy_sha256"] == entry["sha256"] == s2._file_sha256(killed / entry["copy"])
+        link = _state(resumed)[0]["save_all_chain"][0]["archives"]["save_all"]
+        assert link["cut_copy_sha256"] == cut["copies"]["save_all"]["copy_sha256"]
+        cuts = _receipt(resumed)["training"]["resumed_from"]["cuts"]
+        assert all(c["copy_sha256"] == c["sha256"] for c in cuts)
+
+    def test_a_prefix_changed_between_the_precheck_and_the_cut_refuses(self, tmp_path):
+        gold = _gold(tmp_path)
+        killed = tmp_path / "killed"
+        with pytest.raises(_Killed):
+            _run(_argv(gold, killed, "--state-every-updates", "2", steps=6), build=_killing_build(7))
+        state = s2.precheck_resume(killed, steps_total=6)
+        assert state["_cuts"]
+        archive = killed / state["_cuts"][0]["file"]
+        archive.write_bytes(b"Z" + archive.read_bytes()[1:])
+        with pytest.raises(SystemExit, match="changed before it was cut"):
+            s2.finish_resume(state, header=state["header"], out_dir=tmp_path / "r")
