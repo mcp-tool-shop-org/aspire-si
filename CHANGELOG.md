@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `examples/verifier-distill/s2_grpo_smoke.py`: the S2 GRPO training run, launchable in chunks.
+  - `--arm mech|critic`, `--train-seed`, `--trunc-window-updates` and `--trunc-halt-rate` name a training run.
+    All four are required, with no defaults, once any training flag is given.
+  - `--stop-after-updates N` ends a chunk cleanly. The train state (LoRA tensors, AdamW state, RNG states,
+    global step, CT guard, truncation window, and the length and sha256 of every archive) is saved every
+    `--state-every-updates` updates (default 10) and at the chunk's end; the last 2 saves are kept.
+    `--resume-from <chunk dir>` continues into a fresh `--out` from the latest save. After a kill it cuts a
+    copy of each archive back to the save point and records the cut.
+  - A resume marks the chunk it consumed (`CONSUMED_BY.json`). Resuming a consumed chunk, or any state that is
+    not the run's newest, is refused (`RESUME_ALREADY_CONSUMED`, `RESUME_NOT_LATEST`). The one escape,
+    `--resume-override-reason`, is recorded, and every later chunk of that run carries `forked_or_rewound: true`
+    and a verdict line ending `FORKED_OR_REWOUND`. The claim (`CONSUMED_BY.json`) is created exclusively
+    just before the resuming chunk's first save: of two resumes racing for one chunk, the later halts with
+    `S2-TRAIN-HALT-RESUME_RACE_LOST` and saves no state. A cut re-checks the saved prefix, hashes its copy, and leaves
+    `CUT.json` in the killed chunk naming the canonical copies.
+  - Resume refuses any difference in the run header: settings, seeds, holdout and draw shas, aspire commit,
+    and the sha256 of the script, `quote_rule.py` and `s2_draw.py`, model revision, frozen stack.
+  - Resume is state-exact on the CPU. On CUDA it restores all state, but the kernels are not
+    bitwise-deterministic; nothing switches deterministic mode on, and the header records
+    `cuda_deterministic: false` with the cuDNN and cuBLAS settings.
+  - Training is seeded: the fresh LoRA's init, and each rollout by (seed, step, group). Save-all records the
+    seed that was applied, and an unseeded smoke run records none.
+  - A rolling truncation halt beside the CT collapse guard, sharing its halt path. Every guard window (S1, S2,
+    U1, U2 and the truncation window) is appended to `s2-hf-guard-history.jsonl.gz`.
+  - The critic arm: each all-wrong group gets one retry with a mechanical tool hint (offrig's quote rule and
+    lexical retrieval; NLI stays off because S1 failed). Retries are scored on gold and archived in
+    `s2-hf-critic-retries.jsonl.gz`. They never enter the loss, the guards or the training save-all, and
+    they draw from a forked RNG. The registered runs are mechanical only; this arm is a diagnostic.
+  - Training verdicts: `S2-TRAIN-CHUNK-OK` and `S2-TRAIN-COMPLETE` (exit 0), `S2-TRAIN-HALT-<rule>` (exit 2),
+    `S2-TRAIN-FAIL` (exit 1).
+
 ## [1.4.0] - 2026-10-23
 
 ### Added
