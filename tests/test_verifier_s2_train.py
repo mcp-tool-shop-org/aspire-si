@@ -1,5 +1,5 @@
-"""The S2 training run: resume across chunks (B1), the truncation halt (B2), seeding (B3), the critic arm (B4),
-the guard history (B5) and the training verdict (B6).
+"""The S2 training run: resume across chunks (B1), the truncation halt (B2), seeding (B3), the critic arm
+(B4), the guard history (B5) and the training verdict (B6).
 
 Every test runs on the CPU with the dry rehearsal's tiny random model (or none at all). Torch is required: the
 repo's conftest imports it.
@@ -21,7 +21,7 @@ torch = pytest.importorskip("torch")
 TIMING_KEYS = {"rollout_s", "train_s", "step_s", "peak_alloc_mib"}
 
 
-# -- fixtures ----------------------------------------------------------------------------------------------------------
+# -- fixtures --
 def _row(cid, split="tune", label="supported", claim="The parser counts tokens.", text=None):
     text = text or "def count(tokens):\n    return len(tokens)\n# the parser counts tokens here"
     return {
@@ -136,7 +136,7 @@ def _history(out):
     return s2.read_save_all(path) if path.exists() else []
 
 
-# -- B1: resume across chunks ------------------------------------------------------------------------------------------
+# -- B1: resume across chunks --
 class TestResumeEquivalence:
     def test_k_updates_in_one_go_equal_k1_plus_k2_bit_for_bit(self, tmp_path):
         """The required test: 4 updates in one go == 2 + 2 split by stop/resume, on the CPU dry model."""
@@ -372,7 +372,7 @@ class TestTrainingArgs:
         assert s2.aspire_commit() is None
 
 
-# -- B2: the truncation halt -------------------------------------------------------------------------------------------
+# -- B2: the truncation halt --
 class TestTruncationGuard:
     def test_needs_a_full_window_and_a_rate_above_the_line(self):
         g = s2.TruncationHaltGuard(window_updates=3, halt_rate=0.2)
@@ -443,7 +443,7 @@ def _reply(verdict, quote="return len(tokens)"):
 class TestTruncationHaltInTheTrainer:
     def test_the_halt_fires_at_the_update_boundary_and_saves_the_checkpoint(self, tmp_path):
         gold = _gold(tmp_path)
-        # update 0: 1 of 4 truncated (25%); update 1: 2 of 4 (50%); window 2, line 0.30 -> fires after update 1
+        # update 0: 1 of 4 truncated; update 1: 2 of 4; window 2 = 3/8 > line 0.30 -> fires after update 1
         pattern = [[False, False], [True, False], [True, False], [True, False]]
         build, _ = _fake_rollout_build(
             lambda i, p: [_reply("supported"), _reply("unsupported")], lambda i: pattern[i]
@@ -463,7 +463,10 @@ class TestTruncationHaltInTheTrainer:
         build2, _ = _fake_rollout_build(
             lambda i, p: [_reply("supported"), _reply("unsupported")], lambda i: pattern[i]
         )
-        assert _run(_argv(gold, c1, "--stop-after-updates", "1", steps=4, window=2, halt=0.30), build=build2) == 0
+        assert (
+            _run(_argv(gold, c1, "--stop-after-updates", "1", steps=4, window=2, halt=0.30), build=build2)
+            == 0
+        )
         _, ten_one, _ = _state(c1)
         _assert_tensors_equal(ten_halt, ten_one)
         hist = [h for h in _history(out) if h["kind"] == "trunc_window"]
@@ -483,18 +486,21 @@ class TestTruncationHaltInTheTrainer:
 
     def test_a_ct_guard_halt_and_a_truncation_halt_in_one_update_are_both_reported(self):
         ct = {"step": 3, "reason": "ct_guard_s1", "triggered_rules": ["S1"]}
-        assert s2.train_verdict_line(
-            stopped={**ct, "also_triggered": {"reason": "trunc_halt"}},
-            oom=False,
-            next_step=3,
-            steps_total=10,
-            chunk_stop=None,
-            fits=True,
-            dry=True,
-        ) == "S2-TRAIN-HALT-S1"
+        assert (
+            s2.train_verdict_line(
+                stopped={**ct, "also_triggered": {"reason": "trunc_halt"}},
+                oom=False,
+                next_step=3,
+                steps_total=10,
+                chunk_stop=None,
+                fits=True,
+                dry=True,
+            )
+            == "S2-TRAIN-HALT-S1"
+        )
 
 
-# -- B3: seeding -----------------------------------------------------------------------------------------------------
+# -- B3: seeding --
 class TestSeeding:
     def _lora(self, tmp_path, seed, name):
         a = _ns(_argv(_gold(tmp_path), tmp_path / name, seed=seed))
@@ -555,7 +561,7 @@ class TestSeeding:
             s2.restore_rng_state({**tensors, "torch_cuda": [torch.zeros(4, dtype=torch.uint8)]}, plain)
 
 
-# -- B4: the critic arm ------------------------------------------------------------------------------------------------
+# -- B4: the critic arm --
 class TestCriticHint:
     PASSAGES = ["def count(tokens):\n    return len(tokens)\n# the parser counts tokens here\nx = 1"]
 
@@ -606,12 +612,16 @@ class TestCriticArm:
         assert _untimed(_rows(mech)) == [{k: v for k, v in r.items() if k not in crit_keys} for r in rows_c]
         retries = s2.read_save_all(critic / "s2-hf-critic-retries.jsonl.gz")
         assert len(retries) == 2 * 2 * 2 and all(r["kind"] == "critic_retry" for r in retries)
-        assert all(r["in_gradient"] is False and r["hint"].startswith("Hint from a tool check") for r in retries)
+        assert all(
+            r["in_gradient"] is False and r["hint"].startswith("Hint from a tool check") for r in retries
+        )
         assert {r["seed"] for r in retries} == {
             s2.train_rollout_seed(42, st, gr, purpose="critic-retry") for st in (0, 1) for gr in (0, 1)
         }
         rec = _receipt(critic)
-        assert rec["training"]["critic"]["hinted_groups"] == 4 and rec["training"]["critic"]["signal_drops"] == 0
+        assert (
+            rec["training"]["critic"]["hinted_groups"] == 4 and rec["training"]["critic"]["signal_drops"] == 0
+        )
         assert rec["training"]["critic"]["retries_sha256"]
         assert not (mech / "s2-hf-critic-retries.jsonl.gz").exists() and rec["run"]["arm"] == "critic"
         assert all(r["critic_hinted_groups"] == 2 for r in rows_c)
@@ -713,7 +723,7 @@ class TestMechArmMatchesTheBase:
         assert [[r["advantage"] for r in grp] for grp in by_group] == self.GOLDEN["advantages"]
 
 
-# -- B5: the guard history ---------------------------------------------------------------------------------------------
+# -- B5: the guard history --
 class TestGuardHistory:
     def test_ct_guard_state_round_trip_carries_the_open_window_and_counters(self):
         def feed(guard, steps):
@@ -737,9 +747,7 @@ class TestGuardHistory:
         feed(whole, range(4))
         first = s2.CtCollapseGuard(window_groups=3, pass_a_k={"i00": 8})
         feed(first, range(2))
-        second = s2.CtCollapseGuard.from_state(
-            json.loads(json.dumps(first.to_state())), pass_a_k={"i00": 8}
-        )
+        second = s2.CtCollapseGuard.from_state(json.loads(json.dumps(first.to_state())), pass_a_k={"i00": 8})
         feed(second, range(2, 4))
         assert second.to_state() == whole.to_state()
         assert all("step" in w for w in whole.window_history)
@@ -780,7 +788,7 @@ class TestGuardHistory:
         assert kept == recs and s2.dropped_archive_path(hist).exists()
 
 
-# -- B6: the training verdict ------------------------------------------------------------------------------------------
+# -- B6: the training verdict --
 class TestTrainingVerdict:
     @pytest.mark.parametrize(
         ("kw", "line", "code"),
@@ -788,8 +796,16 @@ class TestTrainingVerdict:
             ({"next_step": 197, "chunk_stop": None}, "S2-TRAIN-COMPLETE", 0),
             ({"next_step": 40, "chunk_stop": {"next_step": 40}}, "S2-TRAIN-CHUNK-OK", 0),
             ({"next_step": 39, "chunk_stop": None}, "S2-TRAIN-FAIL", 1),
-            ({"next_step": 12, "stopped": {"reason": "trunc_halt", "triggered_rules": ["TRUNC"]}}, "S2-TRAIN-HALT-TRUNC", 2),
-            ({"next_step": 12, "stopped": {"reason": "ct_guard_u2", "triggered_rules": ["U2"]}}, "S2-TRAIN-HALT-U2", 2),
+            (
+                {"next_step": 12, "stopped": {"reason": "trunc_halt", "triggered_rules": ["TRUNC"]}},
+                "S2-TRAIN-HALT-TRUNC",
+                2,
+            ),
+            (
+                {"next_step": 12, "stopped": {"reason": "ct_guard_u2", "triggered_rules": ["U2"]}},
+                "S2-TRAIN-HALT-U2",
+                2,
+            ),
             ({"next_step": 12, "stopped": {"error": "non-finite loss"}}, "S2-TRAIN-FAIL", 1),
             ({"next_step": 12, "oom": True}, "S2-TRAIN-FAIL", 1),
             ({"next_step": 197, "fits": False, "dry": False}, "S2-TRAIN-FAIL", 1),
@@ -797,7 +813,14 @@ class TestTrainingVerdict:
         ],
     )
     def test_verdicts_and_exit_codes(self, kw, line, code):
-        args = {"stopped": None, "oom": False, "steps_total": 197, "chunk_stop": None, "fits": True, "dry": False}
+        args = {
+            "stopped": None,
+            "oom": False,
+            "steps_total": 197,
+            "chunk_stop": None,
+            "fits": True,
+            "dry": False,
+        }
         got = s2.train_verdict_line(**{**args, **kw})
         assert got == line and s2.exit_status(got) == code
 
@@ -819,3 +842,106 @@ class TestTrainingVerdict:
         rec = _receipt(out)
         assert rec["verdict"] == "S2-TRAIN-FAIL" and rec["training"]["train_state_saved"] is False
         assert not (out / s2.TRAIN_STATE_DIR).exists()
+
+
+# -- coverage of the remaining paths --
+class TestResumeWithTheCtGuard:
+    def test_the_ct_guard_state_carries_across_a_resume_bit_for_bit(self, tmp_path, monkeypatch):
+        real_loader = s2.load_prepass_baseline
+
+        def loader(path, sha, ids, **kw):  # a pass-A k for every item, without building a pass-A file
+            if path is not None and str(path).endswith("pass-a.jsonl"):
+                return {str(i): 8 for i in ids}, "a" * 64
+            return real_loader(path, sha, ids, **kw)
+
+        monkeypatch.setattr(s2, "load_prepass_baseline", loader)
+        gold = _gold(tmp_path)
+        guard = ["--ct-guard", "--guard-window-groups", "3", "--pass-a-jsonl", "pass-a.jsonl"]
+        guard += ["--pass-a-sha256", "a" * 64]
+        full, c1, c2 = tmp_path / "full", tmp_path / "c1", tmp_path / "c2"
+        assert _run(_argv(gold, full, *guard)) == 0
+        assert _run(_argv(gold, c1, *guard, "--stop-after-updates", "2")) == 0
+        assert _run(_argv(gold, c2, *guard, "--resume-from", str(c1))) == 0
+        st_full, ten_full, _ = _state(full)
+        st_c2, ten_c2, _ = _state(c2)
+        _assert_tensors_equal(ten_full, ten_c2)
+        assert st_full["ct_guard"] == st_c2["ct_guard"] and st_full["ct_guard"]["window_index"] == 2
+        assert _history(full) == _history(c1) + _history(c2)
+        assert [h["kind"] for h in _history(full)].count("ct_guard_window") == 2
+
+
+class TestRemainingPaths:
+    def test_a_leftover_partial_state_is_replaced(self, tmp_path):
+        a = _ns(_argv(_gold(tmp_path), tmp_path / "o"))
+        bundle = s2.dry_bundle(a)
+        partial = tmp_path / "o" / f"{s2.TRAIN_STATE_DIR}.partial"
+        partial.mkdir(parents=True)
+        (partial / "trainable.pt").write_bytes(b"torn")
+        sha = s2.save_train_state(
+            tmp_path / "o",
+            model=bundle["model"],
+            optimiser=bundle["optimiser"],
+            header={"settings": {"groups_per_update": 2}},
+            next_step=1,
+            steps_total=4,
+            chunk_index=1,
+            ct_guard=None,
+            trunc_guard=s2.TruncationHaltGuard(window_updates=2, halt_rate=0.5),
+            save_all_chain=[],
+            adapter_sha=None,
+            halted=None,
+            resumed_from=None,
+        )
+        assert not partial.exists() and len(sha) == 64
+        state = json.loads((tmp_path / "o" / s2.TRAIN_STATE_DIR / "state.json").read_text(encoding="utf-8"))
+        assert state["draw_position"] == 2 and state["complete"] is False
+
+    def test_a_ct_halt_and_a_truncation_halt_in_one_update_report_both(self, tmp_path):
+        class _AlwaysHalt:
+            window_history: list = []
+
+            def record_group(self, **kw):
+                return {"step": kw["step"], "reason": "ct_guard_u1", "triggered_rules": ["U1"]}
+
+        a = _ns(_argv(_gold(tmp_path), tmp_path / "o"))
+        bundle = s2.dry_bundle(a)
+        rows, stopped, _ = s2.run_steps(
+            model=bundle["model"],
+            ref_adapter_off=bundle["ref_adapter_off"],
+            tok=bundle["tok"],
+            optimiser=bundle["optimiser"],
+            prompts=[_row("g00")],
+            rollout=bundle["rollout"],
+            steps=2,
+            g=2,
+            max_new=6,
+            reward_fn=s2.dry_reward,
+            device_sync=lambda: None,
+            peak_alloc_mib=lambda: None,
+            groups_per_update=1,
+            ct_guard=_AlwaysHalt(),
+            trunc_guard=s2.TruncationHaltGuard(window_updates=1, halt_rate=0.01),
+            train_seed=3,
+        )
+        assert len(rows) == 1 and stopped["reason"] == "ct_guard_u1"
+        assert stopped["also_triggered"]["reason"] == "trunc_halt"
+
+    def test_a_two_value_rollout_is_retried_and_blank_evidence_lines_are_skipped(self, tmp_path):
+        gold = _gold(tmp_path)
+
+        def build(a):
+            bundle = s2.dry_bundle(a)
+            tok = bundle["tok"]
+
+            def rollout(prompt_text, g, max_new, temp):
+                return tok.encode(prompt_text)[:16], [tok.encode(_reply("cannot_tell"))] * g
+
+            bundle["rollout"] = rollout
+            return bundle
+
+        out = tmp_path / "o"
+        assert _run(_argv(gold, out, arm="critic", steps=1, gpu=1), build=build) == 0
+        retries = s2.read_save_all(out / "s2-hf-critic-retries.jsonl.gz")
+        assert len(retries) == 2 and all(r["truncated"] is True for r in retries)  # no EOS, at the cap
+        hint = s2.critic_hint("The parser counts tokens.", ["\n\nthe parser\n\n"], [("x", False)])
+        assert hint["retrieved_lines"] == 1
