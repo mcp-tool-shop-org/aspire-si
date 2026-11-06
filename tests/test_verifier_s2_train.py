@@ -664,7 +664,7 @@ MECH_GOLDEN_REPLIES = [
 
 
 def _fix_weights(model):
-    """Overwrite every weight with a fixed pattern (lora_B stays zero), so a golden depends on torch's math only,
+    """Overwrite every weight with a fixed pattern (lora_B stays zero): a golden then depends on torch math,
     not on the random init of whichever transformers version is installed."""
     with torch.no_grad():
         for k, (name, p) in enumerate(sorted(model.named_parameters(), key=lambda x: x[0])):
@@ -982,7 +982,7 @@ class TestRemainingPaths:
         assert hint["retrieved_lines"] == 1
 
 
-# produced by aspire-si 7f9b4cb3's run_steps on TestMechArmMatchesTheBase's scenario (weights fixed by _fix_weights)
+# produced by aspire-si 7f9b4cb3's run_steps on TestMechArmMatchesTheBase's scenario (_fix_weights)
 WEIGHT_GOLDEN = {
     "adapter_sum": [
         0.11221737274900079,
@@ -1119,7 +1119,7 @@ def _segment(d, name, cut_copy=None):
 class TestPeriodicStateAndKill:
     @pytest.mark.parametrize("exc", [_Killed, TimeoutError])
     def test_k_in_one_go_equal_a_run_killed_after_a_periodic_save_and_resumed(self, tmp_path, exc):
-        """Required: K = 6 in one go == saves every 2, killed in update 3 (after the save at 2), resumed from 2."""
+        """Required: K = 6 in one go == saves every 2, killed in update 3 (after the save at 2), resumed."""
         gold = _gold(tmp_path)
         full, killed, resumed = tmp_path / "full", tmp_path / "killed", tmp_path / "resumed"
         every = ("--state-every-updates", "2")
