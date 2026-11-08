@@ -1484,3 +1484,495 @@ class TestResumeRace:
         assert s2.write_consumed_marker(tmp_path, rec) == first
         with pytest.raises(s2.ResumeRaceLostError):
             s2.write_consumed_marker(tmp_path, {"consumed_by": "B"})
+
+
+# -- Part 1, Part 3.1 & Part 3.3 (a): --ct-guard-mode halt|monitor --
+class TestCtGuardModeMonitor:
+    def test_registered_path_default_and_explicit_halt_are_byte_identical(self, tmp_path, monkeypatch):
+        real_loader = s2.load_prepass_baseline
+
+        def loader(path, sha, ids, **kw):
+            if path is not None and str(path).endswith("pass-a.jsonl"):
+                return {str(i): 8 for i in ids}, "a" * 64
+            return real_loader(path, sha, ids, **kw)
+
+        monkeypatch.setattr(s2, "load_prepass_baseline", loader)
+        gold = _gold(tmp_path)
+        guard_flags = [
+            "--ct-guard",
+            "--guard-window-groups",
+            "2",
+            "--pass-a-jsonl",
+            "pass-a.jsonl",
+            "--pass-a-sha256",
+            "a" * 64,
+        ]
+        # 1. Normal chunk stop: omitted vs --ct-guard-mode halt
+        c_def, c_hlt = tmp_path / "c_def", tmp_path / "c_hlt"
+        assert _run(_argv(gold, c_def, *guard_flags, "--stop-after-updates", "2", steps=4, gpu=2)) == 0
+        assert (
+            _run(
+                _argv(
+                    gold,
+                    c_hlt,
+                    *guard_flags,
+                    "--ct-guard-mode",
+                    "halt",
+                    "--stop-after-updates",
+                    "2",
+                    steps=4,
+                    gpu=2,
+                )
+            )
+            == 0
+        )
+        hdr_def = json.loads((c_def / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        hdr_hlt = json.loads((c_hlt / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr_def == hdr_hlt
+        assert "ct_guard_mode" not in hdr_def["settings"] and "exploratory" not in hdr_def
+        assert (c_def / "s2-hf-save-all.jsonl.gz").read_bytes() == (
+            c_hlt / "s2-hf-save-all.jsonl.gz"
+        ).read_bytes()
+        assert (c_def / "s2-hf-guard-history.jsonl.gz").read_bytes() == (
+            c_hlt / "s2-hf-guard-history.jsonl.gz"
+        ).read_bytes()
+        assert _untimed(_rows(c_def)) == _untimed(_rows(c_hlt))
+        _, ten_d, opt_d = _state(c_def)
+        _, ten_h, opt_h = _state(c_hlt)
+        _assert_tensors_equal(ten_d, ten_h)
+        _assert_optim_equal(opt_d, opt_h)
+
+        # 2. Dry halt: omitted vs --ct-guard-mode halt
+        h_def, h_hlt = tmp_path / "h_def", tmp_path / "h_hlt"
+        assert _run(_argv(gold, h_def, *guard_flags, steps=4, gpu=2, window=1, halt=0.01)) == 2
+        assert (
+            _run(
+                _argv(
+                    gold,
+                    h_hlt,
+                    *guard_flags,
+                    "--ct-guard-mode",
+                    "halt",
+                    steps=4,
+                    gpu=2,
+                    window=1,
+                    halt=0.01,
+                )
+            )
+            == 2
+        )
+        assert _receipt(h_def)["verdict"] == _receipt(h_hlt)["verdict"] == "S2-TRAIN-HALT-TRUNC"
+        assert _receipt(h_def)["stopped"] == _receipt(h_hlt)["stopped"]
+        assert (h_def / "s2-hf-save-all.jsonl.gz").read_bytes() == (
+            h_hlt / "s2-hf-save-all.jsonl.gz"
+        ).read_bytes()
+        assert (h_def / "s2-hf-guard-history.jsonl.gz").read_bytes() == (
+            h_hlt / "s2-hf-guard-history.jsonl.gz"
+        ).read_bytes()
+
+    def test_ct_guard_mode_bad_value_is_refused(self, tmp_path):
+        with pytest.raises(SystemExit, match="--ct-guard-mode"):
+            s2.CtCollapseGuard(window_groups=2, pass_a_k={}, mode="invalid")
+        a = _ns(_argv(_gold(tmp_path), tmp_path / "o"))
+        a.ct_guard_mode = "invalid"
+        with pytest.raises(SystemExit, match="--ct-guard-mode"):
+            s2.active_flags(a)
+        with pytest.raises(SystemExit, match="--ct-guard-mode"):
+            s2.execute(a, build=s2.dry_bundle)
+
+    def test_monitor_mode_logs_identical_windows_without_halting_or_zeroing_gradients(
+        self, tmp_path, monkeypatch
+    ):
+        real_loader = s2.load_prepass_baseline
+
+        def loader(path, sha, ids, **kw):
+            if path is not None and str(path).endswith("pass-a.jsonl"):
+                return {str(i): 8 for i in ids}, "a" * 64
+            return real_loader(path, sha, ids, **kw)
+
+        monkeypatch.setattr(s2, "load_prepass_baseline", loader)
+        gold = _gold(tmp_path)
+        # Every group returns cannot_tell + supported so S1 (3 distinct supported items with CT and positive
+        # advantage) triggers in a 3-group window.
+        build_h, _ = _fake_rollout_build(
+            lambda i, p: [_reply("cannot_tell"), _reply("unsupported")], lambda i: [False, False]
+        )
+        build_m, _ = _fake_rollout_build(
+            lambda i, p: [_reply("cannot_tell"), _reply("unsupported")], lambda i: [False, False]
+        )
+        guard_flags = [
+            "--ct-guard",
+            "--guard-window-groups",
+            "3",
+            "--pass-a-jsonl",
+            "pass-a.jsonl",
+            "--pass-a-sha256",
+            "a" * 64,
+        ]
+        out_halt = tmp_path / "halt"
+        out_mon = tmp_path / "monitor"
+        rc_h = _run(_argv(gold, out_halt, *guard_flags, steps=3, gpu=3), build=build_h)
+        rc_m = _run(
+            _argv(gold, out_mon, *guard_flags, "--ct-guard-mode", "monitor", steps=3, gpu=3), build=build_m
+        )
+        rec_h = _receipt(out_halt)
+        rec_m = _receipt(out_mon)
+        assert rc_h == 2 and rec_h["verdict"] == "S2-TRAIN-HALT-S1"
+        assert rc_m == 0 and rec_m["verdict"] == "S2-TRAIN-COMPLETE"
+        assert rec_m["stopped"] is None
+        hdr_h = json.loads((out_halt / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        hdr_m = json.loads((out_mon / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert "ct_guard_mode" not in hdr_h["settings"]
+        assert hdr_m["settings"]["ct_guard_mode"] == "monitor"
+        assert "exploratory" not in hdr_h and "exploratory" not in hdr_m
+
+        hist_h = [h for h in _history(out_halt) if h["kind"] == "ct_guard_window"]
+        hist_m = [h for h in _history(out_mon) if h["kind"] == "ct_guard_window"]
+        assert len(hist_h) == 1 and len(hist_m) == 3
+        assert hist_h[0] == hist_m[0] and hist_m[0]["triggered_rules"] == ["S1"]
+        assert all(w["triggered_rules"] == ["S1"] for w in hist_m)
+
+        # In monitor mode, gradients were applied across all 3 updates (optimizer steps = 3).
+        _, _, opt_h = _state(out_halt)
+        _, _, opt_m = _state(out_mon)
+        assert opt_h["state"] == {}  # halted on update 0 -> gradients discarded
+        assert all(int(st["step"]) == 3 for st in opt_m["state"].values())
+
+    def test_truncation_halt_still_fires_in_monitor_mode(self, tmp_path, monkeypatch):
+        real_loader = s2.load_prepass_baseline
+
+        def loader(path, sha, ids, **kw):
+            if path is not None and str(path).endswith("pass-a.jsonl"):
+                return {str(i): 8 for i in ids}, "a" * 64
+            return real_loader(path, sha, ids, **kw)
+
+        monkeypatch.setattr(s2, "load_prepass_baseline", loader)
+        gold = _gold(tmp_path)
+        build, _ = _fake_rollout_build(
+            lambda i, p: [_reply("cannot_tell"), _reply("unsupported")], lambda i: [True, True]
+        )
+        out = tmp_path / "mon-trunc"
+        rc = _run(
+            _argv(
+                gold,
+                out,
+                "--ct-guard-mode",
+                "monitor",
+                "--guard-window-groups",
+                "2",
+                "--pass-a-jsonl",
+                "pass-a.jsonl",
+                "--pass-a-sha256",
+                "a" * 64,
+                steps=3,
+                gpu=2,
+                window=1,
+                halt=0.20,
+            ),
+            build=build,
+        )
+        rec = _receipt(out)
+        assert rc == 2 and rec["verdict"] == "S2-TRAIN-HALT-TRUNC"
+        assert rec["stopped"]["reason"] == "trunc_halt"
+
+
+# -- Part 2 & Part 3.3 (b)-(d): --resume-from-halted-explore "<reason>" --
+class TestExploreResumeFromHalted:
+    def _halted_chunk(self, tmp_path, monkeypatch, *, arm="mech"):
+        real_loader = s2.load_prepass_baseline
+
+        def loader(path, sha, ids, **kw):
+            if path is not None and str(path).endswith("pass-a.jsonl"):
+                return {str(i): 8 for i in ids}, "a" * 64
+            return real_loader(path, sha, ids, **kw)
+
+        monkeypatch.setattr(s2, "load_prepass_baseline", loader)
+        gold = _gold(tmp_path)
+
+        # Step 0 has normal replies; step 1 triggers S1 in a 3-group window so step 0 is saved and step 1 halts
+        def texts(i, prompt):
+            if i < 2:
+                return [_reply("supported"), _reply("unsupported")]
+            return [_reply("cannot_tell"), _reply("unsupported")]
+
+        build, _ = _fake_rollout_build(texts, lambda i: [False, False])
+        guard_flags = [
+            "--ct-guard",
+            "--guard-window-groups",
+            "3",
+            "--pass-a-jsonl",
+            "pass-a.jsonl",
+            "--pass-a-sha256",
+            "a" * 64,
+            "--state-every-updates",
+            "1",
+        ]
+        orig = tmp_path / "run-training" / "seed-42" / "chunk-01"
+        rc = _run(_argv(gold, orig, *guard_flags, arm=arm, steps=4, gpu=3), build=build)
+        assert rc == 2 and _receipt(orig)["verdict"] == "S2-TRAIN-HALT-S1"
+        return gold, orig, guard_flags
+
+    def test_every_explore_refusal_code(self, tmp_path, monkeypatch):
+        gold, orig, guard_flags = self._halted_chunk(tmp_path, monkeypatch)
+        import shutil
+
+        halted_copy = tmp_path / "explore-work" / "chunk-01-copy"
+        shutil.copytree(orig, halted_copy)
+        out_ok = tmp_path / "explore-work" / "chunk-02-explore"
+
+        # 1. EXPLORE_REASON_REQUIRED (empty/whitespace reason)
+        with pytest.raises(SystemExit, match="EXPLORE_REASON_REQUIRED"):
+            s2.validate_training_args(
+                _ns(
+                    _argv(
+                        gold,
+                        out_ok,
+                        *guard_flags,
+                        "--ct-guard-mode",
+                        "monitor",
+                        "--resume-from",
+                        str(halted_copy),
+                        "--resume-from-halted-explore",
+                        "   ",
+                    )
+                )
+            )
+        with pytest.raises(SystemExit, match="EXPLORE_REASON_REQUIRED"):
+            s2.precheck_resume(halted_copy, steps_total=4, explore_reason="  ")
+
+        # 2. EXPLORE_RESUME_FROM_REQUIRED (--resume-from omitted)
+        with pytest.raises(SystemExit, match="EXPLORE_RESUME_FROM_REQUIRED"):
+            s2.validate_training_args(
+                _ns(
+                    _argv(
+                        gold,
+                        out_ok,
+                        *guard_flags,
+                        "--ct-guard-mode",
+                        "monitor",
+                        "--resume-from-halted-explore",
+                        "post-halt check",
+                    )
+                )
+            )
+
+        # 3. EXPLORE_OUT_IN_RUN_TRAINING (--out inside run-training)
+        bad_out = tmp_path / "run-training" / "explore-out"
+        with pytest.raises(SystemExit, match="EXPLORE_OUT_IN_RUN_TRAINING"):
+            s2.validate_training_args(
+                _ns(
+                    _argv(
+                        gold,
+                        bad_out,
+                        *guard_flags,
+                        "--ct-guard-mode",
+                        "monitor",
+                        "--resume-from",
+                        str(halted_copy),
+                        "--resume-from-halted-explore",
+                        "post-halt check",
+                    )
+                )
+            )
+
+        # 4. EXPLORE_RESUME_FROM_IN_RUN_TRAINING (--resume-from inside run-training)
+        with pytest.raises(SystemExit, match="EXPLORE_RESUME_FROM_IN_RUN_TRAINING"):
+            s2.validate_training_args(
+                _ns(
+                    _argv(
+                        gold,
+                        out_ok,
+                        *guard_flags,
+                        "--ct-guard-mode",
+                        "monitor",
+                        "--resume-from",
+                        str(orig),
+                        "--resume-from-halted-explore",
+                        "post-halt check",
+                    )
+                )
+            )
+        with pytest.raises(SystemExit, match="EXPLORE_RESUME_FROM_IN_RUN_TRAINING"):
+            s2.precheck_resume(orig, steps_total=4, explore_reason="post-halt check")
+
+        # 5. EXPLORE_REQUIRES_CT_GUARD_MONITOR (--ct-guard-mode != monitor)
+        with pytest.raises(SystemExit, match="EXPLORE_REQUIRES_CT_GUARD_MONITOR"):
+            s2.validate_training_args(
+                _ns(
+                    _argv(
+                        gold,
+                        out_ok,
+                        *guard_flags,
+                        "--resume-from",
+                        str(halted_copy),
+                        "--resume-from-halted-explore",
+                        "post-halt check",
+                    )
+                )
+            )
+
+        # 6. EXPLORE_STATE_NOT_HALTED (state.json has halted == null)
+        non_halted = tmp_path / "explore-work" / "chunk-ok"
+        assert _run(_argv(gold, non_halted, *guard_flags, "--stop-after-updates", "1", steps=4, gpu=3)) == 0
+        with pytest.raises(SystemExit, match="EXPLORE_STATE_NOT_HALTED"):
+            _run(
+                _argv(
+                    gold,
+                    out_ok,
+                    *guard_flags,
+                    "--ct-guard-mode",
+                    "monitor",
+                    "--resume-from",
+                    str(non_halted),
+                    "--resume-from-halted-explore",
+                    "post-halt check",
+                    steps=4,
+                    gpu=3,
+                )
+            )
+
+        # 7. RESUME_HEADER_MISMATCH on exploratory resume when a non-allowed field differs (with full JSON diff)
+        with pytest.raises(SystemExit) as exc_info:
+            _run(
+                _argv(
+                    gold,
+                    out_ok,
+                    *guard_flags,
+                    "--ct-guard-mode",
+                    "monitor",
+                    "--resume-from",
+                    str(halted_copy),
+                    "--resume-from-halted-explore",
+                    "post-halt check",
+                    seed=99,
+                    steps=4,
+                    gpu=3,
+                )
+            )
+        msg = str(exc_info.value)
+        assert "RESUME_HEADER_MISMATCH" in msg and "train_seed" in msg
+        assert '"saved": 42' in msg and '"current": 99' in msg
+
+    def test_explore_resume_end_to_end_marks_outputs_and_leaves_original_untouched(
+        self, tmp_path, monkeypatch
+    ):
+        gold, orig, guard_flags = self._halted_chunk(tmp_path, monkeypatch, arm="critic")
+        import shutil
+
+        orig_before = {p.relative_to(orig): p.read_bytes() for p in orig.rglob("*") if p.is_file()}
+        halted_copy = tmp_path / "explore-work" / "chunk-01-halted-copy"
+        shutil.copytree(orig, halted_copy)
+
+        # Simulate code SHA change on the exploratory branch (allowed by EXPLORE_ALLOWED_HEADER_DIFFS)
+        monkeypatch.setattr(s2, "aspire_commit", lambda cwd=None: "e" * 40)
+
+        build_exp, _ = _fake_rollout_build(
+            lambda i, p: [_reply("cannot_tell"), _reply("unsupported")], lambda i: [False, False]
+        )
+        out_exp = tmp_path / "explore-work" / "chunk-02-explore"
+        reason_str = "post-halt curve shape check after S1"
+        rc = _run(
+            _argv(
+                gold,
+                out_exp,
+                *guard_flags,
+                "--ct-guard-mode",
+                "monitor",
+                "--resume-from",
+                str(halted_copy),
+                "--resume-from-halted-explore",
+                reason_str,
+                arm="critic",
+                steps=4,
+                gpu=3,
+            ),
+            build=build_exp,
+        )
+        assert rc == 0
+        # 1. Original halted directory in run-training is completely untouched (no CONSUMED_BY.json)
+        assert s2.consumed_markers(orig) == []
+        orig_after = {p.relative_to(orig): p.read_bytes() for p in orig.rglob("*") if p.is_file()}
+        assert orig_before == orig_after
+        # 2. The copy outside run-training received CONSUMED_BY.json
+        assert [m.name for m in s2.consumed_markers(halted_copy)] == ["CONSUMED_BY.json"]
+
+        # 3. Verdict is S2-EXPLORE-CHUNK-OK and exploratory metadata is in header, receipt, eval-summary, state
+        expected_exp = {
+            "exploratory": True,
+            "reason": reason_str,
+            "original_halt": {"step": 1, "rule": "S1"},
+        }
+        rec = _receipt(out_exp)
+        assert rec["verdict"] == "S2-EXPLORE-CHUNK-OK"
+        assert rec["exploratory"] == expected_exp
+        assert rec["training"]["exploratory"] == expected_exp
+        hdr = json.loads((out_exp / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr["exploratory"] == expected_exp
+        eval_sum = json.loads((out_exp / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+        assert eval_sum["exploratory"] == expected_exp
+        for sdir in s2.state_dirs(out_exp):
+            st_doc = json.loads((sdir / "state.json").read_text(encoding="utf-8"))
+            assert st_doc["exploratory"] == expected_exp
+
+        # 4. Every JSONL record carries "exploratory": True
+        sa_recs = s2.read_save_all(out_exp / "s2-hf-save-all.jsonl.gz")
+        assert sa_recs and all(r.get("exploratory") is True for r in sa_recs)
+        gh_recs = _history(out_exp)
+        assert gh_recs and all(r.get("exploratory") is True for r in gh_recs)
+        cr_recs = s2.read_save_all(out_exp / "s2-hf-critic-retries.jsonl.gz")
+        assert cr_recs and all(r.get("exploratory") is True for r in cr_recs)
+        step_recs = _rows(out_exp)
+        assert step_recs and all(r.get("exploratory") is True for r in step_recs)
+
+        # Also check chunk_stop verdict path for exploratory=True
+        assert (
+            s2.train_verdict_line(
+                stopped=None,
+                oom=False,
+                next_step=2,
+                steps_total=4,
+                chunk_stop={"next_step": 2},
+                fits=True,
+                dry=True,
+                exploratory=True,
+            )
+            == "S2-EXPLORE-CHUNK-OK"
+        )
+
+    def test_phase_and_group_loggers_tag_exploratory_records(self, tmp_path):
+        import types
+
+        fake_cuda = types.SimpleNamespace(
+            is_available=lambda: True,
+            memory_allocated=lambda: 1024,
+            memory_reserved=lambda: 2048,
+            max_memory_allocated=lambda: 4096,
+            max_memory_reserved=lambda: 8192,
+            reset_peak_memory_stats=lambda: None,
+        )
+        p_path = tmp_path / "phases.jsonl"
+        g_path = tmp_path / "groups.jsonl"
+        pl = s2.PhaseLogger(p_path, enabled=True, cuda=fake_cuda, exploratory=True)
+        gl = s2.GroupLogger(g_path, enabled=True, cuda=fake_cuda, exploratory=True)
+        try:
+            pl.record(step=0, group=0, phase="pre_rollout", prompt_tokens=10, completion_lengths=(4, 5))
+            gl.record(
+                step=0,
+                group=0,
+                prompt_id="g00",
+                prompt_tokens=10,
+                k_correct=1,
+                g=2,
+                reward_std=0.5,
+                verdict_reward_std=0.5,
+                truncations=0,
+                mean_thinking_tokens=4.0,
+                zero_variance_label=None,
+            )
+        finally:
+            pl.close()
+            gl.close()
+        p_rec = json.loads(p_path.read_text(encoding="utf-8").strip())
+        g_rec = json.loads(g_path.read_text(encoding="utf-8").strip())
+        assert p_rec["exploratory"] is True
+        assert g_rec["exploratory"] is True
