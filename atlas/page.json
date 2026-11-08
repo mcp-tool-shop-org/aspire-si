@@ -41,26 +41,73 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 1,
-      "changed": 10,
+      "added": 18,
+      "changed": 12,
       "moved": 0,
-      "parts": 7,
+      "parts": 6,
       "removed": 0
     },
     "items": [
       {
+        "kind": "landing",
+        "sentence": "docs/runs/2026-10-10-smoke-s2-prereg.md is now read by tests/test_verifier_s2.py.",
+        "subjects": [
+          "docs/runs/2026-10-10-smoke-s2-prereg.md",
+          "tests/test_verifier_s2.py"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "examples/verifier-distill/ is now read by pyproject.toml, tests/test_verifier_s1.py, tests/test_verifier_s2.py and tests/test_verifier_s2_train.py.",
+        "subjects": [
+          "examples/verifier-distill/",
+          "pyproject.toml",
+          "tests/test_verifier_s1.py",
+          "tests/test_verifier_s2.py",
+          "tests/test_verifier_s2_train.py"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "examples/verifier-distill/quote_rule.py is now read by examples/verifier-distill/s2_grpo_smoke.py.",
+        "subjects": [
+          "examples/verifier-distill/quote_rule.py",
+          "examples/verifier-distill/s2_grpo_smoke.py"
+        ]
+      },
+      {
+        "kind": "landing",
+        "sentence": "And 5 more new writers and readers of places.",
+        "subjects": []
+      },
+      {
         "kind": "counts",
-        "sentence": "Nothing structural changed since 2026-10-14; 1 file added and 10 changed content.",
+        "sentence": "18 files added and 12 changed content, across 6 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "021ebf0d1053e700641688a72c5088ff0c1b1521",
-      "generatedAt": "2026-10-14T23:55:58.958Z"
+      "commit": "88790438b0b1c749915fc77d889492b589772c98",
+      "generatedAt": "2026-10-23T22:35:39.301Z"
     },
-    "unchanged": true
+    "unchanged": false
   },
   "changesTogether": [
+    {
+      "a": "examples/verifier-distill/s2_grpo_smoke.py",
+      "b": "tests/test_verifier_s2.py",
+      "either": 16,
+      "partLabels": [
+        "examples",
+        "tests"
+      ],
+      "parts": [
+        "examples",
+        "tests"
+      ],
+      "relation": "b-imports-a",
+      "shared": 15
+    },
     {
       "a": "examples/sft-experiment/critic_heads.py",
       "b": "examples/sft-experiment/critic_heads_run.py",
@@ -95,12 +142,12 @@
   "changesTogetherNote": [
     "1 file changed together with its own test, as expected.",
     "Confidence is low: fewer than 25 source files reach 10 revisions in the window.",
-    "Window: 180 days; a pair counts from 3 shared commits, since 2 source files reach 10 revisions; the floor rises to 10 when 25 do."
+    "Window: 180 days; a pair counts from 3 shared commits, since 4 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "88790438b0b1c749915fc77d889492b589772c98",
+  "commit": "ab0e5546371a28e589ced652ad0e1f57dc64fe81",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (169 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (178 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -123,7 +170,7 @@
         {
           "boundary": "examples",
           "depth": 0,
-          "files": 25
+          "files": 31
         },
         {
           "boundary": "integrations",
@@ -133,7 +180,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 78
+          "files": 81
         }
       ],
       "runs": [
@@ -257,12 +304,12 @@
   ],
   "engine": "1.24.0",
   "generated": [],
-  "generatedAt": "2026-10-23T22:35:39.301Z",
+  "generatedAt": "2026-11-08T02:37:17.869Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
-    "3 writes and 22 reads use paths built at run time and are not named here.",
-    "58 writes and 64 reads go to a path their caller passes, not to this repository.",
+    "12 writes and 36 reads use paths built at run time and are not named here.",
+    "63 writes and 91 reads go to a path their caller passes, not to this repository.",
     "1 read goes to the home directory (.cache/), not to this repository.",
     "Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window."
   ],
@@ -313,13 +360,13 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 78,
+  "testFiles": 82,
   "testedBy": {
     "aspire": 49,
-    "examples": 10,
+    "examples": 13,
     "integrations": 21
   },
-  "unnamedWrites": 3,
+  "unnamedWrites": 12,
   "unread": [],
   "unreadFiles": 0,
   "unreadNote": [],
