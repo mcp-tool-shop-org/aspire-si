@@ -62,6 +62,7 @@ EPSILON = 0.2
 DUAL_CLIP_C = 3.0
 GUARD_WINDOW_UPDATES = 10
 GUARD_WINDOW_GROUPS = 40
+CT_GUARD_MODES = ("halt", "monitor")
 FROZEN_PIP_FREEZE_SHA256 = "27c98212c6cd9bd0303b089e76bed0f167cfeeec0eedd0cc9b0baf076c055324"
 FROZEN_STACK_VERSIONS = {
     "torch": "2.14.1+cu130",
@@ -515,10 +516,14 @@ class CtCollapseGuard:
         *,
         window_groups: int = GUARD_WINDOW_GROUPS,
         pass_a_k: Mapping[str, int] | None = None,
+        mode: str = "halt",
     ) -> None:
         if window_groups < 1:
             raise SystemExit(f"--guard-window-groups must be >= 1, got {window_groups}")
+        if mode not in CT_GUARD_MODES:
+            raise SystemExit(f"--ct-guard-mode must be one of {CT_GUARD_MODES}, got {mode!r}")
         self.window_groups = int(window_groups)
+        self.mode = str(mode)
         self.pass_a_k = {str(k): int(v) for k, v in pass_a_k.items()} if pass_a_k is not None else {}
         self.window_index = 0
         self.total_groups_sampled = 0
@@ -628,7 +633,7 @@ class CtCollapseGuard:
             "triggered_rules": list(triggered),
         }
         self.window_history.append({"step": int(step), **metrics})
-        if not triggered:
+        if not triggered or self.mode == "monitor":
             return None
         return {
             "step": int(step),
@@ -654,8 +659,14 @@ class CtCollapseGuard:
         }
 
     @classmethod
-    def from_state(cls, state: Mapping[str, Any], *, pass_a_k: Mapping[str, int] | None) -> CtCollapseGuard:
-        guard = cls(window_groups=int(state["window_groups"]), pass_a_k=pass_a_k)
+    def from_state(
+        cls,
+        state: Mapping[str, Any],
+        *,
+        pass_a_k: Mapping[str, int] | None,
+        mode: str = "halt",
+    ) -> CtCollapseGuard:
+        guard = cls(window_groups=int(state["window_groups"]), pass_a_k=pass_a_k, mode=mode)
         guard.window_index = int(state["window_index"])
         guard.total_groups_sampled = int(state["total_groups_sampled"])
         guard._window = [dict(r) for r in state["open_window"]]
@@ -1071,7 +1082,19 @@ def exit_status(line: str) -> int:
     line = line.split()[0] if line.split() else line  # a training verdict may carry FORKED_OR_REWOUND
     if line.startswith("S2-TRAIN-HALT-"):
         return TRAIN_EXIT_HALT
-    return 0 if line in ("S2-OK", "S2-DRY", "S2-PREPASS", "S2-TRAIN-CHUNK-OK", "S2-TRAIN-COMPLETE") else 1
+    return (
+        0
+        if line
+        in (
+            "S2-OK",
+            "S2-DRY",
+            "S2-PREPASS",
+            "S2-TRAIN-CHUNK-OK",
+            "S2-TRAIN-COMPLETE",
+            "S2-EXPLORE-CHUNK-OK",
+        )
+        else 1
+    )
 
 
 # -- the environment, the guards and the receipt -------------------------------------------------------------
@@ -2180,6 +2203,7 @@ class GroupLogger:
         enabled: bool,
         cuda=None,
         fsync: Callable[[int], None] = os.fsync,
+        exploratory: bool = False,
     ) -> None:
         self.path = path
         cuda_ready = (
@@ -2187,6 +2211,7 @@ class GroupLogger:
         )
         self.enabled = bool(enabled and path is not None and cuda_ready)
         self.fsync = fsync
+        self.exploratory = bool(exploratory)
         self._fh = None
         if self.enabled and self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -2240,6 +2265,8 @@ class GroupLogger:
         if k_prepass is not None:
             line["k_prepass"] = int(k_prepass)
             line["residual"] = round(float(residual or 0.0), 6)
+        if self.exploratory:
+            line["exploratory"] = True
         self._fh.write(json.dumps(line) + "\n")
         self._fh.flush()
         self.fsync(self._fh.fileno())
@@ -2378,6 +2405,7 @@ class PhaseLogger:
         now: Callable[[], float] = time.monotonic,
         fsync: Callable[[int], None] = os.fsync,
         log_sdpa_backend: bool = False,
+        exploratory: bool = False,
     ) -> None:
         self.path = path
         cuda_ready = (
@@ -2388,6 +2416,7 @@ class PhaseLogger:
         self.now = now
         self.fsync = fsync
         self.log_sdpa_backend = bool(log_sdpa_backend)
+        self.exploratory = bool(exploratory)
         self.max_memory_allocated: int | None = None
         self.max_memory_reserved: int | None = None
         self._phase_sdpa_backends: list[str] = []
@@ -2470,6 +2499,8 @@ class PhaseLogger:
             line["sdpa_backend"] = sdpa_backend
             if sdpa_backend == "unknown":
                 line["sdpa_backend_reason"] = sdpa_reason or "no_sdpa_call_in_phase"
+        if self.exploratory:
+            line["exploratory"] = True
         self._fh.write(json.dumps(line) + "\n")
         self._fh.flush()
         self.fsync(self._fh.fileno())
@@ -2823,6 +2854,7 @@ def run_steps(
     critic_stats: dict[str, int] | None = None,
     progress: dict[str, Any] | None = None,
     on_update_end: Callable[[int, bool], None] | None = None,
+    exploratory: bool = False,
 ) -> tuple[list[dict], dict | None, bool]:
     """Run GRPO steps. Returns (step rows, a stop record or None, whether it ran out of memory).
 
@@ -2914,7 +2946,8 @@ def run_steps(
 
     def _append_history(entries: Sequence[dict]) -> None:
         if guard_history_path is not None and entries:
-            append_save_all(guard_history_path, list(entries), fsync=fsync)
+            out_entries = [{**e, "exploratory": True} for e in entries] if exploratory else list(entries)
+            append_save_all(guard_history_path, out_entries, fsync=fsync)
 
     oom_types = tuple(t for t in (getattr(getattr(torch, "cuda", None), "OutOfMemoryError", None),) if t)
     for step in range(int(start_step), steps):
@@ -3053,7 +3086,7 @@ def run_steps(
                         advantages_list=unclamped_adv_list,
                         is_zero_variance=bool(is_zv),
                     )
-                    if guard_stop is not None:
+                    if guard_stop is not None and getattr(ct_guard, "mode", "halt") != "monitor":
                         step_guard_stop = guard_stop
                     written = ct_guard_written.get(id(ct_guard), 0)
                     if guard_history_path is not None and len(ct_guard.window_history) > written:
@@ -3096,6 +3129,7 @@ def run_steps(
                                 "advantage": round(float(adv_val), 6),
                                 "truncated": bool(is_trunc),
                                 **({"arm": arm} if arm is not None else {}),
+                                **({"exploratory": True} if exploratory else {}),
                             }
                         )
                     if save_all_path is not None:
@@ -3172,6 +3206,7 @@ def run_steps(
                                 "correct": r_correct,
                                 "truncated": bool(r_tr),
                                 "in_gradient": False,
+                                **({"exploratory": True} if exploratory else {}),
                             }
                         )
                     step_hinted += 1
@@ -3484,6 +3519,8 @@ def run_steps(
                     critic_stats["hinted_groups"] = critic_stats.get("hinted_groups", 0) + step_hinted
                     critic_stats["retry_samples"] = critic_stats.get("retry_samples", 0) + step_retry_n
                     critic_stats["retry_correct"] = critic_stats.get("retry_correct", 0) + step_retry_correct
+            if exploratory:
+                rec["exploratory"] = True
             rows.append(rec)
             if on_step:
                 on_step(rec)
@@ -4201,15 +4238,50 @@ TRAIN_ONLY_FLAGS = (
     ("--stop-after-updates", "stop_after_updates"),
     ("--resume-from", "resume_from"),
     ("--resume-override-reason", "resume_override_reason"),
+    ("--resume-from-halted-explore", "resume_from_halted_explore"),
     ("--trunc-window-updates", "trunc_window_updates"),
     ("--trunc-halt-rate", "trunc_halt_rate"),
 )
 # active_flags keys that change from chunk to chunk of one run; everything else must match on resume
-CHUNK_LOCAL_FLAGS = ("stop_after_updates", "resume_from", "resume_override_reason")
+CHUNK_LOCAL_FLAGS = (
+    "stop_after_updates",
+    "resume_from",
+    "resume_override_reason",
+    "resume_from_halted_explore",
+)
+EXPLORE_ALLOWED_HEADER_DIFFS = frozenset(
+    {
+        "settings.ct_guard_mode",
+        "aspire_commit",
+        "script_sha256",
+        "quote_rule_sha256",
+        "s2_draw_sha256",
+    }
+)
 # appended to the verdict line of every chunk in a run that used a resume override
 FORKED_MARK = "FORKED_OR_REWOUND"
 CLEAN_LINEAGE: dict[str, Any] = {"forked_or_rewound": False, "override_reasons": []}
 TRAIN_EXIT_HALT = 2
+
+
+def _is_under_run_training(path: Path) -> bool:
+    """Whether ``path`` resolves to or inside any directory named ``run-training``."""
+    resolved = Path(path).resolve()
+    return any(part.lower() == "run-training" for part in resolved.parts)
+
+
+def _build_exploratory_info(reason: str, halted: Mapping[str, Any]) -> dict[str, Any]:
+    """Metadata block recorded for a ``--resume-from-halted-explore`` run."""
+    rules = list(halted.get("triggered_rules") or [])
+    rule = str(rules[0]) if rules else str(halted.get("reason") or "")
+    return {
+        "exploratory": True,
+        "reason": str(reason).strip(),
+        "original_halt": {
+            "step": int(halted["step"]),
+            "rule": rule,
+        },
+    }
 
 
 def is_training_run(a: argparse.Namespace) -> bool:
@@ -4288,6 +4360,33 @@ def validate_training_args(a: argparse.Namespace) -> bool:
             "refusing to start (invalid_resume_override_reason): --resume-override-reason needs non-empty "
             "text and --resume-from"
         )
+    explore_reason = getattr(a, "resume_from_halted_explore", None)
+    if explore_reason is not None:
+        if not str(explore_reason).strip():
+            raise SystemExit(
+                "refusing to start (EXPLORE_REASON_REQUIRED): "
+                "--resume-from-halted-explore requires a non-empty reason"
+            )
+        if resume is None:
+            raise SystemExit(
+                "refusing to start (EXPLORE_RESUME_FROM_REQUIRED): "
+                "--resume-from-halted-explore requires --resume-from"
+            )
+        if _is_under_run_training(Path(a.out)):
+            raise SystemExit(
+                "refusing to start (EXPLORE_OUT_IN_RUN_TRAINING): "
+                "--out must resolve outside any directory named run-training"
+            )
+        if _is_under_run_training(Path(resume)):
+            raise SystemExit(
+                "refusing to start (EXPLORE_RESUME_FROM_IN_RUN_TRAINING): "
+                "--resume-from must resolve outside any directory named run-training"
+            )
+        if str(getattr(a, "ct_guard_mode", "halt") or "halt") != "monitor":
+            raise SystemExit(
+                "refusing to start (EXPLORE_REQUIRES_CT_GUARD_MONITOR): "
+                "--resume-from-halted-explore requires --ct-guard-mode monitor"
+            )
     if resume is not None:
         rp = Path(resume)
         if getattr(a, "checkpoint", None) is not None:
@@ -4430,6 +4529,22 @@ def header_differences(saved: Mapping[str, Any], current: Mapping[str, Any]) -> 
     return diffs
 
 
+def header_diff_details(
+    saved: Mapping[str, Any], current: Mapping[str, Any], keys: Sequence[str]
+) -> dict[str, dict[str, Any]]:
+    """Full ``{key: {'saved': ..., 'current': ...}}`` diff for keys returned by ``header_differences``."""
+    s_set = dict(saved.get("settings") or {})
+    c_set = dict(current.get("settings") or {})
+    out: dict[str, dict[str, Any]] = {}
+    for k in keys:
+        if k.startswith("settings."):
+            sub = k.split(".", 1)[1]
+            out[k] = {"saved": s_set.get(sub), "current": c_set.get(sub)}
+        else:
+            out[k] = {"saved": saved.get(k), "current": current.get(k)}
+    return out
+
+
 def _file_sha256(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -4500,6 +4615,7 @@ def save_train_state(
     path: str = "hf",
     keep: int = STATE_KEEP,
     lineage: Mapping[str, Any] | None = None,
+    exploratory: Mapping[str, Any] | None = None,
 ) -> tuple[str, Path]:
     """Write one train state under ``<out>/train-state/<seq>-step-<next_step>``: the LoRA tensors, the AdamW
     state, RNG states, guards, step, and the save-all chain with this chunk's archive lengths and sha256 now.
@@ -4543,6 +4659,8 @@ def save_train_state(
         "trainable_names": sorted(trainable),
         "files_sha256": {fname: _file_sha256(tmp_dir / fname) for fname in TRAIN_STATE_FILES},
     }
+    if exploratory is not None:
+        state["exploratory"] = dict(exploratory)
     _write_fsync(tmp_dir / "state.json", lambda fh: fh.write(json.dumps(state, indent=1).encode("utf-8")))
     final_dir = root / name
     os.replace(tmp_dir, final_dir)
@@ -4644,7 +4762,12 @@ def _lineage_problems(rdir: Path, sdir: Path, state: Mapping[str, Any]) -> list[
 
 
 def precheck_resume(
-    resume_dir: Path, *, steps_total: int, path: str = "hf", override_reason: str | None = None
+    resume_dir: Path,
+    *,
+    steps_total: int,
+    path: str = "hf",
+    override_reason: str | None = None,
+    explore_reason: str | None = None,
 ) -> dict[str, Any]:
     """Every resume check that needs no model, run before it is loaded: the latest state's files, a halted or
     finished run, and the chunk's archives against the lengths and sha256 recorded at that save point.
@@ -4654,6 +4777,17 @@ def precheck_resume(
     exactly, and any change inside the recorded prefix refuses.
     """
     rdir = Path(resume_dir)
+    if explore_reason is not None:
+        if not str(explore_reason).strip():
+            raise SystemExit(
+                "refusing to start (EXPLORE_REASON_REQUIRED): "
+                "--resume-from-halted-explore requires a non-empty reason"
+            )
+        if _is_under_run_training(rdir):
+            raise SystemExit(
+                "refusing to start (EXPLORE_RESUME_FROM_IN_RUN_TRAINING): "
+                "--resume-from must resolve outside any directory named run-training"
+            )
     sdir = latest_state_dir(rdir)
     if sdir is None:
         raise SystemExit(
@@ -4665,9 +4799,17 @@ def precheck_resume(
         fp = sdir / name
         if not fp.is_file() or _file_sha256(fp) != want:
             raise SystemExit(f"refusing to resume (RESUME_STATE_FILE_CHANGED): {name} is missing or changed")
-    if state.get("halted") is not None:
+    halted = state.get("halted")
+    if explore_reason is not None:
+        if halted is None:
+            raise SystemExit(
+                "refusing to resume (EXPLORE_STATE_NOT_HALTED): "
+                "--resume-from-halted-explore requires a halted train state"
+            )
+        state["_exploratory"] = _build_exploratory_info(str(explore_reason), halted)
+    elif halted is not None:
         raise SystemExit(
-            f"refusing to resume (RESUME_FROM_HALTED): the run halted ({state['halted'].get('reason')}); "
+            f"refusing to resume (RESUME_FROM_HALTED): the run halted ({halted.get('reason')}); "
             f"a halt is stop-and-report, not resumable"
         )
     if int(state["next_step"]) >= int(steps_total):
@@ -4681,7 +4823,7 @@ def precheck_resume(
         )
     state["_overridden"] = problems
     chain = list(state.get("save_all_chain") or [])
-    if not chain or chain[-1].get("chunk_dir") != rdir.name:
+    if not chain or (explore_reason is None and chain[-1].get("chunk_dir") != rdir.name):
         raise SystemExit(
             "refusing to resume (RESUME_SAVE_ALL_CHANGED): the state's chain does not end at this chunk"
         )
@@ -4724,10 +4866,21 @@ def finish_resume(
     """After the model is built: compare the full header, make any planned cut copies (re-checking the
     prefix and hashing each copy), mark the killed chunk with CUT.json, and load the tensors."""
     torch = require_torch()
-    diffs = header_differences(state.get("header") or {}, header)
-    if diffs:
+    saved_hdr = state.get("header") or {}
+    diffs = header_differences(saved_hdr, header)
+    if state.get("_exploratory") is not None:
+        disallowed = [d for d in diffs if d not in EXPLORE_ALLOWED_HEADER_DIFFS]
+        if disallowed:
+            full_diff = json.dumps(header_diff_details(saved_hdr, header, diffs), sort_keys=True)
+            raise SystemExit(
+                f"refusing to resume (RESUME_HEADER_MISMATCH): the run header differs in "
+                f"{', '.join(disallowed)}: {full_diff}"
+            )
+    elif diffs:
+        full_diff = json.dumps(header_diff_details(saved_hdr, header, diffs), sort_keys=True)
         raise SystemExit(
-            f"refusing to resume (RESUME_HEADER_MISMATCH): the run header differs in {', '.join(diffs)}"
+            f"refusing to resume (RESUME_HEADER_MISMATCH): the run header differs in {', '.join(diffs)}: "
+            f"{full_diff}"
         )
     rdir: Path = state["_resume_dir"]
     link = state["save_all_chain"][-1]
@@ -4810,9 +4963,11 @@ def train_verdict_line(
     chunk_stop: Mapping[str, Any] | None,
     fits: bool | None,
     dry: bool,
+    exploratory: bool = False,
 ) -> str:
     """The training run's verdict. S2-TRAIN-HALT-<rule>: a guard or truncation halt (stop and report).
     S2-TRAIN-COMPLETE: every update ran. S2-TRAIN-CHUNK-OK: a chunk ended cleanly at --stop-after-updates.
+    S2-EXPLORE-CHUNK-OK: an exploratory resume chunk ended cleanly.
     S2-TRAIN-FAIL: anything else (an OOM, a non-finite loss, a timeout, a VRAM peak over the line)."""
     if oom:
         return "S2-TRAIN-FAIL"
@@ -4824,9 +4979,9 @@ def train_verdict_line(
     if not dry and fits is False:
         return "S2-TRAIN-FAIL"
     if int(next_step) >= int(steps_total):
-        return "S2-TRAIN-COMPLETE"
+        return "S2-EXPLORE-CHUNK-OK" if exploratory else "S2-TRAIN-COMPLETE"
     if chunk_stop is not None:
-        return "S2-TRAIN-CHUNK-OK"
+        return "S2-EXPLORE-CHUNK-OK" if exploratory else "S2-TRAIN-CHUNK-OK"
     return "S2-TRAIN-FAIL"
 
 
@@ -6392,9 +6547,14 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["dual_clip_c"] = float(getattr(a, "dual_clip_c", None) or DUAL_CLIP_C)
     elif getattr(a, "dual_clip_c", None) is not None:
         flags["dual_clip_c"] = float(a.dual_clip_c)
-    if getattr(a, "ct_guard", False):
+    ct_mode = str(getattr(a, "ct_guard_mode", "halt") or "halt")
+    if ct_mode not in CT_GUARD_MODES:
+        raise SystemExit(f"--ct-guard-mode must be one of {CT_GUARD_MODES}, got {ct_mode!r}")
+    if getattr(a, "ct_guard", False) or ct_mode != "halt":
         flags["ct_guard"] = True
         flags["guard_window_groups"] = int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS))
+    if ct_mode != "halt":
+        flags["ct_guard_mode"] = ct_mode
     if getattr(a, "holdout", False):
         flags["holdout"] = True
         flags["holdout_fraction"] = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
@@ -6418,6 +6578,8 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["resume_from"] = Path(a.resume_from).name
     if getattr(a, "resume_override_reason", None):
         flags["resume_override_reason"] = str(a.resume_override_reason).strip()
+    if getattr(a, "resume_from_halted_explore", None):
+        flags["resume_from_halted_explore"] = str(a.resume_from_halted_explore).strip()
     return flags
 
 
@@ -6459,7 +6621,9 @@ def execute(
             steps_total=int(a.steps),
             path=a.path,
             override_reason=getattr(a, "resume_override_reason", None),
+            explore_reason=getattr(a, "resume_from_halted_explore", None),
         )
+    exploratory_info: dict[str, Any] | None = (resume_pre or {}).get("_exploratory")
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
     frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
     require_frozen = bool(
@@ -6611,7 +6775,11 @@ def execute(
             [r["id"] for r in prompts],
             g=None,
         )
-    if getattr(a, "ct_guard", False) and not pass_a_k:
+    ct_mode = str(getattr(a, "ct_guard_mode", "halt") or "halt")
+    if ct_mode not in CT_GUARD_MODES:
+        raise SystemExit(f"--ct-guard-mode must be one of {CT_GUARD_MODES}, got {ct_mode!r}")
+    ct_guard_enabled = bool(getattr(a, "ct_guard", False) or ct_mode != "halt")
+    if ct_guard_enabled and not pass_a_k:
         raise SystemExit(
             "refusing to start (ct_guard_requires_pass_a_k): "
             "--ct-guard requires Pass-A k_correct "
@@ -6653,8 +6821,9 @@ def execute(
         CtCollapseGuard(
             window_groups=int(getattr(a, "guard_window_groups", GUARD_WINDOW_GROUPS)),
             pass_a_k=pass_a_k,
+            mode=ct_mode,
         )
-        if getattr(a, "ct_guard", False)
+        if ct_guard_enabled
         else None
     )
     trunc_guard_obj: TruncationHaltGuard | None = None
@@ -6685,11 +6854,15 @@ def execute(
         )
         if resume_pre is not None:
             resume_state = finish_resume(resume_pre, header=train_header, out_dir=a.out)
+            if exploratory_info is not None:
+                train_header["exploratory"] = dict(exploratory_info)
             apply_train_state(resume_state, model=bundle["model"], optimiser=bundle["optimiser"])
             start_step = int(resume_state["next_step"])
             chunk_index = int(resume_state["chunk_index"]) + 1
             if ct_guard_obj is not None and resume_state.get("ct_guard") is not None:
-                ct_guard_obj = CtCollapseGuard.from_state(resume_state["ct_guard"], pass_a_k=pass_a_k)
+                ct_guard_obj = CtCollapseGuard.from_state(
+                    resume_state["ct_guard"], pass_a_k=pass_a_k, mode=ct_mode
+                )
             trunc_guard_obj = TruncationHaltGuard.from_state(resume_state["trunc_guard"])
             resumed_from_rec = {
                 "chunk_dir": Path(a.resume_from).name,
@@ -6716,18 +6889,18 @@ def execute(
                 }
             )
         a.out.mkdir(parents=True, exist_ok=True)
+        header_doc: dict[str, Any] = {
+            **train_header,
+            "chunk_index": chunk_index,
+            "resumed_from": resumed_from_rec,
+            "resume_override_reason": getattr(a, "resume_override_reason", None),
+            "forked_or_rewound": bool(lineage["forked_or_rewound"]),
+            "override_reasons": lineage["override_reasons"],
+        }
+        if exploratory_info is not None:
+            header_doc["exploratory"] = dict(exploratory_info)
         (a.out / f"s2-{a.path}-train-header.json").write_text(
-            json.dumps(
-                {
-                    **train_header,
-                    "chunk_index": chunk_index,
-                    "resumed_from": resumed_from_rec,
-                    "resume_override_reason": getattr(a, "resume_override_reason", None),
-                    "forked_or_rewound": bool(lineage["forked_or_rewound"]),
-                    "override_reasons": lineage["override_reasons"],
-                },
-                indent=1,
-            ),
+            json.dumps(header_doc, indent=1),
             encoding="utf-8",
             newline="\n",
         )
@@ -6757,11 +6930,13 @@ def execute(
             enabled=rig is not None and not a.dry,
             cuda=cuda_mod,
             log_sdpa_backend=log_sdpa,
+            exploratory=exploratory_info is not None,
         )
         group_logger = GroupLogger(
             a.out / f"s2-{a.path}-groups.jsonl",
             enabled=rig is not None and not a.dry and not rollout_only,
             cuda=cuda_mod,
+            exploratory=exploratory_info is not None,
         )
         stress_n = int(getattr(a, "stress_prefix", 0) or 0)
         microbatch = getattr(a, "logprob_microbatch", None)
@@ -6779,6 +6954,8 @@ def execute(
         stress_meta: dict = {}
 
         def write_eval_summary(summary_doc: dict) -> None:
+            if exploratory_info is not None:
+                summary_doc["exploratory"] = dict(exploratory_info)
             a.out.mkdir(parents=True, exist_ok=True)
             (a.out / f"s2-{a.path}-eval-summary.json").write_text(
                 json.dumps(summary_doc, indent=1), encoding="utf-8", newline="\n"
@@ -6852,6 +7029,7 @@ def execute(
                 kind="periodic",
                 path=a.path,
                 lineage=lineage,
+                exploratory=exploratory_info,
             )
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
@@ -7040,6 +7218,7 @@ def execute(
                 progress=train_progress,
                 on_step=append_step_row if training_run else None,
                 on_update_end=periodic_save if training_run else None,
+                exploratory=exploratory_info is not None,
             )
 
         race_lost: str | None = None
@@ -7149,8 +7328,9 @@ def execute(
                 chunk_stop=train_progress.get("chunk_stop"),
                 fits=result.get("fits"),
                 dry=a.dry,
+                exploratory=exploratory_info is not None,
             )
-            if lineage["forked_or_rewound"]:
+            if lineage["forked_or_rewound"] and exploratory_info is None:
                 line = f"{line} {FORKED_MARK}"
         else:
             line = verdict_line(result, stopped=stopped, cut=cut, dry=a.dry, rollout_only=rollout_only)
@@ -7208,6 +7388,7 @@ def execute(
                     kind="final",
                     path=a.path,
                     lineage=lineage,
+                    exploratory=exploratory_info,
                 )[0]
                 if state_ok
                 else None
@@ -7250,6 +7431,8 @@ def execute(
                     else None
                 ),
             }
+            if exploratory_info is not None:
+                training_block["exploratory"] = dict(exploratory_info)
         receipt = build_receipt(
             path=a.path,
             dry=a.dry,
@@ -7276,6 +7459,8 @@ def execute(
         )
         if training_block is not None:
             receipt["training"] = training_block
+        if exploratory_info is not None:
+            receipt["exploratory"] = dict(exploratory_info)
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )
@@ -7299,6 +7484,8 @@ def execute(
             summary_out["training"] = {
                 k: training_block[k] for k in ("arm", "chunk_index", "start_step", "next_step", "steps_total")
             }
+        if exploratory_info is not None:
+            summary_out["exploratory"] = dict(exploratory_info)
         print(json.dumps(summary_out))
         print(line)
         if isinstance(stopped, dict) and stopped.get("reason") == "LOGGING_PASS_REPLAY_MISMATCH":
@@ -7632,6 +7819,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable two-class CT collapse guard (S1, S2, U1, U2) over sampled-group windows",
     )
     ap.add_argument(
+        "--ct-guard-mode",
+        choices=CT_GUARD_MODES,
+        default="halt",
+        help=(
+            "CT collapse guard mode: 'halt' (default, stop on trigger) or 'monitor' "
+            "(log windows and triggered_rules without halting)"
+        ),
+    )
+    ap.add_argument(
         "--guard-window-groups",
         type=int,
         default=GUARD_WINDOW_GROUPS,
@@ -7682,6 +7878,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "training run: resume although the state was already resumed from, or a newer state exists "
             "(a fork or rewind). The reason is recorded, and every later chunk is marked FORKED_OR_REWOUND"
+        ),
+    )
+    ap.add_argument(
+        "--resume-from-halted-explore",
+        default=None,
+        help=(
+            "exploratory resume from a copy of a halted chunk outside run-training "
+            "with --ct-guard-mode monitor"
         ),
     )
     ap.add_argument(
