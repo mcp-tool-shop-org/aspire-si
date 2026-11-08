@@ -189,7 +189,7 @@ student's LoRA adapter. So today the student learns **representations that help 
 predict the teacher's score**. It is not yet trained toward better answers: the reward,
 contrastive and trajectory terms in `aspire.losses` exist, but the trainer does not feed
 them, so they move nothing. Training the student on the critic's judgment is planned for
-1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
+a later release ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
 ### 4. Judgment Without the Teacher
 
