@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `examples/verifier-distill/quote_rule.py`: `classify_quote_rung` treats `[...]`, `[…]`, `. . .`, and `…` as
+  ellipsis separators, and tries punctuation-stripped matching per segment when an ellipsis is present
+  (diagnostic labels only; reward unchanged; waterfall counts reported before this change overstate
+  fuzzy/unmatched slightly).
+
 ## [1.5.0] - 2026-11-07
 
 This release changes the example tooling and the tests. The installed `aspire` package has no code changes.

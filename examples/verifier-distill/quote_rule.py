@@ -325,20 +325,43 @@ def classify_quote_rung(quote: str, evidence: str | Sequence[str | dict]) -> str
     if any(q_low in normalise(p).lower() or q_low in normalise_unmarked(p).lower() for p in passages):
         return "case"
 
+    ellipsis_re = r"(?:\[\s*(?:\.\.\.|\u2026|\.\s+\.\s+\.)\s*\]|\.\s+\.\s+\.|\.\.\.|\u2026)+"
+    has_ellipsis = bool(re.search(ellipsis_re, q))
+
     # Rung 4: punctuation
     q_punct = _strip_punct(q)
-    if q_punct and "..." not in q_punct:
+    if q_punct and not has_ellipsis:
         if any(
             q_punct in _strip_punct(p) or q_punct in _strip_punct(normalise_unmarked(p)) for p in passages
         ):
             return "punctuation"
 
     # Rung 5: ellipsis split
-    if "..." in q or "\u2026" in q:
-        segs = [normalise(s).lower() for s in re.split(r"(?:\.\.\.|\u2026)+", q) if normalise(s)]
-        if len(segs) >= 2 and any(
-            all(seg in normalise(p).lower() or seg in normalise_unmarked(p).lower() for seg in segs)
-            for p in passages
+    if has_ellipsis:
+        raw_segs = [normalise(s) for s in re.split(ellipsis_re, q) if normalise(s)]
+        segs_low = [s.lower() for s in raw_segs]
+        segs_punct = [_strip_punct(s) for s in raw_segs if _strip_punct(s)]
+
+        def _in_order(parts: list[str], haystacks: tuple[str, str]) -> bool:
+            for hay in haystacks:
+                pos = 0
+                matched = True
+                for part in parts:
+                    idx = hay.find(part, pos)
+                    if idx < 0:
+                        matched = False
+                        break
+                    pos = idx + len(part)
+                if matched:
+                    return True
+            return False
+
+        if len(segs_low) >= 2 and any(
+            _in_order(segs_low, (normalise(p).lower(), normalise_unmarked(p).lower())) for p in passages
+        ):
+            return "ellipsis_split"
+        if len(segs_punct) >= 2 and any(
+            _in_order(segs_punct, (_strip_punct(p), _strip_punct(normalise_unmarked(p)))) for p in passages
         ):
             return "ellipsis_split"
 

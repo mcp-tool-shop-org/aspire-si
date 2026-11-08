@@ -1,16 +1,20 @@
 # aspire-si: how it works
 
-Mapped at 2026-10-23 from commit 8879043 by Atlas 1.24.0.
+Mapped at 2026-11-08 from commit ab0e554 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (169 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (178 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-10-14 (021ebf0)
+## What changed since 2026-10-23 (8879043)
 
-Nothing structural changed since 2026-10-14; 1 file added and 10 changed content.
+- docs/runs/2026-10-10-smoke-s2-prereg.md is now read by tests/test_verifier_s2.py.
+- examples/verifier-distill/ is now read by pyproject.toml, tests/test_verifier_s1.py, tests/test_verifier_s2.py and tests/test_verifier_s2_train.py.
+- examples/verifier-distill/quote_rule.py is now read by examples/verifier-distill/s2_grpo_smoke.py.
+- And 5 more new writers and readers of places.
+- 18 files added and 12 changed content, across 6 parts.
 
 ## What comes in
 
@@ -45,6 +49,7 @@ CI writes nothing this map can see.
 
 ## What tends to change together
 
+- **examples/verifier-distill/s2_grpo_smoke.py** and **tests/test_verifier_s2.py** changed together in 15 of 16 commits, and the tests part imports the examples part.
 - **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 10 commits, inside the examples part.
 - **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
@@ -52,7 +57,7 @@ CI writes nothing this map can see.
 
 Confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
-Window: 180 days; a pair counts from 3 shared commits, since 2 source files reach 10 revisions; the floor rises to 10 when 25 do.
+Window: 180 days; a pair counts from 3 shared commits, since 4 source files reach 10 revisions; the floor rises to 10 when 25 do.
 
 ## What no test touches
 
@@ -72,7 +77,7 @@ Nothing in this repository writes to a tracked place this map can see.
 
 ## Hand-authored
 
-People write .github/, docs/, the repository root and site/; 3 writes with paths built at run time may land here.
+People write .github/, docs/, the repository root and site/; 12 writes with paths built at run time may land here.
 
 ## Where to start
 
@@ -84,8 +89,8 @@ Read those in order to follow one pull request end to end.
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 2 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
-- 3 writes and 22 reads use paths built at run time and are not named here.
-- 58 writes and 64 reads go to a path their caller passes, not to this repository.
+- 12 writes and 36 reads use paths built at run time and are not named here.
+- 63 writes and 91 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 

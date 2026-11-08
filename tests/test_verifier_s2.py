@@ -14383,5 +14383,67 @@ class TestSaveAllCrashSafeAndStopAfterNew:
         with pytest.raises(SystemExit, match="prepass_missing_split_id"):
             s2d._extract_k_by_id({}, {"x"})
 
+class TestQuoteRungLabelsFix:
+    PASSAGE = "When timeout occurs, the handler switches to read-only query path in config"
 
+    def test_a_three_dots_plus_trailing_period_and_dash_variant_is_ellipsis_split_not_fuzzy(self):
+        import quote_rule as qr
 
+        # Contains '...' plus a trailing period and an em-dash variant (on a passage with an ASCII hyphen)
+        q = "When timeout occurs, the handler ... read\u2014only query path in config."
+        assert qr.classify_quote_rung(q, [self.PASSAGE]) == "ellipsis_split"
+
+    def test_b_bracketed_three_dots_is_ellipsis_split_not_unmatched(self):
+        import quote_rule as qr
+
+        q = "When timeout occurs [...] read-only query path in config"
+        assert qr.classify_quote_rung(q, [self.PASSAGE]) == "ellipsis_split"
+
+    def test_c_bracketed_unicode_ellipsis_and_spaced_dots_behave_the_same_way(self):
+        import quote_rule as qr
+
+        q_bracket_u = "When timeout occurs [\u2026] read\u2014only query path in config!"
+        q_spaced = "When timeout occurs . . . read\u2014only query path in config!"
+        assert qr.classify_quote_rung(q_bracket_u, [self.PASSAGE]) == "ellipsis_split"
+        assert qr.classify_quote_rung(q_spaced, [self.PASSAGE]) == "ellipsis_split"
+
+    def test_d_genuine_paraphrase_stays_fuzzy_or_unmatched(self):
+        import quote_rule as qr
+
+        # High token overlap paraphrase -> stays fuzzy even with an ellipsis
+        q_fuzzy = "When timeout occurs ... handler switches into read-only query path in config"
+        assert qr.classify_quote_rung(q_fuzzy, [self.PASSAGE]) == "fuzzy"
+
+        # Low token overlap paraphrase / non-matching -> stays unmatched
+        q_unmatched = "Upon network failure [...] system enters safe fallback mode"
+        assert qr.classify_quote_rung(q_unmatched, [self.PASSAGE]) == "unmatched"
+
+        # Segments present in passage but out of order -> does not match ellipsis_split
+        q_out_of_order = "read-only query path [...] When timeout occurs"
+        assert qr.classify_quote_rung(q_out_of_order, [self.PASSAGE]) != "ellipsis_split"
+
+    def test_reward_path_untouched_against_committed_golden_file(self):
+        import quote_rule as qr
+
+        golden_path = Path(__file__).parent / "fixtures" / "quote-reward-golden-2026-11-07.json"
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+        cases = golden["cases"]
+        assert len(cases) >= 40
+        rungs_seen: set[str] = set()
+        for case in cases:
+            q = case["quote"]
+            p = case["passages"]
+            assert qr.quote_found(q, p) is case["quote_found"], case["id"]
+            assert qr.quote_credit_v2([q], p, verdict="supported", correct=True) == pytest.approx(
+                case["quote_credit_v2_supported_correct"]
+            ), case["id"]
+            assert qr.quote_credit_v2([q], p, verdict="supported", correct=False) == pytest.approx(
+                case["quote_credit_v2_supported_incorrect"]
+            ), case["id"]
+            assert qr.quote_credit_v2([q], p, verdict="unsupported", correct=True) == pytest.approx(
+                case["quote_credit_v2_unsupported_correct"]
+            ), case["id"]
+            rung = qr.classify_quote_rung(q, p)
+            assert rung == case["expected_rung_after"], f"{case['id']}: got {rung}"
+            rungs_seen.add(rung)
+        assert rungs_seen == set(qr.WATERFALL_RUNGS) | {"unmatched"}

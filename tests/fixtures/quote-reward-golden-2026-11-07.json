@@ -1,0 +1,617 @@
+{
+  "generated_from_commit": "ab0e5546371a28e589ced652ad0e1f57dc64fe81",
+  "generated_from_quote_rule_sha256": "1aae2469ef9ab5a4fb21346c5271b032565c4321c2bfb22592d2229e7d09eae7",
+  "cases": [
+    {
+      "id": "r2_01",
+      "expected_rung_after": "rule_2",
+      "quote": "When timeout occurs, the handler sets retry_limit = 3",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.05,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.05
+    },
+    {
+      "id": "r2_02",
+      "expected_rung_after": "rule_2",
+      "quote": "return Err(Error::Timeout); retry_count += 1;",
+      "passages": [
+        "+ // return Err(Error::Timeout);\n+ // retry_count += 1;"
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.05,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.05
+    },
+    {
+      "id": "r2_03",
+      "expected_rung_after": "rule_2",
+      "quote": "v = v * 3",
+      "passages": [
+        "def f(v):\n    v = v * 3\n    return v\n}"
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "r2_04",
+      "expected_rung_after": "rule_2",
+      "quote": "x += 2",
+      "passages": [
+        "@@ -1,3 +1,3 @@\n-    x += 1\n+    x += 2"
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "r2_05",
+      "expected_rung_after": "rule_2",
+      "quote": "status_code = 404 and retry_limit = 3",
+      "passages": [
+        "first passage",
+        "second passage with status_code = 404 and retry_limit = 3"
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.05,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.05
+    },
+    {
+      "id": "r2_06",
+      "expected_rung_after": "rule_2",
+      "quote": "\"it's fine\" and left",
+      "passages": [
+        "He said\n  \u201cit\u2019s   fine\u201d  and left."
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.05,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.05
+    },
+    {
+      "id": "r2_07",
+      "expected_rung_after": "rule_2",
+      "quote": "x = 1",
+      "passages": [
+        "  - # x = 1\n"
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "r2_08",
+      "expected_rung_after": "rule_2",
+      "quote": "cleared on the next start",
+      "passages": [
+        "the cache is cleared on the next start"
+      ],
+      "quote_found": true,
+      "quote_credit_v2_supported_correct": 0.05,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.05
+    },
+    {
+      "id": "nm_01",
+      "expected_rung_after": "no_minimum",
+      "quote": "First part",
+      "passages": [
+        "First part of evidence",
+        "Second part of evidence"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "nm_02",
+      "expected_rung_after": "no_minimum",
+      "quote": "the next",
+      "passages": [
+        "the cache is cleared on the next start"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "nm_03",
+      "expected_rung_after": "no_minimum",
+      "quote": "v * 3",
+      "passages": [
+        "def f(v):\n    v = v * 3\n    return v\n}"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "nm_04",
+      "expected_rung_after": "no_minimum",
+      "quote": "}",
+      "passages": [
+        "def f(v):\n    v = v * 3\n    return v\n}"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "nm_05",
+      "expected_rung_after": "no_minimum",
+      "quote": "retry_limit",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "nm_06",
+      "expected_rung_after": "no_minimum",
+      "quote": "in config",
+      "passages": [
+        "+ // When timeout occurs, retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "ca_01",
+      "expected_rung_after": "case",
+      "quote": "FIRST PART OF EVIDENCE",
+      "passages": [
+        "First part of evidence",
+        "Second part of evidence"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "ca_02",
+      "expected_rung_after": "case",
+      "quote": "when timeout occurs, the handler sets",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "ca_03",
+      "expected_rung_after": "case",
+      "quote": "RETURN ERR(ERROR::TIMEOUT);",
+      "passages": [
+        "+ // return Err(Error::Timeout);\n+ // retry_count += 1;"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "ca_04",
+      "expected_rung_after": "case",
+      "quote": "The Cache Is Cleared On The Next Start",
+      "passages": [
+        "the cache is cleared on the next start"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "ca_05",
+      "expected_rung_after": "case",
+      "quote": "STATUS_CODE = 404 AND RETRY_LIMIT = 3",
+      "passages": [
+        "second passage with status_code = 404 and retry_limit = 3"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "ca_06",
+      "expected_rung_after": "case",
+      "quote": "READ-ONLY QUERY PATH.",
+      "passages": [
+        "Read-only query path."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "pu_01",
+      "expected_rung_after": "punctuation",
+      "quote": "First part, of evidence!",
+      "passages": [
+        "First part of evidence",
+        "Second part of evidence"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "pu_02",
+      "expected_rung_after": "punctuation",
+      "quote": "When timeout occurs: the handler sets retry_limit = 3.",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "pu_03",
+      "expected_rung_after": "punctuation",
+      "quote": "read\u2014only query path",
+      "passages": [
+        "Read-only query path."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "pu_04",
+      "expected_rung_after": "punctuation",
+      "quote": "the cache is cleared (on the next start)!",
+      "passages": [
+        "the cache is cleared on the next start"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "pu_05",
+      "expected_rung_after": "punctuation",
+      "quote": "return Err, Error::Timeout; retry_count += 1",
+      "passages": [
+        "+ // return Err(Error::Timeout);\n+ // retry_count += 1;"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "pu_06",
+      "expected_rung_after": "punctuation",
+      "quote": "status_code: 404; and retry_limit: 3.",
+      "passages": [
+        "second passage with status_code = 404 and retry_limit = 3"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_01",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "First part ... of evidence",
+      "passages": [
+        "First part of evidence",
+        "Second part of evidence"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_02",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "When timeout occurs \u2026 retry_limit = 3 in config",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_03",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "When timeout occurs, the handler ... read\u2014only query path in config.",
+      "passages": [
+        "When timeout occurs, the handler switches to read-only query path in config"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_04",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "When timeout occurs [...] retry_limit = 3 in config.",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_05",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "When timeout occurs [\u2026] retry_limit = 3 in config.",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_06",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "When timeout occurs . . . retry_limit = 3 in config.",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_07",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "return Err(Error::Timeout) [...] retry_count += 1",
+      "passages": [
+        "+ // return Err(Error::Timeout);\n+ // intermediate comment\n+ // retry_count += 1;"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "el_08",
+      "expected_rung_after": "ellipsis_split",
+      "quote": "the cache is cleared . . . next start!",
+      "passages": [
+        "the cache is cleared on the very next start"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "jp_01",
+      "expected_rung_after": "joined_passages",
+      "quote": "First part of evidence Second part",
+      "passages": [
+        "First part of evidence",
+        "Second part of evidence"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "jp_02",
+      "expected_rung_after": "joined_passages",
+      "quote": "alpha beta gamma delta",
+      "passages": [
+        "alpha beta",
+        "gamma delta"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "jp_03",
+      "expected_rung_after": "joined_passages",
+      "quote": "in config. Fallback path logs",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config.",
+        "Fallback path logs a warning."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "jp_04",
+      "expected_rung_after": "joined_passages",
+      "quote": "first line second line",
+      "passages": [
+        "+ // first line",
+        "+ // second line"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "jp_05",
+      "expected_rung_after": "joined_passages",
+      "quote": "PASSAGE ONE PASSAGE TWO",
+      "passages": [
+        "passage one",
+        "passage two"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "fz_01",
+      "expected_rung_after": "fuzzy",
+      "quote": "First part of the evidence",
+      "passages": [
+        "First part of evidence",
+        "Second part of evidence"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "fz_02",
+      "expected_rung_after": "fuzzy",
+      "quote": "the cache is cleared on next start",
+      "passages": [
+        "the cache is cleared on the next start"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "fz_03",
+      "expected_rung_after": "fuzzy",
+      "quote": "When timeout occurs handler sets retry_limit 3 in config",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "fz_04",
+      "expected_rung_after": "fuzzy",
+      "quote": "second passage with status_code 404 and a retry_limit 3",
+      "passages": [
+        "second passage with status_code = 404 and retry_limit = 3"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "fz_05",
+      "expected_rung_after": "fuzzy",
+      "quote": "When timeout occurs ... handler adjusts retry_limit = 3 in config",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "un_01",
+      "expected_rung_after": "unmatched",
+      "quote": "completely fabricated quote text that does not appear",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "un_02",
+      "expected_rung_after": "unmatched",
+      "quote": "   ",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "un_03",
+      "expected_rung_after": "unmatched",
+      "quote": "drops the database table on startup [...] deletes all user backups",
+      "passages": [
+        "Read-only query path."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "un_04",
+      "expected_rung_after": "unmatched",
+      "quote": "alpha segment one ... omega segment two",
+      "passages": [
+        "alpha segment one is here, but the second part is missing"
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "un_05",
+      "expected_rung_after": "unmatched",
+      "quote": "the timeout handler resets the connection pool every five seconds",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    },
+    {
+      "id": "un_06",
+      "expected_rung_after": "unmatched",
+      "quote": "...",
+      "passages": [
+        "When timeout occurs, the handler sets retry_limit = 3 in config."
+      ],
+      "quote_found": false,
+      "quote_credit_v2_supported_correct": 0.0,
+      "quote_credit_v2_supported_incorrect": 0.0,
+      "quote_credit_v2_unsupported_correct": 0.0
+    }
+  ]
+}
