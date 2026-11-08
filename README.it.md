@@ -39,7 +39,7 @@
 
 **ASPIRE:** *"Ecco una mente saggia. Impara a pensare come fa lei."*
 
-Quando si impara da un grande mentore, non ci si limita a memorizzare le sue risposte. Si interiorizza il suo modo di vedere. La sua voce diventa parte del proprio dialogo interiore. Si inizia ad anticipare ciò che direbbe, e alla fine quell'anticipazione diventa la propria capacità di discernimento.
+Quando si impara da un grande mentore, non ci si limita a memorizzare le sue risposte. Si interiorizza il suo modo di vedere le cose. La sua voce diventa parte del proprio dialogo interiore. Si inizia ad anticipare ciò che direbbe, e alla fine questa anticipazione diventa la propria capacità di discernimento.
 
 ASPIRE offre all'IA la stessa esperienza.
 
@@ -80,7 +80,7 @@ pip install -e .
 
 ### Imposta la tua chiave API
 
-Solo per gli insegnanti Claude o OpenAI; un insegnante locale non ne ha bisogno (vedi sotto).
+Solo per gli insegnanti Claude o OpenAI; un insegnante locale non ne ha bisogno (vedi di seguito).
 
 ```bash
 # Windows
@@ -157,7 +157,7 @@ teacher = CompositeTeacher(
 
 ### 1. Dialogo antagonista
 
-Lo studente genera una risposta. L'insegnante la mette in discussione. Un avanti e indietro, alla ricerca di debolezze, chiedendo chiarezza, spingendo più a fondo.
+Lo studente genera una risposta. L'insegnante la mette in discussione. Un avanti e indietro, alla ricerca di debolezze, richiedendo chiarezza, spingendo più a fondo.
 
 ```
 Student: "Recursion works by calling itself."
@@ -173,7 +173,7 @@ Teacher: "You say 'stops it' — but how does the computer know
 
 ### 2. Addestramento del critico
 
-Il critico impara a prevedere il giudizio dell'insegnante su una risposta: il suo punteggio da 0 a 10. (Ha anche una comprensione del ragionamento dell'insegnante, che l'addestratore non addestra ancora).
+Il critico impara a prevedere il giudizio dell'insegnante su una risposta: il suo punteggio da 0 a 10. (Ha anche una comprensione del ragionamento dell'insegnante, che l'addestratore non addestra ancora.)
 
 ```python
 # The critic reads the student's hidden states over the prompt and the response
@@ -183,11 +183,11 @@ critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score
 
 ### 3. Cosa impara lo studente
 
-Il critico è una "testa" sugli stati nascosti dello studente e la sua perdita viene reindirizzata all'adattatore LoRA dello studente. Quindi, oggi, lo studente impara **rappresentazioni che aiutano il critico a prevedere il punteggio dell'insegnante**. Non è ancora addestrato a fornire risposte migliori: i termini di ricompensa, contrasto e traiettoria in `aspire.losses` esistono, ma l'addestratore non li utilizza, quindi non hanno alcun effetto. L'addestramento dello studente sul giudizio del critico è previsto per la versione 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
+Il critico è una "testa" sugli stati nascosti dello studente e la sua perdita viene reindirizzata all'adattatore LoRA dello studente. Quindi, oggi, lo studente impara **rappresentazioni che aiutano il critico a prevedere il punteggio dell'insegnante**. Non è ancora addestrato a fornire risposte migliori: i termini di ricompensa, contrasto e traiettoria in `aspire.losses` esistono, ma l'addestratore non li utilizza, quindi non hanno alcun effetto. L'addestramento dello studente sul giudizio del critico è previsto per una versione successiva ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
 ### 4. Giudizio senza l'insegnante
 
-Dopo l'addestramento, il critico valuta una risposta dagli stati nascosti dello studente, quindi non è necessario chiamare l'insegnante per valutarla. È possibile creare un ciclo di miglioramento; ASPIRE fornisce il critico addestrato e `aspire.judge`, non il ciclo:
+Dopo l'addestramento, il critico valuta una risposta dagli stati nascosti dello studente, quindi non è necessario alcun intervento dell'insegnante per valutarla. È possibile creare un ciclo di miglioramento; ASPIRE fornisce il critico addestrato e `aspire.judge`, non il ciclo:
 
 ```python
 from aspire.judge import Judge
@@ -273,22 +273,22 @@ Codici di uscita: `0` successo, `1` qualcosa che puoi correggere (una chiave man
 
 | Campo | Cosa contiene |
 |-------|---------------|
-| Traiettoria | L'ultimo livello nascosto dello studente, raggruppato sui token e sul batch, proiettato sulle sue prime due componenti principali. Velocità, curvatura con segno (angolo di svolta rispetto a pi greco, attenuata quando l'esecuzione si muove a malapena) e dimensione effettiva (rapporto di partecipazione in una finestra). |
-| Scalari | Ogni dimensione di valutazione per cui gli insegnanti hanno assegnato un punteggio, da 0 a 1. |
+| Traiettoria | L'ultimo livello nascosto dello studente, raggruppato sui token e sul batch, proiettato sulle sue prime due componenti principali. Velocità, curvatura con segno (angolo di svolta rispetto a pi greco, smorzata quando l'esecuzione si muove a malapena) e dimensione effettiva (rapporto di partecipazione in una finestra). |
+| Scalari | Ogni dimensione di valutazione per cui gli insegnanti hanno dato un punteggio, da 0 a 1. |
 | Autovalori | Per ogni passaggio, lo spettro di come le dimensioni dei punteggi variano insieme in una finestra, come frazioni. Un valore iniziale elevato significa che una direzione spiega i giudizi degli insegnanti. |
 | Professori | Una freccia per ogni insegnante: la direzione nello spazio degli stati lungo la quale il suo punteggio aumenta. Un insegnante composito fornisce una freccia per ogni membro. |
 | Errori | Passaggi in cui una dimensione diminuisce di almeno 0,1 rispetto alla sua mediana recente. |
 
 Nessun modello o chiave API? `python examples/geometry_demo.py` simula due esecuzioni e scrive entrambi i file di esportazione, che è il modo più rapido per visualizzare i risultati.
 
-Il registratore (`aspire.geometry.GeometryRecorder`) mantiene in memoria un vettore raggruppato per ogni passaggio. Per le esecuzioni lunghe, imposta `training.geometry_every` per calcolare la media di più batch in un singolo passaggio. L'esportazione viene scritta dopo ogni epoca, nonché alla fine, quindi un'esecuzione interrotta prematuramente conserva ciò che ha registrato.
+Il registratore (`aspire.geometry.GeometryRecorder`) mantiene in memoria un vettore raggruppato per ogni passaggio. Per le esecuzioni lunghe, imposta `training.geometry_every` per calcolare la media di più batch in un unico passaggio. L'esportazione viene scritta dopo ogni epoca, nonché alla fine, quindi un'esecuzione interrotta prematuramente conserva ciò che ha registrato.
 
-**Analisi di un ciclo di esecuzione reale.** Nel primo ciclo di esecuzione con il modello completo (1,5 miliardi di parametri per lo studente, 32 miliardi per gli insegnanti, 3 epoche;
-[report dell'esecuzione](docs/runs/2026-10-06-pod-run.md)), lo stato nascosto di ogni passaggio rifletteva principalmente *quale prompt* è stato utilizzato in quel passaggio per l'addestramento: due prompt sono distanti circa 10.000 volte più di quanto le tre epoche di
+**Analisi di un ciclo di esecuzione reale.** Nel primo ciclo di esecuzione con il modello reale (1,5 miliardi di parametri per lo studente, 32 miliardi per gli insegnanti, 3 epoche;
+[report dell'esecuzione](docs/runs/2026-10-06-pod-run.md)), lo stato nascosto di ogni passaggio rifletteva principalmente *quale prompt* è stato utilizzato per l'addestramento in quel passaggio: due prompt sono distanti circa 10.000 volte più di quanto le tre epoche di
 addestramento abbiano spostato lo studente. Gli scalari si ripetono in ogni epoca, perché le epoche successive alla prima riutilizzano i
 punteggi dell'insegnante memorizzati nella cache. Per vedere cosa ha modificato l'addestramento, `examples/pod-run/probe.py` e `drift.py` inviano
 le stesse sequenze di input fisse attraverso il modello studente di base e in ogni checkpoint di epoca, e creano un file di esportazione *drift* con l'identità del prompt rimossa. I dati reali di ScalarScope sono di entrambi i tipi e coprono tutte e tre le epoche. Le letture per ogni passaggio variano tra le diverse inizializzazioni (seed) della stessa condizione, perché ogni
-inizializzazione campiona nuovi dialoghi e quindi nuovi punteggi dell'insegnante; confrontare le condizioni nei file di esportazione drift.
+inizializzazione genera nuovi dialoghi e quindi nuovi punteggi dell'insegnante; confrontare le condizioni nei file di esportazione drift.
 
 I file di esportazione utilizzano lo schema 1.1. `run_metadata` spiega come leggere i passaggi: `step_axis` è
 `training_step` (il file di esportazione del trainer, in ordine di addestramento) o `checkpoint_by_item` (file di esportazione per il probe e il drift, un blocco degli stessi elementi per ogni checkpoint, con `checkpoints` che indica il conteggio), e
@@ -347,7 +347,7 @@ aspire/
 
 - Python 3.10+
 - PyTorch 2.0+
-- Una GPU CUDA per l'addestramento. Con un insegnante basato su API, uno studente da 1 a 4 miliardi di parametri può essere eseguito su una GPU con 16 GB di memoria; l'esempio con insegnante locale (`examples/local-run/`) utilizza sia lo studente che l'insegnante su una singola scheda con 24 GB di memoria. I test, la
+- Una GPU CUDA per l'addestramento. Con un insegnante basato su API, uno studente da 1 a 4 miliardi di parametri può essere eseguito su una GPU con 16 GB di memoria; l'esempio con insegnante locale (`examples/local-run/`) utilizza sia lo studente che l'insegnante su una singola scheda da 24 GB. I test, la
 demo sulla geometria e gli esempi di integrazione vengono eseguiti sulla CPU.
 - Un insegnante: un modello locale (senza chiave) o una chiave API di Anthropic o OpenAI.
 
@@ -443,7 +443,7 @@ ciclo su un piccolo ambiente di test integrato, sulla CPU.
 
 ### 💻 Assistenti per il codice
 
-ASPIRE si estende alla generazione di codice! Insegna ai modelli di codice a eseguire l'auto-revisione prima di generare l'output.
+ASPIRE si estende alla generazione di codice! Insegna ai modelli di codice a effettuare l'auto-revisione prima di generare l'output.
 
 ```
 integrations/code/
@@ -530,7 +530,7 @@ Questo è un codice di ricerca in fase iniziale. I contributi sono benvenuti:
 
 ## Sicurezza e ambito dei dati
 
-- **Dati a cui si accede:** legge i prompt di addestramento, i checkpoint del modello e i file di configurazione dal file system locale. Richiama le API esterne (Anthropic, OpenAI) solo quando i moduli di "teacher" sono esplicitamente configurati.
+- **Dati a cui si accede:** legge i prompt di addestramento, i checkpoint del modello e i file di configurazione dal file system locale. Richiama le API esterne (Anthropic, OpenAI) solo quando i moduli "teacher" sono esplicitamente configurati.
 - **Dati a cui NON si accede:** nessun dato di telemetria. Nessun archivio di dati utente oltre agli artefatti di addestramento. Nessun archivio di credenziali: le chiavi API vengono lette dalle variabili d'ambiente in fase di esecuzione.
 - **Autorizzazioni richieste:** accesso in lettura/scrittura ai dati di addestramento e alle directory dei checkpoint. Accesso alla GPU per l'addestramento del modello. Accesso alla rete solo quando si utilizzano "teacher" basati su API.
 

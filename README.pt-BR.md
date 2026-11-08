@@ -39,7 +39,7 @@
 
 **ASPIRE:** *"Aqui está uma mente sábia. Aprenda a pensar como ela."*
 
-Quando você aprende com um grande mentor, você não apenas memoriza suas respostas. Você internaliza sua forma de ver as coisas. A voz dele se torna parte do seu diálogo interno. Você começa a antecipar o que ele diria, e, eventualmente, essa antecipação se torna seu próprio discernimento.
+Quando você aprende com um grande mentor, você não apenas memoriza suas respostas. Você internaliza sua forma de ver o mundo. A voz dele se torna parte do seu diálogo interno. Você começa a antecipar o que ele diria, e, eventualmente, essa antecipação se torna seu próprio discernimento.
 
 ASPIRE oferece à IA a mesma experiência.
 
@@ -64,7 +64,7 @@ ASPIRE oferece à IA a mesma experiência.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-O **crítico** aprende a prever o que o professor pensaria sobre uma resposta. Após o treinamento, ele avalia as respostas do aluno por conta própria — **não é necessário o professor durante a inferência** —, para que você possa escolher entre as tentativas ou criar um ciclo de refinamento em torno delas.
+O **crítico** aprende a prever o que o professor pensaria sobre uma resposta. Após o treinamento, ele avalia as respostas do aluno por conta própria — **não é necessário o professor durante a inferência** —, para que você possa escolher entre as tentativas ou criar um loop de refinamento em torno delas.
 
 ---
 
@@ -112,7 +112,7 @@ aspire init --output my-config.yaml
 
 ### Uma execução que não custa nada
 
-Nenhuma chave de API é necessária: um professor local, um aluno de 1 bilhão de parâmetros e um professor de 3 bilhões de parâmetros, em uma única GPU de 24 GB.
+Nenhuma chave de API é necessária: um professor local, um aluno de 1B e um professor de 3B, em uma única GPU de 24 GB.
 
 ```bash
 aspire train --config examples/local-run/local-teacher.yaml \
@@ -135,7 +135,7 @@ Professores diferentes produzem mentes diferentes. Escolha com sabedoria.
 | 🔬 **Científico** | *"Quais são suas evidências?"* | Precisão técnica, pensamento rigoroso |
 | 🎨 **Criativo** | *"E se tentássemos o oposto?"* | Inovação, pensamento lateral |
 | ⚔️ **Adversarial** | *"Eu discordo. Defenda sua posição."* | Argumentos sólidos, convicção |
-| 💚 **Compassivo** | *"Como alguém pode se sentir em relação a isso?"* | Raciocínio ético, sabedoria |
+| 💚 **Compassivo** | *"Como alguém se sentiria em relação a isso?"* | Raciocínio ético, sabedoria |
 
 ### Professores Compostos
 
@@ -183,11 +183,11 @@ critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score
 
 ### 3. O que o Aluno Aprende
 
-O crítico é uma camada nos estados ocultos do aluno, e sua perda é transmitida de volta para o adaptador LoRA do aluno. Portanto, hoje o aluno aprende **representações que ajudam o crítico a prever a pontuação do professor**. Ele ainda não está sendo treinado para produzir respostas melhores: os termos de recompensa, contraste e trajetória em `aspire.losses` existem, mas o treinador não os alimenta, então eles não alteram nada. O treinamento do aluno com base no julgamento do crítico está planejado para a versão 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
+O crítico é uma camada nos estados ocultos do aluno, e sua perda é transmitida de volta para o adaptador LoRA do aluno. Portanto, hoje, o aluno aprende **representações que ajudam o crítico a prever a pontuação do professor**. Ainda não está sendo treinado para obter melhores respostas: os termos de recompensa, contraste e trajetória em `aspire.losses` existem, mas o treinador não os alimenta, então eles não alteram nada. O treinamento do aluno com base no julgamento do crítico está planejado para um lançamento posterior ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
-### 4. Julgamento sem o Professor
+### 4. Julgamento Sem o Professor
 
-Após o treinamento, o crítico avalia uma resposta com base apenas nos estados ocultos do aluno, portanto, nenhuma chamada ao professor é necessária para avaliar uma resposta. Um ciclo de refinamento fica a seu critério para criar; o ASPIRE fornece o crítico treinado e `aspire.judge`, não o ciclo:
+Após o treinamento, o crítico avalia uma resposta com base apenas nos estados ocultos do aluno, portanto, nenhuma chamada ao professor é necessária para avaliá-la. Um loop de refinamento fica a seu critério para criar; o ASPIRE envia o crítico treinado e `aspire.judge`, não o loop:
 
 ```python
 from aspire.judge import Judge
@@ -256,7 +256,7 @@ aspire judge outputs/checkpoint-3 --prompt "..." --response "..."
 aspire judge outputs/checkpoint-3 --pairs pairs.json --json
 ```
 
-Os erros exibem um código, uma mensagem e o que fazer, sem um rastreamento:
+Os erros imprimem um código, uma mensagem e o que fazer, sem um rastreamento:
 
 ```
 ASPIRE_MISSING_API_KEY  ANTHROPIC_API_KEY not found.
@@ -269,19 +269,19 @@ Códigos de saída: `0` sucesso, `1` algo que você pode corrigir (uma chave aus
 
 ## Observando uma execução em ScalarScope
 
-`aspire train --geometry` (ou `training.geometry_export: true` na configuração) grava `geometry.json` ao lado dos pontos de verificação: a dinâmica do treinamento da execução no formato [ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) leituras. Abra dois deles lado a lado para comparar as execuções.
+`aspire train --geometry` (ou `training.geometry_export: true` na configuração) grava `geometry.json` ao lado dos pontos de verificação: a dinâmica de treinamento da execução no formato [ScalarScope](https://github.com/mcp-tool-shop-org/scalarscope) leituras. Abra dois deles lado a lado para comparar as execuções.
 
 | Campo | O que ele contém |
 |-------|---------------|
-| Trajetória | A última camada oculta do aluno, agrupada em tokens e no lote, projetada em seus dois primeiros componentes principais. Velocidade, curvatura assinada (ângulo de giro em relação a pi, amortecida quando a execução mal se move) e dimensão efetiva (razão de participação em uma janela). |
-| Escalares | Cada dimensão de avaliação que os professores avaliaram, de 0 a 1. |
+| Trajetória | A última camada oculta do aluno, agrupada em tokens e no lote, projetada em seus dois principais componentes. Velocidade, curvatura assinada (ângulo de giro em relação a pi, amortecida quando a execução mal se move) e dimensão efetiva (razão de participação em uma janela). |
+| Escalares | Cada dimensão de avaliação que os professores pontuaram, de 0 a 1. |
 | Autovalores | Por etapa, o espectro de como as pontuações de dimensão variam juntas em uma janela, como frações. Um grande primeiro valor significa que uma direção explica os julgamentos dos professores. |
 | Professores | Uma seta por professor: a direção no espaço de estados ao longo da qual sua pontuação aumenta. Um professor composto fornece uma por membro. |
 | Falhas | Etapas em que uma dimensão cai pelo menos 0,1 abaixo de sua mediana recente. |
 
-Sem modelo ou chave de API? `python examples/geometry_demo.py` simula duas execuções e grava ambas as exportações, que é a maneira mais rápida de visualizar.
+Sem modelo ou chave de API? `python examples/geometry_demo.py` simula duas execuções e grava ambas as exportações, que é a maneira mais rápida de ver as visualizações.
 
-O gravador (`aspire.geometry.GeometryRecorder`) mantém um vetor agrupado por etapa na memória. Para execuções longas, defina `training.geometry_every` para calcular a média de vários lotes em uma etapa. A exportação é gravada após cada época, bem como no final, para que uma execução interrompida prematuramente mantenha o que foi gravado.
+O gravador (`aspire.geometry.GeometryRecorder`) mantém um vetor agrupado por etapa na memória. Para execuções longas, defina `training.geometry_every` para calcular a média de vários lotes em uma etapa. A exportação é gravada após cada época, bem como no final, para que uma execução interrompida prematuramente mantenha o que foi registrado.
 
 **Analisando uma execução real.** Nas primeiras execuções com o modelo completo (1,5 bilhão de parâmetros para o aluno, 32 bilhões para os professores, 3 épocas;
 [relatório da execução](docs/runs/2026-10-06-pod-run.md)), o estado oculto de cada etapa refletia principalmente *qual prompt* a etapa utilizou para o treinamento: dois prompts estão cerca de 10.000 vezes mais distantes um do outro do que as três épocas de
@@ -298,7 +298,7 @@ As exportações estão no esquema 1.1. `run_metadata` explica como ler as etapa
 
 ---
 
-## Estrutura do Projeto
+## Estrutura do projeto
 
 ```
 aspire/
@@ -348,7 +348,7 @@ aspire/
 
 - Python 3.10+
 - PyTorch 2.0+
-- Uma GPU CUDA para treinamento. Com um professor baseado em API, um aluno de 1 a 4 bilhões de parâmetros cabe em 16 GB; o exemplo do professor local (`examples/local-run/`) mantém o aluno e o professor em uma única placa de 24 GB. Os testes,
+- Uma GPU CUDA para treinamento. Com um professor baseado em API, um aluno de 1 a 4 bilhões de parâmetros se encaixa em 16 GB; o exemplo do professor local (`examples/local-run/`) mantém o aluno e o professor em uma única placa de 24 GB. Os testes,
 a demonstração de geometria e os exemplos de integração são executados na CPU.
 - Um professor: um modelo local (sem chave) ou uma chave de API da Anthropic ou OpenAI
 
@@ -365,7 +365,7 @@ O ASPIRE é totalmente compatível com Windows, com suporte para RTX 5080/Blackw
 
 ### 🖼️ Stable Diffusion WebUI Forge
 
-O ASPIRE se estende à geração de imagens! Treine modelos Stable Diffusion para desenvolver o senso estético.
+O ASPIRE se estende à geração de imagens! Treine modelos do Stable Diffusion para desenvolver o senso estético.
 
 ```
 integrations/forge/
@@ -378,10 +378,10 @@ integrations/forge/
 ```
 
 **Recursos:**
-- **Professores de Visão:** Claude Vision, GPT-4V, avaliam suas imagens geradas
-- **Críticos de Imagem:** Críticos baseados em CLIP e no espaço latente para orientação em tempo real
-- **Interface de Treinamento:** Treine adaptadores LoRA com visualização ao vivo e comparação antes/depois
-- **Sem API na inferência:** O crítico treinado orienta a geração localmente
+- **Professores de Visão**: Claude Vision, GPT-4V avalia suas imagens geradas
+- **Críticos de Imagem**: Críticos baseados em CLIP e no espaço latente para orientação em tempo real
+- **Interface de Treinamento**: Treine adaptadores LoRA com visualização ao vivo e comparação antes/depois
+- **Sem API na inferência**: O crítico treinado orienta a geração localmente
 
 **Instalação:**
 ```bash
@@ -414,10 +414,10 @@ integrations/isaac/
 ```
 
 **Recursos:**
-- **Professores de Movimento:** Safety Inspector, Efficiency Expert, Grace Coach, Physics Oracle
-- **Críticos de Trajetória:** Arquiteturas Transformer, LSTM, TCN para avaliação de movimento
-- **Aceleração por GPU:** 512+ ambientes paralelos com Isaac Gym
-- **Autoaperfeiçoamento:** O robô avalia seus próprios movimentos antes da execução
+- **Professores de Movimento**: Safety Inspector, Efficiency Expert, Grace Coach, Physics Oracle
+- **Críticos de Trajetória**: Arquiteturas Transformer, LSTM, TCN para avaliação de movimento
+- **Aceleração por GPU**: 512+ ambientes paralelos com Isaac Gym
+- **Autoaperfeiçoamento**: O robô avalia seus próprios movimentos antes da execução
 
 **Início Rápido:**
 ```python
@@ -459,10 +459,10 @@ integrations/code/
 ```
 
 **Recursos:**
-- **Professores de Código:** Correctness Checker, Style Guide, Security Auditor, Architecture Reviewer
-- **Análise Estática:** Integra-se com ruff, mypy, bandit
-- **Crítico de Código:** Modelo baseado em CodeBERT aprende a prever pontuações de qualidade
-- **Coleção GitHub:** Coleta automaticamente dados de treinamento de repositórios de qualidade
+- **Professores de Código**: Correctness Checker, Style Guide, Security Auditor, Architecture Reviewer
+- **Análise Estática**: Integra-se com ruff, mypy, bandit
+- **Crítico de Código**: Modelo baseado em CodeBERT aprende a prever pontuações de qualidade
+- **Coleção GitHub**: Coleta automaticamente dados de treinamento de repositórios de qualidade
 
 **Início Rápido:**
 ```python
@@ -500,7 +500,7 @@ O ASPIRE constrói essa voz interior como um crítico: um modelo que prevê o qu
 
 Criado durante uma conversa sobre consciência, budismo e a natureza da aprendizagem.
 
-A percepção: os humanos existem no momento presente, mas nossas mentes vagam para o passado e o futuro. Os modelos de IA são instanciados a cada vez — iluminação forçada através da arquitetura. E se pudéssemos ensiná-los a desenvolver o julgamento da mesma forma que os humanos, por meio de mentoria internalizada?
+A percepção: os humanos existem no momento presente, mas nossas mentes vagam para o passado e o futuro. Os modelos de IA são instanciados a cada vez — iluminação forçada por meio da arquitetura. E se pudéssemos ensiná-los a desenvolver o julgamento da mesma forma que os humanos, por meio de mentoria internalizada?
 
 ---
 
@@ -531,13 +531,13 @@ Este é um código de pesquisa em estágio inicial. As contribuições são bem-
 
 ## Segurança e Escopo de Dados
 
-- **Dados acessados:** Lê os prompts de treinamento, os pontos de verificação do modelo e os arquivos de configuração do sistema de arquivos local. Chama APIs externas (Anthropic, OpenAI) apenas quando os módulos de «teacher» são explicitamente configurados.
-- **Dados NÃO acessados:** Sem telemetria. Sem armazenamento de dados do usuário além dos artefatos de treinamento. Sem armazenamento de credenciais — as chaves de API são lidas das variáveis de ambiente em tempo de execução.
-- **Permissões necessárias:** Acesso de leitura/escrita aos dados de treinamento e aos diretórios de pontos de verificação. Acesso à GPU para o treinamento do modelo. Acesso à rede apenas quando se utilizam «teachers» baseados em API.
+- **Dados acessados:** Lê os prompts de treinamento, os pontos de verificação do modelo e os arquivos de configuração do sistema de arquivos local. Chama APIs externas (Anthropic, OpenAI) apenas quando os módulos de "teacher" são explicitamente configurados.
+- **Dados NÃO acessados:** Nenhum dado de telemetria. Nenhum armazenamento de dados do usuário além dos artefatos de treinamento. Nenhum armazenamento de credenciais — as chaves de API são lidas das variáveis de ambiente em tempo de execução.
+- **Permissões necessárias:** Acesso de leitura/escrita aos dados de treinamento e aos diretórios de pontos de verificação. Acesso à GPU para o treinamento do modelo. Acesso à rede apenas quando se utilizam "teachers" baseados em API.
 
-## Quadro de avaliação
+## Painel de avaliação
 
-| Controle | Estado |
+| Controle | Status |
 |------|--------|
 | A. Linha de base de segurança | APROVADO |
 | B. Tratamento de erros | APROVADO |

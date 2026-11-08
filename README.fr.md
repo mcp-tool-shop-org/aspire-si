@@ -17,7 +17,7 @@
 <p align="center">
   <a href="#lidée">The Idea</a> •
   <a href="#démarrage-rapide">Quick Start</a> •
-  <a href="#personnalités-des-professeurs">Teachers</a> •
+  <a href="#personnalités-des-enseignants">Teachers</a> •
   <a href="#comment-ça-marche">How It Works</a> •
   <a href="#intégrations">Integrations</a> •
   <a href="https://mcp-tool-shop-org.github.io/aspire-si/handbook/">Handbook</a>
@@ -64,7 +64,7 @@ ASPIRE offre à l'IA la même expérience.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Le **critique** apprend à prédire ce que le professeur penserait d'une réponse. Après l'entraînement, il juge les réponses de l'élève de manière autonome — **aucun professeur n'est nécessaire au moment de l'inférence** — vous pouvez donc choisir parmi les tentatives ou créer une boucle d'amélioration.
+Le **critique** apprend à prédire ce que l'enseignant penserait d'une réponse. Après l'entraînement, il juge les réponses de l'élève de manière autonome — **aucun enseignant n'est nécessaire au moment de l'inférence** — vous pouvez donc choisir parmi les tentatives ou écrire une boucle d'amélioration autour de celles-ci.
 
 ---
 
@@ -80,7 +80,7 @@ pip install -e .
 
 ### Définissez votre clé API
 
-Uniquement pour les professeurs Claude ou OpenAI ; un professeur local n'en a pas besoin (voir ci-dessous).
+Uniquement pour les enseignants Claude ou OpenAI ; un enseignant local n'en a pas besoin (voir ci-dessous).
 
 ```bash
 # Windows
@@ -112,7 +112,7 @@ aspire init --output my-config.yaml
 
 ### Une exécution qui ne coûte rien
 
-Aucune clé API n'est requise : un professeur local, un élève de 1 milliard de paramètres et un professeur de 3 milliards de paramètres, sur une seule carte GPU de 24 Go.
+Aucune clé API n'est requise : un enseignant local, un élève de 1 milliard de paramètres et un enseignant de 3 milliards de paramètres, sur une seule carte GPU de 24 Go.
 
 ```bash
 aspire train --config examples/local-run/local-teacher.yaml \
@@ -125,9 +125,9 @@ aspire judge outputs/local-teacher/checkpoint-2 \
 
 ---
 
-## Personnalités des professeurs
+## Personnalités des enseignants
 
-Différents professeurs produisent différents esprits. Choisissez judicieusement.
+Différents enseignants produisent différents esprits. Choisissez judicieusement.
 
 | Personnalité | Philosophie | Produit |
 |---------|------------|----------|
@@ -137,9 +137,9 @@ Différents professeurs produisent différents esprits. Choisissez judicieusemen
 | ⚔️ **Adversarial** | *"Je suis en désaccord. Défendez votre position."* | Arguments solides, conviction |
 | 💚 **Compatissant** | *"Comment quelqu'un pourrait-il se sentir à ce sujet ?"* | Raisonnement éthique, sagesse |
 
-### Professeurs composites
+### Enseignants composites
 
-Combinez plusieurs professeurs pour un apprentissage plus riche :
+Combinez plusieurs enseignants pour un apprentissage plus riche :
 
 ```python
 from aspire.teachers import CompositeTeacher, SocraticTeacher, ScientificTeacher
@@ -157,7 +157,7 @@ teacher = CompositeTeacher(
 
 ### 1. Dialogue adversarial
 
-L'élève génère une réponse. Le professeur la remet en question. De va-et-vient, sondant les faiblesses, exigeant de la clarté, allant plus loin.
+L'élève génère une réponse. L'enseignant la remet en question. De va-et-vient, sondant les faiblesses, exigeant de la clarté, allant plus loin.
 
 ```
 Student: "Recursion works by calling itself."
@@ -173,7 +173,7 @@ Teacher: "You say 'stops it' — but how does the computer know
 
 ### 2. Entraînement du critique
 
-Le critique apprend à prédire le jugement du professeur sur une réponse : son score de 0 à 10. (Il a également une idée de la logique du professeur, ce que le formateur n'entraîne pas encore.)
+Le critique apprend à prédire le jugement de l'enseignant sur une réponse : son score de 0 à 10. (Il a également une idée de la logique de l'enseignant, ce que le formateur n'entraîne pas encore.)
 
 ```python
 # The critic reads the student's hidden states over the prompt and the response
@@ -183,11 +183,11 @@ critic_loss = mse(critic(student_hidden_states(prompt, response)), teacher_score
 
 ### 3. Ce que l'élève apprend
 
-Le critique est une sorte de "tête" sur les états cachés de l'élève, et sa perte est renvoyée dans l'adaptateur LoRA de l'élève. Ainsi, aujourd'hui, l'élève apprend des **représentations qui aident le critique à prédire le score du professeur**. Il n'est pas encore entraîné à donner de meilleures réponses : les termes de récompense, de contraste et de trajectoire dans `aspire.losses` existent, mais le formateur ne les alimente pas, de sorte qu'ils n'ont aucun effet. L'entraînement de l'élève sur le jugement du critique est prévu pour la version 1.3.0 ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
+Le critique est une sorte de "tête" sur les états cachés de l'élève, et sa perte est renvoyée dans l'adaptateur LoRA de l'élève. Ainsi, aujourd'hui, l'élève apprend des **représentations qui aident le critique à prédire le score de l'enseignant**. Il n'est pas encore entraîné à donner de meilleures réponses : les termes de récompense, de contraste et de trajectoire dans `aspire.losses` existent, mais le formateur ne les alimente pas, de sorte qu'ils n'ont aucun effet. L'entraînement de l'élève sur le jugement du critique est prévu pour une version ultérieure ([#11](https://github.com/mcp-tool-shop-org/aspire-si/issues/11)).
 
-### 4. Jugement sans le professeur
+### 4. Jugement sans l'enseignant
 
-Après l'entraînement, le critique évalue une réponse à partir des états cachés de l'élève seul, de sorte qu'aucun appel au professeur n'est nécessaire pour la juger. Une boucle d'amélioration vous appartient pour la créer : ASPIRE fournit le critique entraîné et `aspire.judge`, pas la boucle :
+Après l'entraînement, le critique évalue une réponse à partir des états cachés de l'élève seul, de sorte qu'aucun appel à l'enseignant n'est nécessaire pour la juger. Une boucle d'amélioration vous appartient pour l'écrire autour de celle-ci ; ASPIRE fournit le critique entraîné et `aspire.judge`, pas la boucle :
 
 ```python
 from aspire.judge import Judge
@@ -273,20 +273,20 @@ Codes de sortie : `0` succès, `1` quelque chose que vous pouvez corriger (une c
 
 | Champ | Ce qu'il contient |
 |-------|---------------|
-| Trajectoire | La dernière couche cachée de l'élève, mise en moyenne sur les jetons et le lot, projetée sur ses deux premiers composants principaux. Vitesse, courbure signée (angle de rotation sur pi, amortie lorsque l'exécution se déplace à peine) et dimension effective (taux de participation dans une fenêtre). |
-| Scalaires | Chaque dimension d'évaluation sur laquelle les professeurs ont noté, de 0 à 1. |
-| Valeurs propres | À chaque étape, le spectre de la façon dont les scores de dimension varient ensemble dans une fenêtre, sous forme de fractions. Une grande première valeur signifie qu'une direction explique les jugements des professeurs. |
-| Professeurs | Une flèche par professeur : la direction dans l'espace d'état le long de laquelle son score augmente. Un professeur composite donne une flèche par membre. |
+| Trajectoire | La dernière couche cachée de l'élève, mise en pool sur les jetons et le lot, projetée sur ses deux premiers composants principaux. Vitesse, courbure signée (angle de rotation sur pi, amortie lorsque l'exécution se déplace à peine) et dimension effective (taux de participation dans une fenêtre). |
+| Scalaires | Chaque dimension d'évaluation sur laquelle les enseignants ont noté, de 0 à 1. |
+| Valeurs propres | À chaque étape, le spectre de la façon dont les scores de dimension varient ensemble dans une fenêtre, sous forme de fractions. Une grande première valeur signifie qu'une direction explique les jugements des enseignants. |
+| Professeurs | Une flèche par enseignant : la direction dans l'espace d'état le long de laquelle son score augmente. Un enseignant composite donne une flèche par membre. |
 | Échecs | Étapes où une dimension diminue d'au moins 0,1 par rapport à sa médiane récente. |
 
-Pas de modèle ou de clé API ? `python examples/geometry_demo.py` simule deux exécutions et écrit les deux fichiers d'exportation, ce qui est le moyen le plus rapide de voir les visualisations.
+Pas de modèle ou de clé API ? `python examples/geometry_demo.py` simule deux exécutions et écrit les deux exportations, ce qui est le moyen le plus rapide de voir les visualisations.
 
-L'enregistreur (`aspire.geometry.GeometryRecorder`) conserve un vecteur mis en moyenne par étape en mémoire. Pour les longues exécutions, définissez `training.geometry_every` pour moyenner plusieurs lots en une seule étape. L'exportation est écrite après chaque époque ainsi qu'à la fin, de sorte qu'une exécution arrêtée prématurément conserve ce qu'elle a enregistré.
+L'enregistreur (`aspire.geometry.GeometryRecorder`) conserve un vecteur mis en pool par étape en mémoire. Pour les longues exécutions, définissez `training.geometry_every` pour moyenner plusieurs lots en une seule étape. L'exportation est écrite après chaque époque ainsi qu'à la fin, de sorte qu'une exécution arrêtée prématurément conserve ce qu'elle a enregistré.
 
 **Analyse d’une exécution réelle.** Lors des premières exécutions avec un modèle réel (1,5 milliard de paramètres pour l’élève, 32 milliards pour les enseignants, 3 époques ;
-[rapport d’exécution](docs/runs/2026-10-06-pod-run.md)), l’état caché de chaque étape reflétait principalement *quelle invite* a été utilisée pour l’entraînement de cette étape : deux invites sont distantes d’environ 10 000 fois plus que ce qui est couvert par trois époques d’entraînement de l’élève. Les valeurs scalaires se répètent à chaque époque, car les époques suivantes la première réutilisent les scores de l’enseignant mis en cache. Pour voir ce que l’entraînement a modifié, `examples/pod-run/probe.py` et `drift.py` envoient les mêmes séquences fixes à travers le modèle d’élève de base et à chaque point de contrôle d’époque, puis créent un fichier d’exportation *drift* avec l’identité de l’invite supprimée. Les données réelles de ScalarScope sont des données des deux types, et toutes couvrent les trois époques. Les données par étape varient en fonction des graines de la même condition, car chaque graine échantillonne de nouveaux dialogues et donc de nouveaux scores d’enseignant ; comparer les conditions dans les fichiers d’exportation drift.
+[rapport d’exécution](docs/runs/2026-10-06-pod-run.md)), l’état caché de chaque étape reflétait principalement *quelle invite* a été utilisée pour l’entraînement de cette étape : deux invites sont distantes d’environ 10 000 fois plus que ce qui est couvert par trois époques d’entraînement de l’élève. Les valeurs scalaires se répètent à chaque époque, car les époques suivantes la première réutilisent les scores de l’enseignant mis en cache. Pour voir ce que l’entraînement a modifié, `examples/pod-run/probe.py` et `drift.py` envoient les mêmes séquences fixes à travers le modèle d’élève de base et à chaque point de contrôle d’époque, et créent un fichier d’exportation *drift* avec l’identité de l’invite supprimée. Les données réelles de ScalarScope sont des données des deux types, et toutes couvrent les trois époques. Les données par étape varient en fonction des graines de la même condition, car chaque graine échantillonne de nouveaux dialogues et donc de nouveaux scores d’enseignant ; comparer les conditions dans les fichiers d’exportation drift.
 
-Les fichiers d’exportation utilisent le schéma 1.1. `run_metadata` explique comment lire les étapes : `step_axis` est `training_step` (le fichier d’exportation de l’entraîneur, dans l’ordre de l’entraînement) ou `checkpoint_by_item` (fichiers d’exportation de la sonde et du drift, un bloc des mêmes éléments par point de contrôle, `checkpoints` indiquant le nombre), et `scalar_source` est `live`, `replayed` (époques après la première réutilisation des scores mis en cache) ou `fixed_per_item`. ScalarScope omet les comparaisons qui interpréteraient ces étapes comme une série temporelle.
+Les fichiers d’exportation utilisent le schéma 1.1. `run_metadata` explique comment lire les étapes : `step_axis` est `training_step` (le fichier d’exportation de l’entraîneur, dans l’ordre de l’entraînement) ou `checkpoint_by_item` (fichiers d’exportation de la sonde et du drift, un bloc des mêmes éléments par point de contrôle, `checkpoints` indiquant le nombre), et `scalar_source` est `live`, `replayed` (époques après la première réutilisation des scores mis en cache) ou `fixed_per_item`. ScalarScope omet les comparaisons qui interpréteraient ces étapes comme une fonction du temps.
 
 ---
 
@@ -371,7 +371,7 @@ integrations/forge/
 **Fonctionnalités :**
 - **Enseignants de vision :** Claude Vision, GPT-4V, évalue vos images générées.
 - **Critiques d’images :** critiques basées sur CLIP et dans l’espace latent pour un guidage en temps réel.
-- **Interface utilisateur d’entraînement :** entraînez des adaptateurs LoRA avec un aperçu en direct et une comparaison avant/après.
+- **Interface utilisateur d’entraînement :** entraînez des adaptateurs LoRA avec aperçu en direct et comparaison avant/après.
 - **Pas d’API lors de l’inférence :** le critique entraîné guide la génération localement.
 
 **Installation :**
@@ -490,19 +490,19 @@ ASPIRE construit cette voix intérieure en tant que critique : un modèle qui p
 
 Créé lors d’une conversation sur la conscience, le bouddhisme et la nature de l’apprentissage.
 
-L’idée : les humains existent dans le moment présent, mais leur esprit vagabonde dans le passé et le futur. Les modèles d’IA sont instanciés à chaque fois, ce qui force une sorte d’illumination grâce à l’architecture. Et si nous pouvions leur apprendre à développer un jugement de la même manière que les humains, grâce à un mentor internalisé ?
+L’idée : les humains existent dans le moment présent, mais leur esprit vagabonde dans le passé et le futur. Les modèles d’IA sont instanciés à chaque fois, ce qui force une sorte d’illumination par le biais de l’architecture. Et si nous pouvions leur apprendre à développer un jugement de la même manière que les humains, grâce à un mentor internalisé ?
 
 ---
 
 ## Contribution
 
-Il s’agit d’un code de recherche en phase initiale. Les contributions sont les bienvenues :
+Il s’agit d’un code de recherche à un stade précoce. Les contributions sont les bienvenues :
 
-- [ ] Gestion et progression du programme
-- [ ] Évaluations comparatives
-- [ ] Ensembles de données de programme préconstitués
-- [ ] Plus de personnalités d’enseignants
-- [ ] Outils d’interprétabilité
+- [ ] Gestion et progression du programme
+- [ ] Évaluations comparatives
+- [ ] Ensembles de données de programme préconstitués
+- [ ] Plus de personnalités d’enseignants
+- [ ] Outils d’interprétabilité
 
 ---
 
@@ -521,7 +521,7 @@ Il s’agit d’un code de recherche en phase initiale. Les contributions sont l
 
 ## Sécurité et portée des données
 
-- **Données auxquelles on accède :** Lit les invites d’entraînement, les points de contrôle du modèle et les fichiers de configuration à partir du système de fichiers local. Appelle les API externes (Anthropic, OpenAI) uniquement lorsque les modules d’enseignement sont explicitement configurés.
+- **Données auxquelles on accède :** Lit les invites d’entraînement, les points de contrôle du modèle et les fichiers de configuration à partir du système de fichiers local. Appelle les API externes (Anthropic, OpenAI) uniquement lorsque les modules d’enseignant sont explicitement configurés.
 - **Données auxquelles on n’accède pas :** Aucune télémétrie. Aucun stockage des données utilisateur au-delà des artefacts d’entraînement. Aucun stockage des informations d’identification : les clés d’API sont lues à partir des variables d’environnement au moment de l’exécution.
 - **Autorisations requises :** Accès en lecture/écriture aux données d’entraînement et aux répertoires des points de contrôle. Accès au GPU pour l’entraînement du modèle. Accès au réseau uniquement lors de l’utilisation d’enseignants basés sur des API.
 
@@ -529,11 +529,11 @@ Il s’agit d’un code de recherche en phase initiale. Les contributions sont l
 
 | Contrôle | État |
 |------|--------|
-| A. Base de sécurité | RÉUSSI |
-| B. Gestion des erreurs | RÉUSSI |
-| C. Documentation pour les opérateurs | RÉUSSI |
-| D. Bonnes pratiques de déploiement | RÉUSSI |
-| E. Identité | RÉUSSI |
+| A. Base de sécurité | OK |
+| B. Gestion des erreurs | OK |
+| C. Documentation pour les opérateurs | OK |
+| D. Bonnes pratiques de développement | OK |
+| E. Identité | OK |
 
 ## Licence
 
