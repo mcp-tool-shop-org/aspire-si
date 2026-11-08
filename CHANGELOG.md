@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-07
+
+This release changes the example tooling and the tests. The installed `aspire` package has no code changes.
+
 ### Added
 
+- Verifier-plan smoke test S1 (`examples/verifier-distill/s1_nli_critic.py`): an NLI critic run on the Intel NPU and iGPU,
+  with its [pre-registration](docs/runs/2026-10-10-smoke-s1-prereg.md) and receipts. It failed its pass line on both devices
+  (see the run note in `docs/runs/receipts/2026-10-10-smoke/`).
+- Verifier-plan smoke test S2 (`examples/verifier-distill/s2_grpo_smoke.py`): a GRPO memory-and-speed smoke on one GPU,
+  with its [pre-registration](docs/runs/2026-10-10-smoke-s2-prereg.md), an exclusive-GPU guard that works on Windows,
+  memory flags, per-phase allocator logging, a probe mode, a hash deny-list and CPU tests.
+  - Prompt draws are recorded (`s2_draw.py`, `--draw`), and `--rollout-only` counts correct items per prompt.
+  - Logging: save-all output (written crash-safe), logging and post-pass modes, `--stop-after-new`, and S2 sign diagnostics
+    with a pre-pass baseline and seed.
+  - GRPO loss masks, truncation handling, `--stress-pool {selected,tune}` with width telemetry, and the offrig quote rule
+    (`quote_rule.py`), including its edge cases.
+  - A CT interview pipeline (`s2_interview.py`, `s2_interview_tag.py`).
 - `examples/verifier-distill/s2_grpo_smoke.py`: the S2 GRPO training run, launchable in chunks.
   - `--arm mech|critic`, `--train-seed`, `--trunc-window-updates` and `--trunc-halt-rate` name a training run.
     All four are required, with no defaults, once any training flag is given.
@@ -39,6 +55,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     they draw from a forked RNG. The registered runs are mechanical only; this arm is a diagnostic.
   - Training verdicts: `S2-TRAIN-CHUNK-OK` and `S2-TRAIN-COMPLETE` (exit 0), `S2-TRAIN-HALT-<rule>` (exit 2),
     `S2-TRAIN-FAIL` (exit 1).
+
+### Changed
+
+- Coverage now also counts `examples/verifier-distill`, and CI's floor of 90% applies to it.
+- Public files no longer name personal desktop apps: the canned desktop is OS-only, and a test keeps the names out.
+- The site's lockfile moves `undici` to 8.12.3 and `zod` to 4.6.7 (4 Dependabot alerts).
+
+### Fixed
+
+- Two S1 label counts in the docs were counted on a truncated key and are corrected.
 
 ## [1.4.0] - 2026-10-23
 
