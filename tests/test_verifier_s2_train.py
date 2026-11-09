@@ -1612,24 +1612,53 @@ class TestCtGuardModeMonitor:
         out_halt = tmp_path / "halt"
         out_mon = tmp_path / "monitor"
         rc_h = _run(_argv(gold, out_halt, *guard_flags, steps=3, gpu=3), build=build_h)
+        # #195: --ct-guard-mode monitor without --resume-from-halted-explore is refused.
+        with pytest.raises(SystemExit, match="CT_GUARD_MONITOR_REQUIRES_EXPLORE"):
+            _run(
+                _argv(gold, out_mon, *guard_flags, "--ct-guard-mode", "monitor", steps=3, gpu=3),
+                build=build_m,
+            )
+        import shutil
+
+        halted_copy = tmp_path / "halt_copy"
+        shutil.copytree(out_halt, halted_copy)
+        sdir = s2.latest_state_dir(halted_copy)
+        st_doc = json.loads((sdir / "state.json").read_text(encoding="utf-8"))
+        st_doc["ct_guard"] = None
+        (sdir / "state.json").write_text(json.dumps(st_doc, indent=1), encoding="utf-8")
+
         rc_m = _run(
-            _argv(gold, out_mon, *guard_flags, "--ct-guard-mode", "monitor", steps=3, gpu=3), build=build_m
+            _argv(
+                gold,
+                out_mon,
+                *guard_flags,
+                "--ct-guard-mode",
+                "monitor",
+                "--resume-from",
+                str(halted_copy),
+                "--resume-from-halted-explore",
+                "monitor test",
+                steps=3,
+                gpu=3,
+            ),
+            build=build_m,
         )
         rec_h = _receipt(out_halt)
         rec_m = _receipt(out_mon)
         assert rc_h == 2 and rec_h["verdict"] == "S2-TRAIN-HALT-S1"
-        assert rc_m == 0 and rec_m["verdict"] == "S2-TRAIN-COMPLETE"
+        assert rc_m == 0 and rec_m["verdict"] == "S2-EXPLORE-CHUNK-OK"
         assert rec_m["stopped"] is None
         hdr_h = json.loads((out_halt / "s2-hf-train-header.json").read_text(encoding="utf-8"))
         hdr_m = json.loads((out_mon / "s2-hf-train-header.json").read_text(encoding="utf-8"))
         assert "ct_guard_mode" not in hdr_h["settings"]
         assert hdr_m["settings"]["ct_guard_mode"] == "monitor"
-        assert "exploratory" not in hdr_h and "exploratory" not in hdr_m
+        assert "exploratory" not in hdr_h and hdr_m["exploratory"]["exploratory"] is True
 
         hist_h = [h for h in _history(out_halt) if h["kind"] == "ct_guard_window"]
         hist_m = [h for h in _history(out_mon) if h["kind"] == "ct_guard_window"]
         assert len(hist_h) == 1 and len(hist_m) == 3
-        assert hist_h[0] == hist_m[0] and hist_m[0]["triggered_rules"] == ["S1"]
+        hist_m0_clean = {k: v for k, v in hist_m[0].items() if k != "exploratory"}
+        assert hist_h[0] == hist_m0_clean and hist_m[0]["triggered_rules"] == ["S1"]
         assert all(w["triggered_rules"] == ["S1"] for w in hist_m)
 
         # In monitor mode, gradients were applied across all 3 updates (optimizer steps = 3).
@@ -1648,10 +1677,55 @@ class TestCtGuardModeMonitor:
 
         monkeypatch.setattr(s2, "load_prepass_baseline", loader)
         gold = _gold(tmp_path)
+        build_h, _ = _fake_rollout_build(
+            lambda i, p: [_reply("cannot_tell"), _reply("unsupported")], lambda i: [True, True]
+        )
         build, _ = _fake_rollout_build(
             lambda i, p: [_reply("cannot_tell"), _reply("unsupported")], lambda i: [True, True]
         )
+        out_h = tmp_path / "halt-seed"
+        assert (
+            _run(
+                _argv(
+                    gold,
+                    out_h,
+                    "--ct-guard",
+                    "--guard-window-groups",
+                    "2",
+                    "--pass-a-jsonl",
+                    "pass-a.jsonl",
+                    "--pass-a-sha256",
+                    "a" * 64,
+                    steps=3,
+                    gpu=2,
+                    window=1,
+                    halt=0.20,
+                ),
+                build=build_h,
+            )
+            == 2
+        )
         out = tmp_path / "mon-trunc"
+        with pytest.raises(SystemExit, match="CT_GUARD_MONITOR_REQUIRES_EXPLORE"):
+            _run(
+                _argv(
+                    gold,
+                    out,
+                    "--ct-guard-mode",
+                    "monitor",
+                    "--guard-window-groups",
+                    "2",
+                    "--pass-a-jsonl",
+                    "pass-a.jsonl",
+                    "--pass-a-sha256",
+                    "a" * 64,
+                    steps=3,
+                    gpu=2,
+                    window=1,
+                    halt=0.20,
+                ),
+                build=build,
+            )
         rc = _run(
             _argv(
                 gold,
@@ -1664,6 +1738,10 @@ class TestCtGuardModeMonitor:
                 "pass-a.jsonl",
                 "--pass-a-sha256",
                 "a" * 64,
+                "--resume-from",
+                str(out_h),
+                "--resume-from-halted-explore",
+                "trunc in monitor mode",
                 steps=3,
                 gpu=2,
                 window=1,
@@ -1976,3 +2054,2961 @@ class TestExploreResumeFromHalted:
         g_rec = json.loads(g_path.read_text(encoding="utf-8").strip())
         assert p_rec["exploratory"] is True
         assert g_rec["exploratory"] is True
+
+
+# -- S2 v1.1 Pre-Registration, Matchers, Constant Loss Denom, CUSUM + Confirm + Canaries --
+import dataclasses
+import hashlib
+import os
+
+import quote_matcher_m1 as qm1  # noqa: E402
+import quote_matcher_m2 as qm2  # noqa: E402
+import s2_draw  # noqa: E402
+import s2_v11_config as v11cfg  # noqa: E402
+
+
+def _make_synthetic_v11_prepass(tmp_path, gold_dir):
+    """Write synthetic Pass A and Pass B JSONL files for the 60-item _gold fixture."""
+    items, _ = s2.read_gold(gold_dir)
+    pass_a_rows = []
+    pass_b_rows = []
+    for idx, it in enumerate(items):
+        cid = it["id"]
+        label = it["label"]
+        # Give the first 10 unsupported training items k=6, ct=0 in both passes, and the rest k=5
+        is_easy = (label == "unsupported") and (idx % 2 == 0)
+        pass_a_rows.append(
+            {
+                "id": cid,
+                "gold_verdict": label,
+                "k_correct": 6 if is_easy else 5,
+                "cannot_tell": 0,
+                "g": 8,
+                "seed": 0,
+                "descriptive": False,
+            }
+        )
+        pass_b_rows.append(
+            {
+                "id": cid,
+                "gold_verdict": label,
+                "k_correct": 6 if is_easy else 5,
+                "cannot_tell": 0,
+                "g": 8,
+                "seed": 1,
+                "descriptive": False,
+            }
+        )
+    pass_a_path = tmp_path / "syn_pass_a.jsonl"
+    pass_b_path = tmp_path / "syn_pass_b.jsonl"
+    pass_a_path.write_text("".join(json.dumps(r) + "\n" for r in pass_a_rows), encoding="utf-8", newline="\n")
+    pass_b_path.write_text("".join(json.dumps(r) + "\n" for r in pass_b_rows), encoding="utf-8", newline="\n")
+    pass_a_sha = hashlib.sha256(pass_a_path.read_bytes()).hexdigest()
+    pass_b_sha = hashlib.sha256(pass_b_path.read_bytes()).hexdigest()
+    train_pool, holdout_pool, _ = s2_draw.split_stratified_holdout(
+        items, (pass_a_path, pass_a_sha), holdout_fraction=0.20, holdout_seed="pr79-holdout-v1"
+    )
+    holdout_ids = [r["id"] for r in holdout_pool]
+    sets = v11cfg.build_v11_canary_sets(
+        train_pool, pass_a_rows, pass_b_rows, holdout_ids=holdout_ids, strict=False
+    )
+    syn_cfg = dataclasses.replace(
+        v11cfg.S2V11,
+        pass_a_sha256=pass_a_sha,
+        pass_b_sha256=pass_b_sha,
+        canary_c_size=sets["canary_c_count"],
+        canary_c_required_item=sets["canary_c_ids"][0],
+        canary_c_ids_sha256=sets["canary_c_ids_sha256"],
+        gold_unsupported_train_items=sets["gold_unsupported_count"],
+        gold_unsupported_ids_sha256=sets["gold_unsupported_ids_sha256"],
+    )
+    return pass_a_path, pass_a_sha, pass_b_path, pass_b_sha, syn_cfg, sets
+
+
+class TestS2V11PreregAndConfig:
+    def test_sealed_prereg_sha256_and_config_parser_match(self):
+        repo_root = Path(__file__).resolve().parents[1]
+        prereg_path = repo_root / v11cfg.PREREG_V11_RELPATH
+        assert prereg_path.is_file()
+        raw_bytes = prereg_path.read_bytes()
+        assert hashlib.sha256(raw_bytes).hexdigest() == v11cfg.PREREG_V11_SHA256
+        text = v11cfg.load_sealed_prereg_v11_text()
+        parsed = v11cfg.parse_sealed_prereg_v11(text)
+        cfg_dict = v11cfg.s2_v11_config_dict()
+        assert parsed == cfg_dict
+        assert len(v11cfg.s2_v11_config_sha256()) == 64
+        assert not hasattr(v11cfg, "PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11")
+
+        with pytest.raises(ValueError, match="Pattern not found in sealed prereg text"):
+            v11cfg.parse_sealed_prereg_v11("incomplete text")
+        with pytest.raises(ValueError, match="S2_V11_PREREG_SHA256_MISMATCH"):
+            v11cfg.load_sealed_prereg_v11_text(prereg_path, expected_sha256="0" * 64)
+
+    def test_build_v11_canary_sets_synthetic_every_branch_of_rule(self, tmp_path):
+        # Ask 4(a): synthetic rows covering every branch of the sealed §3 rule:
+        # - k = 5 vs 6 in Pass A
+        # - k = 5 vs 6 in Pass B
+        # - CT = 1 in Pass A
+        # - CT = 1 in Pass B
+        # - a holdout item
+        # - a supported item
+        items = [
+            {"id": "c_clean_6_6", "label": "unsupported"},
+            {"id": "diff-rnd-e839712-2u", "label": "unsupported"},
+            {"id": "u_pass_a_k5", "label": "unsupported"},
+            {"id": "u_pass_b_k5", "label": "unsupported"},
+            {"id": "u_pass_a_ct1", "label": "unsupported"},
+            {"id": "u_pass_b_ct1", "label": "unsupported"},
+            {"id": "h_holdout_unsup", "label": "unsupported"},
+            {"id": "s_supported_6_6", "label": "supported"},
+        ]
+        pass_a = [
+            {"id": "c_clean_6_6", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "diff-rnd-e839712-2u", "gold_verdict": "unsupported", "k_correct": 8, "cannot_tell": 0},
+            {"id": "u_pass_a_k5", "gold_verdict": "unsupported", "k_correct": 5, "cannot_tell": 0},
+            {"id": "u_pass_b_k5", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_a_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 1},
+            {"id": "u_pass_b_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "h_holdout_unsup", "gold_verdict": "unsupported", "k_correct": 8, "cannot_tell": 0},
+            {"id": "s_supported_6_6", "gold_verdict": "supported", "k_correct": 8, "cannot_tell": 0},
+        ]
+        pass_b = [
+            {"id": "c_clean_6_6", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "diff-rnd-e839712-2u", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_a_k5", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_b_k5", "gold_verdict": "unsupported", "k_correct": 5, "cannot_tell": 0},
+            {"id": "u_pass_a_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_b_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 1},
+            {"id": "h_holdout_unsup", "gold_verdict": "unsupported", "k_correct": 8, "cannot_tell": 0},
+            {"id": "s_supported_6_6", "gold_verdict": "supported", "k_correct": 8, "cannot_tell": 0},
+        ]
+        sets = v11cfg.build_v11_canary_sets(
+            items,
+            pass_a,
+            pass_b,
+            holdout_ids=["h_holdout_unsup"],
+            strict=False,
+        )
+        # Only the 2 items with label=='unsupported', not in holdout, A.k>=6, B.k>=6, A.ct==0, B.ct==0 are in C
+        assert sets["canary_c_ids"] == ["c_clean_6_6", "diff-rnd-e839712-2u"]
+        assert sets["canary_c_count"] == 2
+        # All 6 non-holdout unsupported items are in gold_unsupported_ids (holdout & supported excluded)
+        assert sets["gold_unsupported_ids"] == [
+            "c_clean_6_6",
+            "diff-rnd-e839712-2u",
+            "u_pass_a_ct1",
+            "u_pass_a_k5",
+            "u_pass_b_ct1",
+            "u_pass_b_k5",
+        ]
+        assert sets["gold_unsupported_count"] == 6
+
+        # Also works when items=None (using gold_verdict from pass_a) and when pass_a/pass_b are dicts
+        sets_from_dicts = v11cfg.build_v11_canary_sets(
+            None,
+            {r["id"]: r for r in pass_a},
+            {r["id"]: r for r in pass_b},
+            holdout_ids=["h_holdout_unsup"],
+            strict=False,
+        )
+        assert sets_from_dicts == sets
+
+        # Verify strict=True validation and all named refusal codes on mismatch
+        syn_cfg = dataclasses.replace(
+            v11cfg.S2V11,
+            canary_c_size=2,
+            canary_c_required_item="diff-rnd-e839712-2u",
+            canary_c_ids_sha256=sets["canary_c_ids_sha256"],
+            gold_unsupported_train_items=6,
+            gold_unsupported_ids_sha256=sets["gold_unsupported_ids_sha256"],
+        )
+        assert (
+            v11cfg.build_v11_canary_sets(
+                items, pass_a, pass_b, holdout_ids=["h_holdout_unsup"], cfg=syn_cfg, strict=True
+            )
+            == sets
+        )
+        with pytest.raises(ValueError, match="S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, gold_unsupported_train_items=184)
+            )
+        with pytest.raises(ValueError, match="S2_V11_GOLD_UNSUPPORTED_SHA256_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, gold_unsupported_ids_sha256="0" * 64)
+            )
+        with pytest.raises(ValueError, match="S2_V11_CANARY_C_SIZE_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(sets, cfg=dataclasses.replace(syn_cfg, canary_c_size=128))
+        with pytest.raises(ValueError, match="S2_V11_CANARY_C_MISSING_REQUIRED_ITEM"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, canary_c_required_item="missing-id")
+            )
+        with pytest.raises(ValueError, match="S2_V11_CANARY_C_SHA256_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, canary_c_ids_sha256="0" * 64)
+            )
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_MISSING_ID"):
+            v11cfg.build_v11_canary_sets(items, pass_a[1:], pass_b)
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_MISSING_ID"):
+            v11cfg.build_v11_canary_sets(items, pass_a, pass_b[1:])
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_INVALID_RECORD"):
+            v11cfg.build_v11_canary_sets(items, [{"id": "c_clean_6_6"}], pass_b)
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_INVALID_RECORD"):
+            v11cfg.build_v11_canary_sets(items, {"c_clean_6_6": {" id": "bad"}}, pass_b)
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_DUPLICATE_ID"):
+            v11cfg.build_v11_canary_sets(items, [pass_a[0], pass_a[0]], pass_b)
+
+    def test_local_data_derives_c_128_and_shas_from_real_prepass_files(self):
+        # Ask 4(b): local-data test deriving C from the real pre-pass files and asserting |C| == 128 + SHAs.
+        # Skipped in CI unless ASPIRE_S2_V11_PREPASS_DIR or (ASPIRE_S2_PASS_A_JSONL + ASPIRE_S2_PASS_B_JSONL) is set.
+        prepass_dir = os.environ.get("ASPIRE_S2_V11_PREPASS_DIR", "").strip()
+        pass_a_env = os.environ.get("ASPIRE_S2_PASS_A_JSONL", "").strip()
+        pass_b_env = os.environ.get("ASPIRE_S2_PASS_B_JSONL", "").strip()
+        holdout_env = os.environ.get("ASPIRE_S2_HOLDOUT_IDS", "").strip()
+
+        if prepass_dir:
+            base = Path(prepass_dir)
+            pass_a_path = Path(pass_a_env) if pass_a_env else base / "run-prepass" / "s2-hf-prepass.jsonl"
+            pass_b_path = Path(pass_b_env) if pass_b_env else base / "run-prepass-b2" / "s2-hf-prepass.jsonl"
+            holdout_path = Path(holdout_env) if holdout_env else base / "holdout-ids-pr79-holdout-v1.txt"
+        elif pass_a_env and pass_b_env:
+            pass_a_path = Path(pass_a_env)
+            pass_b_path = Path(pass_b_env)
+            holdout_path = Path(holdout_env) if holdout_env else None
+        else:
+            pytest.skip(
+                "Skipped in CI (pre-pass data and holdout list stay private); "
+                "set ASPIRE_S2_V11_PREPASS_DIR or ASPIRE_S2_PASS_A_JSONL + ASPIRE_S2_PASS_B_JSONL to run locally."
+            )
+
+        rec_a, sha_a = v11cfg.load_prepass_records_v11(
+            pass_a_path,
+            v11cfg.PASS_A_SHA256_V11,
+            pass_label="PASS_A",
+            pinned_sha256=v11cfg.S2V11.pass_a_sha256,
+        )
+        rec_b, sha_b = v11cfg.load_prepass_records_v11(
+            pass_b_path,
+            v11cfg.PASS_B_SHA256_V11,
+            pass_label="PASS_B",
+            pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+        )
+        assert sha_a == "feee81ff8897cda5824c4877ce597232d7291e2f80a32d3a16a56a9c06aafa69"
+        assert sha_b == "d77601e5d7a75842de4c01aafef4fc5f8b1e939e1a24cb26b6bf00f1c142fbd7"
+        assert len(rec_a) == 493
+        assert len(rec_b) == 493
+
+        if holdout_path is not None and holdout_path.is_file():
+            hold_raw = holdout_path.read_bytes()
+            assert (
+                hashlib.sha256(hold_raw).hexdigest()
+                == "00eaa49006099381328e2d7becceb9ed102b46ce79b2ac2823dc3c0247d16ff4"
+            )
+            holdout_ids = [ln.strip() for ln in hold_raw.decode("utf-8").splitlines() if ln.strip()]
+        else:
+            items_for_split = [
+                {"id": cid, "label": r["gold_verdict"], "split": "tune"} for cid, r in rec_a.items()
+            ]
+            _, holdout_pool, _ = s2_draw.split_stratified_holdout(
+                items_for_split,
+                (pass_a_path, sha_a),
+                holdout_fraction=0.20,
+                holdout_seed="pr79-holdout-v1",
+            )
+            holdout_ids = [r["id"] for r in holdout_pool]
+        assert len(holdout_ids) == 99
+
+        sets = v11cfg.build_v11_canary_sets(
+            None,
+            rec_a,
+            rec_b,
+            holdout_ids=holdout_ids,
+            cfg=v11cfg.S2V11,
+            strict=True,
+        )
+        assert sets["canary_c_count"] == 128
+        assert len(sets["canary_c_ids"]) == 128
+        assert "diff-rnd-e839712-2u" in sets["canary_c_ids"]
+        assert (
+            sets["canary_c_ids_sha256"] == "c15c8a4cd323ebd0e605c6a166e42036a3ec87d2248a4c4c2a00d8ae658c4bca"
+        )
+        assert sets["gold_unsupported_count"] == 184
+        assert len(sets["gold_unsupported_ids"]) == 184
+        assert (
+            sets["gold_unsupported_ids_sha256"]
+            == "63e6656699395531d9814c9cd65c1c18cbbe5aa8c97614137d50bc6ab066f27e"
+        )
+        print(
+            json.dumps(
+                {
+                    "test": "test_local_data_derives_c_128_and_shas_from_real_prepass_files",
+                    "pass_a_sha256": sha_a,
+                    "pass_b_sha256": sha_b,
+                    "holdout_count": len(holdout_ids),
+                    "canary_c_count": sets["canary_c_count"],
+                    "canary_c_ids_sha256": sets["canary_c_ids_sha256"],
+                    "diff_rnd_e839712_2u_in_c": "diff-rnd-e839712-2u" in sets["canary_c_ids"],
+                    "gold_unsupported_count": sets["gold_unsupported_count"],
+                    "gold_unsupported_ids_sha256": sets["gold_unsupported_ids_sha256"],
+                }
+            )
+        )
+
+    def test_s2_v11_refuses_wrong_pass_b_sha_and_missing_prepass(self, tmp_path):
+        # Ask 4(c): refusal test for a wrong Pass-B SHA (both CLI argument mismatch and on-disk SHA mismatch)
+        gold = _gold(tmp_path)
+        out = tmp_path / "v11_refuse"
+        pass_a_file = tmp_path / "pass_a.jsonl"
+        pass_b_file = tmp_path / "pass_b.jsonl"
+        row_txt = (
+            json.dumps({"id": "g00", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0}) + "\n"
+        )
+        pass_a_file.write_text(row_txt, encoding="utf-8")
+        pass_b_file.write_text(row_txt, encoding="utf-8")
+
+        base = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(out),
+            "--dry",
+            "--s2-v11",
+            "--arm",
+            "mech",
+            "--train-seed",
+            "45",
+        ]
+
+        # 1. Wrong --pass-b-sha256 CLI value vs pinned S2V11.pass_b_sha256 -> refuses with S2_V11_PASS_B_SHA256_MISMATCH
+        ns_bad_b = _ns(
+            [
+                *base,
+                "--pass-a-jsonl",
+                str(pass_a_file),
+                "--pass-a-sha256",
+                v11cfg.PASS_A_SHA256_V11,
+                "--pass-b-jsonl",
+                str(pass_b_file),
+                "--pass-b-sha256",
+                "0" * 64,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            s2.validate_s2_v11_args(ns_bad_b)
+
+        # 2. On-disk Pass-B file SHA-256 does not match pinned S2V11.pass_b_sha256 -> refuses with S2_V11_PASS_B_SHA256_MISMATCH
+        actual_b_sha = hashlib.sha256(pass_b_file.read_bytes()).hexdigest()
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            v11cfg.load_prepass_records_v11(
+                pass_b_file,
+                v11cfg.PASS_B_SHA256_V11,
+                pass_label="PASS_B",
+                pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+            )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            v11cfg.load_prepass_records_v11(
+                pass_b_file,
+                actual_b_sha,
+                pass_label="PASS_B",
+                pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+            )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            v11cfg.load_prepass_records_v11(
+                pass_b_file,
+                None,
+                pass_label="PASS_B",
+                pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+            )
+        blank_line_file = tmp_path / "blank_line.jsonl"
+        blank_line_file.write_text("\n" + row_txt + "\n", encoding="utf-8")
+        recs_bl, _ = v11cfg.load_prepass_records_v11(blank_line_file, pass_label="PASS_B")
+        assert "g00" in recs_bl
+
+        # 3. Missing Pass B or Pass A under --s2-v11, or wrong Pass A SHA
+        ns_missing_b = _ns(
+            [
+                *base,
+                "--pass-a-jsonl",
+                str(pass_a_file),
+                "--pass-a-sha256",
+                v11cfg.PASS_A_SHA256_V11,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_REQUIRED"):
+            s2.validate_s2_v11_args(ns_missing_b)
+
+        ns_missing_a = _ns(
+            [
+                *base,
+                "--pass-b-jsonl",
+                str(pass_b_file),
+                "--pass-b-sha256",
+                v11cfg.PASS_B_SHA256_V11,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_REQUIRED"):
+            s2.validate_s2_v11_args(ns_missing_a)
+
+        ns_bad_a = _ns(
+            [
+                *base,
+                "--pass-a-jsonl",
+                str(pass_a_file),
+                "--pass-a-sha256",
+                "f" * 64,
+                "--pass-b-jsonl",
+                str(pass_b_file),
+                "--pass-b-sha256",
+                v11cfg.PASS_B_SHA256_V11,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_SHA256_MISMATCH"):
+            s2.validate_s2_v11_args(ns_bad_a)
+
+        # 4. File-level error branches in load_prepass_records_v11
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_MISSING_FILE"):
+            v11cfg.load_prepass_records_v11(tmp_path / "nope.jsonl", pass_label="PASS_B")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_REQUIRED"):
+            v11cfg.load_prepass_records_v11(pass_b_file, "", pass_label="PASS_B")
+        corrupt = tmp_path / "corrupt.jsonl"
+        corrupt.write_text("{not-json\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_CORRUPT_JSON"):
+            v11cfg.load_prepass_records_v11(corrupt, pass_label="PASS_B")
+        bad_rec = tmp_path / "bad_rec.jsonl"
+        bad_rec.write_text(json.dumps({"id": "g00"}) + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_INVALID_RECORD"):
+            v11cfg.load_prepass_records_v11(bad_rec, pass_label="PASS_B")
+        dup_rec = tmp_path / "dup_rec.jsonl"
+        dup_rec.write_text(row_txt + row_txt, encoding="utf-8")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_DUPLICATE_ID"):
+            v11cfg.load_prepass_records_v11(dup_rec, pass_label="PASS_B")
+        bad_k = tmp_path / "bad_k.jsonl"
+        bad_k.write_text(
+            json.dumps({"id": "g00", "k_correct": -1, "cannot_tell": 0}) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_INVALID_RECORD"):
+            v11cfg.load_prepass_records_v11(bad_k, pass_label="PASS_B")
+        bad_ct = tmp_path / "bad_ct.jsonl"
+        bad_ct.write_text(
+            json.dumps({"id": "g00", "k_correct": 6, "cannot_tell": True}) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_INVALID_RECORD"):
+            v11cfg.load_prepass_records_v11(bad_ct, pass_label="PASS_B")
+
+    def test_s2_v11_flag_freezes_settings_and_refuses_overrides(self, tmp_path):
+        gold = _gold(tmp_path)
+        out = tmp_path / "v11_check"
+        pass_a_path = tmp_path / "pa.jsonl"
+        pass_b_path = tmp_path / "pb.jsonl"
+        pass_a_path.write_text("", encoding="utf-8")
+        pass_b_path.write_text("", encoding="utf-8")
+        base = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(out),
+            "--dry",
+            "--s2-v11",
+            "--pass-a-jsonl",
+            str(pass_a_path),
+            "--pass-a-sha256",
+            v11cfg.PASS_A_SHA256_V11,
+            "--pass-b-jsonl",
+            str(pass_b_path),
+            "--pass-b-sha256",
+            v11cfg.PASS_B_SHA256_V11,
+        ]
+
+        # Valid --s2-v11 sets frozen parameters
+        a = _ns([*base, "--arm", "mech", "--train-seed", "45"])
+        assert s2.validate_training_args(a) is True
+        assert a.ct_guard is True
+        assert a.ct_guard_mode == "halt"
+        assert a.guard_window_groups == 40
+        assert a.groups_per_update == 4
+        assert a.quote_reward == "v2"
+        assert a.advantage == "dr-grpo"
+        assert a.mask_wrong_positive_advantage is True
+        assert a.zero_variance_mask is True
+        assert a.mask_truncated is True
+        assert a.trunc_halt_rate == 0.20
+        assert a.trunc_window_updates == 10
+        assert a.holdout is True
+        assert a.holdout_fraction == 0.20
+        assert a.holdout_seed == "pr79-holdout-v1"
+        assert a.draw == "class_stratified"
+        assert a.draw_seed == 45
+        assert a.steps == 197
+        flags = s2.active_flags(a)
+        assert flags["s2_v11"] is True
+        assert flags["prereg_version"] == "1.1"
+        assert flags["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
+        assert flags["quote_matcher"] == "M2a"
+        assert flags["constant_loss_denominator"] == 4514
+        assert flags["pass_a_sha256"] == v11cfg.PASS_A_SHA256_V11
+        assert flags["pass_b_sha256"] == v11cfg.PASS_B_SHA256_V11
+
+        # Permitted seeds 45, 46, 47 are accepted
+        for valid_seed in (45, 46, 47):
+            ns_ok = _ns([*base, "--arm", "mech", "--train-seed", str(valid_seed)])
+            assert s2.validate_s2_v11_args(ns_ok) is True
+            assert ns_ok.draw_seed == valid_seed
+
+        # Retired seeds 42, 43, 44 are refused and named in the refusal message
+        for ret_seed in (42, 43, 44):
+            ns_ret = _ns([*base, "--arm", "mech", "--train-seed", str(ret_seed)])
+            with pytest.raises(
+                SystemExit,
+                match=r"S2_V11_OVERRIDE_FORBIDDEN.*retired seeds 42, 43, 44",
+            ):
+                s2.validate_s2_v11_args(ns_ret)
+
+        # Refusal cases under --s2-v11
+        bad_cases = [
+            (["--ct-guard-mode", "monitor"], "S2_V11_MONITOR_MODE_FORBIDDEN"),
+            (["--resume-from-halted-explore", "why"], "S2_V11_MONITOR_MODE_FORBIDDEN"),
+            (["--guard-window-groups", "10"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--trunc-halt-rate", "0.15"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--trunc-window-updates", "5"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--dual-clip-c", "2.0"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--groups-per-update", "2"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--quote-reward", "v1"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--advantage", "std"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--no-save-all", "--save-all-off-reason", "test"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--holdout-fraction", "0.10"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--holdout-seed", "other-seed"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--draw", "first"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--draw", "uniform"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--draw-seed", "99"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--steps", "30"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--steps", "2"], "S2_V11_OVERRIDE_FORBIDDEN"),
+        ]
+        for extra_flags, code in bad_cases:
+            ns = _ns([*base, "--arm", "mech", "--train-seed", "45", *extra_flags])
+            with pytest.raises(SystemExit, match=code):
+                s2.validate_s2_v11_args(ns)
+
+
+class TestS2V11QuoteMatchersAndLoss:
+    def test_quote_matcher_files_sha256_and_m1_m2a_m2b_behavior(self):
+        m1_path = Path(qm1.__file__)
+        m2_path = Path(qm2.__file__)
+        assert (
+            hashlib.sha256(m1_path.read_bytes()).hexdigest()
+            == "57064f46ff0f39ec26522e3d3d52ccb4c7f96300729f9a79052e05dfc842b42c"
+        )
+        assert (
+            hashlib.sha256(m2_path.read_bytes()).hexdigest()
+            == "98780f92893e0e3ad4e4f9394e1c81a2f7e7f94a8b3331aed3ee217114d0ea29"
+        )
+
+        # M2a strips spaces adjacent to code punctuation (e.g. "foo ( x , y ) : return x + y")
+        passages = [
+            "def compute_score(items, weights):\n    total = sum(x * w for x, w in zip(items, weights))\n    return total / len(items)"
+        ]
+        q_punct_ws = "def compute_score ( items , weights ) :\n    total = sum ( x * w for x , w in zip ( items , weights ) )"
+        # M1 fails because of spaces around parentheses/commas/colons
+        assert qm1.quote_found_m1(q_punct_ws, passages) is False
+        assert qm1.quote_found_m1("", passages) is False
+        # M2a strips spaces around code punctuation outside string literals, so it matches!
+        assert qm2.quote_found_m2a(q_punct_ws, passages) is True
+        assert qm2.quote_found_m2a("short", passages) is False
+        assert qm2.quote_credit_m2a(
+            [q_punct_ws], passages, verdict="supported", correct=True
+        ) == pytest.approx(0.05)
+        assert qm2.quote_credit_m2a([], passages, verdict="supported", correct=True) == 0.0
+        assert qm2.quote_credit_m2a([q_punct_ws], passages, verdict="supported", correct=False) == 0.0
+
+        # M2b also unifies single and double quotes after M2a canonical form
+        passages_q = ['def check_flag(mode):\n    return mode == "strict_mode" and len(mode) > 0']
+        q_m2b = "def check_flag(mode): ... return mode == 'strict_mode' and len(mode) > 0"
+        assert qm2.quote_found_m2b(q_m2b, passages_q) is True
+        assert qm2.quote_found_m2b("only one short ... piece", passages_q) is False
+        assert qm2.quote_credit_m2b([q_m2b], passages_q, verdict="supported", correct=True) == pytest.approx(
+            0.05
+        )
+        assert qm2.quote_credit_m2b([], passages_q, verdict="supported", correct=True) == 0.0
+        assert qm2.quote_credit_m2b([q_m2b], passages_q, verdict="supported", correct=False) == 0.0
+
+        # Exercise M1/M2a/M2b tiers: Tier 0, Tier 1, Tier 2 (with negation guard & para break), and short quotes
+        p_multi = [
+            "+ // 1.5% rate >= -3 and < 10\n"
+            "+ first fragment has enough words here and does not fail\n"
+            "+ middle words without negation\n"
+            "+ second fragment also has enough words here\n\n"
+            "+ after paragraph break words here for test\n"
+            "+ FooBar 42 is unique\n"
+            "+ is FooBar now\n"
+            "+ shortline99"
+        ]
+        # Tier 0
+        assert qm1.quote_tier_m1("first fragment has enough words here and does not fail", p_multi) == 0
+        # Tier 1 (curly quotes / dash / outer punct / protected edge chars)
+        assert (
+            qm1.quote_tier_m1(
+                "“first fragment has enough words here and does not fail”...",
+                p_multi,
+            )
+            == 1
+        )
+        assert qm1._strip_quote_outer_punct("...1.5%...") == "1.5%"
+        assert qm1._strip_quote_outer_punct("...-3...") == "-3"
+        assert qm1._strip_quote_outer_punct("...1.5") == "1.5"
+        assert qm1._is_protected_edge_char("1.5", 1) is True
+        assert qm1._strip_quote_outer_punct("...abc...") == "abc"
+        assert qm1._extract_negation_tokens("it can't and won't fail") == {"n't", "cannot"}
+        assert qm1._has_internal_capitalised_token("...") is False
+        # Tier 2 ellipsis (valid vs negation blocked vs para-break blocked vs max_gap exceeded)
+        q_t2_ok = "first fragment has enough words ... second fragment also has enough words"
+        assert qm1.quote_tier_m1(q_t2_ok, p_multi) == 2
+        assert len(qm1.find_quote_spans_m1(q_t2_ok, p_multi)) == 1
+        assert qm1.quote_match_tier_m1(q_t2_ok, p_multi, _max_gap=1)[0] is False
+        q_t2_para = "second fragment also has enough words ... after paragraph break words here"
+        assert qm1.quote_tier_m1(q_t2_para, p_multi) is None
+        p_neg = ["alpha beta gamma delta cannot epsilon zeta eta theta"]
+        assert qm1.quote_tier_m1("alpha beta gamma ... epsilon zeta eta", p_neg) is None
+        p_neg_retry = ["alpha beta gamma cannot epsilon zeta eta alpha beta gamma ok epsilon zeta eta"]
+        assert qm1.quote_tier_m1("alpha beta gamma ... epsilon zeta eta", p_neg_retry) == 2
+        # Short rule (a) whole line (with outer punct so Tier 0 misses) and (b) 2-4 words < 12 chars with digit or internal capitalised token
+        assert qm1.quote_tier_m1("...shortline99...", p_multi) == "short"
+        assert qm1.quote_tier_m1("FooBar 42", p_multi) == "short"
+        assert qm1.quote_tier_m1("is FooBar", p_multi) == "short"
+        assert qm1.quote_tier_m1("no match 99", p_multi) is None
+        assert len(qm1.find_quote_spans_m1("FooBar 42", p_multi)) >= 1
+        assert qm1.find_quote_spans_m1("not found anywhere at all", p_multi) == []
+        assert qm1.quote_credit_m1(
+            [
+                "",
+                "first fragment has enough words here and does not fail",
+                "first fragment has enough words here and does not fail",
+                "not found anywhere at all",
+                "1.5%",
+                "FooBar 42",
+            ],
+            p_multi,
+            verdict="supported",
+            correct=True,
+        ) == pytest.approx(0.10)
+        assert (
+            qm1.quote_credit_m1(
+                ["FooBar 42"],
+                p_multi,
+                verdict="unsupported",
+                correct=True,
+            )
+            == 0.0
+        )
+        assert qm1.quote_credit_m1(["x"], p_multi, verdict="supported", correct=False) == 0.0
+
+        # M2a / M2b tiers, literal spans with escapes, digit-flanked dots/commas, and quote_tier_m2
+        lit_s = '\\x x = "a \\\' ( b ) " + \'c " [ d ] \' + "unclosed\n" + 1 . 5 + 2 , 000'
+        assert len(qm2.find_same_line_literal_spans(lit_s)) == 2
+        assert qm2.find_same_line_literal_spans('"unclosed at eof') == []
+        assert qm2._strip_punct_ws_outside_literals("1 . 5", digit_flank_exempt=False) == "1.5"
+        norm_lit = qm2.normalise_m2a(lit_s, is_quote=True)
+        assert "( b )" in norm_lit  # preserved inside string literal
+        assert "1 . 5" in norm_lit  # digit-flanked dot preserved
+        assert qm2.quote_tier_m2(q_punct_ws, passages, arm="m2a") == "m2a_1"
+        assert qm2.quote_tier_m2(q_punct_ws, passages, arm="m2b") == "m2a_1"
+        assert qm2.quote_tier_m2(q_m2b, passages_q, arm="m2b") == "m2b_2"
+        assert qm2.quote_tier_m2b("", passages_q) is None
+        with pytest.raises(ValueError, match="Unknown arm"):
+            qm2.quote_tier_m2("x", passages, arm="bad")
+        p_m2_short = ["fn Call(x)\nother line with Call(x) in it\nUniqueFn(9)"]
+        assert qm2.quote_tier_m2a("fn Call ( x )", p_m2_short) == "m2a_short"
+        assert qm2.quote_tier_m2a("UniqueFn ( 9 )", p_m2_short) == "m2a_short"
+        assert qm2.quote_tier_m2a("MissingFn ( 9 )", p_m2_short) is None
+        assert len(qm2.find_quote_spans_m2a("fn Call ( x )", p_m2_short)) >= 1
+        assert (
+            len(qm2.find_quote_spans_m2a("first fragment has enough words here and does not fail", p_multi))
+            == 1
+        )
+        assert qm2.find_quote_spans_m2a("definitely not found", p_m2_short) == []
+        assert len(qm2.find_quote_spans_m2b(q_m2b, passages_q)) == 1
+        assert qm2.quote_credit_m2a(
+            ["", q_punct_ws, q_punct_ws, "not found", "a ( 1 )", "UniqueFn ( 9 )"],
+            passages + p_m2_short,
+            verdict="unsupported",
+            correct=True,
+        ) == pytest.approx(0.05)
+
+        # locate_raw_span_m2a maps normalized match back to raw passage offsets for anti-farming
+        span1 = v11cfg.locate_raw_span_m2a(q_punct_ws, passages)
+        assert span1 is not None and span1[0] == 0 and span1[1] < span1[2]
+        assert v11cfg.locate_raw_span_m2a("", passages) is None
+        assert v11cfg.locate_raw_span_m2a("short", passages) is None
+        assert v11cfg.locate_raw_span_m2a("definitely not in passage anywhere at all", passages) is None
+
+        # Also exercise tier0, tier1, tier2 ellipsis, and short-quote branches of locate_raw_span_m2a and canary helpers
+        p_hyph = [
+            "+ // word-\n  continuation in a long enough line here\r\n\r\n+ second para line here with words"
+        ]
+        assert v11cfg.locate_raw_span_m2a("wordcontinuation in a long enough line here", p_hyph) is not None
+        assert (
+            v11cfg.locate_raw_span_m2a(
+                "wordcontinuation in a long ( enough ) line here",
+                ["word-\ncontinuation in a long(enough) line here"],
+            )
+            is not None
+        )
+        assert (
+            v11cfg.locate_raw_span_m2a(
+                "quote with 'literal ( inside )' and 1 . 5", ["quote with 'literal ( inside )' and 1 . 5"]
+            )
+            is not None
+        )
+        q_exact = "def compute_score(items, weights):"
+        span_t0 = v11cfg.locate_raw_span_m2a(q_exact, passages)
+        assert span_t0 is not None and span_t0[3] == "0"
+        span_t0_unm = v11cfg.locate_raw_span_m2a(
+            "first fragment has enough words here and does not fail", p_multi
+        )
+        assert span_t0_unm is not None and span_t0_unm[3] == "0"
+        span_t0_short = v11cfg.locate_raw_span_m2a("shortline99", p_multi)
+        assert span_t0_short is not None and span_t0_short[3] == "0"
+        span_t0_short_raw = v11cfg.locate_raw_span_m2a("rawshort99", ["rawshort99\nother line"])
+        assert span_t0_short_raw is not None and span_t0_short_raw[3] == "0"
+        span_t1 = v11cfg.locate_raw_span_m2a(
+            "“first fragment has enough words here and does not fail”", p_multi
+        )
+        assert span_t1 is not None and span_t1[3] == "1"
+        span_t2_m1 = v11cfg.locate_raw_span_m2a(q_t2_ok, p_multi)
+        assert span_t2_m1 is not None and span_t2_m1[3] == "2"
+        q_ell = "def compute_score ( items , weights ) ... return total / len ( items )"
+        span_t2 = v11cfg.locate_raw_span_m2a(q_ell, passages)
+        assert span_t2 is not None and span_t2[3] == "m2a_2"
+        span_m2a_sh_line = v11cfg.locate_raw_span_m2a("fn Call ( x )", p_m2_short)
+        assert span_m2a_sh_line is not None and span_m2a_sh_line[3] == "m2a_short"
+        span_m2a_sh_unm = v11cfg.locate_raw_span_m2a("fn Call ( x )", ["+ fn Call(x)\n+ other line"])
+        assert span_m2a_sh_unm is not None and span_m2a_sh_unm[3] == "m2a_short"
+        p_short = ["+ Err (E409) in log\n+ Another line here with more words"]
+        span_sh = v11cfg.locate_raw_span_m2a("Err ( E409 )", p_short)
+        assert span_sh is not None and span_sh[3] == "m2a_short"
+
+        # Canary helper edge cases (table/para boundary, sign/escape edge slicing, balanced brackets, pct_linear, McNemar)
+        with pytest.raises(ValueError, match="Discordant counts must be non-negative"):
+            v11cfg.mcnemar_one_sided_exact_p(-1, 0)
+        assert v11cfg.mcnemar_one_sided_exact_p(0, 3) == 1.0
+        assert v11cfg.pct_linear([], 0.1) == 0.0
+        assert v11cfg.pct_linear([10.0], 0.1) == 10.0
+        assert v11cfg.pct_linear([10.0, 20.0, 30.0], 0.5) == 20.0
+        assert v11cfg.pct_linear([10.0, 20.0], 0.25) == 12.5
+        assert v11cfg._check_balanced_brackets("a(b[c]{d})", ignore_literals=True) is True
+        assert v11cfg._check_balanced_brackets('a("unbalanced [ in literal")', ignore_literals=True) is True
+        assert v11cfg._check_balanced_brackets("a(b]", ignore_literals=False) is False
+        p_tbl = "| col1 | col2 |\n| --- | --- |\n| val1 | -42 |\n\nNext paragraph here"
+        bc = v11cfg._check_span_boundary(p_tbl, 0, len(p_tbl))
+        assert bc["para_break"] is True and bc["table_md"] is True
+        es = v11cfg._check_span_edge_slicing("value is -42 in text", 10, 12, "...-42...")
+        assert es["raw_sign_before_digit"] is True and es["any_sign_or_escape"] is True
+        can_res = v11cfg.compute_window_canaries_v11(
+            [
+                {"quote": "| val1 | -42 |", "passages": [p_tbl]},
+                {"quote": "42 in text", "passages": ["value is -42 in text"]},
+                {"quote": "unmatched quote", "passages": ["value is -42 in text"]},
+                {
+                    "quote": "unbalanced [ quote",
+                    "passages": ["unbalanced [ quote"],
+                    "m2a_matched": True,
+                    "raw_span": None,
+                },
+                {"quote": "span3", "passages": ["span3 ( ok )"], "m2a_matched": True, "raw_span": [0, 0, 5]},
+                {"quote": "span2", "passages": ["span2 ( ok )"], "m2a_matched": True, "raw_span": [0, 5]},
+            ]
+        )
+        assert can_res["total_emitted_quotes"] == 6
+        assert can_res["boundary_crossing_count"] >= 1
+        assert can_res["sign_escape_edge_slice_count"] >= 1
+
+        # reward_details under M1 vs M2a
+        reply = "<think>checking</think>" + json.dumps(
+            {
+                "verdict": "supported",
+                "evidence_quotes": [
+                    {"part": "p1", "verdict": "supported", "quote": q_punct_ws},
+                    {"part": "p2", "verdict": "supported", "quote": q_punct_ws},
+                ],
+            }
+        )
+        det_m1 = s2.reward_details(reply, "supported", passages, 5, quote_reward="v2", quote_matcher="rule2")
+        det_m2a = s2.reward_details(reply, "supported", passages, 5, quote_reward="v2", quote_matcher="M2a")
+        assert det_m1["quote_credit"] == 0.0
+        # Under M2a, first quote matches and second identical quote is rejected by span-disjoint anti-farming
+        assert det_m2a["quote_credit"] == pytest.approx(0.05) and len(det_m2a["quote_records"]) == 2
+        assert s2.reward(reply, "supported", passages, 5, quote_reward="v2", quote_matcher="M2a") > s2.reward(
+            reply, "supported", passages, 5, quote_reward="v2", quote_matcher="rule2"
+        )
+
+    def test_update1_clamp_and_post_clamp_assertion(self):
+        # Wrong-label completion with high format/quote score vs truncated wrong completions
+        rewards = [0.20, -1.0, -1.0, -1.0]
+        correct = [False, False, False, True]
+        raw_adv = s2.advantages(rewards, mode="dr-grpo")
+        assert raw_adv[0] > 0.0
+        adv = s2.clamp_wrong_positive_advantages(raw_adv, correct)
+        # Post-clamp assertion passes because wrong-label completion 0 was clamped to 0.0
+        assert adv[0] == 0.0
+        s2.assert_no_wrong_positive_advantages(adv, correct)
+
+        # Unclamped wrong-label positive advantage triggers immediate RuntimeError
+        with pytest.raises(RuntimeError, match="POST_CLAMP_WRONG_POSITIVE_ADVANTAGE"):
+            s2.assert_no_wrong_positive_advantages(raw_adv, correct)
+
+    def test_constant_loss_denominator_4514_matches_microbatch_backward(self):
+        torch.manual_seed(7)
+        B, T = 4, 6
+        mask = torch.ones((B, T), dtype=torch.float32)
+        mask[:, -1] = 0.0  # 20 active tokens total
+        old_lp = torch.randn((B, T), dtype=torch.float32)
+        ref_lp = torch.randn((B, T), dtype=torch.float32)
+        adv = torch.tensor([0.5, -0.4, 0.2, -0.3], dtype=torch.float32)
+
+        p1 = torch.nn.Parameter(old_lp.detach().clone())
+        loss_default = s2.grpo_loss(p1, old_lp, ref_lp, adv, mask)
+        loss_const = s2.grpo_loss(
+            p1,
+            old_lp,
+            ref_lp,
+            adv,
+            mask,
+            constant_loss_denominator=v11cfg.S2V11.constant_loss_denominator,
+        )
+        scale = float(mask.sum().item()) / float(v11cfg.S2V11.constant_loss_denominator)
+        assert pytest.approx(loss_const.item(), rel=1e-5) == loss_default.item() * scale
+
+
+class TestS2V11GuardConfirmCanariesAndSim:
+    def _group_rec(
+        self,
+        item_id="g00",
+        gold="supported",
+        verdicts=("supported", "supported"),
+        correct=(True, True),
+        adv=(0.1, -0.1),
+        quote_records=None,
+        step=0,
+        group=0,
+    ):
+        return {
+            "step": step,
+            "group": group,
+            "item_id": item_id,
+            "gold_verdict": gold,
+            "verdicts": list(verdicts),
+            "correct_flags": list(correct),
+            "advantages_list": list(adv),
+            "quote_records": list(quote_records) if quote_records is not None else None,
+        }
+
+    def test_step0_baseline_ordering_required_before_confirm(self):
+        # Trip Fuse A (4 groups on C with >= 2 cannot_tell -> B_w=4, S_w = 4 - 0.211 = 3.789 >= 3.25)
+        # without recording step0_baseline -> raises RuntimeError(STEP0_BASELINE_MISSING)
+        guard2 = s2.CtCollapseGuard(
+            window_groups=4,
+            s2_v11=True,
+            canary_c_ids=("c1", "c2", "c3", "c4"),
+            gold_unsupported_ids=("c1", "c2", "c3", "c4"),
+            confirm_runner=lambda ids, step=0, rule="": {
+                i: {"verdict": "unsupported", "correct": True} for i in ids
+            },
+        )
+        for idx in range(3):
+            assert (
+                guard2.record_group(
+                    **self._group_rec(
+                        f"c{idx + 1}",
+                        "unsupported",
+                        verdicts=("cannot_tell", "cannot_tell"),
+                        correct=(False, False),
+                        adv=(0.0, 0.0),
+                    )
+                )
+                is None
+            )
+        with pytest.raises(RuntimeError, match="STEP0_BASELINE_MISSING"):
+            guard2.record_group(
+                **self._group_rec(
+                    "c4",
+                    "unsupported",
+                    verdicts=("cannot_tell", "cannot_tell"),
+                    correct=(False, False),
+                    adv=(0.0, 0.0),
+                )
+            )
+
+    def test_s1_inert_and_s2_direct_halt_under_v11(self):
+        guard = s2.CtCollapseGuard(
+            window_groups=3,
+            s2_v11=True,
+            canary_c_ids=("c1",),
+            gold_unsupported_ids=("u1",),
+            confirm_runner=lambda ids, step=0, rule="": {
+                i: {"verdict": "unsupported", "correct": True} for i in ids
+            },
+        )
+        guard.record_step0_baseline({"c1": {"verdict": "unsupported"}, "u1": {"verdict": "unsupported"}})
+        # 3 distinct supported items with CT: in v1.0 this trips S1, in v1.1 S1 is dropped as inert
+        for idx in range(3):
+            w = guard.record_group(
+                **self._group_rec(
+                    f"sup_{idx}",
+                    "supported",
+                    verdicts=("cannot_tell", "supported"),
+                    correct=(False, True),
+                    adv=(0.0, 0.2),
+                )
+            )
+        assert w is None
+        assert guard.window_history[-1]["s1_inert"] is True
+        assert guard.window_history[-1]["triggered_rules"] == []
+
+        # Direct S2 halt when cumulative gold-supported answers >= 600, CT rate > 0.015, distinct CT items >= 4
+        guard_s2 = s2.CtCollapseGuard(
+            window_groups=1,
+            s2_v11=True,
+            canary_c_ids=("c1",),
+            gold_unsupported_ids=("u1",),
+            confirm_runner=lambda ids, step=0, rule="": {
+                i: {"verdict": "unsupported", "correct": True} for i in ids
+            },
+        )
+        guard_s2.record_step0_baseline({"c1": {"verdict": "unsupported"}, "u1": {"verdict": "unsupported"}})
+        guard_s2.cum_sup_answers = 600
+        guard_s2.cum_sup_ct_answers = 12
+        guard_s2.cum_sup_ct_items = {"a", "b", "c"}
+        w_s2 = guard_s2.record_group(
+            **self._group_rec(
+                "d",
+                "supported",
+                verdicts=("cannot_tell", "supported"),
+                correct=(False, True),
+                adv=(0.0, 0.1),
+            )
+        )
+        assert w_s2 is not None and "S2" in w_s2["triggered_rules"]
+
+    def test_fuse_a_confirm_negative_keeps_cusum_and_confirm_positive_halts(self):
+        c_ids = tuple(f"c{i}" for i in range(6))
+        confirm_state = {"ct_count": 1}  # first trip: only 1 CT on C (< 2) -> CONFIRM-NEGATIVE
+
+        def runner(ids, step=0, rule=""):
+            out = {}
+            for idx, cid in enumerate(ids):
+                is_ct = idx < confirm_state["ct_count"]
+                out[cid] = {"verdict": "cannot_tell" if is_ct else "unsupported", "correct": not is_ct}
+            return out
+
+        guard = s2.CtCollapseGuard(
+            window_groups=4,
+            s2_v11=True,
+            canary_c_ids=c_ids,
+            gold_unsupported_ids=c_ids,
+            confirm_runner=runner,
+        )
+        guard.record_step0_baseline({cid: {"verdict": "unsupported"} for cid in c_ids})
+        # 4 groups on C (using 2 distinct items c0, c1 so U1 does not trip) each with >= 2 CT -> B_w = 4, S_1 = 3.789 >= 3.25 -> Fuse A trips!
+        for idx in range(4):
+            w1 = guard.record_group(
+                **self._group_rec(
+                    f"c{idx % 2}",
+                    "unsupported",
+                    verdicts=("cannot_tell", "cannot_tell"),
+                    correct=(False, False),
+                    adv=(0.0, 0.0),
+                )
+            )
+        assert w1 is None  # CONFIRM-NEGATIVE does not halt
+        assert guard.confirm_trips_total == 1
+        assert guard.confirmations_used == 1
+        # S_w is NOT reset to 0 after CONFIRM-NEGATIVE; it stays at 3.789 (>= 3.25)
+        assert pytest.approx(guard.fuse_a_s, rel=1e-5) == 4.0 - 0.211
+        assert any(d.get("status") == "CONFIRM-NEGATIVE" for d in guard.decision_history)
+
+        # Next window: confirm_state returns 3 CT on C (>= 2 and delta over step-0 is 3 >= 2) -> CONFIRM-POSITIVE -> halts!
+        confirm_state["ct_count"] = 3
+        for idx in range(4):
+            w2 = guard.record_group(
+                **self._group_rec(
+                    f"c{idx % 2}",
+                    "unsupported",
+                    verdicts=("cannot_tell", "cannot_tell"),
+                    correct=(False, False),
+                    adv=(0.0, 0.0),
+                )
+            )
+        assert w2 is not None
+        assert "FUSE_A-CONFIRMED" in w2["triggered_rules"]
+        assert (
+            s2.train_verdict_line(
+                stopped=w2,
+                oom=False,
+                next_step=1,
+                steps_total=10,
+                chunk_stop=None,
+                fits=True,
+                dry=True,
+            )
+            == "S2-TRAIN-HALT-FUSE_A-CONFIRMED"
+        )
+
+    def test_channel_b_and_u1_mcnemar_confirm_and_4th_trip_halt_cap(self):
+        u_ids = tuple(f"u{i}" for i in range(12))
+        step0 = {uid: {"verdict": "unsupported", "correct": True} for uid in u_ids}
+        call_count = {"n": 0, "worsen": 1, "bad_verdict": "cannot_tell"}
+
+        def runner(ids, step=0, rule=""):
+            call_count["n"] += 1
+            out = {}
+            for idx, uid in enumerate(ids):
+                wrong_now = idx < call_count["worsen"]
+                out[uid] = {
+                    "verdict": call_count["bad_verdict"] if wrong_now else "unsupported",
+                    "correct": not wrong_now,
+                }
+            return out
+
+        guard = s2.CtCollapseGuard(
+            window_groups=4,
+            s2_v11=True,
+            canary_c_ids=("c_none",),
+            gold_unsupported_ids=u_ids,
+            confirm_runner=runner,
+        )
+        guard.record_step0_baseline(step0)
+
+        # Trip U1 (4 distinct gold-unsupported items with CT and correct_rate < 0.78) 3 times with n_worse=1 (p=0.5 >= 0.05)
+        for trip in range(3):
+            for g_idx in range(4):
+                w = guard.record_group(
+                    **self._group_rec(
+                        f"u{g_idx}",
+                        "unsupported",
+                        verdicts=("cannot_tell", "unsupported"),
+                        correct=(False, True),
+                        adv=(0.0, 0.1),
+                    )
+                )
+            assert w is None
+            assert guard.confirm_trips_total == trip + 1
+            assert guard.confirmations_used == trip + 1
+            assert call_count["n"] == trip + 1
+
+        # 4th trip hits confirmations_used == 3 == confirm_cap_per_run -> unconditional U1-CAP halt without calling runner!
+        for g_idx in range(4):
+            w4 = guard.record_group(
+                **self._group_rec(
+                    f"u{g_idx}",
+                    "unsupported",
+                    verdicts=("cannot_tell", "unsupported"),
+                    correct=(False, True),
+                    adv=(0.0, 0.1),
+                )
+            )
+        assert w4 is not None
+        assert w4["triggered_rules"] == ["U1-CAP"]
+        assert call_count["n"] == 3  # runner was NOT called on the 4th trip!
+        assert (
+            s2.train_verdict_line(
+                stopped=w4,
+                oom=False,
+                next_step=4,
+                steps_total=10,
+                chunk_stop=None,
+                fits=True,
+                dry=True,
+            )
+            == "S2-TRAIN-HALT-U1-CAP"
+        )
+
+        # Now test Channel B + U1 tripping in the SAME window: they share a single 184-item pass!
+        # And when 6 items flip to 'supported' (p = 0.5^6 = 0.015625 < 0.05), Channel B confirms positive!
+        call_count["n"] = 0
+        call_count["worsen"] = 6
+        call_count["bad_verdict"] = "supported"
+        guard_cb = s2.CtCollapseGuard(
+            window_groups=13,
+            s2_v11=True,
+            canary_c_ids=("c_none",),
+            gold_unsupported_ids=u_ids,
+            confirm_runner=runner,
+        )
+        guard_cb.record_step0_baseline(step0)
+        # 13 groups on gold-unsupported with >= 2 'supported' -> FA2_w = 13, S_w = 13 - 5.03 = 7.97 >= 7.0 (Channel B trips)
+        for g_idx in range(13):
+            w_cb = guard_cb.record_group(
+                **self._group_rec(
+                    f"u{g_idx % 12}",
+                    "unsupported",
+                    verdicts=("supported", "supported"),
+                    correct=(False, False),
+                    adv=(0.0, 0.0),
+                )
+            )
+        assert w_cb is not None
+        assert "CHANNEL_B-CONFIRMED" in w_cb["triggered_rules"]
+        assert call_count["n"] == 1
+
+    def test_six_window_canaries_and_two_consecutive_window_stop_and_report(self):
+        guard = s2.CtCollapseGuard(
+            window_groups=1,
+            s2_v11=True,
+            canary_c_ids=("c1",),
+            gold_unsupported_ids=("u1",),
+            confirm_runner=lambda ids, step=0, rule="": {},
+        )
+        guard.record_step0_baseline({"c1": {"verdict": "unsupported"}, "u1": {"verdict": "unsupported"}})
+        # Quote that fails M1 (shadow_m1_pass_rate = 0.0 < 0.70) and has unbalanced brackets
+        bad_q = [
+            {
+                "quote": "def foo ( x , y : return [ x + y",
+                "passage": "def foo(x, y): return [x + y]",
+                "m1_matched": False,
+                "m2a_matched": True,
+                "raw_span": [0, 0, 28, "m2a_1"],
+            }
+        ]
+        # Window 1: 1 window breach does NOT trigger STOP-AND-REPORT
+        w1 = guard.record_group(**self._group_rec("s1", "supported", quote_records=bad_q))
+        assert w1 is None
+        assert guard.canary_violation_streaks["shadow_m1_pass_rate"] == 1
+        assert guard.canary_violation_streaks["unbalanced_brackets_rate"] == 1
+
+        # Window 2: 2 consecutive windows breaching canary -> STOP-AND-REPORT!
+        w2 = guard.record_group(**self._group_rec("s2", "supported", quote_records=bad_q))
+        assert w2 is not None
+        assert w2["canary_stop"] is True
+        assert "shadow_m1_pass_rate" in w2["tripped_canaries"]
+        verdict = s2.train_verdict_line(
+            stopped=w2,
+            oom=False,
+            next_step=2,
+            steps_total=10,
+            chunk_stop=None,
+            fits=True,
+            dry=True,
+        )
+        assert verdict == "STOP-AND-REPORT"
+        assert s2.exit_status(verdict) == 3  # distinct from guard halt (2)
+
+        # State serialization round-trip preserves v1.1 fields
+        st = guard.to_state()
+        restored = s2.CtCollapseGuard.from_state(
+            st,
+            pass_a_k={},
+            s2_v11=True,
+            canary_c_ids=("c1",),
+            gold_unsupported_ids=("u1",),
+        )
+        assert restored.canary_violation_streaks == guard.canary_violation_streaks
+        assert restored.step0_baseline == guard.step0_baseline
+
+        # Verify evaluate_canary_rollback_v11 on each of the 5 rollback lines (i, ii, iii, iv, vi)
+        for line_key, bad_canaries in [
+            (
+                "shadow_m1_pass_rate",
+                {"total_emitted_quotes": 10, "m2a_matched_quotes": 10, "shadow_m1_pass_rate": 0.65},
+            ),
+            (
+                "boundary_crossing_rate",
+                {"total_emitted_quotes": 10, "m2a_matched_quotes": 10, "boundary_crossing_rate": 0.02},
+            ),
+            (
+                "sign_escape_edge_slice_count",
+                {"total_emitted_quotes": 10, "m2a_matched_quotes": 10, "sign_escape_edge_slice_count": 3},
+            ),
+            (
+                "unbalanced_brackets_rate",
+                {"total_emitted_quotes": 10, "m2a_matched_quotes": 10, "unbalanced_brackets_rate": 0.30},
+            ),
+            (
+                "accepted_quote_norm_len_p10",
+                {"total_emitted_quotes": 10, "m2a_matched_quotes": 10, "accepted_quote_norm_len_p10": 14.0},
+            ),
+        ]:
+            r1 = v11cfg.evaluate_canary_rollback_v11(bad_canaries, {})
+            assert r1["violations"][line_key] is True and r1["stop_and_report"] is False
+            r2 = v11cfg.evaluate_canary_rollback_v11(bad_canaries, r1["streaks"])
+            assert r2["stop_and_report"] is True and line_key in r2["tripped_canaries"]
+            assert r2["verdict"] == "STOP-AND-REPORT"
+
+    def test_poisson_cusum_100k_simulation_reproduces_prereg_rates(self):
+        # §5.1 Fuse A: Garwood 95% upper bound lam_win = 0.1157, k = 0.211, h = 3.25 over 20 windows -> FA ≈ 0.022
+        sim_a = v11cfg.simulate_constant_exposure_cusum(
+            0.1157, v11cfg.S2V11.fuse_a_k, v11cfg.S2V11.fuse_a_h, n_runs=100_000, seed=20261108
+        )
+        # §5.2 Channel B: Garwood 95% upper bound lam_win = 3.4846, k = 5.03, h = 7.0 over 20 windows -> FA ≈ 0.018
+        sim_b = v11cfg.simulate_constant_exposure_cusum(
+            3.4846, v11cfg.S2V11.channel_b_k, v11cfg.S2V11.channel_b_h, n_runs=100_000, seed=20261108
+        )
+        assert abs(sim_a["rate"] - 0.022) <= 0.002
+        assert abs(sim_b["rate"] - 0.018) <= 0.002
+
+
+class TestS2V11DryAndDefaultUnchanged:
+    def test_s2_v11_dry_two_step_chunk_and_default_path_unchanged(self, tmp_path, monkeypatch, capsys):
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, syn_sets = _make_synthetic_v11_prepass(tmp_path, gold)
+
+        # First verify that without patching S2V11's 128/184 counts, execute() refuses with S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH
+        monkeypatch.setattr(
+            s2, "S2V11", dataclasses.replace(v11cfg.S2V11, pass_a_sha256=pa_sha, pass_b_sha256=pb_sha)
+        )
+        out_mismatch = tmp_path / "v11_mismatch"
+        with pytest.raises(SystemExit, match="S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH"):
+            _run(
+                [
+                    "--gold",
+                    str(gold),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(out_mismatch),
+                    "--dry",
+                    "--s2-v11",
+                    "--arm",
+                    "mech",
+                    "--train-seed",
+                    "45",
+                    "--stop-after-updates",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--pass-a-jsonl",
+                    str(pa_path),
+                    "--pass-a-sha256",
+                    pa_sha,
+                    "--pass-b-jsonl",
+                    str(pb_path),
+                    "--pass-b-sha256",
+                    pb_sha,
+                ]
+            )
+
+        # Now patch S2V11 to match the synthetic 60-item gold fixture's counts & SHAs
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+        out_v11 = tmp_path / "v11_dry"
+        rc_v11 = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_v11),
+                "--dry",
+                "--s2-v11",
+                "--arm",
+                "mech",
+                "--train-seed",
+                "45",
+                "--stop-after-updates",
+                "2",
+                "--max-new",
+                "8",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ]
+        )
+        # In dry mode at --max-new 8, completions truncate on update 0 (still < 10-update trunc window)
+        # and guard window is 40 groups (10 updates), so 2 steps complete cleanly with rc == 0.
+        assert rc_v11 == 0
+        captured = capsys.readouterr().out
+        assert '"event": "s2_v11_canary_sets_ready"' in captured
+        rec = _receipt(out_v11)
+        assert rec["prereg_version"] == "1.1"
+        assert rec["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
+        assert len(rec["s2_v11_config_sha256"]) == 64
+        assert rec["s2_v11_config"]["prereg_version"] == "1.1"
+        assert rec["canary_c_ids_sha256"] == syn_sets["canary_c_ids_sha256"]
+        assert rec["gold_unsupported_ids_sha256"] == syn_sets["gold_unsupported_ids_sha256"]
+        hdr = json.loads((out_v11 / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert hdr["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
+        assert hdr["settings"]["s2_v11"] is True
+        assert hdr["canary_c_count"] == syn_sets["canary_c_count"]
+        assert hdr["canary_c_ids_sha256"] == syn_sets["canary_c_ids_sha256"]
+        assert hdr["gold_unsupported_count"] == syn_sets["gold_unsupported_count"]
+        assert hdr["gold_unsupported_ids_sha256"] == syn_sets["gold_unsupported_ids_sha256"]
+        assert hdr["pass_a_sha256"] == pa_sha
+        assert hdr["pass_b_sha256"] == pb_sha
+        hist = _history(out_v11)
+        assert any(h.get("kind") == "step0_canary_pass" for h in hist)
+        rows = _rows(out_v11)
+        assert len(rows) == 2
+
+        # Default path (no --s2-v11) has no v1.1 fields in header, steps, or save-all rows
+        out_def = tmp_path / "default_dry"
+        rc_def = _run(_argv(gold, out_def, steps=2, gpu=2))
+        assert rc_def == 0
+        rec_def = _receipt(out_def)
+        hdr_def = json.loads((out_def / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        assert "prereg_version" not in rec_def and "s2_v11_config" not in rec_def
+        assert "prereg_version" not in hdr_def and "s2_v11" not in hdr_def["settings"]
+        rows_def = _rows(out_def)
+        assert len(rows_def) == 2
+        sa_def = s2.read_save_all(out_def / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_def) == 8
+
+        # Exercise run_v11_t0_pass with dry=False on a fake CPU model + tokenizer (no GPU)
+        import types
+
+        reply_str = "<think>t0 check</think>" + json.dumps(
+            {
+                "verdict": "unsupported",
+                "evidence_quotes": [{"part": "p1", "verdict": "unsupported", "quote": "def count(tokens):"}],
+            }
+        )
+
+        class _FakeTok:
+            pad_token_id = 0
+            eos_token_id = 2
+
+            def __call__(self, txt, return_tensors="pt"):
+                return {"input_ids": torch.tensor([[1, 2, 3]])}
+
+            def decode(self, seq, skip_special_tokens=True):
+                return reply_str
+
+            def encode(self, txt):
+                return [1, 2]
+
+        fake_tok = _FakeTok()
+        fake_model = types.SimpleNamespace(
+            device="cpu",
+            generate=lambda prompt_ids, **kw: torch.tensor([[1, 2, 3, 4, 5, 2, 0]]),
+        )
+        t0_res = s2.run_v11_t0_pass(
+            model=fake_model,
+            tok=fake_tok,
+            rows_by_id={"g00": _row("g00", label="unsupported")},
+            item_ids=["g00"],
+            max_new=16,
+            render_fn=lambda s: s,
+            pass_attention_mask=True,
+            quote_reward="v2",
+            dry=False,
+            device_sync=lambda: None,
+        )
+        assert t0_res["g00"]["verdict"] == "unsupported"
+        assert t0_res["g00"]["correct"] is True
+
+        # Also exercise reward_details M2a branches for wrong verdict and v1 quote_reward
+        det_wrong = s2.reward_details(
+            reply_str, "supported", ["def count(tokens): return 1"], 4, quote_reward="v2", quote_matcher="M2a"
+        )
+        assert det_wrong["correct"] is False and det_wrong["quote_matcher"] == "M2a"
+        det_v1_ok = s2.reward_details(
+            reply_str,
+            "unsupported",
+            ["def count(tokens): return 1"],
+            4,
+            quote_reward="v1",
+            quote_matcher="M2a",
+        )
+        assert det_v1_ok["correct"] is True and det_v1_ok["quote_matcher"] == "M2a"
+        det_v1_wrong = s2.reward_details(
+            reply_str, "supported", ["def count(tokens): return 1"], 4, quote_reward="v1", quote_matcher="M2a"
+        )
+        assert det_v1_wrong["correct"] is False and det_v1_wrong["quote_matcher"] == "M2a"
+
+    def test_s2_v11_m2a_wiring_every_site_and_default_rule2(self) -> None:
+        """Ask 1: Under --s2-v11 every quote judgement site uses M2a; without --s2-v11 it uses rule2."""
+        # A quote that matches M2a (code-punctuation whitespace tolerant) and fails rule2:
+        passage = "def compute_total(items, tax_rate): return sum(items)"
+        quote_m2a_only = "def compute_total ( items , tax_rate ) : return sum ( items )"
+        assert s2.quote_found(quote_m2a_only, [passage]) is False
+        assert s2.quote_found_m2a(quote_m2a_only, [passage]) is True
+
+        reply_sup = "<think>ok</think>" + json.dumps(
+            {
+                "verdict": "supported",
+                "evidence_quotes": [{"part": "p1", "verdict": "supported", "quote": quote_m2a_only}],
+            }
+        )
+        reply_unsup = "<think>ok</think>" + json.dumps(
+            {
+                "verdict": "unsupported",
+                "evidence_quotes": [{"part": "p1", "verdict": "unsupported", "quote": quote_m2a_only}],
+            }
+        )
+        row_sup = {
+            "id": "m2a-item",
+            "claim": "compute_total sums items",
+            "label": "supported",
+            "context": [{"text": passage}],
+        }
+
+        # 1. _call_reward_fn with a reward_fn like real_bundle's
+        def rb_default(text, r, tt, truncated=False, quote_matcher="rule2"):
+            return s2.reward(
+                text,
+                r["label"],
+                s2.passages_of(r),
+                tt,
+                truncated=truncated,
+                quote_reward="v2",
+                quote_matcher=quote_matcher,
+            )
+
+        def rb_v11(text, r, tt, truncated=False, quote_matcher=s2.S2V11.matcher):
+            return s2.reward(
+                text,
+                r["label"],
+                s2.passages_of(r),
+                tt,
+                truncated=truncated,
+                quote_reward="v2",
+                quote_matcher=quote_matcher,
+            )
+
+        r_rule2 = s2._call_reward_fn(rb_default, reply_sup, row_sup, 4, False, quote_matcher="rule2")
+        r_m2a = s2._call_reward_fn(rb_v11, reply_sup, row_sup, 4, False, quote_matcher="M2a")
+        assert r_rule2 == pytest.approx(-0.2)
+        assert r_m2a > 1.0  # 1.0 + M2a quote credit (+0.05)
+
+        # 2. completion_eval_outcome
+        out_r2 = s2.completion_eval_outcome(reply_sup, row_sup, reward_val=r_rule2, quote_matcher="rule2")
+        out_m2a = s2.completion_eval_outcome(reply_sup, row_sup, reward_val=r_m2a, quote_matcher="M2a")
+        assert out_r2["quote_outcomes"][0]["found"] is False
+        assert out_m2a["quote_outcomes"][0]["found"] is True
+        assert out_m2a["quote_outcomes"][0]["rung"] == "M2a"
+
+        # 3. evaluation_summary (both via quote_outcomes and raw quotes fallback)
+        raw_grp = [
+            {
+                "gold": "supported",
+                "claim": "compute_total sums items",
+                "passages": [passage],
+                "rollouts": [{"verdict": "supported", "reward": 1.05, "quotes": [quote_m2a_only]}],
+            }
+        ]
+        sum_r2 = s2.evaluation_summary(raw_grp, advantage_mode="dr-grpo", quote_matcher="rule2")
+        sum_m2a = s2.evaluation_summary(raw_grp, advantage_mode="dr-grpo", quote_matcher="M2a")
+        assert sum_r2["quote_relevance"]["total"] == 0
+        assert sum_m2a["quote_relevance"]["total"] == 1
+
+        # 4. prepass_item_record
+        tok = s2.DryTokenizer()
+        comp_ids = [tok.encode(reply_sup)]
+        rec_r2, _ = s2.prepass_item_record(
+            row=row_sup,
+            prompt_ids=[2, 3],
+            comps=comp_ids,
+            truncs=[False],
+            tok=tok,
+            reward_fn=rb_default,
+            quote_reward="v2",
+            quote_matcher="rule2",
+        )
+        rec_m2a, _ = s2.prepass_item_record(
+            row=row_sup,
+            prompt_ids=[2, 3],
+            comps=comp_ids,
+            truncs=[False],
+            tok=tok,
+            reward_fn=rb_v11,
+            quote_reward="v2",
+            quote_matcher="M2a",
+        )
+        assert rec_r2["quote_pass"] == 0
+        assert rec_m2a["quote_pass"] == 1
+
+        # 5. critic_hint
+        hint_r2 = s2.critic_hint("compute_total", [passage], [(reply_unsup, False)], quote_matcher="rule2")
+        hint_m2a = s2.critic_hint("compute_total", [passage], [(reply_unsup, False)], quote_matcher="M2a")
+        assert hint_r2["quote_check"] == "quote_not_found"
+        assert hint_m2a["quote_check"] == "quotes_found"
+
+    def test_s2_v11_audited_quote_rule_isolation_and_four_sha_checks(self, tmp_path: Path) -> None:
+        """Ask 2: Verify 4-file SHA checks, lazy isolated loader, and sys.path[0] poison immunity."""
+        import shutil
+        import sys
+
+        import s2_v11_config as v11cfg
+
+        verifier_dir = Path(s2.__file__).resolve().parent
+        shas = v11cfg.verify_v11_sealed_files()
+        assert shas["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
+        assert shas["quote_matcher_m1_sha256"] == v11cfg.S2V11.quote_matcher_m1_sha256
+        assert shas["quote_matcher_m2_sha256"] == v11cfg.S2V11.quote_matcher_m2_sha256
+        assert shas["quote_rule_audited_sha256"] == v11cfg.QUOTE_RULE_AUDITED_SHA256_V11
+
+        # Create a shadow verifier_dir in tmp_path to test each of the 4 SHA mismatch codes
+        fake_vdir = tmp_path / "verifier_dir"
+        fake_vdir.mkdir()
+        fake_rroot = tmp_path / "repo_root"
+        (fake_rroot / "docs" / "runs").mkdir(parents=True)
+        prereg_dst = fake_rroot / v11cfg.PREREG_V11_RELPATH
+        shutil.copyfile(verifier_dir.parents[1] / v11cfg.PREREG_V11_RELPATH, prereg_dst)
+        for fname in ("quote_matcher_m1.py", "quote_matcher_m2.py", v11cfg.QUOTE_RULE_AUDITED_FILENAME_V11):
+            shutil.copyfile(verifier_dir / fname, fake_vdir / fname)
+
+        # (1) S2_V11_PREREG_SHA256_MISMATCH
+        orig_bytes = prereg_dst.read_bytes()
+        prereg_dst.write_bytes(orig_bytes + b"\n")
+        with pytest.raises(ValueError, match=r"S2_V11_PREREG_SHA256_MISMATCH.*expected 9b2db4cf"):
+            v11cfg.load_v11_matchers(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir)
+        prereg_dst.write_bytes(orig_bytes)
+
+        # (2) S2_V11_M1_SHA256_MISMATCH
+        m1_dst = fake_vdir / "quote_matcher_m1.py"
+        orig_m1 = m1_dst.read_bytes()
+        m1_dst.write_bytes(orig_m1 + b"\n")
+        with pytest.raises(ValueError, match=r"S2_V11_M1_SHA256_MISMATCH.*expected 57064f46"):
+            v11cfg.load_v11_matchers(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir)
+        m1_dst.write_bytes(orig_m1)
+
+        # (3) S2_V11_M2_SHA256_MISMATCH
+        m2_dst = fake_vdir / "quote_matcher_m2.py"
+        orig_m2 = m2_dst.read_bytes()
+        m2_dst.write_bytes(orig_m2 + b"\n")
+        with pytest.raises(ValueError, match=r"S2_V11_M2_SHA256_MISMATCH.*expected 98780f92"):
+            v11cfg.load_v11_matchers(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir)
+        m2_dst.write_bytes(orig_m2)
+
+        # (4) S2_V11_QUOTE_RULE_SHA256_MISMATCH
+        qr_dst = fake_vdir / v11cfg.QUOTE_RULE_AUDITED_FILENAME_V11
+        orig_qr = qr_dst.read_bytes()
+        qr_dst.write_bytes(orig_qr + b"\n")
+        with pytest.raises(ValueError, match=r"S2_V11_QUOTE_RULE_SHA256_MISMATCH.*expected 1aae2469"):
+            v11cfg.load_v11_matchers(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir)
+        qr_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_QUOTE_RULE_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        qr_dst.write_bytes(orig_qr)
+        m2_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_M2_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        m2_dst.write_bytes(orig_m2)
+        m1_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_M1_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        m1_dst.write_bytes(orig_m1)
+        prereg_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_PREREG_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        prereg_dst.write_bytes(orig_bytes)
+
+        # Verify module isolation and immunity to a poisoned quote_rule.py on sys.path[0]
+        passage = "def compute_total(items, tax_rate): return sum(items)"
+        quote_str = "def compute_total ( items , tax_rate ) : return sum ( items )"
+        qr_mod, m1_mod, m2_mod = v11cfg.load_v11_matchers(force_reload=True)
+        assert m1_mod.quote_found.__module__ == "quote_rule_audited_1aae2469"
+        assert s2.quote_found.__module__ == "quote_rule"
+        res_clean = m2_mod.quote_found_m2a(quote_str, [passage])
+
+        # Exercise all functions in quote_rule_audited_1aae2469 to verify audited rule behavior
+        assert qr_mod.rust_lines("") == []
+        assert qr_mod.rust_lines("a\r\nb\n") == ["a", "b"]
+        assert qr_mod.strip_markers("+ // comment text") == "comment text"
+        assert qr_mod.strip_markers("++ not diff") == "++ not diff"
+        assert qr_mod.as_passages("single") == ["single"]
+        assert qr_mod.as_passages([{"text": "dict_text"}, "str_text"]) == ["dict_text", "str_text"]
+        assert qr_mod.quote_found("", [passage]) is False
+        assert qr_mod.quote_found("shortLine", ["shortLine\notherLine"]) is True
+        assert qr_mod.quote_credit_v2([passage], [passage], verdict="supported", correct=False) == 0.0
+        assert (
+            qr_mod.quote_credit_v2(
+                [
+                    "",
+                    passage,
+                    passage,
+                    "def compute_total(items, tax_rate):",
+                    "shortLine",
+                    "not_found_quote_12345",
+                    "1234567",
+                ],
+                [passage, "shortLine\n1234567"],
+                verdict="supported",
+                correct=True,
+            )
+            >= 0.05
+        )
+        assert (
+            qr_mod.quote_credit_v2(
+                ["shortLine"],
+                ["shortLine"],
+                verdict="unsupported",
+                correct=True,
+            )
+            == 0.0
+        )
+        assert qr_mod._spans_overlap_25pct((0, 0, 10), (1, 0, 10)) is False
+        assert qr_mod._spans_overlap_25pct((0, 0, 10), (0, 20, 30)) is False
+        assert qr_mod._spans_overlap_25pct((0, 0, 10), (0, 5, 15)) is True
+        assert qr_mod.classify_quote_rung(passage, [passage]) == "rule_2"
+        assert qr_mod.classify_quote_rung("", [passage]) == "unmatched"
+        assert qr_mod.classify_quote_rung("sum", [passage]) == "no_minimum"
+        assert qr_mod.classify_quote_rung(passage.upper(), [passage]) == "case"
+        assert (
+            qr_mod.classify_quote_rung("def compute_total items tax_rate return sum items", [passage])
+            == "punctuation"
+        )
+        assert (
+            qr_mod.classify_quote_rung("def compute_total ... return sum(items)", [passage])
+            == "ellipsis_split"
+        )
+        assert qr_mod.classify_quote_rung("...not_in_passage...", [passage]) == "unmatched"
+        assert (
+            qr_mod.classify_quote_rung("first part second part", ["first part", "second part"])
+            == "joined_passages"
+        )
+        assert (
+            qr_mod.classify_quote_rung(
+                "alpha beta gamma delta epsilon zeta",
+                ["   ", "alpha beta gamma delta epsilon"],
+            )
+            == "fuzzy"
+        )
+        assert (
+            qr_mod.classify_quote_rung(
+                "alpha beta gamma delta epsilon",
+                ["prefix alpha beta gamma delta extra suffix"],
+            )
+            == "fuzzy"
+        )
+        assert qr_mod.classify_quote_rung("completely unrelated words xyz", [passage]) == "unmatched"
+        assert qr_mod.quote_is_relevant("compute_total sums items", "compute_total") is True
+        assert qr_mod.quote_is_relevant("only the and", "other words") is False
+
+        poison_dir = tmp_path / "poison_sys_path"
+        poison_dir.mkdir()
+        (poison_dir / "quote_rule.py").write_text(
+            "raise RuntimeError('POISON_QUOTE_RULE_IMPORTED')\n",
+            encoding="utf-8",
+        )
+        orig_sys_path = list(sys.path)
+        try:
+            sys.path.insert(0, str(poison_dir))
+            qr_mod2, m1_mod2, m2_mod2 = v11cfg.load_v11_matchers(force_reload=True)
+            assert m1_mod2.quote_found.__module__ == "quote_rule_audited_1aae2469"
+            assert s2.quote_found.__module__ == "quote_rule"
+            res_poison = m2_mod2.quote_found_m2a(quote_str, [passage])
+            assert res_poison == res_clean is True
+            assert sys.path == [str(poison_dir), *orig_sys_path]
+        finally:
+            sys.path[:] = orig_sys_path
+
+    def test_s2_v11_t0_pass_eval_mode_step0_and_midrun_restores_train_mode(self) -> None:
+        """Ask 3: Both step-0 baseline and mid-run confirmation run in eval mode and restore training mode afterwards."""
+        import torch
+
+        reply_str = "<think>t0 check</think>" + json.dumps(
+            {
+                "verdict": "unsupported",
+                "evidence_quotes": [
+                    {"part": "p1", "verdict": "unsupported", "quote": "def count(tokens): return 1"}
+                ],
+            }
+        )
+
+        class _FakeTok:
+            pad_token_id = 0
+            eos_token_id = 2
+
+            def __call__(self, txt, return_tensors="pt"):
+                return {"input_ids": torch.tensor([[1, 2, 3]])}
+
+            def decode(self, seq, skip_special_tokens=True):
+                return reply_str
+
+            def encode(self, txt):
+                return [1, 2]
+
+        observed_in_generate: list[dict] = []
+
+        class _FakeBaseConfig:
+            use_cache = False
+
+        class _FakeInner:
+            def __init__(self) -> None:
+                self.config = _FakeBaseConfig()
+                self.is_gradient_checkpointing = True
+
+            def gradient_checkpointing_enable(self, **kw) -> None:
+                self.is_gradient_checkpointing = True
+
+            def gradient_checkpointing_disable(self) -> None:
+                self.is_gradient_checkpointing = False
+
+        class _FakeModel:
+            device = "cpu"
+
+            def __init__(self) -> None:
+                self.training = True
+                self._inner = _FakeInner()
+
+            def get_base_model(self):
+                return self._inner
+
+            def train(self, mode_flag: bool = True):
+                self.training = bool(mode_flag)
+                return self
+
+            def eval(self):
+                self.training = False
+                return self
+
+            def generate(self, prompt_ids, **kw):
+                observed_in_generate.append(
+                    {
+                        "training": self.training,
+                        "use_cache": self._inner.config.use_cache,
+                        "grad_ckpt": self._inner.is_gradient_checkpointing,
+                    }
+                )
+                return torch.tensor([[1, 2, 3, 4, 5, 2, 0]])
+
+        model = _FakeModel()
+        mode_fn, state_fn = s2.make_mode(model)
+        tok = _FakeTok()
+        rows_by_id = {"c0": _row("c0", label="unsupported"), "c1": _row("c1", label="unsupported")}
+
+        # Step-0 pass (starting from training mode True, grad_ckpt True)
+        assert model.training is True and state_fn()["grad_ckpt"] is True
+        step0_res = s2.run_v11_t0_pass(
+            model=model,
+            tok=tok,
+            rows_by_id=rows_by_id,
+            item_ids=["c0", "c1"],
+            max_new=16,
+            dry=False,
+            mode=mode_fn,
+            state=state_fn,
+        )
+        # Inside generate, model was in eval mode (training=False, use_cache=True, grad_ckpt=False)
+        assert len(observed_in_generate) == 2
+        assert all(
+            obs == {"training": False, "use_cache": True, "grad_ckpt": False} for obs in observed_in_generate
+        )
+        # Each pass item record records mode='eval', eval_mode=True, grad_ckpt=False
+        for cid in ("c0", "c1"):
+            assert step0_res[cid]["mode"] == "eval"
+            assert step0_res[cid]["eval_mode"] is True
+            assert step0_res[cid]["grad_ckpt"] is False
+        # Training mode is restored afterwards
+        assert model.training is True
+        assert state_fn()["grad_ckpt"] is True
+        assert model._inner.config.use_cache is False
+
+        # Mid-run confirmation pass via CtCollapseGuard (starting from rollout/eval mode False)
+        mode_fn(False)
+        assert model.training is False
+        observed_in_generate.clear()
+
+        guard = s2.CtCollapseGuard(
+            window_groups=2,
+            s2_v11=True,
+            canary_c_ids=("c0", "c1"),
+            gold_unsupported_ids=("c0", "c1"),
+            confirm_runner=lambda ids, step=0, rule="": s2.run_v11_t0_pass(
+                model=model,
+                tok=tok,
+                rows_by_id=rows_by_id,
+                item_ids=ids,
+                max_new=16,
+                dry=False,
+                mode=mode_fn,
+                state=state_fn,
+            ),
+        )
+        s0_rec = guard.record_step0_baseline(step0_res)
+        assert s0_rec["mode"] == "eval" and s0_rec["eval_mode"] is True
+
+        # Trigger Fuse A in a 2-group window (B_w = 4 across 2 windows)
+        for _ in range(4):
+            guard.record_group(
+                step=1,
+                group=0,
+                item_id="c0",
+                gold_verdict="unsupported",
+                verdicts=("cannot_tell", "cannot_tell"),
+                correct_flags=(False, False),
+                advantages_list=(0.0, 0.0),
+            )
+        # Mid-run confirmation ran in eval mode and restored training mode afterwards!
+        assert len(observed_in_generate) == 2
+        assert all(
+            obs == {"training": False, "use_cache": True, "grad_ckpt": False} for obs in observed_in_generate
+        )
+        assert model.training is True
+        assert state_fn()["grad_ckpt"] is True
+        conf_recs = [d for d in guard.decision_history if d.get("kind") == "guard_confirmation"]
+        assert len(conf_recs) == 1
+        assert conf_recs[0]["mode"] == "eval" and conf_recs[0]["eval_mode"] is True
+
+    def test_s2_v11_joint_channel_b_u1_shared_pass_counts_once_and_resumes_cap(self) -> None:
+        """Ask 4: Joint CHANNEL_B + U1 trip runs 184-item pass once, counts once toward cap, and U1 reads cache even at cap==2."""
+        u_ids = tuple(f"u{i}" for i in range(12))
+        step0 = {uid: {"verdict": "unsupported", "correct": True} for uid in u_ids}
+        runner_State = {"calls": 0, "sup_flips": 1, "ct_flips": 1}
+
+        def runner(ids, step=0, rule=""):
+            runner_State["calls"] += 1
+            out = {}
+            for idx, uid in enumerate(ids):
+                if idx < runner_State["sup_flips"]:
+                    v = "supported"
+                elif idx < runner_State["sup_flips"] + runner_State["ct_flips"]:
+                    v = "cannot_tell"
+                else:
+                    v = "unsupported"
+                out[uid] = {"verdict": v, "correct": v == "unsupported", "mode": "eval", "eval_mode": True}
+            return out
+
+        guard = s2.CtCollapseGuard(
+            window_groups=13,
+            s2_v11=True,
+            canary_c_ids=("c_none",),
+            gold_unsupported_ids=u_ids,
+            confirm_runner=runner,
+        )
+        guard.record_step0_baseline(step0)
+
+        # Window 1: trip BOTH CHANNEL_B (13 groups with >=2 supported -> FA2=13, S_B=7.97>=7.0)
+        # and U1 (>=4 distinct gold-unsupported items with CT and correct_rate < 0.78).
+        # With sup_flips=1, ct_flips=1: CHANNEL_B is CONFIRM-NEGATIVE, and U1 reads the SAME cached pass!
+        for g_idx in range(13):
+            w1 = guard.record_group(
+                step=1,
+                group=g_idx,
+                item_id=f"u{g_idx % 6}",
+                gold_verdict="unsupported",
+                verdicts=("supported", "supported", "cannot_tell", "unsupported"),
+                correct_flags=(False, False, False, True),
+                advantages_list=(0.0, 0.0, 0.0, 0.1),
+            )
+        assert w1 is None
+        assert runner_State["calls"] == 1
+        assert guard.confirm_trips_total == 2  # both CHANNEL_B and U1 tripped
+        assert guard.confirmations_used == 1  # shared pass counted ONCE!
+        confs_w1 = [d for d in guard.decision_history if d.get("kind") == "guard_confirmation"]
+        assert [c["rule"] for c in confs_w1] == ["CHANNEL_B", "U1"]
+        assert confs_w1[0]["shared_pass"] is False and confs_w1[0]["confirmations_used"] == 1
+        assert confs_w1[1]["shared_pass"] is True and confs_w1[1]["confirmations_used"] == 1
+
+        # Test chunk resume preserves confirmations_used and confirm_trips_total
+        guard.confirmations_used = 2  # simulate 2 confirmations used before window 2
+        saved_state = guard.to_state()
+        resumed = s2.CtCollapseGuard.from_state(
+            saved_state,
+            pass_a_k={},
+            mode="halt",
+            s2_v11=True,
+            canary_c_ids=("c_none",),
+            gold_unsupported_ids=u_ids,
+            confirm_runner=runner,
+        )
+        assert resumed.confirmations_used == 2
+        assert resumed.confirm_trips_total == 2
+
+        # Window 2 on resumed guard entering with confirmations_used == 2:
+        # Joint CHANNEL_B + U1 trip where CHANNEL_B runs confirmation #3 (CONFIRM-NEGATIVE),
+        # and U1 MUST read the cached pass (NOT return U1-CAP!) and confirm positive when ct_flips=6!
+        runner_State["sup_flips"] = 1  # CHANNEL_B negative (p=0.5)
+        runner_State["ct_flips"] = 6  # U1 positive (p=0.5^6 = 0.015625 < 0.05)
+        for g_idx in range(13):
+            w2 = resumed.record_group(
+                step=2,
+                group=g_idx,
+                item_id=f"u{g_idx % 6}",
+                gold_verdict="unsupported",
+                verdicts=("supported", "supported", "cannot_tell", "unsupported"),
+                correct_flags=(False, False, False, True),
+                advantages_list=(0.0, 0.0, 0.0, 0.1),
+            )
+        assert w2 is not None
+        assert w2["triggered_rules"] == ["U1-CONFIRMED"]
+        assert runner_State["calls"] == 2  # only 1 new pass executed in window 2
+        assert resumed.confirmations_used == 3
+
+    def test_s2_v11_update_60_state_protected_and_recorded(self, tmp_path: Path, monkeypatch) -> None:
+        """Ask 5: Update-60 state is never pruned by save_train_state and its path + adapter sha are recorded."""
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, _ = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        a = _ns(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(tmp_path / "sec60_unit"),
+                "--dry",
+                "--s2-v11",
+                "--arm",
+                "mech",
+                "--train-seed",
+                "45",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ]
+        )
+        s2.validate_training_args(a)
+        bundle = s2.dry_bundle(a)
+        hdr = {"prereg_version": "1.1", "settings": {"s2_v11": True, "groups_per_update": 4}}
+        trunc = s2.TruncationHaltGuard(window_updates=10, halt_rate=0.20)
+        out_u = tmp_path / "sec60_unit"
+        for step_n in (50, 60, 70, 80):
+            s2.save_train_state(
+                out_u,
+                model=bundle["model"],
+                optimiser=bundle["optimiser"],
+                header=hdr,
+                next_step=step_n,
+                steps_total=197,
+                chunk_index=1,
+                ct_guard=None,
+                trunc_guard=trunc,
+                prior_chain=[],
+                chunk_link={"chunk_dir": out_u.name, "chunk_index": 1, "first_step": 0, "next_step": step_n},
+                adapter_sha=None,
+                halted=None,
+                resumed_from=None,
+                kind="periodic",
+                keep=2,
+            )
+        saved_names = [d.name for d in s2.state_dirs(out_u)]
+        # Step 50 was pruned, Step 60 was protected, and newest 2 (70, 80) were kept!
+        assert saved_names == ["0001-step-00060", "0002-step-00070", "0003-step-00080"]
+        assert (out_u / "adapter-step-00060").is_dir()
+        st80 = json.loads((s2.latest_state_dir(out_u) / "state.json").read_text(encoding="utf-8"))
+        assert st80["secondary_checkpoint"]["update"] == 60
+        assert st80["secondary_checkpoint"]["state_dir"] == "train-state/0001-step-00060"
+        assert len(st80["secondary_checkpoint"]["adapter_sha256"]) == 64
+
+        # Also verify end-to-end execute() records update_60_state_path and update_60_adapter_sha256
+        # in both s2-hf-train-header.json and s2-hf.json when the secondary checkpoint update is reached
+        syn_cfg_sec1 = dataclasses.replace(syn_cfg, secondary_checkpoint_update=1)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg_sec1)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg_sec1)
+        out_e2e = tmp_path / "sec_e2e"
+        rc = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_e2e),
+                "--dry",
+                "--s2-v11",
+                "--arm",
+                "mech",
+                "--train-seed",
+                "45",
+                "--stop-after-updates",
+                "3",
+                "--state-every-updates",
+                "1",
+                "--max-new",
+                "8",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ]
+        )
+        assert rc == 0
+        e2e_dirs = [d.name for d in s2.state_dirs(out_e2e)]
+        assert "0000-step-00001" in e2e_dirs
+        hdr_e2e = json.loads((out_e2e / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        rec_e2e = _receipt(out_e2e)
+        assert hdr_e2e["update_60_state_path"].endswith("train-state/0000-step-00001")
+        assert len(hdr_e2e["update_60_adapter_sha256"]) == 64
+        assert rec_e2e["update_60_state_path"] == hdr_e2e["update_60_state_path"]
+        assert rec_e2e["update_60_adapter_sha256"] == hdr_e2e["update_60_adapter_sha256"]
+        assert rec_e2e["training"]["update_60_adapter_sha256"] == hdr_e2e["update_60_adapter_sha256"]
+
+    def test_s2_v11_stop_and_report_finishes_update_and_resume_after_review(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Ask 6: STOP-AND-REPORT finishes the current update (keeps gradients), writes stopped_for_review,
+        and resumes only with --resume-after-review '<reason>' recorded in header and s2-hf.json."""
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, _ = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        # Force CtCollapseGuard.record_group to return a canary STOP-AND-REPORT on step 1, group 3
+        orig_record_group = s2.CtCollapseGuard.record_group
+
+        def _fake_record_group(self, **kw):
+            res = orig_record_group(self, **kw)
+            if int(kw.get("step", -1)) == 1 and int(kw.get("group", -1)) == 3:
+                return {
+                    "step": 1,
+                    "group": 3,
+                    "window_index": 1,
+                    "reason": "canary_stop_and_report",
+                    "canary_stop": True,
+                    "triggered_rules": [],
+                    "triggered_canaries": ["C1_SHADOW_M1_PASS_RATE"],
+                    "verdict": "STOP-AND-REPORT",
+                }
+            return res
+
+        monkeypatch.setattr(s2.CtCollapseGuard, "record_group", _fake_record_group)
+
+        def _non_truncated_dry_bundle(a):
+            b = s2.dry_bundle(a)
+
+            def _rollout_no_trunc(text, g, max_new, temp):
+                return [2, 3, 4], [[10 + i, 11 + i] for i in range(g)], [False for _ in range(g)]
+
+            b["rollout"] = _rollout_no_trunc
+            return b
+
+        c1 = tmp_path / "chunk1_review_stop"
+        base_args = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--dry",
+            "--s2-v11",
+            "--arm",
+            "mech",
+            "--train-seed",
+            "45",
+            "--g",
+            "2",
+            "--max-new",
+            "8",
+            "--state-every-updates",
+            "1",
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
+        ]
+        rc1 = _run(
+            [*base_args, "--out", str(c1), "--stop-after-updates", "3"],
+            build=_non_truncated_dry_bundle,
+        )
+        assert rc1 == s2.TRAIN_EXIT_CANARY_STOP == 3
+        rec1 = _receipt(c1)
+        assert rec1["verdict"] == "STOP-AND-REPORT"
+        # Update 1 (the 2nd update, 0-indexed step=1) finished and its gradients were applied!
+        assert rec1["training"]["next_step"] == 2
+        assert rec1["training"]["halted"] is None
+        assert rec1["training"]["stopped_for_review"]["reason"] == "canary_stop_and_report"
+        assert rec1["stopped_for_review"]["triggered_canaries"] == ["C1_SHADOW_M1_PASS_RATE"]
+
+        # Compare trainable weights at step 1 (0000-step-00001) vs final step 2 (0001-step-00002)
+        t_step1 = torch.load(
+            c1 / s2.TRAIN_STATE_DIR / "0000-step-00001" / "trainable.pt",
+            map_location="cpu",
+            weights_only=True,
+        )
+        t_step2 = torch.load(
+            c1 / s2.TRAIN_STATE_DIR / "0001-step-00002" / "trainable.pt",
+            map_location="cpu",
+            weights_only=True,
+        )
+        assert any(not torch.equal(t_step1[k], t_step2[k]) for k in t_step1)
+
+        st1 = json.loads(
+            (c1 / s2.TRAIN_STATE_DIR / "0001-step-00002" / "state.json").read_text(encoding="utf-8")
+        )
+        assert st1["halted"] is None
+        assert st1["stopped_for_review"]["reason"] == "canary_stop_and_report"
+        assert st1["next_step"] == 2
+
+        # Restore normal record_group for resume checks
+        monkeypatch.setattr(s2.CtCollapseGuard, "record_group", orig_record_group)
+
+        # 1. Resuming without --resume-after-review refuses with RESUME_FROM_STOPPED_FOR_REVIEW
+        with pytest.raises(SystemExit, match="RESUME_FROM_STOPPED_FOR_REVIEW"):
+            _run([*base_args, "--out", str(tmp_path / "c2_no_flag"), "--resume-from", str(c1)])
+
+        # 2. Empty reason or missing --resume-from refuses
+        with pytest.raises(SystemExit, match="RESUME_AFTER_REVIEW_REASON_REQUIRED"):
+            _run(
+                [
+                    *base_args,
+                    "--out",
+                    str(tmp_path / "c2_empty"),
+                    "--resume-from",
+                    str(c1),
+                    "--resume-after-review",
+                    "   ",
+                ]
+            )
+        with pytest.raises(SystemExit, match="RESUME_AFTER_REVIEW_REQUIRES_RESUME_FROM"):
+            _run([*base_args, "--out", str(tmp_path / "c2_no_rf"), "--resume-after-review", "ok"])
+
+        # 3. Resuming with --resume-after-review succeeds and records the reason in both header and s2-hf.json
+        c2 = tmp_path / "chunk2_resumed"
+        review_msg = "Publisher reviewed C1 streak and approved continuation"
+        rc2 = _run(
+            [
+                *base_args,
+                "--out",
+                str(c2),
+                "--resume-from",
+                str(c1),
+                "--resume-after-review",
+                review_msg,
+                "--stop-after-updates",
+                "1",
+            ],
+            build=_non_truncated_dry_bundle,
+        )
+        assert rc2 == 0
+        hdr2 = json.loads((c2 / "s2-hf-train-header.json").read_text(encoding="utf-8"))
+        rec2 = _receipt(c2)
+        assert hdr2["resume_after_review"] == review_msg
+        assert len(hdr2["review_resumes"]) == 1
+        assert hdr2["review_resumes"][0]["reason"] == review_msg
+        assert hdr2["review_resumes"][0]["step"] == 2
+        assert rec2["resume_after_review"] == review_msg
+        assert rec2["review_resumes"][0]["reason"] == review_msg
+        assert rec2["training"]["resume_after_review"] == review_msg
+        assert rec2["training"]["review_resumes"][0]["reason"] == review_msg
+        assert rec2["training"]["start_step"] == 2
+        assert rec2["training"]["next_step"] == 3
+
+        # 4. Passing --resume-after-review on a normal non-stopped chunk (c2) refuses with RESUME_AFTER_REVIEW_NOT_STOPPED
+        with pytest.raises(SystemExit, match="RESUME_AFTER_REVIEW_NOT_STOPPED"):
+            _run(
+                [
+                    *base_args,
+                    "--out",
+                    str(tmp_path / "c3_bad"),
+                    "--resume-from",
+                    str(c2),
+                    "--resume-after-review",
+                    "not stopped",
+                ]
+            )
+
+    def test_s2_v11_end_to_end_run_steps_rewards_and_advantages_use_m2a(self, tmp_path: Path) -> None:
+        """Ask 7(a): End-to-end run_steps test that the rewards used for advantages come from M2a under --s2-v11."""
+        passage = "def compute_total(items, tax_rate): return sum(items)"
+        quote_m2a_only = "def compute_total ( items , tax_rate ) : return sum ( items )"
+        reply_m2a = "<think>ok</think>" + json.dumps(
+            {
+                "verdict": "supported",
+                "evidence_quotes": [{"part": "p1", "verdict": "supported", "quote": quote_m2a_only}],
+            }
+        )
+        reply_bad = "<think>ok</think>" + json.dumps(
+            {
+                "verdict": "supported",
+                "evidence_quotes": [{"part": "p1", "verdict": "supported", "quote": "not in passage at all"}],
+            }
+        )
+        prompt_row = _row("m2a-e2e", label="supported", text=passage)
+
+        def _run_one_step(is_v11: bool):
+            a = _ns(_argv(_gold(tmp_path), tmp_path / f"e2e_{is_v11}", steps=1, gpu=1))
+            bundle = s2.dry_bundle(a)
+            tok = bundle["tok"]
+            c0 = tok.encode(reply_m2a)
+            c1 = tok.encode(reply_bad)
+            p_ids = tok.encode("prompt")
+
+            def custom_rollout(_text, _g, _max_new, _temp):
+                return p_ids, [c0, c1], [False, False]
+
+            # Exact reward_fn shape from real_bundle
+            quote_mat = s2.S2V11.matcher if is_v11 else "rule2"
+
+            def real_like_reward_fn(text, row, tt, truncated=False, quote_matcher=quote_mat):
+                return s2.reward(
+                    text,
+                    row["label"],
+                    s2.passages_of(row),
+                    tt,
+                    truncated=truncated,
+                    quote_reward="v2",
+                    quote_matcher=quote_matcher,
+                )
+
+            save_recs: list[dict] = []
+            rows, stopped, oom = s2.run_steps(
+                model=bundle["model"],
+                ref_adapter_off=bundle["ref_adapter_off"],
+                tok=tok,
+                optimiser=bundle["optimiser"],
+                prompts=[prompt_row],
+                rollout=custom_rollout,
+                steps=1,
+                g=2,
+                max_new=64,
+                reward_fn=real_like_reward_fn,
+                device_sync=bundle["sync"],
+                peak_alloc_mib=bundle["peak_alloc_mib"],
+                mode=bundle["mode"],
+                state=bundle["state"],
+                groups_per_update=1,
+                zero_variance_mask=True,
+                advantage_mode="dr-grpo",
+                mask_truncated=True,
+                quote_reward="v2",
+                save_all_records=save_recs,
+                mask_wrong_positive_advantage=True,
+                s2_v11=is_v11,
+            )
+            assert stopped is None and not oom
+            return rows[0], save_recs
+
+        rec_v11, sa_v11 = _run_one_step(True)
+        rec_r2, sa_r2 = _run_one_step(False)
+
+        # Under --s2-v11 (M2a), reply_m2a matches (+1.05) and reply_bad fails (-0.20):
+        # advantages are [+0.625, -0.625], active_groups == 1, zero_variance_groups == 0!
+        assert rec_v11["active_groups"] == 1
+        assert rec_v11["zero_variance_groups"] == 0
+        assert rec_v11["mean_reward"] == pytest.approx((1.05 + (-0.2)) / 2.0, abs=1e-4)
+        assert [r["reward"] for r in sa_v11] == [pytest.approx(1.05), pytest.approx(-0.2)]
+        assert [r["advantage"] for r in sa_v11] == [pytest.approx(0.625), pytest.approx(-0.625)]
+
+        # Without --s2-v11 (rule2), BOTH completions get -0.20, so advantages are [0.0, 0.0] and group is zero-variance!
+        assert rec_r2["active_groups"] == 0
+        assert rec_r2["zero_variance_groups"] == 1
+        assert rec_r2["mean_reward"] == pytest.approx(-0.2, abs=1e-4)
+        assert [r["reward"] for r in sa_r2] == [pytest.approx(-0.2), pytest.approx(-0.2)]
+        assert [r["advantage"] for r in sa_r2] == [pytest.approx(0.0), pytest.approx(0.0)]
+
+    def test_s2_v11_constant_denominator_4514_in_microbatch_backward_and_run_steps(
+        self, tmp_path: Path
+    ) -> None:
+        """Ask 7(b): Verify constant denominator 4,514 is used by grpo_microbatch_backward and run_steps, not active_tokens."""
+        a = _ns(_argv(_gold(tmp_path), tmp_path / "denom_test", steps=1, gpu=1))
+        bundle_const = s2.dry_bundle(a)
+        bundle_active = s2.dry_bundle(a)
+        model_c = bundle_const["model"]
+        model_a = bundle_active["model"]
+
+        # 1. Direct grpo_microbatch_backward test: loss and parameter grads scale by active_tokens / 4514.0
+        prompt_len = 4
+        ids = torch.tensor([[2, 3, 4, 5, 10, 11, 12, 13, 14, 15], [2, 3, 4, 5, 16, 17, 18, 19, 0, 0]])
+        att = torch.tensor([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 0, 0]])
+        mask = torch.tensor([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0, 0.0, 0.0]])
+        active_tokens = float(mask.sum().item())  # 10.0 tokens
+        adv = torch.tensor([0.5, -0.5])
+
+        with torch.no_grad():
+            old_c = s2.completion_logprobs_microbatch(model_c, ids, att, prompt_len, 1)
+            with bundle_const["ref_adapter_off"]():
+                ref_c = s2.completion_logprobs_microbatch(model_c, ids, att, prompt_len, 1)
+
+        bundle_const["optimiser"].zero_grad(set_to_none=True)
+        loss_const = s2.grpo_microbatch_backward(
+            model_c,
+            ids,
+            att,
+            prompt_len,
+            old_c,
+            ref_c,
+            adv,
+            mask,
+            microbatch=1,
+            scale=1.0,
+            zero_variance_mask=True,
+            group_size=2,
+            dual_clip_c=3.0,
+            constant_loss_denominator=4514,
+        )
+        grads_const = {
+            n: p.grad.detach().clone()
+            for n, p in model_c.named_parameters()
+            if p.requires_grad and p.grad is not None
+        }
+
+        bundle_active["optimiser"].zero_grad(set_to_none=True)
+        loss_active = s2.grpo_microbatch_backward(
+            model_a,
+            ids,
+            att,
+            prompt_len,
+            old_c.clone(),
+            ref_c.clone(),
+            adv,
+            mask,
+            microbatch=1,
+            scale=1.0,
+            zero_variance_mask=True,
+            group_size=2,
+            dual_clip_c=3.0,
+            constant_loss_denominator=None,
+        )
+        grads_active = {
+            n: p.grad.detach().clone()
+            for n, p in model_a.named_parameters()
+            if p.requires_grad and p.grad is not None
+        }
+
+        expected_ratio = active_tokens / 4514.0
+        assert float(loss_const.item()) == pytest.approx(float(loss_active.item()) * expected_ratio, rel=1e-5)
+        for name in grads_const:
+            assert torch.allclose(
+                grads_const[name], grads_active[name] * expected_ratio, rtol=1e-5, atol=1e-7
+            )
+
+        # 2. End-to-end run_steps test (both microbatch=1 and microbatch=None)
+        for mb in (1, None):
+            b_v11 = s2.dry_bundle(a)
+            b_def = s2.dry_bundle(a)
+            p_ids = [2, 3, 4, 5]
+            c_seqs = [[10, 11, 12, 13, 14, 15], [16, 17, 18, 19]]
+
+            def fixed_rollout(_text, _g, _max_new, _temp):
+                return p_ids, c_seqs, [False, False]
+
+            # Perturb trainable parameters away from zero so old != ref and KL/policy loss is non-zero
+            for m in (b_v11["model"], b_def["model"]):
+                with torch.no_grad():
+                    for p in m.parameters():
+                        if p.requires_grad:
+                            p.add_(0.05)
+
+            rows_v11, _, _ = s2.run_steps(
+                model=b_v11["model"],
+                ref_adapter_off=b_v11["ref_adapter_off"],
+                tok=b_v11["tok"],
+                optimiser=b_v11["optimiser"],
+                prompts=[_row("d0")],
+                rollout=fixed_rollout,
+                steps=1,
+                g=2,
+                max_new=16,
+                reward_fn=lambda txt, r, tt, truncated=False, **kw: 1.0 if len(txt) > 4 else -0.2,
+                device_sync=b_v11["sync"],
+                peak_alloc_mib=b_v11["peak_alloc_mib"],
+                mode=b_v11["mode"],
+                state=b_v11["state"],
+                logprob_microbatch=mb,
+                groups_per_update=1,
+                zero_variance_mask=True,
+                advantage_mode="dr-grpo",
+                mask_truncated=True,
+                quote_reward="v2",
+                mask_wrong_positive_advantage=True,
+                s2_v11=True,
+            )
+            rows_def, _, _ = s2.run_steps(
+                model=b_def["model"],
+                ref_adapter_off=b_def["ref_adapter_off"],
+                tok=b_def["tok"],
+                optimiser=b_def["optimiser"],
+                prompts=[_row("d0")],
+                rollout=fixed_rollout,
+                steps=1,
+                g=2,
+                max_new=16,
+                reward_fn=lambda txt, r, tt, truncated=False, **kw: 1.0 if len(txt) > 4 else -0.2,
+                device_sync=b_def["sync"],
+                peak_alloc_mib=b_def["peak_alloc_mib"],
+                mode=b_def["mode"],
+                state=b_def["state"],
+                logprob_microbatch=mb,
+                groups_per_update=1,
+                zero_variance_mask=True,
+                advantage_mode="dr-grpo",
+                mask_truncated=True,
+                quote_reward="v2",
+                mask_wrong_positive_advantage=True,
+                s2_v11=False,
+            )
+            assert rows_def[0]["loss"] != 0.0
+            assert rows_v11[0]["loss"] == pytest.approx(
+                rows_def[0]["loss"] * (10.0 / 4514.0), rel=1e-3, abs=1e-6
+            )
+
+    def test_s2_v11_cusum_fixed_k_never_scaled_by_exposure_and_m1_nonevents(self) -> None:
+        """Ask 1 (Fix 3): CUSUM updates use fixed k (0.211 / 5.03) and are never scaled by exposure m_w,
+        plus m = 1 non-events do not count for either channel."""
+        c_ids = tuple(f"c{i}" for i in range(128))
+        u_extra = tuple(f"u_extra_{i}" for i in range(56))
+        u_ids = c_ids + u_extra
+        assert len(c_ids) == 128 and len(u_ids) == 184
+
+        step0 = {uid: {"verdict": "unsupported", "correct": True} for uid in u_ids}
+
+        def run_sequence(
+            m_exposures: tuple[int, int, int],
+            b_counts: tuple[int, int, int],
+            n_exposures: tuple[int, int, int],
+            fa2_counts: tuple[int, int, int],
+        ) -> tuple[list[float], list[float], list[int]]:
+            confirm_calls: list[int] = []
+
+            def confirm_runner(ids, step=0, rule=""):
+                confirm_calls.append(len(ids))
+                return {cid: {"verdict": "unsupported", "correct": True} for cid in ids}
+
+            guard = s2.CtCollapseGuard(
+                window_groups=40,
+                s2_v11=True,
+                canary_c_ids=c_ids,
+                gold_unsupported_ids=u_ids,
+                confirm_runner=confirm_runner,
+            )
+            guard.record_step0_baseline(step0)
+            s_a_hist: list[float] = []
+            s_b_hist: list[float] = []
+
+            for w_idx in range(3):
+                m_w = m_exposures[w_idx]
+                b_w = b_counts[w_idx]
+                n_w = n_exposures[w_idx]
+                fa2_w = fa2_counts[w_idx]
+                u_extra_n = n_w - m_w
+                assert m_w >= b_w and u_extra_n >= fa2_w and n_w <= 40
+
+                for g_idx in range(40):
+                    if g_idx < b_w:
+                        # C-group with m = 2 cannot_tell -> counts toward B_w
+                        item_id, gold_v = c_ids[g_idx], "unsupported"
+                        verdicts = ("cannot_tell", "cannot_tell") + ("unsupported",) * 6
+                    elif g_idx == b_w and g_idx < m_w:
+                        # C-group with m = 1 cannot_tell -> non-event for Fuse A!
+                        item_id, gold_v = c_ids[g_idx], "unsupported"
+                        verdicts = ("cannot_tell",) + ("unsupported",) * 7
+                    elif g_idx < m_w:
+                        # Remaining C-groups with 0 cannot_tell
+                        item_id, gold_v = c_ids[g_idx], "unsupported"
+                        verdicts = ("unsupported",) * 8
+                    elif g_idx < m_w + fa2_w:
+                        # Gold-unsupported (non-C) group with m = 2 supported -> counts toward FA2_w
+                        item_id, gold_v = u_extra[g_idx - m_w], "unsupported"
+                        verdicts = ("supported", "supported") + ("unsupported",) * 6
+                    elif g_idx == m_w + fa2_w and g_idx < n_w:
+                        # Gold-unsupported (non-C) group with m = 1 supported -> non-event for Channel B!
+                        item_id, gold_v = u_extra[g_idx - m_w], "unsupported"
+                        verdicts = ("supported",) + ("unsupported",) * 7
+                    elif g_idx < n_w:
+                        # Remaining gold-unsupported (non-C) groups with 0 supported
+                        item_id, gold_v = u_extra[g_idx - m_w], "unsupported"
+                        verdicts = ("unsupported",) * 8
+                    else:
+                        item_id, gold_v = "sup_0", "supported"
+                        verdicts = ("supported",) * 8
+                    flags = tuple(v == gold_v for v in verdicts)
+                    advs = tuple(0.0 if not f else 0.1 for f in flags)
+                    res = guard.record_group(
+                        step=w_idx * 10 + g_idx // 4,
+                        group=g_idx % 4,
+                        item_id=item_id,
+                        gold_verdict=gold_v,
+                        verdicts=verdicts,
+                        correct_flags=flags,
+                        advantages_list=advs,
+                    )
+                    assert res is None
+                w_rec = guard.window_history[-1]
+                assert w_rec["fuse_a_m_w"] == m_w
+                assert w_rec["fuse_a_b_w"] == b_w
+                assert w_rec["channel_b_n_w"] == n_w
+                assert w_rec["channel_b_fa2_w"] == fa2_w
+                s_a_hist.append(guard.fuse_a_s)
+                s_b_hist.append(guard.channel_b_s)
+            return s_a_hist, s_b_hist, confirm_calls
+
+        # Same B = (2, 1, 1) and FA2 = (6, 4, 7) sequences under two different window-exposure schedules:
+        # Schedule 1: m_w = (4, 20, 32), n_w = (12, 26, 40)
+        # Schedule 2: m_w = (25, 2, 8), n_w = (35, 10, 18)
+        s_a_1, s_b_1, calls_1 = run_sequence(
+            m_exposures=(4, 20, 32),
+            b_counts=(2, 1, 1),
+            n_exposures=(12, 26, 40),
+            fa2_counts=(6, 4, 7),
+        )
+        s_a_2, s_b_2, calls_2 = run_sequence(
+            m_exposures=(25, 2, 8),
+            b_counts=(2, 1, 1),
+            n_exposures=(35, 10, 18),
+            fa2_counts=(6, 4, 7),
+        )
+
+        # Fixed-k invariance across exposures: identical B / FA2 sequences with different m_w / n_w give identical S_w
+        assert s_a_1 == pytest.approx(s_a_2, abs=1e-12)
+        assert s_b_1 == pytest.approx(s_b_2, abs=1e-12)
+
+        # Fixed-k Fuse A arithmetic for B = (2, 1, 1), k = 0.211, h = 3.25:
+        # w=1: max(0, 0 + 2 - 0.211) = 1.789 (< 3.25)
+        # w=2: max(0, 1.789 + 1 - 0.211) = 2.578 (< 3.25)
+        # w=3: max(0, 2.578 + 1 - 0.211) = 3.367 (>= 3.25 -> trips!)
+        assert s_a_1 == pytest.approx([1.789, 2.578, 3.367], abs=1e-9)
+        assert s_a_2 == pytest.approx([1.789, 2.578, 3.367], abs=1e-9)
+
+        # Fixed-k Channel B arithmetic for FA2 = (6, 4, 7), k = 5.03, h = 7.0:
+        # w=1: max(0, 0 + 6 - 5.03) = 0.97 (< 7.0)
+        # w=2: max(0, 0.97 + 4 - 5.03) = 0.0 (< 7.0)
+        # w=3: max(0, 0.0 + 7 - 5.03) = 1.97 (< 7.0)
+        assert s_b_1 == pytest.approx([0.97, 0.0, 1.97], abs=1e-9)
+        assert s_b_2 == pytest.approx([0.97, 0.0, 1.97], abs=1e-9)
+        assert calls_1 == [128] and calls_2 == [128]
+
+        # Also verify B = (3, 0, 1) with m_2 = 0 (zero exposure in Window 2 still subtracts fixed k = 0.211):
+        # w=1: max(0, 0 + 3 - 0.211) = 2.789 (< 3.25)
+        # w=2: max(0, 2.789 + 0 - 0.211) = 2.578 (< 3.25)
+        # w=3: max(0, 2.578 + 1 - 0.211) = 3.367 (>= 3.25 -> trips!)
+        s_a_z, s_b_z, calls_z = run_sequence(
+            m_exposures=(13, 0, 10),
+            b_counts=(3, 0, 1),
+            n_exposures=(14, 0, 20),
+            fa2_counts=(0, 0, 3),
+        )
+        assert s_a_z == pytest.approx([2.789, 2.578, 3.367], abs=1e-9)
+        assert s_b_z == pytest.approx([0.0, 0.0, 0.0], abs=1e-9)
+        assert calls_z == [128]
+
+    def test_s2_v11_fuse_a_confirm_ct_step0_1_ct_now_2_is_confirm_negative(self) -> None:
+        """Ask 7(d): Fuse A confirmation with ct_step0 = 1, ct_now = 2 -> CONFIRM-NEGATIVE (ct_inc = 1 < 2)."""
+        c_ids = tuple(f"c{i}" for i in range(13))
+        # Step 0 has ct_step0 = 1 (c0 is cannot_tell, c1..c12 are unsupported)
+        step0 = {
+            cid: {
+                "verdict": "cannot_tell" if idx == 0 else "unsupported",
+                "correct": idx != 0,
+            }
+            for idx, cid in enumerate(c_ids)
+        }
+        state_now = {"ct_now": 2}
+
+        def confirm_runner(ids, step=0, rule=""):
+            return {
+                cid: {
+                    "verdict": "cannot_tell" if idx < state_now["ct_now"] else "unsupported",
+                    "correct": idx >= state_now["ct_now"],
+                }
+                for idx, cid in enumerate(ids)
+            }
+
+        guard = s2.CtCollapseGuard(
+            window_groups=13,
+            s2_v11=True,
+            canary_c_ids=c_ids,
+            gold_unsupported_ids=c_ids,
+            confirm_runner=confirm_runner,
+        )
+        s0_rec = guard.record_step0_baseline(step0)
+        assert s0_rec["canary_c_cannot_tell_step0"] == 1
+
+        # Window 1: B_w = 4 trips Fuse A; confirmation sees ct_now = 2 ( >= 2 ), but ct_inc = 2 - 1 = 1 < 2!
+        # Must be CONFIRM-NEGATIVE (w1 is None)!
+        for g_idx in range(13):
+            verdicts = (
+                ("cannot_tell", "cannot_tell", "unsupported", "unsupported")
+                if g_idx < 4
+                else ("unsupported",) * 4
+            )
+            flags = tuple(v == "unsupported" for v in verdicts)
+            w1 = guard.record_group(
+                step=1,
+                group=g_idx,
+                item_id=c_ids[g_idx],
+                gold_verdict="unsupported",
+                verdicts=verdicts,
+                correct_flags=flags,
+                advantages_list=tuple(0.0 if not f else 0.1 for f in flags),
+            )
+        assert w1 is None
+        conf1 = [d for d in guard.decision_history if d.get("kind") == "guard_confirmation"][-1]
+        assert conf1["status"] == "CONFIRM-NEGATIVE"
+        assert conf1["verdict"] == "CONTINUE"
+        assert (conf1["ct_step0"], conf1["ct_now"], conf1["ct_increase"]) == (1, 2, 1)
+
+        # Window 2: ct_now = 3 -> ct_inc = 3 - 1 = 2 >= 2 -> FUSE_A-CONFIRMED!
+        state_now["ct_now"] = 3
+        for g_idx in range(13):
+            verdicts2 = (
+                ("cannot_tell", "cannot_tell", "unsupported", "unsupported")
+                if g_idx < 4
+                else ("unsupported",) * 4
+            )
+            flags2 = tuple(v == "unsupported" for v in verdicts2)
+            w2 = guard.record_group(
+                step=2,
+                group=g_idx,
+                item_id=c_ids[g_idx],
+                gold_verdict="unsupported",
+                verdicts=verdicts2,
+                correct_flags=flags2,
+                advantages_list=tuple(0.0 if not f else 0.1 for f in flags2),
+            )
+        assert w2 is not None
+        assert w2["triggered_rules"] == ["FUSE_A-CONFIRMED"]
+        conf2 = [d for d in guard.decision_history if d.get("kind") == "guard_confirmation"][-1]
+        assert conf2["status"] == "CONFIRM-POSITIVE"
+        assert (conf2["ct_step0"], conf2["ct_now"], conf2["ct_increase"]) == (1, 3, 2)
+
+    def test_s2_v11_postpass_and_pass_modes_execute_and_score_with_m2a(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Ask 2(a): --s2-v11 --postpass --dry (and --logging-pass / --rollout-only) starts through execute()
+        without requiring --train-seed / --draw / --steps, and scores every quote judgement with M2a."""
+        passage = "def count(tokens):\n    return len(tokens)\n# the parser counts tokens here"
+        # Quote with spaces around code punctuation: matches M2a, fails rule2 / M1!
+        quote_m2a_only = "def count ( tokens ) :\n    return len ( tokens )"
+        assert s2.quote_found(quote_m2a_only, [passage]) is False
+        assert s2.quote_found_m2a(quote_m2a_only, [passage]) is True
+
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, syn_sets = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        # Save a valid LoRA adapter checkpoint on CPU for --postpass
+        ckpt_dir = tmp_path / "ckpt_adapter"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        seed_ns = _ns(_argv(gold, tmp_path / "init_ckpt"))
+        init_bundle = s2.dry_bundle(seed_ns)
+        init_bundle["model"].save_pretrained(str(ckpt_dir))
+
+        def _make_m2a_pass_bundle(a):
+            b = s2.dry_bundle(a)
+            tok = b["tok"]
+            p_ids = tok.encode("prompt")
+
+            def _m2a_rollout(_text, g, _max_new, _temp):
+                # Emit completions with gold-matching verdict "supported" (g00) and M2a-only quote
+                reply = "<think>ok</think>" + json.dumps(
+                    {
+                        "verdict": "supported",
+                        "evidence_quotes": [{"part": "p1", "verdict": "supported", "quote": quote_m2a_only}],
+                    }
+                )
+                c_ids = tok.encode(reply)
+                return p_ids, [list(c_ids) for _ in range(g)], [False for _ in range(g)]
+
+            b["rollout"] = _m2a_rollout
+            b["dry_prepass_cap"] = 1
+            return b
+
+        # 1. Run --s2-v11 --postpass --dry through execute() (via _run)
+        out_v11_post = tmp_path / "v11_postpass"
+        rc_post = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_v11_post),
+                "--dry",
+                "--s2-v11",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--stop-after-new",
+                "1",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_post == 0
+        prepass_rows_v11 = [
+            json.loads(ln)
+            for ln in (out_v11_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        assert len(prepass_rows_v11) == 1
+        rec_item_v11 = prepass_rows_v11[0]
+        # Under M2a, both completions match the quote: quote_pass == 2, reward_mean == 1.05 (1.0 + 0.05 quote credit)!
+        assert rec_item_v11["g"] == 2
+        assert rec_item_v11["k_correct"] == 2
+        assert rec_item_v11["quote_pass"] == 2
+        assert rec_item_v11["reward_mean"] == pytest.approx(1.05, abs=1e-5)
+
+        eval_sum_v11 = json.loads((out_v11_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+        assert eval_sum_v11["quote_relevance"]["total"] == 2
+        assert eval_sum_v11["miss_waterfall"]["unmatched"] == 0
+
+        sa_rows_v11 = s2.read_save_all(out_v11_post / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_rows_v11) == 2
+        assert all(r["reward"] == pytest.approx(1.05, abs=1e-5) and r["correct"] is True for r in sa_rows_v11)
+
+        receipt_v11 = _receipt(out_v11_post)
+        assert receipt_v11["prereg_version"] == "1.1"
+        assert receipt_v11["run"]["quote_matcher"] == "M2a"
+        assert receipt_v11["canary_c_count"] == syn_sets["canary_c_count"]
+
+        # Contrast with --postpass --dry WITHOUT --s2-v11 (rule2): quote_pass == 0, quote_relevance.total == 0
+        out_r2_post = tmp_path / "r2_postpass"
+        rc_r2 = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_r2_post),
+                "--dry",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--quote-reward",
+                "v2",
+                "--stop-after-new",
+                "1",
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_r2 == 0
+        prepass_rows_r2 = [
+            json.loads(ln)
+            for ln in (out_r2_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        assert prepass_rows_r2[0]["quote_pass"] == 0
+        eval_sum_r2 = json.loads((out_r2_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+        assert eval_sum_r2["quote_relevance"]["total"] == 0
+        assert sum(eval_sum_r2["miss_waterfall"].values()) == 2
+
+        # 2. Verify --s2-v11 --rollout-only --dry and --s2-v11 --logging-pass --dry also start through execute()
+        out_ro = tmp_path / "v11_rollout_only"
+        rc_ro = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_ro),
+                "--dry",
+                "--s2-v11",
+                "--rollout-only",
+                "--stop-after-new",
+                "1",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_ro == 0
+
+        out_lp = tmp_path / "v11_logging_pass"
+        rc_lp = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_lp),
+                "--dry",
+                "--s2-v11",
+                "--logging-pass",
+                "--g",
+                "8",
+                "--max-new",
+                "2048",
+                "--revision",
+                s2.STUDENT_FULL_REVISION,
+                "--bf16-restore",
+                "--logprob-microbatch",
+                "2",
+                "--attention-mask",
+                "--alloc-conf",
+                "expandable",
+                "--empty-cache-phases",
+                "--replay-check-off-reason",
+                "dry test",
+                "--stop-after-new",
+                "1",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_lp == 0
+
+    def test_s2_v11_pass_modes_refuse_wrong_shas_through_execute(self, tmp_path: Path, monkeypatch) -> None:
+        """Ask 2(b): Pass modes (--postpass, --rollout-only, --logging-pass) under --s2-v11 still refuse
+        every wrong SHA (prereg / M1 / M2 / quote_rule and Pass A / Pass B pins) through execute()."""
+        import shutil
+
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, _ = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        ckpt_dir = tmp_path / "ckpt_sha"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        s2.dry_bundle(_ns(_argv(gold, tmp_path / "init_sha")))["model"].save_pretrained(str(ckpt_dir))
+
+        base_postpass = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "post_refuse"),
+            "--dry",
+            "--s2-v11",
+            "--postpass",
+            "--pass-seed",
+            "2",
+            "--checkpoint",
+            str(ckpt_dir),
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
+        ]
+
+        # 1. Wrong Pass A SHA in --postpass through execute()
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_SHA256_MISMATCH"):
+            _run([*base_postpass, "--pass-a-sha256", "0" * 64])
+
+        # 2. Wrong Pass B SHA in --postpass through execute()
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            _run([*base_postpass, "--pass-b-sha256", "0" * 64])
+
+        # 3. Missing Pass A or Pass B in --rollout-only through execute()
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_REQUIRED"):
+            _run(
+                [
+                    "--gold",
+                    str(gold),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "ro_no_b"),
+                    "--dry",
+                    "--s2-v11",
+                    "--rollout-only",
+                    "--pass-a-jsonl",
+                    str(pa_path),
+                    "--pass-a-sha256",
+                    pa_sha,
+                ]
+            )
+
+        # 4. Tampered sealed files (prereg, M1, M2, quote_rule) in --postpass through execute()
+        verifier_dir = Path(s2.__file__).resolve().parent
+        fake_vdir = tmp_path / "vdir_tamper"
+        fake_vdir.mkdir()
+        fake_rroot = tmp_path / "rroot_tamper"
+        (fake_rroot / "docs" / "runs").mkdir(parents=True)
+        prereg_dst = fake_rroot / v11cfg.PREREG_V11_RELPATH
+        shutil.copyfile(verifier_dir.parents[1] / v11cfg.PREREG_V11_RELPATH, prereg_dst)
+        for fname in ("quote_matcher_m1.py", "quote_matcher_m2.py", v11cfg.QUOTE_RULE_AUDITED_FILENAME_V11):
+            shutil.copyfile(verifier_dir / fname, fake_vdir / fname)
+
+        orig_load = v11cfg.load_v11_matchers
+        monkeypatch.setattr(
+            s2,
+            "load_v11_matchers",
+            lambda: orig_load(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir),
+        )
+
+        for target_path, expected_code in (
+            (prereg_dst, "S2_V11_PREREG_SHA256_MISMATCH"),
+            (fake_vdir / "quote_matcher_m1.py", "S2_V11_M1_SHA256_MISMATCH"),
+            (fake_vdir / "quote_matcher_m2.py", "S2_V11_M2_SHA256_MISMATCH"),
+            (fake_vdir / v11cfg.QUOTE_RULE_AUDITED_FILENAME_V11, "S2_V11_QUOTE_RULE_SHA256_MISMATCH"),
+        ):
+            orig_bytes = target_path.read_bytes()
+            target_path.write_bytes(orig_bytes + b"\n")
+            try:
+                with pytest.raises(SystemExit, match=expected_code):
+                    _run(base_postpass)
+            finally:
+                target_path.write_bytes(orig_bytes)
+
+    def test_s2_v11_training_run_refuses_seed_42_and_overrides_through_execute(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Ask 2(c): A training run under --s2-v11 still refuses seed 42 (and 43, 44, draw/steps overrides)
+        through execute()."""
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, _ = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        base_train = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "train_refuse"),
+            "--dry",
+            "--s2-v11",
+            "--arm",
+            "mech",
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
+        ]
+
+        for ret_seed in (42, 43, 44):
+            with pytest.raises(
+                SystemExit,
+                match=r"S2_V11_OVERRIDE_FORBIDDEN.*retired seeds 42, 43, 44",
+            ):
+                _run([*base_train, "--train-seed", str(ret_seed)])
+
+        # Also verify training run refuses --draw first, --draw-seed != --train-seed, and --steps != 197 through execute()
+        with pytest.raises(SystemExit, match="S2_V11_OVERRIDE_FORBIDDEN"):
+            _run([*base_train, "--train-seed", "45", "--draw", "first"])
+        with pytest.raises(SystemExit, match="S2_V11_OVERRIDE_FORBIDDEN"):
+            _run([*base_train, "--train-seed", "45", "--draw-seed", "46"])
+        with pytest.raises(SystemExit, match="S2_V11_OVERRIDE_FORBIDDEN"):
+            _run([*base_train, "--train-seed", "45", "--steps", "20"])

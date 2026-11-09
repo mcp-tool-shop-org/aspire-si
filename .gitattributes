@@ -6,3 +6,8 @@ docs/runs/receipts/** -text
 
 # Fixtures that record a tool's real output are hashed: LF in every checkout.
 tests/fixtures/*.xml text eol=lf
+
+# Sealed S2 v1.1 pre-registration and frozen M1/M2 quote matchers: preserve exact sha256 byte-for-byte.
+docs/runs/2026-11-08-smoke-s2-v1.1-prereg.md -text
+examples/verifier-distill/quote_matcher_m1.py -text
+examples/verifier-distill/quote_matcher_m2.py -text

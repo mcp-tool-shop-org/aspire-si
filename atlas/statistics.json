@@ -36,7 +36,7 @@
       "confidence": "low",
       "highWater": null,
       "name": "aspire",
-      "qualifyingSourceCommits": 12,
+      "qualifyingSourceCommits": 13,
       "rebaseline": null
     },
     {
@@ -65,12 +65,12 @@
         ],
         "importsOnly": []
       },
-      "cohesion": 0.357542,
+      "cohesion": 0.40367,
       "cohesionDropped": false,
       "confidence": "full",
       "highWater": null,
       "name": "examples",
-      "qualifyingSourceCommits": 57,
+      "qualifyingSourceCommits": 63,
       "rebaseline": null
     },
     {
@@ -138,7 +138,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "tests",
-      "qualifyingSourceCommits": 62,
+      "qualifyingSourceCommits": 68,
       "rebaseline": null
     }
   ],
@@ -146,8 +146,8 @@
     "definition": "commits is how many commits in the window touch the file, including merges and commits dropped from coupling. lines is added plus deleted in those commits.",
     "files": [
       {
-        "commits": 4,
-        "lines": 10,
+        "commits": 5,
+        "lines": 15,
         "path": ".gitattributes"
       },
       {
@@ -191,8 +191,8 @@
         "path": "ASPIRE-SPEC.md"
       },
       {
-        "commits": 32,
-        "lines": 726,
+        "commits": 34,
+        "lines": 759,
         "path": "CHANGELOG.md"
       },
       {
@@ -226,43 +226,43 @@
         "path": "PRESS_RELEASE.md"
       },
       {
-        "commits": 13,
-        "lines": 1422,
+        "commits": 14,
+        "lines": 1482,
         "path": "README.es.md"
       },
       {
-        "commits": 13,
-        "lines": 1433,
+        "commits": 14,
+        "lines": 1503,
         "path": "README.fr.md"
       },
       {
-        "commits": 13,
-        "lines": 1388,
+        "commits": 14,
+        "lines": 1423,
         "path": "README.hi.md"
       },
       {
-        "commits": 13,
-        "lines": 1336,
+        "commits": 14,
+        "lines": 1366,
         "path": "README.it.md"
       },
       {
-        "commits": 13,
-        "lines": 1490,
+        "commits": 14,
+        "lines": 1553,
         "path": "README.ja.md"
       },
       {
-        "commits": 15,
-        "lines": 854,
+        "commits": 16,
+        "lines": 856,
         "path": "README.md"
       },
       {
-        "commits": 13,
-        "lines": 1332,
+        "commits": 14,
+        "lines": 1400,
         "path": "README.pt-BR.md"
       },
       {
-        "commits": 13,
-        "lines": 1587,
+        "commits": 14,
+        "lines": 1662,
         "path": "README.zh.md"
       },
       {
@@ -286,8 +286,8 @@
         "path": "TESTS-TODO.md"
       },
       {
-        "commits": 7,
-        "lines": 24,
+        "commits": 8,
+        "lines": 26,
         "path": "aspire/__init__.py"
       },
       {
@@ -466,8 +466,8 @@
         "path": "aspire/trainer.py"
       },
       {
-        "commits": 16,
-        "lines": 404,
+        "commits": 17,
+        "lines": 425,
         "path": "atlas/README.md"
       },
       {
@@ -476,18 +476,18 @@
         "path": "atlas/boundaries.yaml"
       },
       {
-        "commits": 16,
-        "lines": 1333,
+        "commits": 17,
+        "lines": 1416,
         "path": "atlas/page.json"
       },
       {
-        "commits": 16,
-        "lines": 5421,
+        "commits": 17,
+        "lines": 5774,
         "path": "atlas/statistics.json"
       },
       {
-        "commits": 16,
-        "lines": 12062,
+        "commits": 17,
+        "lines": 14086,
         "path": "atlas/structure.json"
       },
       {
@@ -579,6 +579,11 @@
         "commits": 6,
         "lines": 187,
         "path": "docs/runs/2026-10-10-smoke-s2-prereg.md"
+      },
+      {
+        "commits": 1,
+        "lines": 201,
+        "path": "docs/runs/2026-11-08-smoke-s2-v1.1-prereg.md"
       },
       {
         "commits": 1,
@@ -896,9 +901,24 @@
         "path": "examples/sft-experiment/typicality.py"
       },
       {
-        "commits": 2,
-        "lines": 413,
+        "commits": 1,
+        "lines": 404,
+        "path": "examples/verifier-distill/quote_matcher_m1.py"
+      },
+      {
+        "commits": 1,
+        "lines": 493,
+        "path": "examples/verifier-distill/quote_matcher_m2.py"
+      },
+      {
+        "commits": 3,
+        "lines": 448,
         "path": "examples/verifier-distill/quote_rule.py"
+      },
+      {
+        "commits": 1,
+        "lines": 391,
+        "path": "examples/verifier-distill/quote_rule_audited_1aae2469.py"
       },
       {
         "commits": 1,
@@ -911,8 +931,8 @@
         "path": "examples/verifier-distill/s2_draw.py"
       },
       {
-        "commits": 16,
-        "lines": 8827,
+        "commits": 21,
+        "lines": 10985,
         "path": "examples/verifier-distill/s2_grpo_smoke.py"
       },
       {
@@ -924,6 +944,11 @@
         "commits": 2,
         "lines": 924,
         "path": "examples/verifier-distill/s2_interview_tag.py"
+      },
+      {
+        "commits": 3,
+        "lines": 1592,
+        "path": "examples/verifier-distill/s2_v11_config.py"
       },
       {
         "commits": 4,
@@ -1076,8 +1101,8 @@
         "path": "passport.json"
       },
       {
-        "commits": 12,
-        "lines": 162,
+        "commits": 13,
+        "lines": 164,
         "path": "pyproject.toml"
       },
       {
@@ -1209,6 +1234,11 @@
         "commits": 2,
         "lines": 228,
         "path": "tests/fixtures/nvidia-smi-q-x-fixture-public-2026-11-03.xml"
+      },
+      {
+        "commits": 1,
+        "lines": 617,
+        "path": "tests/fixtures/quote-reward-golden-2026-11-07.json"
       },
       {
         "commits": 1,
@@ -1581,13 +1611,13 @@
         "path": "tests/test_verifier_s1.py"
       },
       {
-        "commits": 15,
-        "lines": 14657,
+        "commits": 16,
+        "lines": 14719,
         "path": "tests/test_verifier_s2.py"
       },
       {
-        "commits": 1,
-        "lines": 1486,
+        "commits": 6,
+        "lines": 4834,
         "path": "tests/test_verifier_s2_train.py"
       },
       {
@@ -1601,157 +1631,213 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-11-08T02:37:17.869Z",
+  "generatedAt": "2026-11-09T04:16:58.093Z",
   "generatedFrom": {
-    "commit": "ab0e5546371a28e589ced652ad0e1f57dc64fe81"
+    "commit": "93ba61801e84f785ee85db84a6caaeb11d846966"
   },
   "pairs": [
     {
       "a": "README.es.md",
       "b": "README.fr.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.es.md",
       "b": "README.hi.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.es.md",
       "b": "README.it.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.es.md",
       "b": "README.ja.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.es.md",
+      "b": "README.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
+      "a": "README.es.md",
       "b": "README.pt-BR.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.es.md",
       "b": "README.zh.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.fr.md",
       "b": "README.hi.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.fr.md",
       "b": "README.it.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.fr.md",
       "b": "README.ja.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.fr.md",
+      "b": "README.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
+      "a": "README.fr.md",
       "b": "README.pt-BR.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.fr.md",
       "b": "README.zh.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.hi.md",
       "b": "README.it.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.hi.md",
       "b": "README.ja.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.hi.md",
+      "b": "README.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
+      "a": "README.hi.md",
       "b": "README.pt-BR.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.hi.md",
       "b": "README.zh.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.it.md",
       "b": "README.ja.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.it.md",
+      "b": "README.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
+      "a": "README.it.md",
       "b": "README.pt-BR.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.it.md",
       "b": "README.zh.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.ja.md",
+      "b": "README.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
+      "a": "README.ja.md",
       "b": "README.pt-BR.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
     },
     {
       "a": "README.ja.md",
       "b": "README.zh.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
+    },
+    {
+      "a": "README.md",
+      "b": "README.pt-BR.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
+    },
+    {
+      "a": "README.md",
+      "b": "README.zh.md",
+      "either": 10,
+      "shared": 5,
+      "strength": 0.5
     },
     {
       "a": "README.pt-BR.md",
       "b": "README.zh.md",
-      "either": 6,
-      "shared": 6,
+      "either": 7,
+      "shared": 7,
       "strength": 1
+    },
+    {
+      "a": "aspire/__init__.py",
+      "b": "pyproject.toml",
+      "either": 8,
+      "shared": 5,
+      "strength": 0.625
     },
     {
       "a": "aspire/config.py",
@@ -1763,43 +1849,43 @@
     {
       "a": "atlas/README.md",
       "b": "atlas/page.json",
-      "either": 9,
-      "shared": 9,
+      "either": 10,
+      "shared": 10,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/statistics.json",
-      "either": 9,
-      "shared": 9,
+      "either": 10,
+      "shared": 10,
       "strength": 1
     },
     {
       "a": "atlas/README.md",
       "b": "atlas/structure.json",
-      "either": 9,
-      "shared": 9,
+      "either": 10,
+      "shared": 10,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/statistics.json",
-      "either": 9,
-      "shared": 9,
+      "either": 10,
+      "shared": 10,
       "strength": 1
     },
     {
       "a": "atlas/page.json",
       "b": "atlas/structure.json",
-      "either": 9,
-      "shared": 9,
+      "either": 10,
+      "shared": 10,
       "strength": 1
     },
     {
       "a": "atlas/statistics.json",
       "b": "atlas/structure.json",
-      "either": 9,
-      "shared": 9,
+      "either": 10,
+      "shared": 10,
       "strength": 1
     },
     {
@@ -1826,9 +1912,9 @@
     {
       "a": "examples/verifier-distill/s2_grpo_smoke.py",
       "b": "tests/test_verifier_s2.py",
-      "either": 16,
+      "either": 22,
       "shared": 15,
-      "strength": 0.9375
+      "strength": 0.681818
     }
   ],
   "parameters": {
@@ -1841,16 +1927,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-11-06T05:33:17-05:00",
-    "inScopeFiles": 288,
+    "headDate": "2026-11-08T23:12:17-05:00",
+    "inScopeFiles": 294,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 105,
+    "qualifyingCommits": 113,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-05-10T10:33:17.000Z",
+    "since": "2026-05-13T04:12:17.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
