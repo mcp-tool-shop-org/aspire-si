@@ -3575,15 +3575,17 @@ def run_steps(
                     is_zv = zero_variance(rewards)
                     adv_list = advantages(rewards, mode=advantage_mode)
 
+                unclamped_adv_list = list(adv_list)
                 if eff_mask_wrong_pos:
                     correct_flags = [bool(s.get("correct")) for s in group_samples]
                     adv_list = clamp_wrong_positive_advantages(adv_list, correct_flags)
                     assert_no_wrong_positive_advantages(adv_list, correct_flags)
 
                 if ct_guard is not None:
+                    use_v11_guard = bool(s2_v11 or getattr(ct_guard, "s2_v11", False))
                     grp_quote_records = (
                         [qr for s in group_samples for qr in list(s.get("quote_records") or [])]
-                        if (s2_v11 or getattr(ct_guard, "s2_v11", False))
+                        if use_v11_guard
                         else None
                     )
                     guard_stop = ct_guard.record_group(
@@ -3593,7 +3595,7 @@ def run_steps(
                         gold_verdict=str(row.get("label", "supported")),
                         verdicts=[s.get("verdict") for s in group_samples],
                         correct_flags=[bool(s.get("correct")) for s in group_samples],
-                        advantages_list=adv_list,
+                        advantages_list=adv_list if use_v11_guard else unclamped_adv_list,
                         is_zero_variance=bool(is_zv),
                         **({"quote_records": grp_quote_records} if grp_quote_records is not None else {}),
                     )
