@@ -11,3 +11,4 @@ tests/fixtures/*.xml text eol=lf
 docs/runs/2026-11-08-smoke-s2-v1.1-prereg.md -text
 examples/verifier-distill/quote_matcher_m1.py -text
 examples/verifier-distill/quote_matcher_m2.py -text
+examples/verifier-distill/quote_rule_audited_1aae2469.py -text

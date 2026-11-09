@@ -4665,11 +4665,12 @@ class TestS2V11DryAndDefaultUnchanged:
         assert conf2["status"] == "CONFIRM-POSITIVE"
         assert (conf2["ct_step0"], conf2["ct_now"], conf2["ct_increase"]) == (1, 3, 2)
 
+    @pytest.mark.parametrize("pass_mode", ["postpass", "rollout-only", "logging-pass"])
     def test_s2_v11_postpass_and_pass_modes_execute_and_score_with_m2a(
-        self, tmp_path: Path, monkeypatch
+        self, tmp_path: Path, monkeypatch, pass_mode: str
     ) -> None:
-        """Ask 2(a): --s2-v11 --postpass --dry (and --logging-pass / --rollout-only) starts through execute()
-        without requiring --train-seed / --draw / --steps, and scores every quote judgement with M2a."""
+        """Ask 2(a): --s2-v11 --postpass --dry, --rollout-only --dry, and --logging-pass --dry each start
+        through execute() without requiring --train-seed / --draw / --steps, and score every quote judgement with M2a."""
         passage = "def count(tokens):\n    return len(tokens)\n# the parser counts tokens here"
         # Quote with spaces around code punctuation: matches M2a, fails rule2 / M1!
         quote_m2a_only = "def count ( tokens ) :\n    return len ( tokens )"
@@ -4681,12 +4682,12 @@ class TestS2V11DryAndDefaultUnchanged:
         monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
         monkeypatch.setattr(s2, "S2V11", syn_cfg)
 
-        # Save a valid LoRA adapter checkpoint on CPU for --postpass
         ckpt_dir = tmp_path / "ckpt_adapter"
-        ckpt_dir.mkdir(parents=True, exist_ok=True)
-        seed_ns = _ns(_argv(gold, tmp_path / "init_ckpt"))
-        init_bundle = s2.dry_bundle(seed_ns)
-        init_bundle["model"].save_pretrained(str(ckpt_dir))
+        if pass_mode == "postpass":
+            ckpt_dir.mkdir(parents=True, exist_ok=True)
+            seed_ns = _ns(_argv(gold, tmp_path / "init_ckpt"))
+            init_bundle = s2.dry_bundle(seed_ns)
+            init_bundle["model"].save_pretrained(str(ckpt_dir))
 
         def _make_m2a_pass_bundle(a):
             b = s2.dry_bundle(a)
@@ -4708,166 +4709,145 @@ class TestS2V11DryAndDefaultUnchanged:
             b["dry_prepass_cap"] = 1
             return b
 
-        # 1. Run --s2-v11 --postpass --dry through execute() (via _run)
-        out_v11_post = tmp_path / "v11_postpass"
-        rc_post = _run(
-            [
-                "--gold",
-                str(gold),
-                "--rnd-commit",
-                "e48cc90c",
-                "--out",
-                str(out_v11_post),
-                "--dry",
-                "--s2-v11",
-                "--postpass",
-                "--pass-seed",
-                "2",
-                "--checkpoint",
-                str(ckpt_dir),
-                "--stop-after-new",
-                "1",
-                "--pass-a-jsonl",
-                str(pa_path),
-                "--pass-a-sha256",
-                pa_sha,
-                "--pass-b-jsonl",
-                str(pb_path),
-                "--pass-b-sha256",
-                pb_sha,
-            ],
-            build=_make_m2a_pass_bundle,
-        )
-        assert rc_post == 0
-        prepass_rows_v11 = [
-            json.loads(ln)
-            for ln in (out_v11_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
-            if ln.strip()
+        def _assert_v11_pass_m2a_outputs(out_dir: Path, *, expected_g: int) -> None:
+            prepass_rows = [
+                json.loads(ln)
+                for ln in (out_dir / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            assert len(prepass_rows) == 1
+            rec_item = prepass_rows[0]
+            # Under M2a, all G completions match the quote: quote_pass == G, reward_mean == 1.05 (1.0 + 0.05 quote credit)!
+            assert rec_item["g"] == expected_g
+            assert rec_item["k_correct"] == expected_g
+            assert rec_item["quote_pass"] == expected_g
+            assert rec_item["reward_mean"] == pytest.approx(1.05, abs=1e-5)
+
+            eval_sum = json.loads((out_dir / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+            assert eval_sum["quote_relevance"]["total"] == expected_g
+            assert eval_sum["miss_waterfall"]["unmatched"] == 0
+
+            sa_rows = s2.read_save_all(out_dir / "s2-hf-save-all.jsonl.gz")
+            assert len(sa_rows) == expected_g
+            assert all(r["reward"] == pytest.approx(1.05, abs=1e-5) and r["correct"] is True for r in sa_rows)
+
+            receipt = _receipt(out_dir)
+            assert receipt["prereg_version"] == "1.1"
+            assert receipt["run"]["quote_matcher"] == "M2a"
+            assert receipt["canary_c_count"] == syn_sets["canary_c_count"]
+            assert receipt["readout"]["prepass_summary"]["quote_pass"] == expected_g
+
+        common_v11 = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--dry",
+            "--s2-v11",
+            "--stop-after-new",
+            "1",
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
         ]
-        assert len(prepass_rows_v11) == 1
-        rec_item_v11 = prepass_rows_v11[0]
-        # Under M2a, both completions match the quote: quote_pass == 2, reward_mean == 1.05 (1.0 + 0.05 quote credit)!
-        assert rec_item_v11["g"] == 2
-        assert rec_item_v11["k_correct"] == 2
-        assert rec_item_v11["quote_pass"] == 2
-        assert rec_item_v11["reward_mean"] == pytest.approx(1.05, abs=1e-5)
 
-        eval_sum_v11 = json.loads((out_v11_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
-        assert eval_sum_v11["quote_relevance"]["total"] == 2
-        assert eval_sum_v11["miss_waterfall"]["unmatched"] == 0
+        if pass_mode == "postpass":
+            out_v11 = tmp_path / "v11_postpass"
+            rc = _run(
+                [
+                    *common_v11,
+                    "--out",
+                    str(out_v11),
+                    "--postpass",
+                    "--pass-seed",
+                    "2",
+                    "--checkpoint",
+                    str(ckpt_dir),
+                ],
+                build=_make_m2a_pass_bundle,
+            )
+            assert rc == 0
+            _assert_v11_pass_m2a_outputs(out_v11, expected_g=2)
 
-        sa_rows_v11 = s2.read_save_all(out_v11_post / "s2-hf-save-all.jsonl.gz")
-        assert len(sa_rows_v11) == 2
-        assert all(r["reward"] == pytest.approx(1.05, abs=1e-5) and r["correct"] is True for r in sa_rows_v11)
-
-        receipt_v11 = _receipt(out_v11_post)
-        assert receipt_v11["prereg_version"] == "1.1"
-        assert receipt_v11["run"]["quote_matcher"] == "M2a"
-        assert receipt_v11["canary_c_count"] == syn_sets["canary_c_count"]
-
-        # Contrast with --postpass --dry WITHOUT --s2-v11 (rule2): quote_pass == 0, quote_relevance.total == 0
-        out_r2_post = tmp_path / "r2_postpass"
-        rc_r2 = _run(
-            [
-                "--gold",
-                str(gold),
-                "--rnd-commit",
-                "e48cc90c",
-                "--out",
-                str(out_r2_post),
-                "--dry",
-                "--postpass",
-                "--pass-seed",
-                "2",
-                "--checkpoint",
-                str(ckpt_dir),
-                "--quote-reward",
-                "v2",
-                "--stop-after-new",
-                "1",
-            ],
-            build=_make_m2a_pass_bundle,
-        )
-        assert rc_r2 == 0
-        prepass_rows_r2 = [
-            json.loads(ln)
-            for ln in (out_r2_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
-            if ln.strip()
-        ]
-        assert prepass_rows_r2[0]["quote_pass"] == 0
-        eval_sum_r2 = json.loads((out_r2_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
-        assert eval_sum_r2["quote_relevance"]["total"] == 0
-        assert sum(eval_sum_r2["miss_waterfall"].values()) == 2
-
-        # 2. Verify --s2-v11 --rollout-only --dry and --s2-v11 --logging-pass --dry also start through execute()
-        out_ro = tmp_path / "v11_rollout_only"
-        rc_ro = _run(
-            [
-                "--gold",
-                str(gold),
-                "--rnd-commit",
-                "e48cc90c",
-                "--out",
-                str(out_ro),
-                "--dry",
-                "--s2-v11",
-                "--rollout-only",
-                "--stop-after-new",
-                "1",
-                "--pass-a-jsonl",
-                str(pa_path),
-                "--pass-a-sha256",
-                pa_sha,
-                "--pass-b-jsonl",
-                str(pb_path),
-                "--pass-b-sha256",
-                pb_sha,
-            ],
-            build=_make_m2a_pass_bundle,
-        )
-        assert rc_ro == 0
-
-        out_lp = tmp_path / "v11_logging_pass"
-        rc_lp = _run(
-            [
-                "--gold",
-                str(gold),
-                "--rnd-commit",
-                "e48cc90c",
-                "--out",
-                str(out_lp),
-                "--dry",
-                "--s2-v11",
-                "--logging-pass",
-                "--g",
-                "8",
-                "--max-new",
-                "2048",
-                "--revision",
-                s2.STUDENT_FULL_REVISION,
-                "--bf16-restore",
-                "--logprob-microbatch",
-                "2",
-                "--attention-mask",
-                "--alloc-conf",
-                "expandable",
-                "--empty-cache-phases",
-                "--replay-check-off-reason",
-                "dry test",
-                "--stop-after-new",
-                "1",
-                "--pass-a-jsonl",
-                str(pa_path),
-                "--pass-a-sha256",
-                pa_sha,
-                "--pass-b-jsonl",
-                str(pb_path),
-                "--pass-b-sha256",
-                pb_sha,
-            ],
-            build=_make_m2a_pass_bundle,
-        )
-        assert rc_lp == 0
+            # Contrast with --postpass --dry WITHOUT --s2-v11 (rule2): quote_pass == 0, quote_relevance.total == 0
+            out_r2_post = tmp_path / "r2_postpass"
+            rc_r2 = _run(
+                [
+                    "--gold",
+                    str(gold),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(out_r2_post),
+                    "--dry",
+                    "--postpass",
+                    "--pass-seed",
+                    "2",
+                    "--checkpoint",
+                    str(ckpt_dir),
+                    "--quote-reward",
+                    "v2",
+                    "--stop-after-new",
+                    "1",
+                ],
+                build=_make_m2a_pass_bundle,
+            )
+            assert rc_r2 == 0
+            prepass_rows_r2 = [
+                json.loads(ln)
+                for ln in (out_r2_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+            assert prepass_rows_r2[0]["quote_pass"] == 0
+            eval_sum_r2 = json.loads((out_r2_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+            assert eval_sum_r2["quote_relevance"]["total"] == 0
+            assert sum(eval_sum_r2["miss_waterfall"].values()) == 2
+        elif pass_mode == "rollout-only":
+            out_ro = tmp_path / "v11_rollout_only"
+            rc_ro = _run(
+                [
+                    *common_v11,
+                    "--out",
+                    str(out_ro),
+                    "--rollout-only",
+                ],
+                build=_make_m2a_pass_bundle,
+            )
+            assert rc_ro == 0
+            _assert_v11_pass_m2a_outputs(out_ro, expected_g=2)
+        else:
+            out_lp = tmp_path / "v11_logging_pass"
+            rc_lp = _run(
+                [
+                    *common_v11,
+                    "--out",
+                    str(out_lp),
+                    "--logging-pass",
+                    "--g",
+                    "8",
+                    "--max-new",
+                    "2048",
+                    "--revision",
+                    s2.STUDENT_FULL_REVISION,
+                    "--bf16-restore",
+                    "--logprob-microbatch",
+                    "2",
+                    "--attention-mask",
+                    "--alloc-conf",
+                    "expandable",
+                    "--empty-cache-phases",
+                    "--replay-check-off-reason",
+                    "dry test",
+                ],
+                build=_make_m2a_pass_bundle,
+            )
+            assert rc_lp == 0
+            _assert_v11_pass_m2a_outputs(out_lp, expected_g=8)
 
     def test_s2_v11_pass_modes_refuse_wrong_shas_through_execute(self, tmp_path: Path, monkeypatch) -> None:
         """Ask 2(b): Pass modes (--postpass, --rollout-only, --logging-pass) under --s2-v11 still refuse
@@ -4907,15 +4887,54 @@ class TestS2V11DryAndDefaultUnchanged:
             pb_sha,
         ]
 
-        # 1. Wrong Pass A SHA in --postpass through execute()
+        base_logging_pass = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "lp_refuse"),
+            "--dry",
+            "--s2-v11",
+            "--logging-pass",
+            "--g",
+            "8",
+            "--max-new",
+            "2048",
+            "--revision",
+            s2.STUDENT_FULL_REVISION,
+            "--bf16-restore",
+            "--logprob-microbatch",
+            "2",
+            "--attention-mask",
+            "--alloc-conf",
+            "expandable",
+            "--empty-cache-phases",
+            "--replay-check-off-reason",
+            "dry test",
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
+        ]
+
+        # 1. Wrong Pass A SHA in --postpass and --logging-pass through execute()
         with pytest.raises(SystemExit, match="S2_V11_PASS_A_SHA256_MISMATCH"):
             _run([*base_postpass, "--pass-a-sha256", "0" * 64])
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_SHA256_MISMATCH"):
+            _run([*base_logging_pass, "--pass-a-sha256", "0" * 64])
 
-        # 2. Wrong Pass B SHA in --postpass through execute()
+        # 2. Wrong Pass B SHA in --postpass and --logging-pass through execute()
         with pytest.raises(SystemExit, match="S2_V11_PASS_B_SHA256_MISMATCH"):
             _run([*base_postpass, "--pass-b-sha256", "0" * 64])
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            _run([*base_logging_pass, "--pass-b-sha256", "0" * 64])
 
-        # 3. Missing Pass A or Pass B in --rollout-only through execute()
+        # 3. Missing Pass A or Pass B in --rollout-only and --logging-pass through execute()
         with pytest.raises(SystemExit, match="S2_V11_PASS_B_REQUIRED"):
             _run(
                 [
@@ -4934,8 +4953,41 @@ class TestS2V11DryAndDefaultUnchanged:
                     pa_sha,
                 ]
             )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_REQUIRED"):
+            _run(
+                [
+                    "--gold",
+                    str(gold),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "lp_no_a"),
+                    "--dry",
+                    "--s2-v11",
+                    "--logging-pass",
+                    "--g",
+                    "8",
+                    "--max-new",
+                    "2048",
+                    "--revision",
+                    s2.STUDENT_FULL_REVISION,
+                    "--bf16-restore",
+                    "--logprob-microbatch",
+                    "2",
+                    "--attention-mask",
+                    "--alloc-conf",
+                    "expandable",
+                    "--empty-cache-phases",
+                    "--replay-check-off-reason",
+                    "dry test",
+                    "--pass-b-jsonl",
+                    str(pb_path),
+                    "--pass-b-sha256",
+                    pb_sha,
+                ]
+            )
 
-        # 4. Tampered sealed files (prereg, M1, M2, quote_rule) in --postpass through execute()
+        # 4. Tampered sealed files (prereg, M1, M2, quote_rule) in --postpass and --logging-pass through execute()
         verifier_dir = Path(s2.__file__).resolve().parent
         fake_vdir = tmp_path / "vdir_tamper"
         fake_vdir.mkdir()
@@ -4964,6 +5016,8 @@ class TestS2V11DryAndDefaultUnchanged:
             try:
                 with pytest.raises(SystemExit, match=expected_code):
                     _run(base_postpass)
+                with pytest.raises(SystemExit, match=expected_code):
+                    _run(base_logging_pass)
             finally:
                 target_path.write_bytes(orig_bytes)
 
