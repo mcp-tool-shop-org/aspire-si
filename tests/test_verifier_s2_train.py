@@ -2207,57 +2207,109 @@ class TestS2V11QuoteMatchersAndLoss:
         )
         assert qm1._strip_quote_outer_punct("...1.5%...") == "1.5%"
         assert qm1._strip_quote_outer_punct("...-3...") == "-3"
-        # Tier 2 ellipsis (valid vs negation blocked vs para-break blocked)
+        assert qm1._strip_quote_outer_punct("...1.5") == "1.5"
+        assert qm1._is_protected_edge_char("1.5", 1) is True
+        assert qm1._strip_quote_outer_punct("...abc...") == "abc"
+        assert qm1._extract_negation_tokens("it can't and won't fail") == {"n't", "cannot"}
+        assert qm1._has_internal_capitalised_token("...") is False
+        # Tier 2 ellipsis (valid vs negation blocked vs para-break blocked vs max_gap exceeded)
         q_t2_ok = "first fragment has enough words ... second fragment also has enough words"
         assert qm1.quote_tier_m1(q_t2_ok, p_multi) == 2
         assert len(qm1.find_quote_spans_m1(q_t2_ok, p_multi)) == 1
+        assert qm1.quote_match_tier_m1(q_t2_ok, p_multi, _max_gap=1)[0] is False
         q_t2_para = "second fragment also has enough words ... after paragraph break words here"
         assert qm1.quote_tier_m1(q_t2_para, p_multi) is None
         p_neg = ["alpha beta gamma delta cannot epsilon zeta eta theta"]
         assert qm1.quote_tier_m1("alpha beta gamma ... epsilon zeta eta", p_neg) is None
+        p_neg_retry = ["alpha beta gamma cannot epsilon zeta eta alpha beta gamma ok epsilon zeta eta"]
+        assert qm1.quote_tier_m1("alpha beta gamma ... epsilon zeta eta", p_neg_retry) == 2
         # Short rule (a) whole line (with outer punct so Tier 0 misses) and (b) 2-4 words < 12 chars with digit or internal capitalised token
         assert qm1.quote_tier_m1("...shortline99...", p_multi) == "short"
         assert qm1.quote_tier_m1("FooBar 42", p_multi) == "short"
         assert qm1.quote_tier_m1("is FooBar", p_multi) == "short"
+        assert qm1.quote_tier_m1("no match 99", p_multi) is None
         assert len(qm1.find_quote_spans_m1("FooBar 42", p_multi)) >= 1
+        assert qm1.find_quote_spans_m1("not found anywhere at all", p_multi) == []
         assert (
             qm1.quote_credit_m1(
-                ["first fragment has enough words here and does not fail", "FooBar 42"],
+                [
+                    "",
+                    "first fragment has enough words here and does not fail",
+                    "first fragment has enough words here and does not fail",
+                    "not found anywhere at all",
+                    "1.5%",
+                    "FooBar 42",
+                ],
                 p_multi,
                 verdict="supported",
                 correct=True,
             )
             == pytest.approx(0.10)
         )
+        assert (
+            qm1.quote_credit_m1(
+                ["FooBar 42"],
+                p_multi,
+                verdict="unsupported",
+                correct=True,
+            )
+            == 0.0
+        )
         assert qm1.quote_credit_m1(["x"], p_multi, verdict="supported", correct=False) == 0.0
 
         # M2a / M2b tiers, literal spans with escapes, digit-flanked dots/commas, and quote_tier_m2
-        lit_s = r'''x = "a \' ( b ) " + 'c " [ d ] ' + 1 . 5 + 2 , 000'''
+        lit_s = "\\x x = \"a \\' ( b ) \" + 'c \" [ d ] ' + \"unclosed\n\" + 1 . 5 + 2 , 000"
         assert len(qm2.find_same_line_literal_spans(lit_s)) == 2
+        assert qm2.find_same_line_literal_spans('"unclosed at eof') == []
+        assert qm2._strip_punct_ws_outside_literals("1 . 5", digit_flank_exempt=False) == "1.5"
         norm_lit = qm2.normalise_m2a(lit_s, is_quote=True)
         assert "( b )" in norm_lit  # preserved inside string literal
         assert "1 . 5" in norm_lit  # digit-flanked dot preserved
         assert qm2.quote_tier_m2(q_punct_ws, passages, arm="m2a") == "m2a_1"
+        assert qm2.quote_tier_m2(q_punct_ws, passages, arm="m2b") == "m2a_1"
         assert qm2.quote_tier_m2(q_m2b, passages_q, arm="m2b") == "m2b_2"
+        assert qm2.quote_tier_m2b("", passages_q) is None
         with pytest.raises(ValueError, match="Unknown arm"):
             qm2.quote_tier_m2("x", passages, arm="bad")
-        p_m2_short = ["fn Call(x)\nother line with Call(x) in it"]
+        p_m2_short = ["fn Call(x)\nother line with Call(x) in it\nUniqueFn(9)"]
         assert qm2.quote_tier_m2a("fn Call ( x )", p_m2_short) == "m2a_short"
+        assert qm2.quote_tier_m2a("UniqueFn ( 9 )", p_m2_short) == "m2a_short"
+        assert qm2.quote_tier_m2a("MissingFn ( 9 )", p_m2_short) is None
         assert len(qm2.find_quote_spans_m2a("fn Call ( x )", p_m2_short)) >= 1
+        assert len(qm2.find_quote_spans_m2a("first fragment has enough words here and does not fail", p_multi)) == 1
+        assert qm2.find_quote_spans_m2a("definitely not found", p_m2_short) == []
         assert len(qm2.find_quote_spans_m2b(q_m2b, passages_q)) == 1
+        assert (
+            qm2.quote_credit_m2a(
+                ["", q_punct_ws, q_punct_ws, "not found", "a ( 1 )", "UniqueFn ( 9 )"],
+                passages + p_m2_short,
+                verdict="unsupported",
+                correct=True,
+            )
+            == pytest.approx(0.05)
+        )
 
         # locate_raw_span_m2a maps normalized match back to raw passage offsets for anti-farming
         span1 = v11cfg.locate_raw_span_m2a(q_punct_ws, passages)
         assert span1 is not None and span1[0] == 0 and span1[1] < span1[2]
+        assert v11cfg.locate_raw_span_m2a("", passages) is None
         assert v11cfg.locate_raw_span_m2a("short", passages) is None
         assert v11cfg.locate_raw_span_m2a("definitely not in passage anywhere at all", passages) is None
 
         # Also exercise tier0, tier1, tier2 ellipsis, and short-quote branches of locate_raw_span_m2a and canary helpers
+        p_hyph = ["+ // word-\n  continuation in a long enough line here\r\n\r\n+ second para line here with words"]
+        assert v11cfg.locate_raw_span_m2a("wordcontinuation in a long enough line here", p_hyph) is not None
+        assert v11cfg.locate_raw_span_m2a("wordcontinuation in a long ( enough ) line here", ["word-\ncontinuation in a long(enough) line here"]) is not None
+        assert v11cfg.locate_raw_span_m2a("quote with 'literal ( inside )' and 1 . 5", ["quote with 'literal ( inside )' and 1 . 5"]) is not None
         q_exact = "def compute_score(items, weights):"
         span_t0 = v11cfg.locate_raw_span_m2a(q_exact, passages)
         assert span_t0 is not None and span_t0[3] == "0"
+        span_t0_unm = v11cfg.locate_raw_span_m2a("first fragment has enough words here and does not fail", p_multi)
+        assert span_t0_unm is not None and span_t0_unm[3] == "0"
         span_t0_short = v11cfg.locate_raw_span_m2a("shortline99", p_multi)
         assert span_t0_short is not None and span_t0_short[3] == "0"
+        span_t0_short_raw = v11cfg.locate_raw_span_m2a("rawshort99", ["rawshort99\nother line"])
+        assert span_t0_short_raw is not None and span_t0_short_raw[3] == "0"
         span_t1 = v11cfg.locate_raw_span_m2a(
             "“first fragment has enough words here and does not fail”", p_multi
         )
@@ -2269,11 +2321,16 @@ class TestS2V11QuoteMatchersAndLoss:
         assert span_t2 is not None and span_t2[3] == "m2a_2"
         span_m2a_sh_line = v11cfg.locate_raw_span_m2a("fn Call ( x )", p_m2_short)
         assert span_m2a_sh_line is not None and span_m2a_sh_line[3] == "m2a_short"
-        p_short = ["Err (E409) in log\nAnother line here with more words"]
+        span_m2a_sh_unm = v11cfg.locate_raw_span_m2a("fn Call ( x )", ["+ fn Call(x)\n+ other line"])
+        assert span_m2a_sh_unm is not None and span_m2a_sh_unm[3] == "m2a_short"
+        p_short = ["+ Err (E409) in log\n+ Another line here with more words"]
         span_sh = v11cfg.locate_raw_span_m2a("Err ( E409 )", p_short)
         assert span_sh is not None and span_sh[3] == "m2a_short"
 
-        # Canary helper edge cases (table/para boundary, sign/escape edge slicing, balanced brackets, pct_linear)
+        # Canary helper edge cases (table/para boundary, sign/escape edge slicing, balanced brackets, pct_linear, McNemar)
+        with pytest.raises(ValueError, match="Discordant counts must be non-negative"):
+            v11cfg.mcnemar_one_sided_exact_p(-1, 0)
+        assert v11cfg.mcnemar_one_sided_exact_p(0, 3) == 1.0
         assert v11cfg.pct_linear([], 0.1) == 0.0
         assert v11cfg.pct_linear([10.0], 0.1) == 10.0
         assert v11cfg.pct_linear([10.0, 20.0, 30.0], 0.5) == 20.0
@@ -2284,15 +2341,19 @@ class TestS2V11QuoteMatchersAndLoss:
         p_tbl = "| col1 | col2 |\n| --- | --- |\n| val1 | -42 |\n\nNext paragraph here"
         bc = v11cfg._check_span_boundary(p_tbl, 0, len(p_tbl))
         assert bc["para_break"] is True and bc["table_md"] is True
-        es = v11cfg._check_span_edge_slicing("value is -42 in text", 10, 12, "-42")
+        es = v11cfg._check_span_edge_slicing("value is -42 in text", 10, 12, "...-42...")
         assert es["raw_sign_before_digit"] is True and es["any_sign_or_escape"] is True
         can_res = v11cfg.compute_window_canaries_v11(
             [
                 {"quote": "| val1 | -42 |", "passages": [p_tbl]},
                 {"quote": "42 in text", "passages": ["value is -42 in text"]},
+                {"quote": "unmatched quote", "passages": ["value is -42 in text"]},
+                {"quote": "unbalanced [ quote", "passages": ["unbalanced [ quote"], "m2a_matched": True, "raw_span": None},
+                {"quote": "span3", "passages": ["span3 ( ok )"], "m2a_matched": True, "raw_span": [0, 0, 5]},
+                {"quote": "span2", "passages": ["span2 ( ok )"], "m2a_matched": True, "raw_span": [0, 5]},
             ]
         )
-        assert can_res["total_emitted_quotes"] == 2
+        assert can_res["total_emitted_quotes"] == 6
         assert can_res["boundary_crossing_count"] >= 1
         assert can_res["sign_escape_edge_slice_count"] >= 1
 
