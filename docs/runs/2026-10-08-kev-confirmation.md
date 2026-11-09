@@ -3,6 +3,22 @@
 **Plan:** [2026-10-08-kev-confirmation-plan.md](2026-10-08-kev-confirmation-plan.md), merged in
 #36 before any fresh pair was judged. Judged from commit c94fc93. Local GPU, $0.
 
+> **Note added 2026-11-09: server prompt caches.** Both judges were re-run on 2026-11-09 with their server-side
+> prompt caches on and off. The code (c94fc938), the 149 fresh pairs and the weights were unchanged; the 32B shards
+> are verified byte-identical to the official release.
+> - **Kev-4B (the reference judge) is unaffected.** All 298 readings are identical with the cache on or off, at the
+>   stored 4 decimals, and identical to this report. The confirmation (145/149, CI [0.946, 0.993]) stands.
+> - **Qwen2.5-32B Q4 is sensitive to server cache and state.** With the cache on vs off, 6 pairs change their
+>   order-averaged verdict, and single readings move by up to 0.24. Across the three runs (this report and the two on
+>   2026-11-09), its order-averaged count is 132 to 137 of 149.
+> - This report's server cache state was not recorded. Its server had first planted the pairs with the same weights,
+>   so its 132/149 cannot be attributed to a cache state. Neither re-run (cold server, cache on or off) reproduces it;
+>   both give 137/149.
+> - The 32B row below (0.886, 132/149) should be read with that 5-pair spread (132–137 of 149). Its reading ("meets both") is
+>   unchanged, and it was never the reference judge.
+> - From now on, llama-server or Ollama judging runs use the cache-off flags and record `cache_n`.
+> - Record: `aspire-si-runs/2026-11-09-kev-cache-recheck/README.md`.
+
 ## Result
 
 **Confirmed.** Kev-4B, read order-averaged, favours the strong answer on 145 of 149 fresh pairs:
