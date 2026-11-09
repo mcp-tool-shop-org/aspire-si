@@ -2057,10 +2057,75 @@ class TestExploreResumeFromHalted:
 
 
 # -- S2 v1.1 Pre-Registration, Matchers, Constant Loss Denom, CUSUM + Confirm + Canaries --
+import dataclasses
 import hashlib
+import os
 import quote_matcher_m1 as qm1  # noqa: E402
 import quote_matcher_m2 as qm2  # noqa: E402
+import s2_draw  # noqa: E402
 import s2_v11_config as v11cfg  # noqa: E402
+
+
+def _make_synthetic_v11_prepass(tmp_path, gold_dir):
+    """Write synthetic Pass A and Pass B JSONL files for the 60-item _gold fixture."""
+    items, _ = s2.read_gold(gold_dir)
+    pass_a_rows = []
+    pass_b_rows = []
+    for idx, it in enumerate(items):
+        cid = it["id"]
+        label = it["label"]
+        # Give the first 10 unsupported training items k=6, ct=0 in both passes, and the rest k=5
+        is_easy = (label == "unsupported") and (idx % 2 == 0)
+        pass_a_rows.append(
+            {
+                "id": cid,
+                "gold_verdict": label,
+                "k_correct": 6 if is_easy else 5,
+                "cannot_tell": 0,
+                "g": 8,
+                "seed": 0,
+                "descriptive": False,
+            }
+        )
+        pass_b_rows.append(
+            {
+                "id": cid,
+                "gold_verdict": label,
+                "k_correct": 6 if is_easy else 5,
+                "cannot_tell": 0,
+                "g": 8,
+                "seed": 1,
+                "descriptive": False,
+            }
+        )
+    pass_a_path = tmp_path / "syn_pass_a.jsonl"
+    pass_b_path = tmp_path / "syn_pass_b.jsonl"
+    pass_a_path.write_text(
+        "".join(json.dumps(r) + "\n" for r in pass_a_rows), encoding="utf-8", newline="\n"
+    )
+    pass_b_path.write_text(
+        "".join(json.dumps(r) + "\n" for r in pass_b_rows), encoding="utf-8", newline="\n"
+    )
+    pass_a_sha = hashlib.sha256(pass_a_path.read_bytes()).hexdigest()
+    pass_b_sha = hashlib.sha256(pass_b_path.read_bytes()).hexdigest()
+    train_pool, holdout_pool, _ = s2_draw.split_stratified_holdout(
+        items, (pass_a_path, pass_a_sha), holdout_fraction=0.20, holdout_seed="pr79-holdout-v1"
+    )
+    holdout_ids = [r["id"] for r in holdout_pool]
+    sets = v11cfg.build_v11_canary_sets(
+        train_pool, pass_a_rows, pass_b_rows, holdout_ids=holdout_ids, strict=False
+    )
+    syn_cfg = dataclasses.replace(
+        v11cfg.S2V11,
+        pass_a_sha256=pass_a_sha,
+        pass_b_sha256=pass_b_sha,
+        canary_c_size=sets["canary_c_count"],
+        canary_c_required_item=sets["canary_c_ids"][0],
+        canary_c_ids_sha256=sets["canary_c_ids_sha256"],
+        gold_unsupported_train_items=sets["gold_unsupported_count"],
+        gold_unsupported_ids_sha256=sets["gold_unsupported_ids_sha256"],
+    )
+    return pass_a_path, pass_a_sha, pass_b_path, pass_b_sha, syn_cfg, sets
 
 
 class TestS2V11PreregAndConfig:
@@ -2075,31 +2140,400 @@ class TestS2V11PreregAndConfig:
         cfg_dict = v11cfg.s2_v11_config_dict()
         assert parsed == cfg_dict
         assert len(v11cfg.s2_v11_config_sha256()) == 64
+        assert not hasattr(v11cfg, "PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11")
 
         with pytest.raises(ValueError, match="Pattern not found in sealed prereg text"):
             v11cfg.parse_sealed_prereg_v11("incomplete text")
         with pytest.raises(ValueError, match="S2_V11_PREREG_SHA256_MISMATCH"):
             v11cfg.load_sealed_prereg_v11_text(prereg_path, expected_sha256="0" * 64)
 
-    def test_build_v11_canary_sets_excludes_pass_ab_diffs(self):
-        rows = [
-            {"id": "abandon-active-f", "label": "unsupported"},
+    def test_build_v11_canary_sets_synthetic_every_branch_of_rule(self, tmp_path):
+        # Ask 4(a): synthetic rows covering every branch of the sealed §3 rule:
+        # - k = 5 vs 6 in Pass A
+        # - k = 5 vs 6 in Pass B
+        # - CT = 1 in Pass A
+        # - CT = 1 in Pass B
+        # - a holdout item
+        # - a supported item
+        items = [
+            {"id": "c_clean_6_6", "label": "unsupported"},
             {"id": "diff-rnd-e839712-2u", "label": "unsupported"},
-            {"id": "verify-grounded-0010", "label": "supported"},
-            {"id": "prs-aspire-si-58-3u", "label": "unsupported"},
+            {"id": "u_pass_a_k5", "label": "unsupported"},
+            {"id": "u_pass_b_k5", "label": "unsupported"},
+            {"id": "u_pass_a_ct1", "label": "unsupported"},
+            {"id": "u_pass_b_ct1", "label": "unsupported"},
+            {"id": "h_holdout_unsup", "label": "unsupported"},
+            {"id": "s_supported_6_6", "label": "supported"},
         ]
-        sets = v11cfg.build_v11_canary_sets(rows)
-        assert sets["canary_c_ids"] == ["diff-rnd-e839712-2u"]
+        pass_a = [
+            {"id": "c_clean_6_6", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "diff-rnd-e839712-2u", "gold_verdict": "unsupported", "k_correct": 8, "cannot_tell": 0},
+            {"id": "u_pass_a_k5", "gold_verdict": "unsupported", "k_correct": 5, "cannot_tell": 0},
+            {"id": "u_pass_b_k5", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_a_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 1},
+            {"id": "u_pass_b_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "h_holdout_unsup", "gold_verdict": "unsupported", "k_correct": 8, "cannot_tell": 0},
+            {"id": "s_supported_6_6", "gold_verdict": "supported", "k_correct": 8, "cannot_tell": 0},
+        ]
+        pass_b = [
+            {"id": "c_clean_6_6", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "diff-rnd-e839712-2u", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_a_k5", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_b_k5", "gold_verdict": "unsupported", "k_correct": 5, "cannot_tell": 0},
+            {"id": "u_pass_a_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0},
+            {"id": "u_pass_b_ct1", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 1},
+            {"id": "h_holdout_unsup", "gold_verdict": "unsupported", "k_correct": 8, "cannot_tell": 0},
+            {"id": "s_supported_6_6", "gold_verdict": "supported", "k_correct": 8, "cannot_tell": 0},
+        ]
+        sets = v11cfg.build_v11_canary_sets(
+            items,
+            pass_a,
+            pass_b,
+            holdout_ids=["h_holdout_unsup"],
+            strict=False,
+        )
+        # Only the 2 items with label=='unsupported', not in holdout, A.k>=6, B.k>=6, A.ct==0, B.ct==0 are in C
+        assert sets["canary_c_ids"] == ["c_clean_6_6", "diff-rnd-e839712-2u"]
+        assert sets["canary_c_count"] == 2
+        # All 6 non-holdout unsupported items are in gold_unsupported_ids (holdout & supported excluded)
         assert sets["gold_unsupported_ids"] == [
-            "abandon-active-f",
+            "c_clean_6_6",
             "diff-rnd-e839712-2u",
-            "prs-aspire-si-58-3u",
+            "u_pass_a_ct1",
+            "u_pass_a_k5",
+            "u_pass_b_ct1",
+            "u_pass_b_k5",
         ]
+        assert sets["gold_unsupported_count"] == 6
+
+        # Also works when items=None (using gold_verdict from pass_a) and when pass_a/pass_b are dicts
+        sets_from_dicts = v11cfg.build_v11_canary_sets(
+            None,
+            {r["id"]: r for r in pass_a},
+            {r["id"]: r for r in pass_b},
+            holdout_ids=["h_holdout_unsup"],
+            strict=False,
+        )
+        assert sets_from_dicts == sets
+
+        # Verify strict=True validation and all named refusal codes on mismatch
+        syn_cfg = dataclasses.replace(
+            v11cfg.S2V11,
+            canary_c_size=2,
+            canary_c_required_item="diff-rnd-e839712-2u",
+            canary_c_ids_sha256=sets["canary_c_ids_sha256"],
+            gold_unsupported_train_items=6,
+            gold_unsupported_ids_sha256=sets["gold_unsupported_ids_sha256"],
+        )
+        assert (
+            v11cfg.build_v11_canary_sets(
+                items, pass_a, pass_b, holdout_ids=["h_holdout_unsup"], cfg=syn_cfg, strict=True
+            )
+            == sets
+        )
+        with pytest.raises(ValueError, match="S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, gold_unsupported_train_items=184)
+            )
+        with pytest.raises(ValueError, match="S2_V11_GOLD_UNSUPPORTED_SHA256_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, gold_unsupported_ids_sha256="0" * 64)
+            )
+        with pytest.raises(ValueError, match="S2_V11_CANARY_C_SIZE_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, canary_c_size=128)
+            )
+        with pytest.raises(ValueError, match="S2_V11_CANARY_C_MISSING_REQUIRED_ITEM"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, canary_c_required_item="missing-id")
+            )
+        with pytest.raises(ValueError, match="S2_V11_CANARY_C_SHA256_MISMATCH"):
+            v11cfg.validate_v11_canary_sets(
+                sets, cfg=dataclasses.replace(syn_cfg, canary_c_ids_sha256="0" * 64)
+            )
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_MISSING_ID"):
+            v11cfg.build_v11_canary_sets(items, pass_a[1:], pass_b)
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_MISSING_ID"):
+            v11cfg.build_v11_canary_sets(items, pass_a, pass_b[1:])
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_INVALID_RECORD"):
+            v11cfg.build_v11_canary_sets(items, [{"id": "c_clean_6_6"}], pass_b)
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_INVALID_RECORD"):
+            v11cfg.build_v11_canary_sets(items, {"c_clean_6_6": {" id": "bad"}}, pass_b)
+        with pytest.raises(ValueError, match="S2_V11_PASS_A_DUPLICATE_ID"):
+            v11cfg.build_v11_canary_sets(items, [pass_a[0], pass_a[0]], pass_b)
+
+    def test_local_data_derives_c_128_and_shas_from_real_prepass_files(self):
+        # Ask 4(b): local-data test deriving C from the real pre-pass files and asserting |C| == 128 + SHAs.
+        # Skipped in CI unless ASPIRE_S2_V11_PREPASS_DIR or (ASPIRE_S2_PASS_A_JSONL + ASPIRE_S2_PASS_B_JSONL) is set.
+        prepass_dir = os.environ.get("ASPIRE_S2_V11_PREPASS_DIR", "").strip()
+        pass_a_env = os.environ.get("ASPIRE_S2_PASS_A_JSONL", "").strip()
+        pass_b_env = os.environ.get("ASPIRE_S2_PASS_B_JSONL", "").strip()
+        holdout_env = os.environ.get("ASPIRE_S2_HOLDOUT_IDS", "").strip()
+
+        if prepass_dir:
+            base = Path(prepass_dir)
+            pass_a_path = Path(pass_a_env) if pass_a_env else base / "run-prepass" / "s2-hf-prepass.jsonl"
+            pass_b_path = Path(pass_b_env) if pass_b_env else base / "run-prepass-b2" / "s2-hf-prepass.jsonl"
+            holdout_path = (
+                Path(holdout_env)
+                if holdout_env
+                else base / "holdout-ids-pr79-holdout-v1.txt"
+            )
+        elif pass_a_env and pass_b_env:
+            pass_a_path = Path(pass_a_env)
+            pass_b_path = Path(pass_b_env)
+            holdout_path = Path(holdout_env) if holdout_env else None
+        else:
+            pytest.skip(
+                "Skipped in CI (pre-pass data and holdout list stay private); "
+                "set ASPIRE_S2_V11_PREPASS_DIR or ASPIRE_S2_PASS_A_JSONL + ASPIRE_S2_PASS_B_JSONL to run locally."
+            )
+
+        rec_a, sha_a = v11cfg.load_prepass_records_v11(
+            pass_a_path,
+            v11cfg.PASS_A_SHA256_V11,
+            pass_label="PASS_A",
+            pinned_sha256=v11cfg.S2V11.pass_a_sha256,
+        )
+        rec_b, sha_b = v11cfg.load_prepass_records_v11(
+            pass_b_path,
+            v11cfg.PASS_B_SHA256_V11,
+            pass_label="PASS_B",
+            pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+        )
+        assert sha_a == "feee81ff8897cda5824c4877ce597232d7291e2f80a32d3a16a56a9c06aafa69"
+        assert sha_b == "d77601e5d7a75842de4c01aafef4fc5f8b1e939e1a24cb26b6bf00f1c142fbd7"
+        assert len(rec_a) == 493
+        assert len(rec_b) == 493
+
+        if holdout_path is not None and holdout_path.is_file():
+            hold_raw = holdout_path.read_bytes()
+            assert (
+                hashlib.sha256(hold_raw).hexdigest()
+                == "00eaa49006099381328e2d7becceb9ed102b46ce79b2ac2823dc3c0247d16ff4"
+            )
+            holdout_ids = [
+                ln.strip() for ln in hold_raw.decode("utf-8").splitlines() if ln.strip()
+            ]
+        else:
+            items_for_split = [
+                {"id": cid, "label": r["gold_verdict"], "split": "tune"}
+                for cid, r in rec_a.items()
+            ]
+            _, holdout_pool, _ = s2_draw.split_stratified_holdout(
+                items_for_split,
+                (pass_a_path, sha_a),
+                holdout_fraction=0.20,
+                holdout_seed="pr79-holdout-v1",
+            )
+            holdout_ids = [r["id"] for r in holdout_pool]
+        assert len(holdout_ids) == 99
+
+        sets = v11cfg.build_v11_canary_sets(
+            None,
+            rec_a,
+            rec_b,
+            holdout_ids=holdout_ids,
+            cfg=v11cfg.S2V11,
+            strict=True,
+        )
+        assert sets["canary_c_count"] == 128
+        assert len(sets["canary_c_ids"]) == 128
+        assert "diff-rnd-e839712-2u" in sets["canary_c_ids"]
+        assert (
+            sets["canary_c_ids_sha256"]
+            == "c15c8a4cd323ebd0e605c6a166e42036a3ec87d2248a4c4c2a00d8ae658c4bca"
+        )
+        assert sets["gold_unsupported_count"] == 184
+        assert len(sets["gold_unsupported_ids"]) == 184
+        assert (
+            sets["gold_unsupported_ids_sha256"]
+            == "63e6656699395531d9814c9cd65c1c18cbbe5aa8c97614137d50bc6ab066f27e"
+        )
+        print(
+            json.dumps(
+                {
+                    "test": "test_local_data_derives_c_128_and_shas_from_real_prepass_files",
+                    "pass_a_sha256": sha_a,
+                    "pass_b_sha256": sha_b,
+                    "holdout_count": len(holdout_ids),
+                    "canary_c_count": sets["canary_c_count"],
+                    "canary_c_ids_sha256": sets["canary_c_ids_sha256"],
+                    "diff_rnd_e839712_2u_in_c": "diff-rnd-e839712-2u" in sets["canary_c_ids"],
+                    "gold_unsupported_count": sets["gold_unsupported_count"],
+                    "gold_unsupported_ids_sha256": sets["gold_unsupported_ids_sha256"],
+                }
+            )
+        )
+
+    def test_s2_v11_refuses_wrong_pass_b_sha_and_missing_prepass(self, tmp_path):
+        # Ask 4(c): refusal test for a wrong Pass-B SHA (both CLI argument mismatch and on-disk SHA mismatch)
+        gold = _gold(tmp_path)
+        out = tmp_path / "v11_refuse"
+        pass_a_file = tmp_path / "pass_a.jsonl"
+        pass_b_file = tmp_path / "pass_b.jsonl"
+        row_txt = json.dumps({"id": "g00", "gold_verdict": "unsupported", "k_correct": 6, "cannot_tell": 0}) + "\n"
+        pass_a_file.write_text(row_txt, encoding="utf-8")
+        pass_b_file.write_text(row_txt, encoding="utf-8")
+
+        base = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(out),
+            "--dry",
+            "--s2-v11",
+            "--arm",
+            "mech",
+            "--train-seed",
+            "45",
+        ]
+
+        # 1. Wrong --pass-b-sha256 CLI value vs pinned S2V11.pass_b_sha256 -> refuses with S2_V11_PASS_B_SHA256_MISMATCH
+        ns_bad_b = _ns(
+            [
+                *base,
+                "--pass-a-jsonl",
+                str(pass_a_file),
+                "--pass-a-sha256",
+                v11cfg.PASS_A_SHA256_V11,
+                "--pass-b-jsonl",
+                str(pass_b_file),
+                "--pass-b-sha256",
+                "0" * 64,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            s2.validate_s2_v11_args(ns_bad_b)
+
+        # 2. On-disk Pass-B file SHA-256 does not match pinned S2V11.pass_b_sha256 -> refuses with S2_V11_PASS_B_SHA256_MISMATCH
+        actual_b_sha = hashlib.sha256(pass_b_file.read_bytes()).hexdigest()
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            v11cfg.load_prepass_records_v11(
+                pass_b_file,
+                v11cfg.PASS_B_SHA256_V11,
+                pass_label="PASS_B",
+                pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+            )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            v11cfg.load_prepass_records_v11(
+                pass_b_file,
+                actual_b_sha,
+                pass_label="PASS_B",
+                pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+            )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            v11cfg.load_prepass_records_v11(
+                pass_b_file,
+                None,
+                pass_label="PASS_B",
+                pinned_sha256=v11cfg.S2V11.pass_b_sha256,
+            )
+        blank_line_file = tmp_path / "blank_line.jsonl"
+        blank_line_file.write_text("\n" + row_txt + "\n", encoding="utf-8")
+        recs_bl, _ = v11cfg.load_prepass_records_v11(blank_line_file, pass_label="PASS_B")
+        assert "g00" in recs_bl
+
+        # 3. Missing Pass B or Pass A under --s2-v11, or wrong Pass A SHA
+        ns_missing_b = _ns(
+            [
+                *base,
+                "--pass-a-jsonl",
+                str(pass_a_file),
+                "--pass-a-sha256",
+                v11cfg.PASS_A_SHA256_V11,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_REQUIRED"):
+            s2.validate_s2_v11_args(ns_missing_b)
+
+        ns_missing_a = _ns(
+            [
+                *base,
+                "--pass-b-jsonl",
+                str(pass_b_file),
+                "--pass-b-sha256",
+                v11cfg.PASS_B_SHA256_V11,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_REQUIRED"):
+            s2.validate_s2_v11_args(ns_missing_a)
+
+        ns_bad_a = _ns(
+            [
+                *base,
+                "--pass-a-jsonl",
+                str(pass_a_file),
+                "--pass-a-sha256",
+                "f" * 64,
+                "--pass-b-jsonl",
+                str(pass_b_file),
+                "--pass-b-sha256",
+                v11cfg.PASS_B_SHA256_V11,
+            ]
+        )
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_SHA256_MISMATCH"):
+            s2.validate_s2_v11_args(ns_bad_a)
+
+        # 4. File-level error branches in load_prepass_records_v11
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_MISSING_FILE"):
+            v11cfg.load_prepass_records_v11(tmp_path / "nope.jsonl", pass_label="PASS_B")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_REQUIRED"):
+            v11cfg.load_prepass_records_v11(pass_b_file, "", pass_label="PASS_B")
+        corrupt = tmp_path / "corrupt.jsonl"
+        corrupt.write_text("{not-json\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_CORRUPT_JSON"):
+            v11cfg.load_prepass_records_v11(corrupt, pass_label="PASS_B")
+        bad_rec = tmp_path / "bad_rec.jsonl"
+        bad_rec.write_text(json.dumps({"id": "g00"}) + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_INVALID_RECORD"):
+            v11cfg.load_prepass_records_v11(bad_rec, pass_label="PASS_B")
+        dup_rec = tmp_path / "dup_rec.jsonl"
+        dup_rec.write_text(row_txt + row_txt, encoding="utf-8")
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_DUPLICATE_ID"):
+            v11cfg.load_prepass_records_v11(dup_rec, pass_label="PASS_B")
+        bad_k = tmp_path / "bad_k.jsonl"
+        bad_k.write_text(
+            json.dumps({"id": "g00", "k_correct": -1, "cannot_tell": 0}) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_INVALID_RECORD"):
+            v11cfg.load_prepass_records_v11(bad_k, pass_label="PASS_B")
+        bad_ct = tmp_path / "bad_ct.jsonl"
+        bad_ct.write_text(
+            json.dumps({"id": "g00", "k_correct": 6, "cannot_tell": True}) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="S2_V11_PASS_B_INVALID_RECORD"):
+            v11cfg.load_prepass_records_v11(bad_ct, pass_label="PASS_B")
 
     def test_s2_v11_flag_freezes_settings_and_refuses_overrides(self, tmp_path):
         gold = _gold(tmp_path)
         out = tmp_path / "v11_check"
-        base = ["--gold", str(gold), "--rnd-commit", "e48cc90c", "--out", str(out), "--dry", "--s2-v11"]
+        pass_a_path = tmp_path / "pa.jsonl"
+        pass_b_path = tmp_path / "pb.jsonl"
+        pass_a_path.write_text("", encoding="utf-8")
+        pass_b_path.write_text("", encoding="utf-8")
+        base = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(out),
+            "--dry",
+            "--s2-v11",
+            "--pass-a-jsonl",
+            str(pass_a_path),
+            "--pass-a-sha256",
+            v11cfg.PASS_A_SHA256_V11,
+            "--pass-b-jsonl",
+            str(pass_b_path),
+            "--pass-b-sha256",
+            v11cfg.PASS_B_SHA256_V11,
+        ]
 
         # Valid --s2-v11 sets frozen parameters
         a = _ns([*base, "--arm", "mech", "--train-seed", "42"])
@@ -2115,12 +2549,17 @@ class TestS2V11PreregAndConfig:
         assert a.mask_truncated is True
         assert a.trunc_halt_rate == 0.20
         assert a.trunc_window_updates == 10
+        assert a.holdout is True
+        assert a.holdout_fraction == 0.20
+        assert a.holdout_seed == "pr79-holdout-v1"
         flags = s2.active_flags(a)
         assert flags["s2_v11"] is True
         assert flags["prereg_version"] == "1.1"
         assert flags["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
         assert flags["quote_matcher"] == "M2a"
         assert flags["constant_loss_denominator"] == 4514
+        assert flags["pass_a_sha256"] == v11cfg.PASS_A_SHA256_V11
+        assert flags["pass_b_sha256"] == v11cfg.PASS_B_SHA256_V11
 
         # Refusal cases under --s2-v11
         bad_cases = [
@@ -2134,6 +2573,8 @@ class TestS2V11PreregAndConfig:
             (["--quote-reward", "v1"], "S2_V11_OVERRIDE_FORBIDDEN"),
             (["--advantage", "std"], "S2_V11_OVERRIDE_FORBIDDEN"),
             (["--no-save-all", "--save-all-off-reason", "test"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--holdout-fraction", "0.10"], "S2_V11_OVERRIDE_FORBIDDEN"),
+            (["--holdout-seed", "other-seed"], "S2_V11_OVERRIDE_FORBIDDEN"),
         ]
         for extra_flags, code in bad_cases:
             ns = _ns([*base, "--arm", "mech", "--train-seed", "42", *extra_flags])
@@ -2783,8 +3224,46 @@ class TestS2V11GuardConfirmCanariesAndSim:
 
 
 class TestS2V11DryAndDefaultUnchanged:
-    def test_s2_v11_dry_two_step_chunk_and_default_path_unchanged(self, tmp_path):
+    def test_s2_v11_dry_two_step_chunk_and_default_path_unchanged(self, tmp_path, monkeypatch, capsys):
         gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, syn_sets = _make_synthetic_v11_prepass(tmp_path, gold)
+
+        # First verify that without patching S2V11's 128/184 counts, execute() refuses with S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH
+        monkeypatch.setattr(s2, "S2V11", dataclasses.replace(v11cfg.S2V11, pass_a_sha256=pa_sha, pass_b_sha256=pb_sha))
+        out_mismatch = tmp_path / "v11_mismatch"
+        with pytest.raises(SystemExit, match="S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH"):
+            _run(
+                [
+                    "--gold",
+                    str(gold),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(out_mismatch),
+                    "--dry",
+                    "--s2-v11",
+                    "--arm",
+                    "mech",
+                    "--train-seed",
+                    "42",
+                    "--steps",
+                    "2",
+                    "--max-new",
+                    "8",
+                    "--pass-a-jsonl",
+                    str(pa_path),
+                    "--pass-a-sha256",
+                    pa_sha,
+                    "--pass-b-jsonl",
+                    str(pb_path),
+                    "--pass-b-sha256",
+                    pb_sha,
+                ]
+            )
+
+        # Now patch S2V11 to match the synthetic 60-item gold fixture's counts & SHAs
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
         out_v11 = tmp_path / "v11_dry"
         rc_v11 = _run(
             [
@@ -2804,19 +3283,37 @@ class TestS2V11DryAndDefaultUnchanged:
                 "2",
                 "--max-new",
                 "8",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
             ]
         )
         # In dry mode at --max-new 8, completions truncate on update 0 (still < 10-update trunc window)
         # and guard window is 40 groups (10 updates), so 2 steps complete cleanly with rc == 0.
         assert rc_v11 == 0
+        captured = capsys.readouterr().out
+        assert '"event": "s2_v11_canary_sets_ready"' in captured
         rec = _receipt(out_v11)
         assert rec["prereg_version"] == "1.1"
         assert rec["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
-        assert rec["s2_v11_config_sha256"] == v11cfg.s2_v11_config_sha256()
-        assert rec["s2_v11_config"] == v11cfg.s2_v11_config_dict()
+        assert len(rec["s2_v11_config_sha256"]) == 64
+        assert rec["s2_v11_config"]["prereg_version"] == "1.1"
+        assert rec["canary_c_ids_sha256"] == syn_sets["canary_c_ids_sha256"]
+        assert rec["gold_unsupported_ids_sha256"] == syn_sets["gold_unsupported_ids_sha256"]
         hdr = json.loads((out_v11 / "s2-hf-train-header.json").read_text(encoding="utf-8"))
         assert hdr["prereg_sha256"] == v11cfg.PREREG_V11_SHA256
         assert hdr["settings"]["s2_v11"] is True
+        assert hdr["canary_c_count"] == syn_sets["canary_c_count"]
+        assert hdr["canary_c_ids_sha256"] == syn_sets["canary_c_ids_sha256"]
+        assert hdr["gold_unsupported_count"] == syn_sets["gold_unsupported_count"]
+        assert hdr["gold_unsupported_ids_sha256"] == syn_sets["gold_unsupported_ids_sha256"]
+        assert hdr["pass_a_sha256"] == pa_sha
+        assert hdr["pass_b_sha256"] == pb_sha
         hist = _history(out_v11)
         assert any(h.get("kind") == "step0_canary_pass" for h in hist)
         rows = _rows(out_v11)

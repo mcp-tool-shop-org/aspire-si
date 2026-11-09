@@ -13,7 +13,7 @@ import math
 from pathlib import Path
 import random
 import re
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import unicodedata
 
@@ -24,6 +24,13 @@ import quote_rule as _qr
 
 PREREG_V11_RELPATH = "docs/runs/2026-11-08-smoke-s2-v1.1-prereg.md"
 PREREG_V11_SHA256 = "9b2db4cf3c6e9eca415aa021a276cacccde2f1aac2c72be215e84e64c2962554"
+
+# §3 Pinned pre-pass and training-pool ID-set SHA-256 digests (`v11-baselines-result.json`, commit 9a2b4b22)
+PASS_A_SHA256_V11 = "feee81ff8897cda5824c4877ce597232d7291e2f80a32d3a16a56a9c06aafa69"  # §3 Pass A (`run-prepass/s2-hf-prepass.jsonl`)
+PASS_B_SHA256_V11 = "d77601e5d7a75842de4c01aafef4fc5f8b1e939e1a24cb26b6bf00f1c142fbd7"  # §3 Pass B (`run-prepass-b2/s2-hf-prepass.jsonl`)
+HOLDOUT_FILE_SHA256_V11 = "00eaa49006099381328e2d7becceb9ed102b46ce79b2ac2823dc3c0247d16ff4"  # §3 `holdout-ids-pr79-holdout-v1.txt` (99 ids)
+CANARY_C_IDS_SHA256_V11 = "c15c8a4cd323ebd0e605c6a166e42036a3ec87d2248a4c4c2a00d8ae658c4bca"  # §3 sorted C ids joined by `\n` (128 items)
+GOLD_UNSUPPORTED_IDS_SHA256_V11 = "63e6656699395531d9814c9cd65c1c18cbbe5aa8c97614137d50bc6ab066f27e"  # §3 / §5.5 sorted 184 gold-unsupported training-pool ids joined by `\n`
 
 
 @dataclass(frozen=True)
@@ -48,12 +55,15 @@ class S2V11Config:
     truncation_halt_threshold: float = 0.20  # §4.4
 
     # §3 & §5.1 Clean canary set C and Fuse A (CT collapse Poisson CUSUM)
+    pass_a_sha256: str = PASS_A_SHA256_V11  # §3 Pass A pre-pass jsonl sha256
+    pass_b_sha256: str = PASS_B_SHA256_V11  # §3 Pass B pre-pass jsonl sha256
     canary_c_label: str = "unsupported"  # §3
     canary_c_pass_a_min_k: int = 6  # §3
     canary_c_pass_b_min_k: int = 6  # §3
     canary_c_max_cannot_tell: int = 0  # §3
     canary_c_size: int = 128  # §3
     canary_c_required_item: str = "diff-rnd-e839712-2u"  # §3
+    canary_c_ids_sha256: str = CANARY_C_IDS_SHA256_V11  # §3 sha256 of sorted C ids joined by `\n`
     fuse_a_group_min_cannot_tell: int = 2  # §5.1
     fuse_a_k: float = 0.211  # §5.1
     fuse_a_h: float = 3.25  # §5.1
@@ -80,7 +90,8 @@ class S2V11Config:
     fuse_a_confirm_min_ct: int = 2  # §5.5
     fuse_a_confirm_min_delta_over_step0: int = 2  # §5.5
     fuse_a_keep_cusum_on_confirm_negative: bool = True  # §5.5
-    gold_unsupported_train_items: int = 184  # §5.5
+    gold_unsupported_train_items: int = 184  # §3 / §5.5
+    gold_unsupported_ids_sha256: str = GOLD_UNSUPPORTED_IDS_SHA256_V11  # §3 / §5.5 sha256 of sorted 184 gold-unsupported ids joined by `\n`
     mcnemar_one_sided_alpha: float = 0.05  # §5.5
     share_184_pass_in_same_window: bool = True  # §5.5
     confirm_cap_per_run: int = 3  # §5.5
@@ -126,27 +137,6 @@ class S2V11Config:
 
 
 S2V11 = S2V11Config()
-
-
-# Known 12 training-pool gold-unsupported items that passed Pass A (k>=6, ct=0)
-# but had k_correct < 6 or cannot_tell > 0 in Pass B (derived on registered
-# Pass A feee81ff... + Pass B d77601e5... in v11-baselines.py, §3).
-PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11: frozenset[str] = frozenset(
-    {
-        "abandon-active-f",
-        "cal-corrections-f",
-        "diff-aspire-si-13-2u",
-        "diff-aspire-si-48-3u",
-        "diff-offrig-3-3u",
-        "diff2-aspire-si-78cc26f-5u",
-        "diffhard-aspire-si-52-4u",
-        "prs-aspire-si-58-3u",
-        "prs-aspire-si-59-1u",
-        "prs-aspire-si-64-2u",
-        "prs-offrig-31-4u",
-        "prs-offrig-34-17u",
-    }
-)
 
 
 def s2_v11_config_dict(cfg: S2V11Config = S2V11) -> dict[str, Any]:
@@ -267,12 +257,15 @@ def parse_sealed_prereg_v11(text: str) -> dict[str, Any]:
         "clamp_wrong_positive_ceil": float(clamp_m.group(2)),
         "constant_loss_denominator": int(denom_m.group(1).replace(",", "")),
         "truncation_halt_threshold": float(trunc_m.group(1)),
+        "pass_a_sha256": PASS_A_SHA256_V11,
+        "pass_b_sha256": PASS_B_SHA256_V11,
         "canary_c_label": c_def_m.group(1),
         "canary_c_pass_a_min_k": int(c_def_m.group(2)),
         "canary_c_pass_b_min_k": int(c_def_m.group(3)),
         "canary_c_max_cannot_tell": int(c_def_m.group(4)),
         "canary_c_size": int(c_size_m.group(1)),
         "canary_c_required_item": c_item_m.group(1),
+        "canary_c_ids_sha256": CANARY_C_IDS_SHA256_V11,
         "fuse_a_group_min_cannot_tell": int(fuse_a_m.group(1)),
         "fuse_a_k": float(fuse_a_m.group(2)),
         "fuse_a_h": float(fuse_a_m.group(3)),
@@ -294,6 +287,7 @@ def parse_sealed_prereg_v11(text: str) -> dict[str, Any]:
         "fuse_a_confirm_min_delta_over_step0": int(conf_fa_m.group(2)),
         "fuse_a_keep_cusum_on_confirm_negative": bool(conf_fa_m),
         "gold_unsupported_train_items": int(conf_cb_m.group(1)),
+        "gold_unsupported_ids_sha256": GOLD_UNSUPPORTED_IDS_SHA256_V11,
         "mcnemar_one_sided_alpha": float(conf_cb_m.group(2)),
         "share_184_pass_in_same_window": bool(conf_u1_share_m),
         "confirm_cap_per_run": int(cap_m.group(1)),
@@ -1037,24 +1031,220 @@ def simulate_constant_exposure_cusum(
     }
 
 
-def build_v11_canary_sets(items: Sequence[Mapping[str, Any]]) -> dict[str, list[str]]:
-    """Derive the 184-item gold-``unsupported`` pool and 128-item clean canary set $C$ (§3).
+def ids_sha256_v11(ids: Sequence[str]) -> str:
+    """Return the SHA-256 hex digest of ``ids`` joined by ``\\n`` (§3)."""
+    return hashlib.sha256("\n".join(str(x) for x in ids).encode("utf-8")).hexdigest()
 
-    Follows ``v11-baselines.py:218-232, 265-279``:
-    - ``gold_unsupported_ids``: all items in ``items`` with ``label == "unsupported"`` (184 on the 394-item pool).
-    - ``canary_c_ids``: gold-``unsupported`` items not in ``PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11`` (128 on the 394-item pool, containing ``diff-rnd-e839712-2u``).
+
+def _index_prepass_records(
+    records: Mapping[str, Mapping[str, Any]] | Sequence[Mapping[str, Any]],
+    *,
+    pass_label: str,
+) -> dict[str, Mapping[str, Any]]:
+    if isinstance(records, Mapping):
+        out_map: dict[str, Mapping[str, Any]] = {}
+        for k, rec in records.items():
+            if (
+                not isinstance(rec, Mapping)
+                or "k_correct" not in rec
+                or "cannot_tell" not in rec
+            ):
+                raise ValueError(
+                    f"S2_V11_{pass_label}_INVALID_RECORD: record for {k!r} missing 'k_correct' or 'cannot_tell'"
+                )
+            out_map[str(k)] = rec
+        return out_map
+    out: dict[str, Mapping[str, Any]] = {}
+    for rec in records:
+        if (
+            not isinstance(rec, Mapping)
+            or "id" not in rec
+            or "k_correct" not in rec
+            or "cannot_tell" not in rec
+        ):
+            raise ValueError(
+                f"S2_V11_{pass_label}_INVALID_RECORD: record missing 'id', 'k_correct', or 'cannot_tell'"
+            )
+        cid = str(rec["id"])
+        if cid in out:
+            raise ValueError(f"S2_V11_{pass_label}_DUPLICATE_ID: duplicate id {cid!r}")
+        out[cid] = rec
+    return out
+
+
+def load_prepass_records_v11(
+    path: Path | str,
+    expected_sha256: str | None = None,
+    *,
+    pass_label: str = "PASS_A",
+    pinned_sha256: str | None = None,
+) -> tuple[dict[str, dict[str, Any]], str]:
+    """Load and SHA-verify a pre-pass JSONL file for S2 v1.1 canary-set derivation (§3)."""
+    p = Path(path)
+    if not p.is_file():
+        raise ValueError(f"S2_V11_{pass_label}_MISSING_FILE: {pass_label} file does not exist: {p.name}")
+    raw_bytes = p.read_bytes()
+    actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+    if expected_sha256 is not None:
+        exp = str(expected_sha256).strip().lower()
+        if not exp:
+            raise ValueError(f"S2_V11_{pass_label}_REQUIRED: expected sha256 for {pass_label} is empty")
+        if actual_sha != exp:
+            raise ValueError(
+                f"S2_V11_{pass_label}_SHA256_MISMATCH: {pass_label} file sha256 {actual_sha} != expected {exp}"
+            )
+    if pinned_sha256 is not None:
+        pin = str(pinned_sha256).strip().lower()
+        if expected_sha256 is not None and str(expected_sha256).strip().lower() != pin:
+            raise ValueError(
+                f"S2_V11_{pass_label}_SHA256_MISMATCH: --{pass_label.lower().replace('_', '-')}-sha256 "
+                f"{str(expected_sha256).strip().lower()} != pinned {pin}"
+            )
+        if actual_sha != pin:
+            raise ValueError(
+                f"S2_V11_{pass_label}_SHA256_MISMATCH: {pass_label} file sha256 {actual_sha} != pinned {pin}"
+            )
+    records_by_id: dict[str, dict[str, Any]] = {}
+    for line_no, raw_line in enumerate(raw_bytes.decode("utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"S2_V11_{pass_label}_CORRUPT_JSON: invalid JSON on line {line_no} of {p.name}"
+            ) from exc
+        if (
+            not isinstance(obj, dict)
+            or "id" not in obj
+            or "k_correct" not in obj
+            or "cannot_tell" not in obj
+        ):
+            raise ValueError(
+                f"S2_V11_{pass_label}_INVALID_RECORD: line {line_no} of {p.name} missing "
+                f"'id', 'k_correct', or 'cannot_tell'"
+            )
+        cid = str(obj["id"])
+        if cid in records_by_id:
+            raise ValueError(
+                f"S2_V11_{pass_label}_DUPLICATE_ID: duplicate record for id {cid!r} in {p.name}"
+            )
+        k_val = obj["k_correct"]
+        ct_val = obj["cannot_tell"]
+        if isinstance(k_val, bool) or not isinstance(k_val, int) or k_val < 0:
+            raise ValueError(
+                f"S2_V11_{pass_label}_INVALID_RECORD: invalid k_correct={k_val!r} for id {cid!r}"
+            )
+        if isinstance(ct_val, bool) or not isinstance(ct_val, int) or ct_val < 0:
+            raise ValueError(
+                f"S2_V11_{pass_label}_INVALID_RECORD: invalid cannot_tell={ct_val!r} for id {cid!r}"
+            )
+        records_by_id[cid] = obj
+    return records_by_id, actual_sha
+
+
+def validate_v11_canary_sets(
+    sets: Mapping[str, Any],
+    *,
+    cfg: S2V11Config = S2V11,
+) -> None:
+    """Assert $|C| = 128$, $|U_{\\text{gold}}| = 184$, required item in $C$, and both pinned ID-set SHAs (§3)."""
+    gold_ids = list(sets.get("gold_unsupported_ids") or ())
+    gold_sha = str(sets.get("gold_unsupported_ids_sha256") or ids_sha256_v11(gold_ids))
+    c_ids = list(sets.get("canary_c_ids") or ())
+    c_sha = str(sets.get("canary_c_ids_sha256") or ids_sha256_v11(c_ids))
+
+    if len(gold_ids) != cfg.gold_unsupported_train_items:
+        raise ValueError(
+            f"S2_V11_GOLD_UNSUPPORTED_SIZE_MISMATCH: expected {cfg.gold_unsupported_train_items} "
+            f"gold-{cfg.canary_c_label} training items, got {len(gold_ids)}"
+        )
+    if gold_sha != cfg.gold_unsupported_ids_sha256:
+        raise ValueError(
+            f"S2_V11_GOLD_UNSUPPORTED_SHA256_MISMATCH: expected gold-{cfg.canary_c_label} ids sha256 "
+            f"{cfg.gold_unsupported_ids_sha256}, got {gold_sha}"
+        )
+    if len(c_ids) != cfg.canary_c_size:
+        raise ValueError(
+            f"S2_V11_CANARY_C_SIZE_MISMATCH: expected |C| = {cfg.canary_c_size}, got {len(c_ids)}"
+        )
+    if cfg.canary_c_required_item and cfg.canary_c_required_item not in c_ids:
+        raise ValueError(
+            f"S2_V11_CANARY_C_MISSING_REQUIRED_ITEM: required item {cfg.canary_c_required_item!r} "
+            f"is missing from canary set C"
+        )
+    if c_sha != cfg.canary_c_ids_sha256:
+        raise ValueError(
+            f"S2_V11_CANARY_C_SHA256_MISMATCH: expected canary C ids sha256 "
+            f"{cfg.canary_c_ids_sha256}, got {c_sha}"
+        )
+
+
+def build_v11_canary_sets(
+    items: Sequence[Mapping[str, Any]] | None,
+    pass_a: Mapping[str, Mapping[str, Any]] | Sequence[Mapping[str, Any]],
+    pass_b: Mapping[str, Mapping[str, Any]] | Sequence[Mapping[str, Any]],
+    *,
+    holdout_ids: Iterable[str] | None = None,
+    cfg: S2V11Config = S2V11,
+    strict: bool = False,
+) -> dict[str, Any]:
+    """Derive the 184-item gold-``unsupported`` pool and 128-item clean canary set $C$ by the sealed §3 rule.
+
+    Rule (§3):
+    $C = (\\text{training pool} \\setminus \\text{holdout}) \\cap \\text{gold-unsupported}
+    \\cap (A.k \\ge 6) \\cap (B.k \\ge 6) \\cap (A.\\text{cannot\\_tell} = 0) \\cap (B.\\text{cannot\\_tell} = 0)$.
+    Thresholds come from ``cfg`` (``canary_c_label``, ``canary_c_pass_a_min_k``, ``canary_c_pass_b_min_k``,
+    ``canary_c_max_cannot_tell``). When ``strict=True``, validates counts, required item, and pinned SHAs.
     """
-    gold_unsup: list[str] = []
-    canary_c: list[str] = []
-    for it in items:
+    a_by_id = _index_prepass_records(pass_a, pass_label="PASS_A")
+    b_by_id = _index_prepass_records(pass_b, pass_label="PASS_B")
+    hold_set = {str(x).strip() for x in (holdout_ids or ()) if str(x).strip()}
+
+    source_items: Sequence[Mapping[str, Any]] = (
+        items if items is not None else list(a_by_id.values())
+    )
+    gold_unsup_set: set[str] = set()
+    canary_c_set: set[str] = set()
+    for it in source_items:
         cid = str(it.get("id", ""))
-        label = str(it.get("label", ""))
-        if label == S2V11.canary_c_label:
-            gold_unsup.append(cid)
-            if cid not in PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11:
-                canary_c.append(cid)
-    return {
+        if not cid or cid in hold_set:
+            continue
+        label = str(it.get("label") or it.get("gold_verdict") or "")
+        if label != cfg.canary_c_label:
+            continue
+        if cid not in a_by_id:
+            raise ValueError(f"S2_V11_PASS_A_MISSING_ID: training item {cid!r} has no Pass A record")
+        if cid not in b_by_id:
+            raise ValueError(f"S2_V11_PASS_B_MISSING_ID: training item {cid!r} has no Pass B record")
+        rec_a = a_by_id[cid]
+        rec_b = b_by_id[cid]
+        a_k = int(rec_a["k_correct"])
+        b_k = int(rec_b["k_correct"])
+        a_ct = int(rec_a["cannot_tell"])
+        b_ct = int(rec_b["cannot_tell"])
+        gold_unsup_set.add(cid)
+        if (
+            a_k >= cfg.canary_c_pass_a_min_k
+            and b_k >= cfg.canary_c_pass_b_min_k
+            and a_ct <= cfg.canary_c_max_cannot_tell
+            and b_ct <= cfg.canary_c_max_cannot_tell
+        ):
+            canary_c_set.add(cid)
+
+    gold_unsup = sorted(gold_unsup_set)
+    canary_c = sorted(canary_c_set)
+    out: dict[str, Any] = {
         "gold_unsupported_ids": gold_unsup,
+        "gold_unsupported_count": len(gold_unsup),
+        "gold_unsupported_ids_sha256": ids_sha256_v11(gold_unsup),
         "canary_c_ids": canary_c,
+        "canary_c_count": len(canary_c),
+        "canary_c_ids_sha256": ids_sha256_v11(canary_c),
     }
+    if strict:
+        validate_v11_canary_sets(out, cfg=cfg)
+    return out
+
 

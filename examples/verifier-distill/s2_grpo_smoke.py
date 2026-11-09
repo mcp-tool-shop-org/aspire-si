@@ -227,7 +227,11 @@ try:
     from quote_matcher_m1 import quote_found_m1  # noqa: F401
     from quote_matcher_m2 import normalise_m2a, quote_credit_m2a, quote_found_m2a  # noqa: F401
     from s2_v11_config import (  # noqa: F401
-        PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11,
+        CANARY_C_IDS_SHA256_V11,
+        GOLD_UNSUPPORTED_IDS_SHA256_V11,
+        HOLDOUT_FILE_SHA256_V11,
+        PASS_A_SHA256_V11,
+        PASS_B_SHA256_V11,
         PREREG_V11_RELPATH,
         PREREG_V11_SHA256,
         S2V11,
@@ -235,6 +239,8 @@ try:
         build_v11_canary_sets,
         compute_window_canaries_v11,
         evaluate_canary_rollback_v11,
+        ids_sha256_v11,
+        load_prepass_records_v11,
         load_sealed_prereg_v11_text,
         locate_raw_span_m2a,
         mcnemar_one_sided_exact_p,
@@ -243,6 +249,7 @@ try:
         s2_v11_config_sha256,
         simulate_constant_exposure_cusum,
         update_poisson_cusum,
+        validate_v11_canary_sets,
     )
 except ModuleNotFoundError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -274,7 +281,11 @@ except ModuleNotFoundError:  # pragma: no cover
     from quote_matcher_m1 import quote_found_m1  # noqa: F401
     from quote_matcher_m2 import normalise_m2a, quote_credit_m2a, quote_found_m2a  # noqa: F401
     from s2_v11_config import (  # noqa: F401
-        PASS_A_PASS_B_DIFF_EXCLUDED_IDS_V11,
+        CANARY_C_IDS_SHA256_V11,
+        GOLD_UNSUPPORTED_IDS_SHA256_V11,
+        HOLDOUT_FILE_SHA256_V11,
+        PASS_A_SHA256_V11,
+        PASS_B_SHA256_V11,
         PREREG_V11_RELPATH,
         PREREG_V11_SHA256,
         S2V11,
@@ -282,6 +293,8 @@ except ModuleNotFoundError:  # pragma: no cover
         build_v11_canary_sets,
         compute_window_canaries_v11,
         evaluate_canary_rollback_v11,
+        ids_sha256_v11,
+        load_prepass_records_v11,
         load_sealed_prereg_v11_text,
         locate_raw_span_m2a,
         mcnemar_one_sided_exact_p,
@@ -290,6 +303,7 @@ except ModuleNotFoundError:  # pragma: no cover
         s2_v11_config_sha256,
         simulate_constant_exposure_cusum,
         update_poisson_cusum,
+        validate_v11_canary_sets,
     )
 
 
@@ -4813,6 +4827,13 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
             )
 
     if not is_v11:
+        pb_path_raw = getattr(a, "pass_b_jsonl", None)
+        pb_sha_raw = getattr(a, "pass_b_sha256", None)
+        if (pb_path_raw is None) != (not pb_sha_raw):
+            raise SystemExit(
+                "refusing to start (S2_V11_PASS_B_MISSING_ARG): "
+                "--pass-b-jsonl and --pass-b-sha256 must be given together"
+            )
         return False
 
     if explore_reason is not None:
@@ -4870,6 +4891,47 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
         raise SystemExit(
             "refusing to start (S2_V11_OVERRIDE_FORBIDDEN): --s2-v11 forbids --no-save-all"
         )
+    if (
+        getattr(a, "holdout_fraction", None) is not None
+        and abs(float(a.holdout_fraction) - HOLDOUT_DEFAULT_FRACTION) > 1e-12
+    ):
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --holdout-fraction={HOLDOUT_DEFAULT_FRACTION}, got {a.holdout_fraction!r}"
+        )
+    if (
+        getattr(a, "holdout_seed", None) is not None
+        and str(a.holdout_seed).strip() != HOLDOUT_DEFAULT_SEED
+    ):
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --holdout-seed={HOLDOUT_DEFAULT_SEED!r}, got {a.holdout_seed!r}"
+        )
+
+    pa_path = getattr(a, "pass_a_jsonl", None)
+    pa_sha = str(getattr(a, "pass_a_sha256", None) or "").strip().lower()
+    if pa_path is None or not pa_sha:
+        raise SystemExit(
+            "refusing to start (S2_V11_PASS_A_REQUIRED): "
+            "--s2-v11 requires --pass-a-jsonl and --pass-a-sha256"
+        )
+    if pa_sha != S2V11.pass_a_sha256:
+        raise SystemExit(
+            f"refusing to start (S2_V11_PASS_A_SHA256_MISMATCH): "
+            f"--s2-v11 pins --pass-a-sha256={S2V11.pass_a_sha256}, got {pa_sha!r}"
+        )
+    pb_path = getattr(a, "pass_b_jsonl", None)
+    pb_sha = str(getattr(a, "pass_b_sha256", None) or "").strip().lower()
+    if pb_path is None or not pb_sha:
+        raise SystemExit(
+            "refusing to start (S2_V11_PASS_B_REQUIRED): "
+            "--s2-v11 requires --pass-b-jsonl and --pass-b-sha256"
+        )
+    if pb_sha != S2V11.pass_b_sha256:
+        raise SystemExit(
+            f"refusing to start (S2_V11_PASS_B_SHA256_MISMATCH): "
+            f"--s2-v11 pins --pass-b-sha256={S2V11.pass_b_sha256}, got {pb_sha!r}"
+        )
 
     a.ct_guard = True
     a.ct_guard_mode = "halt"
@@ -4880,6 +4942,9 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
     a.quote_reward = "v2"
     a.advantage = "dr-grpo"
     a.groups_per_update = v11_gpu
+    a.holdout = True
+    a.holdout_fraction = HOLDOUT_DEFAULT_FRACTION
+    a.holdout_seed = HOLDOUT_DEFAULT_SEED
     if getattr(a, "arm", None) is not None or any(
         getattr(a, attr, None) is not None for _, attr in TRAIN_ONLY_FLAGS
     ):
@@ -5242,6 +5307,16 @@ def build_train_header(
                 "prereg_sha256": S2V11.prereg_sha256,
                 "s2_v11_config_sha256": s2_v11_config_sha256(),
                 "s2_v11_config": s2_v11_config_dict(),
+                "pass_a_sha256": draw_record.get("pass_a_sha256", S2V11.pass_a_sha256),
+                "pass_b_sha256": draw_record.get("pass_b_sha256", S2V11.pass_b_sha256),
+                "canary_c_count": draw_record.get("canary_c_count", S2V11.canary_c_size),
+                "canary_c_ids_sha256": draw_record.get("canary_c_ids_sha256", S2V11.canary_c_ids_sha256),
+                "gold_unsupported_count": draw_record.get(
+                    "gold_unsupported_count", S2V11.gold_unsupported_train_items
+                ),
+                "gold_unsupported_ids_sha256": draw_record.get(
+                    "gold_unsupported_ids_sha256", S2V11.gold_unsupported_ids_sha256
+                ),
                 "quote_matcher_m1_sha256": _file_sha256(here / "quote_matcher_m1.py"),
                 "quote_matcher_m2_sha256": _file_sha256(here / "quote_matcher_m2.py"),
                 "s2_v11_config_module_sha256": _file_sha256(here / "s2_v11_config.py"),
@@ -7295,6 +7370,8 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["prepass_baseline_sha256"] = str(a.prepass_baseline_sha256).strip().lower()
     if getattr(a, "pass_a_sha256", None):
         flags["pass_a_sha256"] = str(a.pass_a_sha256).strip().lower()
+    if getattr(a, "pass_b_sha256", None):
+        flags["pass_b_sha256"] = str(a.pass_b_sha256).strip().lower()
     if getattr(a, "replay_check_sha256", None) and str(getattr(a, "replay_check_sha256")).strip():
         flags["replay_check_sha256"] = str(a.replay_check_sha256).strip().lower()
     if getattr(a, "replay_check_off_reason", None) and str(getattr(a, "replay_check_off_reason")).strip():
@@ -7559,6 +7636,68 @@ def execute(
             "--ct-guard requires Pass-A k_correct "
             "(--pass-a-jsonl/--pass-a-sha256 or --prepass-jsonl/--prepass-sha256)"
         )
+    v11_sets: dict[str, Any] | None = None
+    if is_v11:
+        _check_header_not_descriptive(Path(a.pass_a_jsonl), expected_seeds=(0,))
+        _check_header_not_descriptive(Path(a.pass_b_jsonl), expected_seeds=(1,))
+        try:
+            pass_a_recs, pass_a_verified_sha = load_prepass_records_v11(
+                a.pass_a_jsonl,
+                a.pass_a_sha256,
+                pass_label="PASS_A",
+                pinned_sha256=S2V11.pass_a_sha256,
+            )
+            pass_b_recs, pass_b_verified_sha = load_prepass_records_v11(
+                a.pass_b_jsonl,
+                a.pass_b_sha256,
+                pass_label="PASS_B",
+                pinned_sha256=S2V11.pass_b_sha256,
+            )
+            hold_set = set(holdout_ids_list)
+            train_pool_rows = [
+                r
+                for r in rows
+                if r.get("split", PROMPT_SPLIT) == PROMPT_SPLIT and str(r.get("id", "")) not in hold_set
+            ]
+            v11_sets = build_v11_canary_sets(
+                train_pool_rows,
+                pass_a_recs,
+                pass_b_recs,
+                holdout_ids=hold_set,
+                cfg=S2V11,
+                strict=True,
+            )
+        except ValueError as exc:
+            raise SystemExit(f"refusing to start ({exc})") from exc
+        v11_sets["pass_a_sha256"] = pass_a_verified_sha
+        v11_sets["pass_b_sha256"] = pass_b_verified_sha
+        draw_record["pass_a_sha256"] = pass_a_verified_sha
+        draw_record["pass_b_sha256"] = pass_b_verified_sha
+        draw_record["canary_c_count"] = v11_sets["canary_c_count"]
+        draw_record["canary_c_ids_sha256"] = v11_sets["canary_c_ids_sha256"]
+        draw_record["gold_unsupported_count"] = v11_sets["gold_unsupported_count"]
+        draw_record["gold_unsupported_ids_sha256"] = v11_sets["gold_unsupported_ids_sha256"]
+        v11_start_log = {
+            "event": "s2_v11_canary_sets_ready",
+            "prereg_version": S2V11.prereg_version,
+            "prereg_sha256": S2V11.prereg_sha256,
+            "pass_a_sha256": pass_a_verified_sha,
+            "pass_b_sha256": pass_b_verified_sha,
+            "holdout_count": len(holdout_ids_list),
+            "holdout_ids_sha256": draw_record.get("holdout_ids_sha256"),
+            "train_pool_count": len(train_pool_rows),
+            "canary_c_count": v11_sets["canary_c_count"],
+            "canary_c_ids_sha256": v11_sets["canary_c_ids_sha256"],
+            "gold_unsupported_count": v11_sets["gold_unsupported_count"],
+            "gold_unsupported_ids_sha256": v11_sets["gold_unsupported_ids_sha256"],
+        }
+        print(json.dumps(v11_start_log), flush=True)
+    elif getattr(a, "pass_b_jsonl", None) is not None:
+        _check_header_not_descriptive(Path(a.pass_b_jsonl), expected_seeds=(1,))
+        try:
+            load_prepass_records_v11(a.pass_b_jsonl, a.pass_b_sha256, pass_label="PASS_B")
+        except ValueError as exc:
+            raise SystemExit(f"refusing to start ({exc})") from exc
     if getattr(a, "prompt_lengths", False) and not getattr(a, "probe_memory", False):
         if a.dry:
             tok = DryTokenizer()
@@ -7591,12 +7730,8 @@ def execute(
             )
     if rollout_only and a.dry and bundle.get("dry_prepass_cap") is not None:
         prompts = prompts[: int(bundle["dry_prepass_cap"])]
-    v11_sets: dict[str, Any] | None = None
     confirm_runner: Callable[[Sequence[str]], dict[str, dict[str, Any]]] | None = None
     if is_v11:
-        hold_set = set(holdout_ids_list)
-        train_pool_rows = [r for r in rows if str(r.get("id", "")) not in hold_set]
-        v11_sets = build_v11_canary_sets(train_pool_rows)
         rows_by_id = {str(r["id"]): r for r in rows}
 
         def _v11_confirm_runner(
@@ -8297,6 +8432,13 @@ def execute(
             receipt["prereg_sha256"] = S2V11.prereg_sha256
             receipt["s2_v11_config_sha256"] = s2_v11_config_sha256()
             receipt["s2_v11_config"] = s2_v11_config_dict()
+            if v11_sets is not None:
+                receipt["pass_a_sha256"] = v11_sets["pass_a_sha256"]
+                receipt["pass_b_sha256"] = v11_sets["pass_b_sha256"]
+                receipt["canary_c_count"] = v11_sets["canary_c_count"]
+                receipt["canary_c_ids_sha256"] = v11_sets["canary_c_ids_sha256"]
+                receipt["gold_unsupported_count"] = v11_sets["gold_unsupported_count"]
+                receipt["gold_unsupported_ids_sha256"] = v11_sets["gold_unsupported_ids_sha256"]
         (a.out / f"s2-{a.path}.json").write_text(
             json.dumps(receipt, indent=1), encoding="utf-8", newline="\n"
         )
@@ -8608,6 +8750,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--pass-a-sha256",
         default=None,
         help="expected sha256 hex digest of --pass-a-jsonl",
+    )
+    ap.add_argument(
+        "--pass-b-jsonl",
+        type=Path,
+        default=None,
+        help="Pass-B pre-pass JSONL used with Pass A under --s2-v11 to derive clean canary set C (§3)",
+    )
+    ap.add_argument(
+        "--pass-b-sha256",
+        default=None,
+        help="expected sha256 hex digest of --pass-b-jsonl",
     )
     ap.add_argument(
         "--replay-check",
