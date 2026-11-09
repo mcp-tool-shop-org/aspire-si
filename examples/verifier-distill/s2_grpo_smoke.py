@@ -863,14 +863,8 @@ class CtCollapseGuard:
         ]
         m_w = len(c_groups)
         b_w = sum(1 for g_rec in c_groups if int(g_rec["ct_count"]) >= S2V11.fuse_a_group_min_cannot_tell)
-        e0_a = (
-            float(self.window_groups) * float(S2V11.canary_c_size) / 394.0
-            if len(self.canary_c_ids) == S2V11.canary_c_size
-            else float(self.window_groups)
-        )
-        eff_k_a = S2V11.fuse_a_k * (float(m_w) / e0_a if e0_a > 0.0 else 0.0)
         fuse_a_s_before = self.fuse_a_s
-        self.fuse_a_s = update_poisson_cusum(self.fuse_a_s, b_w, eff_k_a)
+        self.fuse_a_s = update_poisson_cusum(self.fuse_a_s, b_w, S2V11.fuse_a_k)
         fuse_a_tripped = self.fuse_a_s >= (S2V11.fuse_a_h - 1e-12)
 
         # §5.2 Channel B: gold-unsupported FA2 false-accept Poisson CUSUM
@@ -880,14 +874,8 @@ class CtCollapseGuard:
             for g_rec in unsup_groups
             if int(g_rec.get("sup_count", 0)) >= S2V11.channel_b_group_min_supported
         )
-        e0_b = (
-            float(self.window_groups) * float(S2V11.gold_unsupported_train_items) / 394.0
-            if len(self.gold_unsupported_ids) == S2V11.gold_unsupported_train_items
-            else float(self.window_groups)
-        )
-        eff_k_b = S2V11.channel_b_k * (float(n_w) / e0_b if e0_b > 0.0 else 0.0)
         channel_b_s_before = self.channel_b_s
-        self.channel_b_s = update_poisson_cusum(self.channel_b_s, fa2_w, eff_k_b)
+        self.channel_b_s = update_poisson_cusum(self.channel_b_s, fa2_w, S2V11.channel_b_k)
         channel_b_tripped = self.channel_b_s >= (S2V11.channel_b_h - 1e-12)
 
         # §5.6 U1: routes to confirmation pass on the 184 gold-unsupported items
@@ -4241,8 +4229,26 @@ class DryTokenizer:
         return {"input_ids": ids}
 
 
-def dry_reward(text: str, row: dict, thinking_tokens: int) -> float:
+def dry_reward(
+    text: str,
+    row: dict,
+    thinking_tokens: int,
+    *,
+    truncated: bool = False,
+    quote_matcher: str = "rule2",
+) -> float:
     """Dry only: a reward that varies between samples, so the advantage and loss path runs. Not the plan's."""
+    if quote_matcher == "M2a" and not truncated and parse_reply(text) is not None:
+        passages = passages_of(row) if "context" in row else as_passages(row.get("passages") or ())
+        return reward(
+            text,
+            str(row.get("label", "supported")),
+            passages,
+            thinking_tokens,
+            truncated=False,
+            quote_reward="v2",
+            quote_matcher="M2a",
+        )
     return (sum(text.encode("utf-8")) % 7) / 7.0 - 0.5
 
 
@@ -5018,46 +5024,52 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
             f"--s2-v11 freezes --holdout-seed={HOLDOUT_DEFAULT_SEED!r}, got {a.holdout_seed!r}"
         )
 
-    train_seed = getattr(a, "train_seed", None)
-    if isinstance(train_seed, bool) or train_seed not in S2V11.seeds:
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 requires --train-seed in {list(S2V11.seeds)} "
-            f"(retired seeds 42, 43, 44 are forbidden); got {train_seed!r}"
-        )
-    if getattr(a, "_draw_explicit", False) and str(a.draw) != "class_stratified":
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 freezes --draw='class_stratified', got {a.draw!r}"
-        )
-    if str(getattr(a, "draw", "first") or "first") not in ("first", "class_stratified"):
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 freezes --draw='class_stratified', got {getattr(a, 'draw', None)!r}"
-        )
-    draw_seed = getattr(a, "draw_seed", None)
-    if getattr(a, "_draw_seed_explicit", False) and (
-        draw_seed is None or isinstance(draw_seed, bool) or int(draw_seed) != int(train_seed)
-    ):
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 freezes --draw-seed == --train-seed ({train_seed}), got {draw_seed!r}"
-        )
-    if draw_seed is not None and (isinstance(draw_seed, bool) or int(draw_seed) != int(train_seed)):
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 freezes --draw-seed == --train-seed ({train_seed}), got {draw_seed!r}"
-        )
-    if getattr(a, "_steps_explicit", False) and int(a.steps) != S2V11.primary_horizon_updates:
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 freezes --steps={S2V11.primary_horizon_updates}, got {a.steps!r}"
-        )
-    if int(getattr(a, "steps", STEPS)) not in (STEPS, S2V11.primary_horizon_updates):
-        raise SystemExit(
-            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
-            f"--s2-v11 freezes --steps={S2V11.primary_horizon_updates}, got {getattr(a, 'steps', None)!r}"
-        )
+    is_pass_mode = bool(
+        getattr(a, "rollout_only", False)
+        or getattr(a, "logging_pass", False)
+        or getattr(a, "postpass", False)
+    )
+    if not is_pass_mode:
+        train_seed = getattr(a, "train_seed", None)
+        if isinstance(train_seed, bool) or train_seed not in S2V11.seeds:
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 requires --train-seed in {list(S2V11.seeds)} "
+                f"(retired seeds 42, 43, 44 are forbidden); got {train_seed!r}"
+            )
+        if getattr(a, "_draw_explicit", False) and str(a.draw) != "class_stratified":
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 freezes --draw='class_stratified', got {a.draw!r}"
+            )
+        if str(getattr(a, "draw", "first") or "first") not in ("first", "class_stratified"):
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 freezes --draw='class_stratified', got {getattr(a, 'draw', None)!r}"
+            )
+        draw_seed = getattr(a, "draw_seed", None)
+        if getattr(a, "_draw_seed_explicit", False) and (
+            draw_seed is None or isinstance(draw_seed, bool) or int(draw_seed) != int(train_seed)
+        ):
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 freezes --draw-seed == --train-seed ({train_seed}), got {draw_seed!r}"
+            )
+        if draw_seed is not None and (isinstance(draw_seed, bool) or int(draw_seed) != int(train_seed)):
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 freezes --draw-seed == --train-seed ({train_seed}), got {draw_seed!r}"
+            )
+        if getattr(a, "_steps_explicit", False) and int(a.steps) != S2V11.primary_horizon_updates:
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 freezes --steps={S2V11.primary_horizon_updates}, got {a.steps!r}"
+            )
+        if int(getattr(a, "steps", STEPS)) not in (STEPS, S2V11.primary_horizon_updates):
+            raise SystemExit(
+                f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+                f"--s2-v11 freezes --steps={S2V11.primary_horizon_updates}, got {getattr(a, 'steps', None)!r}"
+            )
 
     pa_path = getattr(a, "pass_a_jsonl", None)
     pa_sha = str(getattr(a, "pass_a_sha256", None) or "").strip().lower()
@@ -5082,21 +5094,22 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
             f"--s2-v11 pins --pass-b-sha256={S2V11.pass_b_sha256}, got {pb_sha!r}"
         )
 
-    a.ct_guard = True
-    a.ct_guard_mode = "halt"
-    a.guard_window_groups = S2V11.groups_per_window
-    a.mask_wrong_positive_advantage = True
     a.zero_variance_mask = True
     a.mask_truncated = True
     a.quote_reward = "v2"
     a.advantage = "dr-grpo"
     a.groups_per_update = v11_gpu
-    a.holdout = True
-    a.holdout_fraction = HOLDOUT_DEFAULT_FRACTION
-    a.holdout_seed = HOLDOUT_DEFAULT_SEED
-    a.draw = "class_stratified"
-    a.draw_seed = int(train_seed)
-    a.steps = S2V11.primary_horizon_updates
+    if not is_pass_mode:
+        a.ct_guard = True
+        a.ct_guard_mode = "halt"
+        a.guard_window_groups = S2V11.groups_per_window
+        a.mask_wrong_positive_advantage = True
+        a.holdout = True
+        a.holdout_fraction = HOLDOUT_DEFAULT_FRACTION
+        a.holdout_seed = HOLDOUT_DEFAULT_SEED
+        a.draw = "class_stratified"
+        a.draw_seed = int(train_seed)
+        a.steps = S2V11.primary_horizon_updates
     if getattr(a, "arm", None) is not None or any(
         getattr(a, attr, None) is not None for _, attr in TRAIN_ONLY_FLAGS
     ):
@@ -7739,9 +7752,9 @@ def execute(
         run_paired_estimators_from_spec(Path(a.paired_estimators), a.out)
         return 0
     save_all_on, save_all_reason = validate_save_all_args(a)
+    is_v11 = validate_s2_v11_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
     training_run = validate_training_args(a)
-    is_v11 = validate_s2_v11_args(a)
     resume_pre: dict[str, Any] | None = None
     if training_run and getattr(a, "resume_from", None) is not None:
         # every check that needs no model runs before the model loads: halted, finished, changed files
@@ -7930,6 +7943,18 @@ def execute(
                 pass_label="PASS_B",
                 pinned_sha256=S2V11.pass_b_sha256,
             )
+            if not holdout_ids_list:
+                _, _, v11_hold_meta = split_stratified_holdout(
+                    rows,
+                    (a.pass_a_jsonl, a.pass_a_sha256),
+                    holdout_fraction=float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION)),
+                    holdout_seed=str(getattr(a, "holdout_seed", None) or HOLDOUT_DEFAULT_SEED),
+                )
+                holdout_ids_list = list(v11_hold_meta["holdout_ids"])
+                draw_record["holdout_seed"] = v11_hold_meta["holdout_seed"]
+                draw_record["holdout_count"] = v11_hold_meta["holdout_count"]
+                draw_record["holdout_ids_sha256"] = v11_hold_meta["holdout_ids_sha256"]
+                draw_record["train_ids_sha256"] = v11_hold_meta["train_ids_sha256"]
             hold_set = set(holdout_ids_list)
             train_pool_rows = [
                 r
@@ -9283,8 +9308,9 @@ def apply_dry_defaults(a: argparse.Namespace) -> argparse.Namespace:
             a.stop_after_updates = 2
     else:
         a.steps = 2 if a.steps == STEPS else a.steps
-    a.g = 2 if a.g == G else a.g
-    a.max_new = 24 if a.max_new == MAX_NEW_TOKENS else a.max_new
+    if not getattr(a, "logging_pass", False):
+        a.g = 2 if a.g == G else a.g
+        a.max_new = 24 if a.max_new == MAX_NEW_TOKENS else a.max_new
     return a
 
 

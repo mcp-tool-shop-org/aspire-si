@@ -4446,130 +4446,144 @@ class TestS2V11DryAndDefaultUnchanged:
                 rows_def[0]["loss"] * (10.0 / 4514.0), rel=1e-3, abs=1e-6
             )
 
-    def test_s2_v11_cusum_exposure_scaling_zero_exposure_and_m1_nonevents(self) -> None:
-        """Ask 7(c): CUSUM exposure with E_w != E_0 and E_w = 0, plus m = 1 non-events for both channels
-        (review worked case: S1 = 2.788918, S2 = 2.788918 unchanged, S3 = 3.626547 trips)."""
+    def test_s2_v11_cusum_fixed_k_never_scaled_by_exposure_and_m1_nonevents(self) -> None:
+        """Ask 1 (Fix 3): CUSUM updates use fixed k (0.211 / 5.03) and are never scaled by exposure m_w,
+        plus m = 1 non-events do not count for either channel."""
         c_ids = tuple(f"c{i}" for i in range(128))
         u_extra = tuple(f"u_extra_{i}" for i in range(56))
         u_ids = c_ids + u_extra
         assert len(c_ids) == 128 and len(u_ids) == 184
 
         step0 = {uid: {"verdict": "unsupported", "correct": True} for uid in u_ids}
-        confirm_calls: list[int] = []
 
-        def confirm_runner(ids, step=0, rule=""):
-            confirm_calls.append(len(ids))
-            # Return 0 CT flips so Fuse A logs CONFIRM-NEGATIVE after tripping in Window 3
-            return {cid: {"verdict": "unsupported", "correct": True} for cid in ids}
+        def run_sequence(
+            m_exposures: tuple[int, int, int],
+            b_counts: tuple[int, int, int],
+            n_exposures: tuple[int, int, int],
+            fa2_counts: tuple[int, int, int],
+        ) -> tuple[list[float], list[float], list[int]]:
+            confirm_calls: list[int] = []
 
-        guard = s2.CtCollapseGuard(
-            window_groups=40,
-            s2_v11=True,
-            canary_c_ids=c_ids,
-            gold_unsupported_ids=u_ids,
-            confirm_runner=confirm_runner,
+            def confirm_runner(ids, step=0, rule=""):
+                confirm_calls.append(len(ids))
+                return {cid: {"verdict": "unsupported", "correct": True} for cid in ids}
+
+            guard = s2.CtCollapseGuard(
+                window_groups=40,
+                s2_v11=True,
+                canary_c_ids=c_ids,
+                gold_unsupported_ids=u_ids,
+                confirm_runner=confirm_runner,
+            )
+            guard.record_step0_baseline(step0)
+            s_a_hist: list[float] = []
+            s_b_hist: list[float] = []
+
+            for w_idx in range(3):
+                m_w = m_exposures[w_idx]
+                b_w = b_counts[w_idx]
+                n_w = n_exposures[w_idx]
+                fa2_w = fa2_counts[w_idx]
+                u_extra_n = n_w - m_w
+                assert m_w >= b_w and u_extra_n >= fa2_w and n_w <= 40
+
+                for g_idx in range(40):
+                    if g_idx < b_w:
+                        # C-group with m = 2 cannot_tell -> counts toward B_w
+                        item_id, gold_v = c_ids[g_idx], "unsupported"
+                        verdicts = ("cannot_tell", "cannot_tell") + ("unsupported",) * 6
+                    elif g_idx == b_w and g_idx < m_w:
+                        # C-group with m = 1 cannot_tell -> non-event for Fuse A!
+                        item_id, gold_v = c_ids[g_idx], "unsupported"
+                        verdicts = ("cannot_tell",) + ("unsupported",) * 7
+                    elif g_idx < m_w:
+                        # Remaining C-groups with 0 cannot_tell
+                        item_id, gold_v = c_ids[g_idx], "unsupported"
+                        verdicts = ("unsupported",) * 8
+                    elif g_idx < m_w + fa2_w:
+                        # Gold-unsupported (non-C) group with m = 2 supported -> counts toward FA2_w
+                        item_id, gold_v = u_extra[g_idx - m_w], "unsupported"
+                        verdicts = ("supported", "supported") + ("unsupported",) * 6
+                    elif g_idx == m_w + fa2_w and g_idx < n_w:
+                        # Gold-unsupported (non-C) group with m = 1 supported -> non-event for Channel B!
+                        item_id, gold_v = u_extra[g_idx - m_w], "unsupported"
+                        verdicts = ("supported",) + ("unsupported",) * 7
+                    elif g_idx < n_w:
+                        # Remaining gold-unsupported (non-C) groups with 0 supported
+                        item_id, gold_v = u_extra[g_idx - m_w], "unsupported"
+                        verdicts = ("unsupported",) * 8
+                    else:
+                        item_id, gold_v = "sup_0", "supported"
+                        verdicts = ("supported",) * 8
+                    flags = tuple(v == gold_v for v in verdicts)
+                    advs = tuple(0.0 if not f else 0.1 for f in flags)
+                    res = guard.record_group(
+                        step=w_idx * 10 + g_idx // 4,
+                        group=g_idx % 4,
+                        item_id=item_id,
+                        gold_verdict=gold_v,
+                        verdicts=verdicts,
+                        correct_flags=flags,
+                        advantages_list=advs,
+                    )
+                    assert res is None
+                w_rec = guard.window_history[-1]
+                assert w_rec["fuse_a_m_w"] == m_w
+                assert w_rec["fuse_a_b_w"] == b_w
+                assert w_rec["channel_b_n_w"] == n_w
+                assert w_rec["channel_b_fa2_w"] == fa2_w
+                s_a_hist.append(guard.fuse_a_s)
+                s_b_hist.append(guard.channel_b_s)
+            return s_a_hist, s_b_hist, confirm_calls
+
+        # Same B = (2, 1, 1) and FA2 = (6, 4, 7) sequences under two different window-exposure schedules:
+        # Schedule 1: m_w = (4, 20, 32), n_w = (12, 26, 40)
+        # Schedule 2: m_w = (25, 2, 8), n_w = (35, 10, 18)
+        s_a_1, s_b_1, calls_1 = run_sequence(
+            m_exposures=(4, 20, 32),
+            b_counts=(2, 1, 1),
+            n_exposures=(12, 26, 40),
+            fa2_counts=(6, 4, 7),
         )
-        guard.record_step0_baseline(step0)
+        s_a_2, s_b_2, calls_2 = run_sequence(
+            m_exposures=(25, 2, 8),
+            b_counts=(2, 1, 1),
+            n_exposures=(35, 10, 18),
+            fa2_counts=(6, 4, 7),
+        )
 
-        # Window 1 (40 groups):
-        # - E_1 = 13 groups on C:
-        #   * 3 groups with m = 2 cannot_tell (count toward B_1 -> B_1 = 3)
-        #   * 1 group with m = 1 cannot_tell (must NOT count toward B_1!)
-        #   * 9 groups with m = 0 cannot_tell
-        # - 1 group on u_extra_0 (gold-unsupported not in C) with m = 1 supported (must NOT count toward FA2_1!)
-        # - 26 groups on gold-supported item 'sup_0'
-        for g_idx in range(40):
-            if g_idx < 3:
-                item_id, gold_v = c_ids[g_idx], "unsupported"
-                verdicts = ("cannot_tell", "cannot_tell") + ("unsupported",) * 6
-            elif g_idx == 3:
-                # m = 1 cannot_tell on C -> non-event for Fuse A!
-                item_id, gold_v = c_ids[g_idx], "unsupported"
-                verdicts = ("cannot_tell",) + ("unsupported",) * 7
-            elif g_idx < 13:
-                item_id, gold_v = c_ids[g_idx], "unsupported"
-                verdicts = ("unsupported",) * 8
-            elif g_idx == 13:
-                # m = 1 supported on gold-unsupported -> non-event for Channel B!
-                item_id, gold_v = u_extra[0], "unsupported"
-                verdicts = ("supported",) + ("unsupported",) * 7
-            else:
-                item_id, gold_v = "sup_0", "supported"
-                verdicts = ("supported",) * 8
-            flags = tuple(v == gold_v for v in verdicts)
-            advs = tuple(0.0 if not f else 0.1 for f in flags)
-            w1 = guard.record_group(
-                step=g_idx // 4,
-                group=g_idx % 4,
-                item_id=item_id,
-                gold_verdict=gold_v,
-                verdicts=verdicts,
-                correct_flags=flags,
-                advantages_list=advs,
-            )
-        assert w1 is None
-        assert confirm_calls == []
-        w1_rec = guard.window_history[-1]
-        assert w1_rec["fuse_a_m_w"] == 13
-        assert w1_rec["fuse_a_b_w"] == 3  # m=1 did NOT count
-        assert w1_rec["channel_b_n_w"] == 14
-        assert w1_rec["channel_b_fa2_w"] == 0  # m=1 did NOT count
-        assert round(guard.fuse_a_s, 6) == pytest.approx(2.788918, abs=1e-6)
-        assert guard.channel_b_s == 0.0
+        # Fixed-k invariance across exposures: identical B / FA2 sequences with different m_w / n_w give identical S_w
+        assert s_a_1 == pytest.approx(s_a_2, abs=1e-12)
+        assert s_b_1 == pytest.approx(s_b_2, abs=1e-12)
 
-        # Window 2 (40 groups): E_2 = 0 groups on C and 0 groups on gold-unsupported
-        for g_idx in range(40):
-            w2 = guard.record_group(
-                step=10 + g_idx // 4,
-                group=g_idx % 4,
-                item_id="sup_0",
-                gold_verdict="supported",
-                verdicts=("supported",) * 8,
-                correct_flags=(True,) * 8,
-                advantages_list=(0.1,) * 8,
-            )
-        assert w2 is None
-        assert confirm_calls == []
-        w2_rec = guard.window_history[-1]
-        assert w2_rec["fuse_a_m_w"] == 0
-        assert round(guard.fuse_a_s, 6) == pytest.approx(2.788918, abs=1e-6)  # unchanged!
+        # Fixed-k Fuse A arithmetic for B = (2, 1, 1), k = 0.211, h = 3.25:
+        # w=1: max(0, 0 + 2 - 0.211) = 1.789 (< 3.25)
+        # w=2: max(0, 1.789 + 1 - 0.211) = 2.578 (< 3.25)
+        # w=3: max(0, 2.578 + 1 - 0.211) = 3.367 (>= 3.25 -> trips!)
+        assert s_a_1 == pytest.approx([1.789, 2.578, 3.367], abs=1e-9)
+        assert s_a_2 == pytest.approx([1.789, 2.578, 3.367], abs=1e-9)
 
-        # Window 3 (40 groups): E_3 = 10 groups on C, with B_3 = 1 group having m >= 2 cannot_tell
-        # Plus 10 groups on u_extra (gold-unsupported not in C) with 3 groups having m = 2 supported (FA2 = 3)
-        # so E_{B,3} = 20 != E_{0,B} (18.680203)
-        for g_idx in range(40):
-            if g_idx == 0:
-                item_id, gold_v = c_ids[0], "unsupported"
-                verdicts = ("cannot_tell", "cannot_tell") + ("unsupported",) * 6
-            elif g_idx < 10:
-                item_id, gold_v = c_ids[g_idx], "unsupported"
-                verdicts = ("unsupported",) * 8
-            elif g_idx < 13:
-                item_id, gold_v = u_extra[g_idx - 10], "unsupported"
-                verdicts = ("supported", "supported") + ("unsupported",) * 6
-            elif g_idx < 20:
-                item_id, gold_v = u_extra[g_idx - 10], "unsupported"
-                verdicts = ("unsupported",) * 8
-            else:
-                item_id, gold_v = "sup_0", "supported"
-                verdicts = ("supported",) * 8
-            flags = tuple(v == gold_v for v in verdicts)
-            advs = tuple(0.0 if not f else 0.1 for f in flags)
-            w3 = guard.record_group(
-                step=20 + g_idx // 4,
-                group=g_idx % 4,
-                item_id=item_id,
-                gold_verdict=gold_v,
-                verdicts=verdicts,
-                correct_flags=flags,
-                advantages_list=advs,
-            )
-        assert w3 is None  # confirmation ran and returned CONFIRM-NEGATIVE
-        assert confirm_calls == [128]  # Fuse A tripped and ran T=0 pass on C!
-        assert guard.fuse_a_s == pytest.approx(3.626547, abs=1e-6)
-        # Channel B exposure scaling with E_{B,3} = 20 != E_{0,B}:
-        expected_sb = max(0.0, 3.0 - 5.03 * (20.0 / (40.0 * 184.0 / 394.0)))
-        assert guard.channel_b_s == pytest.approx(expected_sb, abs=1e-9)
+        # Fixed-k Channel B arithmetic for FA2 = (6, 4, 7), k = 5.03, h = 7.0:
+        # w=1: max(0, 0 + 6 - 5.03) = 0.97 (< 7.0)
+        # w=2: max(0, 0.97 + 4 - 5.03) = 0.0 (< 7.0)
+        # w=3: max(0, 0.0 + 7 - 5.03) = 1.97 (< 7.0)
+        assert s_b_1 == pytest.approx([0.97, 0.0, 1.97], abs=1e-9)
+        assert s_b_2 == pytest.approx([0.97, 0.0, 1.97], abs=1e-9)
+        assert calls_1 == [128] and calls_2 == [128]
+
+        # Also verify B = (3, 0, 1) with m_2 = 0 (zero exposure in Window 2 still subtracts fixed k = 0.211):
+        # w=1: max(0, 0 + 3 - 0.211) = 2.789 (< 3.25)
+        # w=2: max(0, 2.789 + 0 - 0.211) = 2.578 (< 3.25)
+        # w=3: max(0, 2.578 + 1 - 0.211) = 3.367 (>= 3.25 -> trips!)
+        s_a_z, s_b_z, calls_z = run_sequence(
+            m_exposures=(13, 0, 10),
+            b_counts=(3, 0, 1),
+            n_exposures=(14, 0, 20),
+            fa2_counts=(0, 0, 3),
+        )
+        assert s_a_z == pytest.approx([2.789, 2.578, 3.367], abs=1e-9)
+        assert s_b_z == pytest.approx([0.0, 0.0, 0.0], abs=1e-9)
+        assert calls_z == [128]
 
     def test_s2_v11_fuse_a_confirm_ct_step0_1_ct_now_2_is_confirm_negative(self) -> None:
         """Ask 7(d): Fuse A confirmation with ct_step0 = 1, ct_now = 2 -> CONFIRM-NEGATIVE (ct_inc = 1 < 2)."""
@@ -4650,3 +4664,351 @@ class TestS2V11DryAndDefaultUnchanged:
         conf2 = [d for d in guard.decision_history if d.get("kind") == "guard_confirmation"][-1]
         assert conf2["status"] == "CONFIRM-POSITIVE"
         assert (conf2["ct_step0"], conf2["ct_now"], conf2["ct_increase"]) == (1, 3, 2)
+
+    def test_s2_v11_postpass_and_pass_modes_execute_and_score_with_m2a(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Ask 2(a): --s2-v11 --postpass --dry (and --logging-pass / --rollout-only) starts through execute()
+        without requiring --train-seed / --draw / --steps, and scores every quote judgement with M2a."""
+        passage = "def count(tokens):\n    return len(tokens)\n# the parser counts tokens here"
+        # Quote with spaces around code punctuation: matches M2a, fails rule2 / M1!
+        quote_m2a_only = "def count ( tokens ) :\n    return len ( tokens )"
+        assert s2.quote_found(quote_m2a_only, [passage]) is False
+        assert s2.quote_found_m2a(quote_m2a_only, [passage]) is True
+
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, syn_sets = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        # Save a valid LoRA adapter checkpoint on CPU for --postpass
+        ckpt_dir = tmp_path / "ckpt_adapter"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        seed_ns = _ns(_argv(gold, tmp_path / "init_ckpt"))
+        init_bundle = s2.dry_bundle(seed_ns)
+        init_bundle["model"].save_pretrained(str(ckpt_dir))
+
+        def _make_m2a_pass_bundle(a):
+            b = s2.dry_bundle(a)
+            tok = b["tok"]
+            p_ids = tok.encode("prompt")
+
+            def _m2a_rollout(_text, g, _max_new, _temp):
+                # Emit completions with gold-matching verdict "supported" (g00) and M2a-only quote
+                reply = "<think>ok</think>" + json.dumps(
+                    {
+                        "verdict": "supported",
+                        "evidence_quotes": [{"part": "p1", "verdict": "supported", "quote": quote_m2a_only}],
+                    }
+                )
+                c_ids = tok.encode(reply)
+                return p_ids, [list(c_ids) for _ in range(g)], [False for _ in range(g)]
+
+            b["rollout"] = _m2a_rollout
+            b["dry_prepass_cap"] = 1
+            return b
+
+        # 1. Run --s2-v11 --postpass --dry through execute() (via _run)
+        out_v11_post = tmp_path / "v11_postpass"
+        rc_post = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_v11_post),
+                "--dry",
+                "--s2-v11",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--stop-after-new",
+                "1",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_post == 0
+        prepass_rows_v11 = [
+            json.loads(ln)
+            for ln in (out_v11_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        assert len(prepass_rows_v11) == 1
+        rec_item_v11 = prepass_rows_v11[0]
+        # Under M2a, both completions match the quote: quote_pass == 2, reward_mean == 1.05 (1.0 + 0.05 quote credit)!
+        assert rec_item_v11["g"] == 2
+        assert rec_item_v11["k_correct"] == 2
+        assert rec_item_v11["quote_pass"] == 2
+        assert rec_item_v11["reward_mean"] == pytest.approx(1.05, abs=1e-5)
+
+        eval_sum_v11 = json.loads((out_v11_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+        assert eval_sum_v11["quote_relevance"]["total"] == 2
+        assert eval_sum_v11["miss_waterfall"]["unmatched"] == 0
+
+        sa_rows_v11 = s2.read_save_all(out_v11_post / "s2-hf-save-all.jsonl.gz")
+        assert len(sa_rows_v11) == 2
+        assert all(r["reward"] == pytest.approx(1.05, abs=1e-5) and r["correct"] is True for r in sa_rows_v11)
+
+        receipt_v11 = _receipt(out_v11_post)
+        assert receipt_v11["prereg_version"] == "1.1"
+        assert receipt_v11["run"]["quote_matcher"] == "M2a"
+        assert receipt_v11["canary_c_count"] == syn_sets["canary_c_count"]
+
+        # Contrast with --postpass --dry WITHOUT --s2-v11 (rule2): quote_pass == 0, quote_relevance.total == 0
+        out_r2_post = tmp_path / "r2_postpass"
+        rc_r2 = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_r2_post),
+                "--dry",
+                "--postpass",
+                "--pass-seed",
+                "2",
+                "--checkpoint",
+                str(ckpt_dir),
+                "--quote-reward",
+                "v2",
+                "--stop-after-new",
+                "1",
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_r2 == 0
+        prepass_rows_r2 = [
+            json.loads(ln)
+            for ln in (out_r2_post / "s2-hf-prepass.jsonl").read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        assert prepass_rows_r2[0]["quote_pass"] == 0
+        eval_sum_r2 = json.loads((out_r2_post / "s2-hf-eval-summary.json").read_text(encoding="utf-8"))
+        assert eval_sum_r2["quote_relevance"]["total"] == 0
+        assert sum(eval_sum_r2["miss_waterfall"].values()) == 2
+
+        # 2. Verify --s2-v11 --rollout-only --dry and --s2-v11 --logging-pass --dry also start through execute()
+        out_ro = tmp_path / "v11_rollout_only"
+        rc_ro = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_ro),
+                "--dry",
+                "--s2-v11",
+                "--rollout-only",
+                "--stop-after-new",
+                "1",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_ro == 0
+
+        out_lp = tmp_path / "v11_logging_pass"
+        rc_lp = _run(
+            [
+                "--gold",
+                str(gold),
+                "--rnd-commit",
+                "e48cc90c",
+                "--out",
+                str(out_lp),
+                "--dry",
+                "--s2-v11",
+                "--logging-pass",
+                "--g",
+                "8",
+                "--max-new",
+                "2048",
+                "--revision",
+                s2.STUDENT_FULL_REVISION,
+                "--bf16-restore",
+                "--logprob-microbatch",
+                "2",
+                "--attention-mask",
+                "--alloc-conf",
+                "expandable",
+                "--empty-cache-phases",
+                "--replay-check-off-reason",
+                "dry test",
+                "--stop-after-new",
+                "1",
+                "--pass-a-jsonl",
+                str(pa_path),
+                "--pass-a-sha256",
+                pa_sha,
+                "--pass-b-jsonl",
+                str(pb_path),
+                "--pass-b-sha256",
+                pb_sha,
+            ],
+            build=_make_m2a_pass_bundle,
+        )
+        assert rc_lp == 0
+
+    def test_s2_v11_pass_modes_refuse_wrong_shas_through_execute(self, tmp_path: Path, monkeypatch) -> None:
+        """Ask 2(b): Pass modes (--postpass, --rollout-only, --logging-pass) under --s2-v11 still refuse
+        every wrong SHA (prereg / M1 / M2 / quote_rule and Pass A / Pass B pins) through execute()."""
+        import shutil
+
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, _ = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        ckpt_dir = tmp_path / "ckpt_sha"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        s2.dry_bundle(_ns(_argv(gold, tmp_path / "init_sha")))["model"].save_pretrained(str(ckpt_dir))
+
+        base_postpass = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "post_refuse"),
+            "--dry",
+            "--s2-v11",
+            "--postpass",
+            "--pass-seed",
+            "2",
+            "--checkpoint",
+            str(ckpt_dir),
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
+        ]
+
+        # 1. Wrong Pass A SHA in --postpass through execute()
+        with pytest.raises(SystemExit, match="S2_V11_PASS_A_SHA256_MISMATCH"):
+            _run([*base_postpass, "--pass-a-sha256", "0" * 64])
+
+        # 2. Wrong Pass B SHA in --postpass through execute()
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_SHA256_MISMATCH"):
+            _run([*base_postpass, "--pass-b-sha256", "0" * 64])
+
+        # 3. Missing Pass A or Pass B in --rollout-only through execute()
+        with pytest.raises(SystemExit, match="S2_V11_PASS_B_REQUIRED"):
+            _run(
+                [
+                    "--gold",
+                    str(gold),
+                    "--rnd-commit",
+                    "e48cc90c",
+                    "--out",
+                    str(tmp_path / "ro_no_b"),
+                    "--dry",
+                    "--s2-v11",
+                    "--rollout-only",
+                    "--pass-a-jsonl",
+                    str(pa_path),
+                    "--pass-a-sha256",
+                    pa_sha,
+                ]
+            )
+
+        # 4. Tampered sealed files (prereg, M1, M2, quote_rule) in --postpass through execute()
+        verifier_dir = Path(s2.__file__).resolve().parent
+        fake_vdir = tmp_path / "vdir_tamper"
+        fake_vdir.mkdir()
+        fake_rroot = tmp_path / "rroot_tamper"
+        (fake_rroot / "docs" / "runs").mkdir(parents=True)
+        prereg_dst = fake_rroot / v11cfg.PREREG_V11_RELPATH
+        shutil.copyfile(verifier_dir.parents[1] / v11cfg.PREREG_V11_RELPATH, prereg_dst)
+        for fname in ("quote_matcher_m1.py", "quote_matcher_m2.py", v11cfg.QUOTE_RULE_AUDITED_FILENAME_V11):
+            shutil.copyfile(verifier_dir / fname, fake_vdir / fname)
+
+        orig_load = v11cfg.load_v11_matchers
+        monkeypatch.setattr(
+            s2,
+            "load_v11_matchers",
+            lambda: orig_load(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir),
+        )
+
+        for target_path, expected_code in (
+            (prereg_dst, "S2_V11_PREREG_SHA256_MISMATCH"),
+            (fake_vdir / "quote_matcher_m1.py", "S2_V11_M1_SHA256_MISMATCH"),
+            (fake_vdir / "quote_matcher_m2.py", "S2_V11_M2_SHA256_MISMATCH"),
+            (fake_vdir / v11cfg.QUOTE_RULE_AUDITED_FILENAME_V11, "S2_V11_QUOTE_RULE_SHA256_MISMATCH"),
+        ):
+            orig_bytes = target_path.read_bytes()
+            target_path.write_bytes(orig_bytes + b"\n")
+            try:
+                with pytest.raises(SystemExit, match=expected_code):
+                    _run(base_postpass)
+            finally:
+                target_path.write_bytes(orig_bytes)
+
+    def test_s2_v11_training_run_refuses_seed_42_and_overrides_through_execute(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Ask 2(c): A training run under --s2-v11 still refuses seed 42 (and 43, 44, draw/steps overrides)
+        through execute()."""
+        gold = _gold(tmp_path)
+        pa_path, pa_sha, pb_path, pb_sha, syn_cfg, _ = _make_synthetic_v11_prepass(tmp_path, gold)
+        monkeypatch.setattr(v11cfg, "S2V11", syn_cfg)
+        monkeypatch.setattr(s2, "S2V11", syn_cfg)
+
+        base_train = [
+            "--gold",
+            str(gold),
+            "--rnd-commit",
+            "e48cc90c",
+            "--out",
+            str(tmp_path / "train_refuse"),
+            "--dry",
+            "--s2-v11",
+            "--arm",
+            "mech",
+            "--pass-a-jsonl",
+            str(pa_path),
+            "--pass-a-sha256",
+            pa_sha,
+            "--pass-b-jsonl",
+            str(pb_path),
+            "--pass-b-sha256",
+            pb_sha,
+        ]
+
+        for ret_seed in (42, 43, 44):
+            with pytest.raises(
+                SystemExit,
+                match=r"S2_V11_OVERRIDE_FORBIDDEN.*retired seeds 42, 43, 44",
+            ):
+                _run([*base_train, "--train-seed", str(ret_seed)])
+
+        # Also verify training run refuses --draw first, --draw-seed != --train-seed, and --steps != 197 through execute()
+        with pytest.raises(SystemExit, match="S2_V11_OVERRIDE_FORBIDDEN"):
+            _run([*base_train, "--train-seed", "45", "--draw", "first"])
+        with pytest.raises(SystemExit, match="S2_V11_OVERRIDE_FORBIDDEN"):
+            _run([*base_train, "--train-seed", "45", "--draw-seed", "46"])
+        with pytest.raises(SystemExit, match="S2_V11_OVERRIDE_FORBIDDEN"):
+            _run([*base_train, "--train-seed", "45", "--steps", "20"])
