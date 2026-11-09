@@ -224,8 +224,6 @@ try:
         select_prompts,
         split_stratified_holdout,
     )
-    from quote_matcher_m1 import quote_found_m1  # noqa: F401
-    from quote_matcher_m2 import normalise_m2a, quote_credit_m2a, quote_found_m2a  # noqa: F401
     from s2_v11_config import (  # noqa: F401
         CANARY_C_IDS_SHA256_V11,
         GOLD_UNSUPPORTED_IDS_SHA256_V11,
@@ -234,6 +232,8 @@ try:
         PASS_B_SHA256_V11,
         PREREG_V11_RELPATH,
         PREREG_V11_SHA256,
+        QUOTE_RULE_AUDITED_FILENAME_V11,
+        QUOTE_RULE_AUDITED_SHA256_V11,
         S2V11,
         S2V11Config,
         build_v11_canary_sets,
@@ -242,14 +242,20 @@ try:
         ids_sha256_v11,
         load_prepass_records_v11,
         load_sealed_prereg_v11_text,
+        load_v11_matchers,
         locate_raw_span_m2a,
         mcnemar_one_sided_exact_p,
+        normalise_m2a,
         parse_sealed_prereg_v11,
+        quote_credit_m2a,
+        quote_found_m1,
+        quote_found_m2a,
         s2_v11_config_dict,
         s2_v11_config_sha256,
         simulate_constant_exposure_cusum,
         update_poisson_cusum,
         validate_v11_canary_sets,
+        verify_v11_sealed_files,
     )
 except ModuleNotFoundError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -278,8 +284,6 @@ except ModuleNotFoundError:  # pragma: no cover
         select_prompts,
         split_stratified_holdout,
     )
-    from quote_matcher_m1 import quote_found_m1  # noqa: F401
-    from quote_matcher_m2 import normalise_m2a, quote_credit_m2a, quote_found_m2a  # noqa: F401
     from s2_v11_config import (  # noqa: F401
         CANARY_C_IDS_SHA256_V11,
         GOLD_UNSUPPORTED_IDS_SHA256_V11,
@@ -288,6 +292,8 @@ except ModuleNotFoundError:  # pragma: no cover
         PASS_B_SHA256_V11,
         PREREG_V11_RELPATH,
         PREREG_V11_SHA256,
+        QUOTE_RULE_AUDITED_FILENAME_V11,
+        QUOTE_RULE_AUDITED_SHA256_V11,
         S2V11,
         S2V11Config,
         build_v11_canary_sets,
@@ -296,14 +302,20 @@ except ModuleNotFoundError:  # pragma: no cover
         ids_sha256_v11,
         load_prepass_records_v11,
         load_sealed_prereg_v11_text,
+        load_v11_matchers,
         locate_raw_span_m2a,
         mcnemar_one_sided_exact_p,
+        normalise_m2a,
         parse_sealed_prereg_v11,
+        quote_credit_m2a,
+        quote_found_m1,
+        quote_found_m2a,
         s2_v11_config_dict,
         s2_v11_config_sha256,
         simulate_constant_exposure_cusum,
         update_poisson_cusum,
         validate_v11_canary_sets,
+        verify_v11_sealed_files,
     )
 
 
@@ -678,10 +690,18 @@ class CtCollapseGuard:
         """Record the single step-0 $T = 0$ greedy pass on $C$ and the 184 gold-unsupported items (§5.3, §5.4)."""
         items_map = {str(k): dict(v) for k, v in baseline_items.items()}
         c_ids = sorted(self.canary_c_ids) if self.canary_c_ids else sorted(items_map.keys())
-        unsup_ids = sorted(self.gold_unsupported_ids) if self.gold_unsupported_ids else sorted(items_map.keys())
+        unsup_ids = (
+            sorted(self.gold_unsupported_ids) if self.gold_unsupported_ids else sorted(items_map.keys())
+        )
         c_ct_step0 = sum(1 for cid in c_ids if items_map.get(cid, {}).get("verdict") == "cannot_tell")
         unsup_sup_step0 = sum(1 for cid in unsup_ids if items_map.get(cid, {}).get("verdict") == "supported")
         unsup_ct_step0 = sum(1 for cid in unsup_ids if items_map.get(cid, {}).get("verdict") == "cannot_tell")
+        all_eval = (
+            all(bool(v.get("eval_mode", v.get("mode", "eval") == "eval")) for v in items_map.values())
+            if items_map
+            else True
+        )
+        pass_mode = "eval" if all_eval else "train"
         self.step0_baseline = {
             "items": items_map,
             "canary_c_count": len(c_ids),
@@ -691,6 +711,8 @@ class CtCollapseGuard:
             "gold_unsupported_cannot_tell_step0": unsup_ct_step0,
             "temperature": S2V11.confirm_temperature,
             "n_samples": S2V11.confirm_samples_per_item,
+            "mode": pass_mode,
+            "eval_mode": bool(all_eval),
         }
         rec = {
             "kind": "step0_canary_pass",
@@ -702,6 +724,8 @@ class CtCollapseGuard:
             "gold_unsupported_cannot_tell_step0": unsup_ct_step0,
             "temperature": S2V11.confirm_temperature,
             "n_samples": S2V11.confirm_samples_per_item,
+            "mode": pass_mode,
+            "eval_mode": bool(all_eval),
         }
         self.decision_history.append(rec)
         return rec
@@ -789,11 +813,7 @@ class CtCollapseGuard:
             triggered: list[str] = []
             if len(s1_ct_items) >= 3 and s1_pos_adv_groups >= 2:
                 triggered.append("S1")
-            if (
-                self.cum_sup_answers >= 600
-                and cum_sup_ct_rate > 0.015
-                and len(self.cum_sup_ct_items) >= 4
-            ):
+            if self.cum_sup_answers >= 600 and cum_sup_ct_rate > 0.015 and len(self.cum_sup_ct_items) >= 4:
                 triggered.append("S2")
             if len(u1_ct_items) >= 4 and u_total > 0 and u_correct_rate < 0.78:
                 triggered.append("U1")
@@ -839,18 +859,18 @@ class CtCollapseGuard:
 
         # §5.1 Fuse A: clean canary set C Poisson CUSUM
         c_groups = [
-            g_rec
-            for g_rec in win
-            if g_rec.get("in_canary_c") or (g_rec["item_id"] in self.canary_c_ids)
+            g_rec for g_rec in win if g_rec.get("in_canary_c") or (g_rec["item_id"] in self.canary_c_ids)
         ]
         m_w = len(c_groups)
-        b_w = sum(
-            1
-            for g_rec in c_groups
-            if int(g_rec["ct_count"]) >= S2V11.fuse_a_group_min_cannot_tell
+        b_w = sum(1 for g_rec in c_groups if int(g_rec["ct_count"]) >= S2V11.fuse_a_group_min_cannot_tell)
+        e0_a = (
+            float(self.window_groups) * float(S2V11.canary_c_size) / 394.0
+            if len(self.canary_c_ids) == S2V11.canary_c_size
+            else float(self.window_groups)
         )
+        eff_k_a = S2V11.fuse_a_k * (float(m_w) / e0_a if e0_a > 0.0 else 0.0)
         fuse_a_s_before = self.fuse_a_s
-        self.fuse_a_s = update_poisson_cusum(self.fuse_a_s, b_w, S2V11.fuse_a_k)
+        self.fuse_a_s = update_poisson_cusum(self.fuse_a_s, b_w, eff_k_a)
         fuse_a_tripped = self.fuse_a_s >= (S2V11.fuse_a_h - 1e-12)
 
         # §5.2 Channel B: gold-unsupported FA2 false-accept Poisson CUSUM
@@ -860,8 +880,14 @@ class CtCollapseGuard:
             for g_rec in unsup_groups
             if int(g_rec.get("sup_count", 0)) >= S2V11.channel_b_group_min_supported
         )
+        e0_b = (
+            float(self.window_groups) * float(S2V11.gold_unsupported_train_items) / 394.0
+            if len(self.gold_unsupported_ids) == S2V11.gold_unsupported_train_items
+            else float(self.window_groups)
+        )
+        eff_k_b = S2V11.channel_b_k * (float(n_w) / e0_b if e0_b > 0.0 else 0.0)
         channel_b_s_before = self.channel_b_s
-        self.channel_b_s = update_poisson_cusum(self.channel_b_s, fa2_w, S2V11.channel_b_k)
+        self.channel_b_s = update_poisson_cusum(self.channel_b_s, fa2_w, eff_k_b)
         channel_b_tripped = self.channel_b_s >= (S2V11.channel_b_h - 1e-12)
 
         # §5.6 U1: routes to confirmation pass on the 184 gold-unsupported items
@@ -890,6 +916,7 @@ class CtCollapseGuard:
             if triggered_v11:
                 break
             self.confirm_trips_total += 1
+            reuses_unsup_pass = rule in ("CHANNEL_B", "U1") and unsup_pass_cache is not None
             trip_rec = {
                 "kind": "guard_trip",
                 "step": int(step),
@@ -897,11 +924,12 @@ class CtCollapseGuard:
                 "rule": rule,
                 "trip_number": self.confirm_trips_total,
                 "confirmations_used_before": self.confirmations_used,
+                "shared_pass": bool(reuses_unsup_pass),
                 "fuse_a_s": round(self.fuse_a_s, 6),
                 "channel_b_s": round(self.channel_b_s, 6),
             }
             self.decision_history.append(trip_rec)
-            if self.confirmations_used >= S2V11.confirm_cap_per_run:
+            if not reuses_unsup_pass and self.confirmations_used >= S2V11.confirm_cap_per_run:
                 cap_verdict = f"{rule}-CAP"
                 conf_rec = {
                     "kind": "guard_confirmation",
@@ -924,23 +952,27 @@ class CtCollapseGuard:
                     "STEP0_BASELINE_MISSING: confirmation pass requires step-0 baseline recorded before update 1"
                 )
             if self.confirm_runner is None:
-                raise RuntimeError("CONFIRM_RUNNER_MISSING: s2_v11 guard requires confirm_runner for T=0 passes")
+                raise RuntimeError(
+                    "CONFIRM_RUNNER_MISSING: s2_v11 guard requires confirm_runner for T=0 passes"
+                )
 
-            self.confirmations_used += 1
             step0_items = dict(self.step0_baseline.get("items") or {})
             if rule == "FUSE_A":
+                self.confirmations_used += 1
                 c_ids_list = sorted(self.canary_c_ids) if self.canary_c_ids else sorted(step0_items.keys())
                 pass_t = self.confirm_runner(c_ids_list, int(step), "FUSE_A")
+                pass_eval_mode = (
+                    all(bool(v.get("eval_mode", v.get("mode", "eval") == "eval")) for v in pass_t.values())
+                    if pass_t
+                    else True
+                )
                 ct_step0 = sum(
                     1 for cid in c_ids_list if step0_items.get(cid, {}).get("verdict") == "cannot_tell"
                 )
-                ct_now = sum(
-                    1 for cid in c_ids_list if pass_t.get(cid, {}).get("verdict") == "cannot_tell"
-                )
+                ct_now = sum(1 for cid in c_ids_list if pass_t.get(cid, {}).get("verdict") == "cannot_tell")
                 ct_inc = ct_now - ct_step0
                 confirmed = (
-                    ct_now >= S2V11.fuse_a_confirm_min_ct
-                    and ct_inc >= S2V11.fuse_a_confirm_min_increase
+                    ct_now >= S2V11.fuse_a_confirm_min_ct and ct_inc >= S2V11.fuse_a_confirm_min_increase
                 )
                 status = "CONFIRM-POSITIVE" if confirmed else "CONFIRM-NEGATIVE"
                 verdict_str = "S2-TRAIN-HALT-FUSE_A-CONFIRMED" if confirmed else "CONTINUE"
@@ -958,6 +990,8 @@ class CtCollapseGuard:
                     "ct_now": ct_now,
                     "ct_increase": ct_inc,
                     "fuse_a_s": round(self.fuse_a_s, 6),
+                    "mode": "eval" if pass_eval_mode else "train",
+                    "eval_mode": bool(pass_eval_mode),
                 }
                 self.decision_history.append(conf_rec)
                 confirm_events.append(conf_rec)
@@ -970,8 +1004,14 @@ class CtCollapseGuard:
                     else sorted(step0_items.keys())
                 )
                 if unsup_pass_cache is None:
+                    self.confirmations_used += 1
                     unsup_pass_cache = self.confirm_runner(unsup_ids_list, int(step), rule)
                 pass_t = unsup_pass_cache
+                pass_eval_mode = (
+                    all(bool(v.get("eval_mode", v.get("mode", "eval") == "eval")) for v in pass_t.values())
+                    if pass_t
+                    else True
+                )
                 target_verdict = "supported" if rule == "CHANNEL_B" else "cannot_tell"
                 b_worse = 0
                 c_better = 0
@@ -999,6 +1039,7 @@ class CtCollapseGuard:
                     "verdict": verdict_str,
                     "trip_number": self.confirm_trips_total,
                     "confirmations_used": self.confirmations_used,
+                    "shared_pass": bool(reuses_unsup_pass),
                     "gold_unsupported_count": len(unsup_ids_list),
                     "target_verdict": target_verdict,
                     "bad_step0": bad_step0,
@@ -1007,6 +1048,8 @@ class CtCollapseGuard:
                     "n_better_at_t": c_better,
                     "mcnemar_p_one_sided": round(p_val, 6),
                     "channel_b_s": round(self.channel_b_s, 6),
+                    "mode": "eval" if pass_eval_mode else "train",
+                    "eval_mode": bool(pass_eval_mode),
                 }
                 self.decision_history.append(conf_rec)
                 confirm_events.append(conf_rec)
@@ -1132,7 +1175,9 @@ class CtCollapseGuard:
     ) -> CtCollapseGuard:
         eff_v11 = bool(state.get("s2_v11", False) if s2_v11 is None else s2_v11)
         eff_c = canary_c_ids if canary_c_ids is not None else state.get("canary_c_ids")
-        eff_u = gold_unsupported_ids if gold_unsupported_ids is not None else state.get("gold_unsupported_ids")
+        eff_u = (
+            gold_unsupported_ids if gold_unsupported_ids is not None else state.get("gold_unsupported_ids")
+        )
         guard = cls(
             window_groups=int(state["window_groups"]),
             pass_a_k=pass_a_k,
@@ -1260,10 +1305,12 @@ def completion_eval_outcome(
     *,
     truncated: bool = False,
     reward_val: float = 0.0,
+    quote_matcher: str = "rule2",
 ) -> dict:
     """Extract text-free evaluation outcomes for one completion: verdict, per-quote found/missed status,
     waterfall rung, and relevance boolean. Never stores item, claim, or quote text.
     """
+    is_m2a = quote_matcher == "M2a"
     if truncated:
         return {
             "verdict": None,
@@ -1283,14 +1330,16 @@ def completion_eval_outcome(
     passages = passages_of(row) if "context" in row else as_passages(row.get("passages") or ())
     claim = str(row.get("claim") or "")
     quote_outcomes: list[dict] = []
+    q_fn = quote_found_m2a if is_m2a else quote_found
+    found_rung = "M2a" if is_m2a else "rule_2"
     for p in parsed["evidence_quotes"]:
         q = p["quote"]
-        found = bool(quote_found(q, passages))
+        found = bool(q_fn(q, passages))
         if found:
             quote_outcomes.append(
                 {
                     "found": True,
-                    "rung": "rule_2",
+                    "rung": found_rung,
                     "relevant": bool(quote_is_relevant(q, claim)) if verdict == "supported" else False,
                 }
             )
@@ -1309,8 +1358,15 @@ def completion_eval_outcome(
     }
 
 
-def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") -> dict:
+def evaluation_summary(
+    records: Sequence[dict],
+    *,
+    advantage_mode: str = "std",
+    quote_matcher: str = "rule2",
+) -> dict:
     """Compute per-evaluation diagnostic summary (counts and ratios only; never logs item text or quotes)."""
+    is_m2a = quote_matcher == "M2a"
+    q_fn = quote_found_m2a if is_m2a else quote_found
     total_rollouts = 0
     pred_supported = 0
     gold_supported_rollouts = 0
@@ -1380,7 +1436,7 @@ def evaluation_summary(records: Sequence[dict], *, advantage_mode: str = "std") 
             if raw_quotes is None and isinstance(r.get("evidence_quotes"), Sequence):
                 raw_quotes = [p.get("quote", "") for p in r["evidence_quotes"] if isinstance(p, dict)]
             for q in raw_quotes or ():
-                if quote_found(q, passages):
+                if q_fn(q, passages):
                     if v == "supported":
                         total_found_supported_quotes += 1
                         if quote_is_relevant(q, claim):
@@ -3147,7 +3203,20 @@ class LlamaCppRollout:
 
 
 # -- one run -------------------------------------------------------------------------------------------------
-def _call_reward_fn(reward_fn: Callable, text: str, row: dict, think_toks: int, truncated: bool) -> float:
+def _call_reward_fn(
+    reward_fn: Callable,
+    text: str,
+    row: dict,
+    think_toks: int,
+    truncated: bool,
+    *,
+    quote_matcher: str = "rule2",
+) -> float:
+    if quote_matcher != "rule2":
+        try:
+            return float(reward_fn(text, row, think_toks, truncated=truncated, quote_matcher=quote_matcher))
+        except TypeError:
+            pass
     try:
         return float(reward_fn(text, row, think_toks, truncated=truncated))
     except TypeError:
@@ -3241,13 +3310,20 @@ CRITIC_LINE_CHARS = 200
 CRITIC_PART_CHARS = 80
 
 
-def critic_hint(claim: str, passages: Sequence[str], decoded: Sequence[tuple[str, bool]]) -> dict[str, Any]:
+def critic_hint(
+    claim: str,
+    passages: Sequence[str],
+    decoded: Sequence[tuple[str, bool]],
+    *,
+    quote_matcher: str = "rule2",
+) -> dict[str, Any]:
     """A tool-derived hint for an all-wrong group. It sees the claim, the evidence and the group's answers,
     never the gold label, so it cannot name the answer.
 
     Quote check: the first answer (in sample order) whose quote is not found in the evidence by offrig's rule
     is named by part. Retrieval: the evidence lines sharing the most content tokens with the claim.
     """
+    q_fn = quote_found_m2a if quote_matcher == "M2a" else quote_found
     quote_note: str
     quote_kind: str
     parsed_any = False
@@ -3260,7 +3336,7 @@ def critic_hint(claim: str, passages: Sequence[str], decoded: Sequence[tuple[str
             continue
         parsed_any = True
         for p_i, part in enumerate(parsed["evidence_quotes"], start=1):
-            if not quote_found(str(part["quote"]), list(passages)):
+            if not q_fn(str(part["quote"]), list(passages)):
                 unfound = (p_i, str(part.get("part", "")))
                 break
         if unfound is not None:
@@ -3400,9 +3476,7 @@ def run_steps(
         else (float(constant_loss_denominator) if constant_loss_denominator is not None else None)
     )
     eff_dual_clip_c = (
-        float(dual_clip_c)
-        if dual_clip_c is not None
-        else (DUAL_CLIP_C if eff_mask_wrong_pos else None)
+        float(dual_clip_c) if dual_clip_c is not None else (DUAL_CLIP_C if eff_mask_wrong_pos else None)
     )
 
     torch = require_torch()
@@ -3558,13 +3632,19 @@ def run_steps(
                     think, answer = split_reply(text)
                     tt = len(tok.encode(think)) if think else 0
                     think_counts.append(tt)
-                    r_val = _call_reward_fn(reward_fn, text, row, tt, trunc)
+                    r_val = _call_reward_fn(reward_fn, text, row, tt, trunc, quote_matcher=eff_quote_matcher)
                     rewards.append(r_val)
                     if save_all_records is not None or save_all_path is not None or is_critic:
                         group_decoded.append((text, think, answer, bool(trunc)))
                     if eval_records is not None:
                         rollout_outcomes.append(
-                            completion_eval_outcome(text, row, truncated=trunc, reward_val=r_val)
+                            completion_eval_outcome(
+                                text,
+                                row,
+                                truncated=trunc,
+                                reward_val=r_val,
+                                quote_matcher=eff_quote_matcher,
+                            )
                         )
                     if need_details:
                         det = reward_details(
@@ -3676,6 +3756,7 @@ def run_steps(
                         str(row.get("claim", "")),
                         passages_of(row) if "context" in row else [],
                         [(d[0], d[3]) for d in group_decoded],
+                        quote_matcher=eff_quote_matcher,
                     )
                     retry_seed = train_rollout_seed(
                         train_seed if train_seed is not None else 0, step, k, purpose="critic-retry"
@@ -3735,7 +3816,12 @@ def run_steps(
                                 "thinking": r_think,
                                 "answer": r_answer.strip(),
                                 "verdict": r_det["verdict"],
-                                "reward": round(_call_reward_fn(reward_fn, r_text, row, r_tt, r_tr), 6),
+                                "reward": round(
+                                    _call_reward_fn(
+                                        reward_fn, r_text, row, r_tt, r_tr, quote_matcher=eff_quote_matcher
+                                    ),
+                                    6,
+                                ),
                                 "correct": r_correct,
                                 "truncated": bool(r_tr),
                                 "in_gradient": False,
@@ -3975,15 +4061,22 @@ def run_steps(
                     else:
                         step_guard_stop = {**step_guard_stop, "also_triggered": trunc_stop}
             t2 = time.time()
-            if step_guard_stop is not None:
+            is_canary_review_stop = bool(
+                step_guard_stop is not None
+                and (
+                    step_guard_stop.get("canary_stop")
+                    or step_guard_stop.get("reason") == "canary_stop_and_report"
+                )
+                and not step_guard_stop.get("triggered_rules")
+                and not step_guard_stop.get("also_triggered")
+            )
+            if step_guard_stop is not None and not is_canary_review_stop:
                 optimiser.zero_grad(set_to_none=True)
                 if hasattr(model, "parameters"):
                     for p in model.parameters():
                         if getattr(p, "grad", None) is not None:
                             p.grad = None
-                reported_loss = (
-                    (step_loss_sum / groups_per_update) if zero_variance_mask else step_loss_sum
-                )
+                reported_loss = (step_loss_sum / groups_per_update) if zero_variance_mask else step_loss_sum
             elif zero_variance_mask:
                 if active_groups > 0:
                     for p in model.parameters():
@@ -4060,8 +4153,27 @@ def run_steps(
             if on_step:
                 on_step(rec)
             if on_eval is not None and eval_records is not None:
-                on_eval(evaluation_summary(eval_records, advantage_mode=advantage_mode))
+                on_eval(
+                    evaluation_summary(
+                        eval_records,
+                        advantage_mode=advantage_mode,
+                        quote_matcher=eff_quote_matcher,
+                    )
+                )
             if step_guard_stop is not None:
+                if is_canary_review_stop:
+                    done_step = step + 1
+                    review_stop = {
+                        **step_guard_stop,
+                        "step": done_step,
+                        "completed_step": int(step),
+                    }
+                    if progress is not None:
+                        progress["next_step"] = done_step
+                        progress["stopped_for_review"] = review_stop
+                    if on_update_end is not None:
+                        on_update_end(done_step, True)
+                    return rows, review_stop, False
                 if progress is not None:
                     # the halted update was discarded: the model is the state after the previous update
                     progress["next_step"] = step
@@ -4069,8 +4181,8 @@ def run_steps(
                 return rows, step_guard_stop, False
             if progress is not None:
                 progress["next_step"] = step + 1
-            chunk_ends = (
-                stop_after_updates is not None and (step + 1 - int(start_step)) >= int(stop_after_updates)
+            chunk_ends = stop_after_updates is not None and (step + 1 - int(start_step)) >= int(
+                stop_after_updates
             )
             if on_update_end is not None:
                 on_update_end(step + 1, bool(chunk_ends or step + 1 >= steps))
@@ -4292,6 +4404,7 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
     mode, state = make_mode(model)
     pass_att = bool(getattr(a, "attention_mask", False))
     quote_rew = str(getattr(a, "quote_reward", "v1") or "v1")
+    quote_mat = S2V11.matcher if bool(getattr(a, "s2_v11", False)) else "rule2"
     bundle = {
         "model": model,
         "tok": tok,
@@ -4300,13 +4413,14 @@ def real_bundle(a: argparse.Namespace) -> dict:  # pragma: no cover - needs the 
         "state": state,
         "optimiser": optimiser,
         "ref_adapter_off": model.disable_adapter,
-        "reward_fn": lambda text, row, tt, truncated=False: reward(
+        "reward_fn": lambda text, row, tt, truncated=False, quote_matcher=quote_mat: reward(
             text,
             row["label"],
             passages_of(row),
             tt,
             truncated=truncated,
             quote_reward=quote_rew,
+            quote_matcher=quote_matcher,
         ),
         "sync": torch.cuda.synchronize,
         "peak_alloc_mib": lambda: int(torch.cuda.max_memory_allocated() / 2**20),
@@ -4673,9 +4787,7 @@ def checkpoint_file_shas(checkpoint_path: Path | None) -> dict[str, str] | None:
         return None
     cp = Path(checkpoint_path)
     if not cp.exists():
-        raise SystemExit(
-            f"refusing to start (checkpoint_missing): checkpoint does not exist: {cp.name}"
-        )
+        raise SystemExit(f"refusing to start (checkpoint_missing): checkpoint does not exist: {cp.name}")
     if cp.is_file():
         return {cp.name: hashlib.sha256(cp.read_bytes()).hexdigest()}
     files = sorted(p for p in cp.rglob("*") if p.is_file())
@@ -4683,10 +4795,7 @@ def checkpoint_file_shas(checkpoint_path: Path | None) -> dict[str, str] | None:
         raise SystemExit(
             f"refusing to start (checkpoint_empty): checkpoint directory has no files: {cp.name}"
         )
-    return {
-        p.relative_to(cp).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in files
-    }
+    return {p.relative_to(cp).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 
 
 def checkpoint_sha256(checkpoint_path: Path | None) -> str | None:
@@ -4743,8 +4852,7 @@ def attach_or_load_adapter(
             )
     except Exception as exc:
         raise SystemExit(
-            f"refusing to start (checkpoint_adapter_not_loaded): "
-            f"failed to load adapter from {cp.name}: {exc}"
+            f"refusing to start (checkpoint_adapter_not_loaded): failed to load adapter from {cp.name}: {exc}"
         ) from exc
     eff_name = str(adapter_name or getattr(model, "active_adapter", None) or "default")
     sha_by_adapter = dict(getattr(model, "_loaded_checkpoint_sha256_by_adapter", None) or {})
@@ -4774,6 +4882,7 @@ TRAIN_ONLY_FLAGS = (
     ("--resume-from", "resume_from"),
     ("--resume-override-reason", "resume_override_reason"),
     ("--resume-from-halted-explore", "resume_from_halted_explore"),
+    ("--resume-after-review", "resume_after_review"),
     ("--trunc-window-updates", "trunc_window_updates"),
     ("--trunc-halt-rate", "trunc_halt_rate"),
 )
@@ -4783,6 +4892,7 @@ CHUNK_LOCAL_FLAGS = (
     "resume_from",
     "resume_override_reason",
     "resume_from_halted_explore",
+    "resume_after_review",
 )
 EXPLORE_ALLOWED_HEADER_DIFFS = frozenset(
     {
@@ -4836,6 +4946,11 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
             )
         return False
 
+    try:
+        load_v11_matchers()
+    except ValueError as exc:
+        raise SystemExit(f"refusing to start ({exc})") from exc
+
     if explore_reason is not None:
         raise SystemExit(
             "refusing to start (S2_V11_MONITOR_MODE_FORBIDDEN, S2_V11_OVERRIDE_FORBIDDEN): "
@@ -4888,9 +5003,7 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
             f"--s2-v11 freezes --advantage='dr-grpo', got {a.advantage!r}"
         )
     if not bool(getattr(a, "save_all", True)):
-        raise SystemExit(
-            "refusing to start (S2_V11_OVERRIDE_FORBIDDEN): --s2-v11 forbids --no-save-all"
-        )
+        raise SystemExit("refusing to start (S2_V11_OVERRIDE_FORBIDDEN): --s2-v11 forbids --no-save-all")
     if (
         getattr(a, "holdout_fraction", None) is not None
         and abs(float(a.holdout_fraction) - HOLDOUT_DEFAULT_FRACTION) > 1e-12
@@ -4899,21 +5012,58 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
             f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
             f"--s2-v11 freezes --holdout-fraction={HOLDOUT_DEFAULT_FRACTION}, got {a.holdout_fraction!r}"
         )
-    if (
-        getattr(a, "holdout_seed", None) is not None
-        and str(a.holdout_seed).strip() != HOLDOUT_DEFAULT_SEED
-    ):
+    if getattr(a, "holdout_seed", None) is not None and str(a.holdout_seed).strip() != HOLDOUT_DEFAULT_SEED:
         raise SystemExit(
             f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
             f"--s2-v11 freezes --holdout-seed={HOLDOUT_DEFAULT_SEED!r}, got {a.holdout_seed!r}"
+        )
+
+    train_seed = getattr(a, "train_seed", None)
+    if isinstance(train_seed, bool) or train_seed not in S2V11.seeds:
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 requires --train-seed in {list(S2V11.seeds)} "
+            f"(retired seeds 42, 43, 44 are forbidden); got {train_seed!r}"
+        )
+    if getattr(a, "_draw_explicit", False) and str(a.draw) != "class_stratified":
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --draw='class_stratified', got {a.draw!r}"
+        )
+    if str(getattr(a, "draw", "first") or "first") not in ("first", "class_stratified"):
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --draw='class_stratified', got {getattr(a, 'draw', None)!r}"
+        )
+    draw_seed = getattr(a, "draw_seed", None)
+    if getattr(a, "_draw_seed_explicit", False) and (
+        draw_seed is None or isinstance(draw_seed, bool) or int(draw_seed) != int(train_seed)
+    ):
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --draw-seed == --train-seed ({train_seed}), got {draw_seed!r}"
+        )
+    if draw_seed is not None and (isinstance(draw_seed, bool) or int(draw_seed) != int(train_seed)):
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --draw-seed == --train-seed ({train_seed}), got {draw_seed!r}"
+        )
+    if getattr(a, "_steps_explicit", False) and int(a.steps) != S2V11.primary_horizon_updates:
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --steps={S2V11.primary_horizon_updates}, got {a.steps!r}"
+        )
+    if int(getattr(a, "steps", STEPS)) not in (STEPS, S2V11.primary_horizon_updates):
+        raise SystemExit(
+            f"refusing to start (S2_V11_OVERRIDE_FORBIDDEN): "
+            f"--s2-v11 freezes --steps={S2V11.primary_horizon_updates}, got {getattr(a, 'steps', None)!r}"
         )
 
     pa_path = getattr(a, "pass_a_jsonl", None)
     pa_sha = str(getattr(a, "pass_a_sha256", None) or "").strip().lower()
     if pa_path is None or not pa_sha:
         raise SystemExit(
-            "refusing to start (S2_V11_PASS_A_REQUIRED): "
-            "--s2-v11 requires --pass-a-jsonl and --pass-a-sha256"
+            "refusing to start (S2_V11_PASS_A_REQUIRED): --s2-v11 requires --pass-a-jsonl and --pass-a-sha256"
         )
     if pa_sha != S2V11.pass_a_sha256:
         raise SystemExit(
@@ -4924,8 +5074,7 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
     pb_sha = str(getattr(a, "pass_b_sha256", None) or "").strip().lower()
     if pb_path is None or not pb_sha:
         raise SystemExit(
-            "refusing to start (S2_V11_PASS_B_REQUIRED): "
-            "--s2-v11 requires --pass-b-jsonl and --pass-b-sha256"
+            "refusing to start (S2_V11_PASS_B_REQUIRED): --s2-v11 requires --pass-b-jsonl and --pass-b-sha256"
         )
     if pb_sha != S2V11.pass_b_sha256:
         raise SystemExit(
@@ -4945,6 +5094,9 @@ def validate_s2_v11_args(a: argparse.Namespace) -> bool:
     a.holdout = True
     a.holdout_fraction = HOLDOUT_DEFAULT_FRACTION
     a.holdout_seed = HOLDOUT_DEFAULT_SEED
+    a.draw = "class_stratified"
+    a.draw_seed = int(train_seed)
+    a.steps = S2V11.primary_horizon_updates
     if getattr(a, "arm", None) is not None or any(
         getattr(a, attr, None) is not None for _, attr in TRAIN_ONLY_FLAGS
     ):
@@ -4967,55 +5119,136 @@ def run_v11_t0_pass(
     quote_reward: str = "v2",
     dry: bool = False,
     device_sync: Callable[[], None] | None = None,
+    mode: Callable[[bool], None] | None = None,
+    state: Callable[[], dict] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Run a single deterministic $T = 0$ greedy pass ($n = 1$) over ``item_ids`` (§5.3, §5.4).
 
-    Never modifies RNG state or optimizer/gradient state.
+    Runs in eval mode (``mode(False)``: ``model.eval()``, dropout off, cache on, checkpointing off)
+    before ``generate`` and restores training mode (``mode(True)`` / ``model.train()``) afterwards,
+    whatever mode the pass found on entry. Never modifies RNG state or optimizer/gradient state.
     """
     torch = require_torch()
     cuda_mod = getattr(torch, "cuda", None)
     fork_devices = (
         list(range(cuda_mod.device_count()))
-        if cuda_mod is not None and callable(getattr(cuda_mod, "is_available", None)) and cuda_mod.is_available()
+        if cuda_mod is not None
+        and callable(getattr(cuda_mod, "is_available", None))
+        and cuda_mod.is_available()
         else []
     )
     eos_ids = _eos_token_ids(tok)
     results: dict[str, dict[str, Any]] = {}
-    with torch.random.fork_rng(devices=fork_devices), torch.no_grad():
-        if dry:
-            # In CPU dry rehearsal, run one forward pass on the first item to exercise the model at T=0,
-            # then score a deterministic T=0 reply for each item in item_ids via M2a.
-            if item_ids and hasattr(model, "__call__"):
-                first_row = dict(rows_by_id.get(str(item_ids[0]), {"id": item_ids[0], "claim": "dry", "label": "unsupported"}))
-                p_txt = build_prompt(first_row)[:64]
-                enc = tok(p_txt, return_tensors="pt")
-                p_ids = enc["input_ids"].to(getattr(model, "device", "cpu"))
-                _ = model(input_ids=p_ids)
+    try:
+        if callable(mode):
+            mode(False)
+        if callable(getattr(model, "eval", None)):
+            model.eval()
+        else:
+            try:
+                setattr(model, "training", False)
+            except AttributeError:
+                pass
+        pass_eval_mode = not bool(getattr(model, "training", False))
+        pass_mode_str = "eval" if pass_eval_mode else "train"
+        pass_grad_ckpt = bool(state().get("grad_ckpt")) if callable(state) else False
+
+        with torch.random.fork_rng(devices=fork_devices), torch.no_grad():
+            if dry:
+                # In CPU dry rehearsal, run one forward pass on the first item to exercise the model at T=0,
+                # then score a deterministic T=0 reply for each item in item_ids via M2a.
+                if item_ids and hasattr(model, "__call__"):
+                    first_row = dict(
+                        rows_by_id.get(
+                            str(item_ids[0]),
+                            {"id": item_ids[0], "claim": "dry", "label": "unsupported"},
+                        )
+                    )
+                    p_txt = build_prompt(first_row)[:64]
+                    enc = tok(p_txt, return_tensors="pt")
+                    p_ids = enc["input_ids"].to(getattr(model, "device", "cpu"))
+                    _ = model(input_ids=p_ids)
+                for raw_id in item_ids:
+                    cid = str(raw_id)
+                    row = rows_by_id.get(cid) or {"id": cid, "label": "unsupported", "context": ""}
+                    gold = str(row.get("label", "unsupported"))
+                    passages = (
+                        passages_of(dict(row)) if "context" in row else as_passages(row.get("passages") or ())
+                    )
+                    first_line = ""
+                    if passages and passages[0]:
+                        for ln in str(passages[0]).splitlines():
+                            s_ln = ln.strip()
+                            if len(s_ln) >= 15:
+                                first_line = s_ln[:60]
+                                break
+                    reply_json = json.dumps(
+                        {
+                            "verdict": "unsupported",
+                            "evidence_quotes": [
+                                {"part": "p1", "verdict": "unsupported", "quote": first_line}
+                            ],
+                        }
+                    )
+                    reply_text = f"<think>step0 t0 pass</think>{reply_json}"
+                    det = reward_details(
+                        reply_text,
+                        gold,
+                        passages,
+                        4,
+                        truncated=False,
+                        quote_reward=quote_reward,
+                        quote_matcher="M2a",
+                    )
+                    results[cid] = {
+                        "item_id": cid,
+                        "gold_verdict": gold,
+                        "verdict": det["verdict"],
+                        "correct": bool(det["correct"]),
+                        "truncated_or_malformed": bool(det["truncated_or_malformed"]),
+                        "temperature": S2V11.confirm_temperature,
+                        "n_samples": S2V11.confirm_samples_per_item,
+                        "mode": pass_mode_str,
+                        "eval_mode": bool(pass_eval_mode),
+                        "grad_ckpt": bool(pass_grad_ckpt),
+                    }
+                return results
+
             for raw_id in item_ids:
                 cid = str(raw_id)
                 row = rows_by_id.get(cid) or {"id": cid, "label": "unsupported", "context": ""}
                 gold = str(row.get("label", "unsupported"))
-                passages = passages_of(dict(row)) if "context" in row else as_passages(row.get("passages") or ())
-                first_line = ""
-                if passages and passages[0]:
-                    for ln in str(passages[0]).splitlines():
-                        s_ln = ln.strip()
-                        if len(s_ln) >= 15:
-                            first_line = s_ln[:60]
-                            break
-                reply_json = json.dumps(
-                    {
-                        "verdict": "unsupported",
-                        "evidence_quotes": [{"part": "p1", "verdict": "unsupported", "quote": first_line}],
-                    }
+                passages = (
+                    passages_of(dict(row)) if "context" in row else as_passages(row.get("passages") or ())
                 )
-                reply_text = f"<think>step0 t0 pass</think>{reply_json}"
+                prompt_text = build_prompt(dict(row))
+                if callable(render_fn):
+                    prompt_text = render_fn(prompt_text)
+                enc = tok(prompt_text, return_tensors="pt")
+                prompt_ids = enc["input_ids"].to(getattr(model, "device", "cpu"))
+                gen_kwargs: dict[str, Any] = {
+                    "do_sample": False,
+                    "max_new_tokens": int(max_new),
+                    "pad_token_id": tok.pad_token_id,
+                }
+                if pass_attention_mask:
+                    gen_kwargs["attention_mask"] = torch.ones_like(prompt_ids)
+                out = model.generate(prompt_ids, **gen_kwargs)
+                if device_sync is not None:
+                    device_sync()
+                seq = out[0, prompt_ids.shape[1] :].tolist()
+                while seq and seq[-1] == tok.pad_token_id and tok.pad_token_id not in eos_ids:
+                    seq.pop()
+                hit_cap = len(seq) >= int(max_new) and (not eos_ids or not any(t in eos_ids for t in seq))
+                text = tok.decode(seq, skip_special_tokens=True)
+                think, _ = split_reply(text)
+                tt = len(tok.encode(think)) if think else 0
                 det = reward_details(
-                    reply_text,
+                    text,
                     gold,
                     passages,
-                    4,
-                    truncated=False,
+                    tt,
+                    truncated=hit_cap,
                     quote_reward=quote_reward,
                     quote_matcher="M2a",
                 )
@@ -5027,55 +5260,21 @@ def run_v11_t0_pass(
                     "truncated_or_malformed": bool(det["truncated_or_malformed"]),
                     "temperature": S2V11.confirm_temperature,
                     "n_samples": S2V11.confirm_samples_per_item,
+                    "mode": pass_mode_str,
+                    "eval_mode": bool(pass_eval_mode),
+                    "grad_ckpt": bool(pass_grad_ckpt),
                 }
-            return results
-
-        for raw_id in item_ids:
-            cid = str(raw_id)
-            row = rows_by_id.get(cid) or {"id": cid, "label": "unsupported", "context": ""}
-            gold = str(row.get("label", "unsupported"))
-            passages = passages_of(dict(row)) if "context" in row else as_passages(row.get("passages") or ())
-            prompt_text = build_prompt(dict(row))
-            if callable(render_fn):
-                prompt_text = render_fn(prompt_text)
-            enc = tok(prompt_text, return_tensors="pt")
-            prompt_ids = enc["input_ids"].to(getattr(model, "device", "cpu"))
-            gen_kwargs: dict[str, Any] = {
-                "do_sample": False,
-                "max_new_tokens": int(max_new),
-                "pad_token_id": tok.pad_token_id,
-            }
-            if pass_attention_mask:
-                gen_kwargs["attention_mask"] = torch.ones_like(prompt_ids)
-            out = model.generate(prompt_ids, **gen_kwargs)
-            if device_sync is not None:
-                device_sync()
-            seq = out[0, prompt_ids.shape[1] :].tolist()
-            while seq and seq[-1] == tok.pad_token_id and tok.pad_token_id not in eos_ids:
-                seq.pop()
-            hit_cap = len(seq) >= int(max_new) and (not eos_ids or not any(t in eos_ids for t in seq))
-            text = tok.decode(seq, skip_special_tokens=True)
-            think, _ = split_reply(text)
-            tt = len(tok.encode(think)) if think else 0
-            det = reward_details(
-                text,
-                gold,
-                passages,
-                tt,
-                truncated=hit_cap,
-                quote_reward=quote_reward,
-                quote_matcher="M2a",
-            )
-            results[cid] = {
-                "item_id": cid,
-                "gold_verdict": gold,
-                "verdict": det["verdict"],
-                "correct": bool(det["correct"]),
-                "truncated_or_malformed": bool(det["truncated_or_malformed"]),
-                "temperature": S2V11.confirm_temperature,
-                "n_samples": S2V11.confirm_samples_per_item,
-            }
-    return results
+        return results
+    finally:
+        if callable(mode):
+            mode(True)
+        if callable(getattr(model, "train", None)):
+            model.train(True)
+        else:
+            try:
+                setattr(model, "training", True)
+            except AttributeError:
+                pass
 
 
 def _is_under_run_training(path: Path) -> bool:
@@ -5175,6 +5374,18 @@ def validate_training_args(a: argparse.Namespace) -> bool:
             "refusing to start (invalid_resume_override_reason): --resume-override-reason needs non-empty "
             "text and --resume-from"
         )
+    review_reason = getattr(a, "resume_after_review", None)
+    if review_reason is not None:
+        if not str(review_reason).strip():
+            raise SystemExit(
+                "refusing to start (RESUME_AFTER_REVIEW_REASON_REQUIRED): "
+                "--resume-after-review requires a non-empty reason"
+            )
+        if resume is None:
+            raise SystemExit(
+                "refusing to start (RESUME_AFTER_REVIEW_REQUIRES_RESUME_FROM): "
+                "--resume-after-review requires --resume-from"
+            )
     explore_reason = getattr(a, "resume_from_halted_explore", None)
     if explore_reason is not None:
         if not str(explore_reason).strip():
@@ -5319,6 +5530,7 @@ def build_train_header(
                 ),
                 "quote_matcher_m1_sha256": _file_sha256(here / "quote_matcher_m1.py"),
                 "quote_matcher_m2_sha256": _file_sha256(here / "quote_matcher_m2.py"),
+                "quote_rule_audited_sha256": _file_sha256(here / QUOTE_RULE_AUDITED_FILENAME_V11),
                 "s2_v11_config_module_sha256": _file_sha256(here / "s2_v11_config.py"),
             }
         )
@@ -5455,6 +5667,8 @@ def save_train_state(
     keep: int = STATE_KEEP,
     lineage: Mapping[str, Any] | None = None,
     exploratory: Mapping[str, Any] | None = None,
+    stopped_for_review: Mapping[str, Any] | None = None,
+    secondary_checkpoint: Mapping[str, Any] | None = None,
 ) -> tuple[str, Path]:
     """Write one train state under ``<out>/train-state/<seq>-step-<next_step>``: the LoRA tensors, the AdamW
     state, RNG states, guards, step, and the save-all chain with this chunk's archive lengths and sha256 now.
@@ -5478,6 +5692,43 @@ def save_train_state(
     _write_fsync(tmp_dir / "trainable.pt", lambda fh: torch.save(trainable, fh))
     _write_fsync(tmp_dir / "optimizer.pt", lambda fh: torch.save(optimiser.state_dict(), fh))
     _write_fsync(tmp_dir / "rng.pt", lambda fh: torch.save(rng_tensors, fh))
+    files_sha = {fname: _file_sha256(tmp_dir / fname) for fname in TRAIN_STATE_FILES}
+    is_v11_hdr = header.get("prereg_version") == "1.1" or bool(
+        dict(header.get("settings") or {}).get("s2_v11")
+    )
+    sec_step = S2V11.secondary_checkpoint_update if is_v11_hdr else -1
+    eff_sec_ckpt: dict[str, Any] | None = (
+        dict(secondary_checkpoint) if secondary_checkpoint is not None else None
+    )
+    eff_adapter_sha = adapter_sha
+    if sec_step >= 0 and int(next_step) == int(sec_step):
+        sec_adapter_rel: str | None = None
+        if callable(getattr(model, "save_pretrained", None)):
+            sec_adapter_dir = Path(out_dir) / f"adapter-step-{int(next_step):05d}"
+            sec_adapter_dir.mkdir(parents=True, exist_ok=True)
+            model.save_pretrained(str(sec_adapter_dir))
+            eff_adapter_sha = checkpoint_sha256(sec_adapter_dir)
+            sec_adapter_rel = sec_adapter_dir.name
+        if eff_adapter_sha is None:
+            eff_adapter_sha = files_sha["trainable.pt"]
+        eff_sec_ckpt = {
+            "update": int(next_step),
+            "chunk_dir": Path(out_dir).name,
+            "state_dir": f"{TRAIN_STATE_DIR}/{name}",
+            "state_path": str((root / name).as_posix()),
+            "adapter_dir": sec_adapter_rel,
+            "adapter_sha256": eff_adapter_sha,
+            "trainable_sha256": files_sha["trainable.pt"],
+        }
+    elif eff_sec_ckpt is None and sec_step >= 0:
+        for existing_d in state_dirs(out_dir):
+            if existing_d.name.endswith(f"-step-{int(sec_step):05d}"):
+                try:
+                    ex_st = json.loads((existing_d / "state.json").read_text(encoding="utf-8"))
+                    if isinstance(ex_st.get("secondary_checkpoint"), dict):
+                        eff_sec_ckpt = dict(ex_st["secondary_checkpoint"])
+                except (OSError, ValueError):
+                    pass
     link = {**dict(chunk_link), "archives": archive_marks(out_dir, path)}
     state = {
         "kind": str(kind),
@@ -5488,22 +5739,30 @@ def save_train_state(
         "chunk_index": int(chunk_index),
         "complete": int(next_step) >= int(steps_total),
         "halted": dict(halted) if halted is not None else None,
+        "stopped_for_review": dict(stopped_for_review) if stopped_for_review is not None else None,
         "resumed_from": dict(resumed_from) if resumed_from is not None else None,
         "ct_guard": ct_guard.to_state() if ct_guard is not None else None,
         "trunc_guard": trunc_guard.to_state(),
         "save_all_chain": [dict(c) for c in prior_chain] + [link],
-        "adapter_sha256": adapter_sha,
+        "adapter_sha256": eff_adapter_sha,
         "lineage": dict(lineage) if lineage is not None else dict(CLEAN_LINEAGE),
         "rng_plain": rng_plain,
         "trainable_names": sorted(trainable),
-        "files_sha256": {fname: _file_sha256(tmp_dir / fname) for fname in TRAIN_STATE_FILES},
+        "files_sha256": files_sha,
     }
+    if eff_sec_ckpt is not None:
+        state["secondary_checkpoint"] = dict(eff_sec_ckpt)
     if exploratory is not None:
         state["exploratory"] = dict(exploratory)
     _write_fsync(tmp_dir / "state.json", lambda fh: fh.write(json.dumps(state, indent=1).encode("utf-8")))
     final_dir = root / name
     os.replace(tmp_dir, final_dir)
-    for old in state_dirs(out_dir)[: -max(int(keep), 1)]:
+    prunable = [
+        d
+        for d in state_dirs(out_dir)
+        if not (sec_step >= 0 and d.name.endswith(f"-step-{int(sec_step):05d}"))
+    ]
+    for old in prunable[: -max(int(keep), 1)]:
         shutil.rmtree(old)
     return _file_sha256(final_dir / "state.json"), final_dir
 
@@ -5607,6 +5866,7 @@ def precheck_resume(
     path: str = "hf",
     override_reason: str | None = None,
     explore_reason: str | None = None,
+    review_reason: str | None = None,
 ) -> dict[str, Any]:
     """Every resume check that needs no model, run before it is loaded: the latest state's files, a halted or
     finished run, and the chunk's archives against the lengths and sha256 recorded at that save point.
@@ -5616,6 +5876,11 @@ def precheck_resume(
     exactly, and any change inside the recorded prefix refuses.
     """
     rdir = Path(resume_dir)
+    if review_reason is not None and not str(review_reason).strip():
+        raise SystemExit(
+            "refusing to start (RESUME_AFTER_REVIEW_REASON_REQUIRED): "
+            "--resume-after-review requires a non-empty reason"
+        )
     if explore_reason is not None:
         if not str(explore_reason).strip():
             raise SystemExit(
@@ -5639,6 +5904,7 @@ def precheck_resume(
         if not fp.is_file() or _file_sha256(fp) != want:
             raise SystemExit(f"refusing to resume (RESUME_STATE_FILE_CHANGED): {name} is missing or changed")
     halted = state.get("halted")
+    stopped_for_review = state.get("stopped_for_review")
     if explore_reason is not None:
         if halted is None:
             raise SystemExit(
@@ -5650,6 +5916,17 @@ def precheck_resume(
         raise SystemExit(
             f"refusing to resume (RESUME_FROM_HALTED): the run halted ({halted.get('reason')}); "
             f"a halt is stop-and-report, not resumable"
+        )
+    if stopped_for_review is not None:
+        if review_reason is None or not str(review_reason).strip():
+            raise SystemExit(
+                f"refusing to resume (RESUME_FROM_STOPPED_FOR_REVIEW): the run stopped for review "
+                f'({stopped_for_review.get("reason")}); pass --resume-after-review "<reason>" to resume'
+            )
+    elif review_reason is not None:
+        raise SystemExit(
+            "refusing to resume (RESUME_AFTER_REVIEW_NOT_STOPPED): "
+            "--resume-after-review requires a train state with stopped_for_review"
         )
     if int(state["next_step"]) >= int(steps_total):
         raise SystemExit("refusing to resume (RESUME_RUN_COMPLETE): the run already completed every update")
@@ -5752,21 +6029,19 @@ def finish_resume(
         }
     state["_cut_record"] = None
     if state["_cuts"]:
-        state["_cut_record"] = (
-            {
-                "what": "this chunk was killed after a periodic save; the cut copies below are canonical",
-                "state_dir": state["_dir"].name,
-                "first_step": link.get("first_step"),
-                "next_step": int(state["next_step"]),
-                "resumed_by": Path(out_dir).name if out_dir is not None else None,
-                "copies": {
-                    c["archive"]: {
-                        k: c[k] for k in ("file", "copy", "bytes", "sha256", "copy_sha256", "original_bytes")
-                    }
-                    for c in state["_cuts"]
-                },
-            }
-        )
+        state["_cut_record"] = {
+            "what": "this chunk was killed after a periodic save; the cut copies below are canonical",
+            "state_dir": state["_dir"].name,
+            "first_step": link.get("first_step"),
+            "next_step": int(state["next_step"]),
+            "resumed_by": Path(out_dir).name if out_dir is not None else None,
+            "copies": {
+                c["archive"]: {
+                    k: c[k] for k in ("file", "copy", "bytes", "sha256", "copy_sha256", "original_bytes")
+                }
+                for c in state["_cuts"]
+            },
+        }
     sdir: Path = state["_dir"]
     state["_trainable"] = torch.load(sdir / "trainable.pt", map_location="cpu", weights_only=True)
     state["_optimizer"] = torch.load(sdir / "optimizer.pt", map_location="cpu", weights_only=True)
@@ -5914,8 +6189,7 @@ def validate_pass_mode_args(a: argparse.Namespace) -> tuple[bool, bool, int, str
             )
         if postpass and ckpt_path is None:
             raise SystemExit(
-                "refusing to start (postpass_requires_checkpoint): "
-                "--postpass requires --checkpoint"
+                "refusing to start (postpass_requires_checkpoint): --postpass requires --checkpoint"
             )
         descriptive = False
     else:
@@ -6020,8 +6294,10 @@ def prepass_item_record(
     pass_seed: int = 0,
     descriptive: bool = False,
     pass_a_k: dict[str, int] | None = None,
+    quote_matcher: str = "rule2",
 ) -> tuple[dict, list[dict]]:
     """Score one item's G completions and return (the text-free JSONL record, eval rollout outcomes)."""
+    q_fn = quote_found_m2a if quote_matcher == "M2a" else quote_found
     gold_verdict = str(row.get("label", "supported"))
     gold_file = str(row.get("gold_file") or "")
     passages = passages_of(row) if "context" in row else as_passages(row.get("passages") or ())
@@ -6039,7 +6315,7 @@ def prepass_item_record(
         text = tok.decode(c, skip_special_tokens=True)
         think, answer = split_reply(text)
         tt = len(tok.encode(think)) if think else 0
-        r_val = _call_reward_fn(reward_fn, text, row, tt, is_trunc)
+        r_val = _call_reward_fn(reward_fn, text, row, tt, is_trunc, quote_matcher=quote_matcher)
         rewards.append(r_val)
         det = reward_details(
             text,
@@ -6048,6 +6324,7 @@ def prepass_item_record(
             tt,
             truncated=is_trunc,
             quote_reward=quote_reward,
+            quote_matcher=quote_matcher,
         )
         v = det.get("verdict")
         if not is_trunc:
@@ -6060,7 +6337,7 @@ def prepass_item_record(
         parsed = None if is_trunc else parse_reply(text)
         if parsed is not None:
             parts = parsed["evidence_quotes"]
-            if parts and all(quote_found(p["quote"], passages) for p in parts):
+            if parts and all(q_fn(p["quote"], passages) for p in parts):
                 quote_pass += 1
         if save_all_out is not None:
             parse_status = "truncated" if is_trunc else ("malformed" if parsed is None else "ok")
@@ -6082,7 +6359,15 @@ def prepass_item_record(
                     "truncated": bool(is_trunc),
                 }
             )
-        rollout_outcomes.append(completion_eval_outcome(text, row, truncated=is_trunc, reward_val=r_val))
+        rollout_outcomes.append(
+            completion_eval_outcome(
+                text,
+                row,
+                truncated=is_trunc,
+                reward_val=r_val,
+                quote_matcher=quote_matcher,
+            )
+        )
 
     comp_lens = [len(c) for c in comps]
     rec = {
@@ -6199,16 +6484,13 @@ def _verify_pass_provenance(
         or ("descriptive" in header and not isinstance(header["descriptive"], bool))
     ):
         raise SystemExit(
-            f"refusing paired estimators (paired_estimator_descriptive): "
-            f"{role} header has descriptive=true"
+            f"refusing paired estimators (paired_estimator_descriptive): {role} header has descriptive=true"
         )
     observed_seed: int | None = None
     if header is not None and "seed" in header and not isinstance(header["seed"], bool):
         observed_seed = int(header["seed"])
     for r in records:
-        if r.get("descriptive") is True or (
-            "descriptive" in r and not isinstance(r["descriptive"], bool)
-        ):
+        if r.get("descriptive") is True or ("descriptive" in r and not isinstance(r["descriptive"], bool)):
             raise SystemExit(
                 f"refusing paired estimators (paired_estimator_descriptive): "
                 f"{role} record {r.get('id')!r} has descriptive=true"
@@ -6225,8 +6507,7 @@ def _verify_pass_provenance(
                 )
     if require_seeds and observed_seed is None:
         raise SystemExit(
-            f"refusing paired estimators (paired_estimator_wrong_seed): "
-            f"{role} is missing seed metadata"
+            f"refusing paired estimators (paired_estimator_wrong_seed): {role} is missing seed metadata"
         )
     if observed_seed is not None:
         if expected_seed is not None and observed_seed != int(expected_seed):
@@ -6372,10 +6653,7 @@ def compute_paired_arm_estimators(
         rew_diffs = [
             post_mean_rew[cid]
             - 0.5
-            * (
-                float(a_by_id[cid].get("reward_mean", 0.0))
-                + float(b_by_id[cid].get("reward_mean", 0.0))
-            )
+            * (float(a_by_id[cid].get("reward_mean", 0.0)) + float(b_by_id[cid].get("reward_mean", 0.0)))
             for cid in ids_sub
         ]
         return {
@@ -6814,9 +7092,7 @@ def run_prepass(
         eff_rc_sha = str(a.replay_check_sha256).strip().lower()
     if eff_rc_off is None and getattr(a, "replay_check_off_reason", None):
         eff_rc_off = str(a.replay_check_off_reason).strip() or None
-    eff_stop_after_new = (
-        stop_after_new if stop_after_new is not None else getattr(a, "stop_after_new", None)
-    )
+    eff_stop_after_new = stop_after_new if stop_after_new is not None else getattr(a, "stop_after_new", None)
     if eff_stop_after_new is not None:
         if (
             isinstance(eff_stop_after_new, bool)
@@ -6948,6 +7224,7 @@ def run_prepass(
                     pass_seed=eff_seed,
                     descriptive=descriptive,
                     pass_a_k=pass_a_k,
+                    quote_matcher=S2V11.matcher if bool(getattr(a, "s2_v11", False)) else "rule2",
                 )
                 if eval_records is not None:
                     rewards_list = [float(ro["reward"]) for ro in rollout_outcomes]
@@ -7233,8 +7510,7 @@ def load_replay_check_jsonl(
     expected_sha = str(replay_sha256).strip().lower()
     if actual_sha != expected_sha:
         raise SystemExit(
-            f"refusing to start (replay_check_sha_mismatch): "
-            f"expected sha256 {expected_sha}, got {actual_sha}"
+            f"refusing to start (replay_check_sha_mismatch): expected sha256 {expected_sha}, got {actual_sha}"
         )
     expected_g = int(g) if g is not None else None
     k_by_id: dict[str, int] = {}
@@ -7423,6 +7699,8 @@ def active_flags(a: argparse.Namespace) -> dict:
         flags["resume_override_reason"] = str(a.resume_override_reason).strip()
     if getattr(a, "resume_from_halted_explore", None):
         flags["resume_from_halted_explore"] = str(a.resume_from_halted_explore).strip()
+    if getattr(a, "resume_after_review", None):
+        flags["resume_after_review"] = str(a.resume_after_review).strip()
     if getattr(a, "s2_v11", False):
         flags["s2_v11"] = True
         flags["prereg_version"] = S2V11.prereg_version
@@ -7473,6 +7751,7 @@ def execute(
             path=a.path,
             override_reason=getattr(a, "resume_override_reason", None),
             explore_reason=getattr(a, "resume_from_halted_explore", None),
+            review_reason=getattr(a, "resume_after_review", None),
         )
     exploratory_info: dict[str, Any] | None = (resume_pre or {}).get("_exploratory")
     ckpt_files_sha = checkpoint_file_shas(getattr(a, "checkpoint", None))
@@ -7533,9 +7812,7 @@ def execute(
         hold_frac = float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION))
         hold_seed_raw = getattr(a, "holdout_seed", None)
         hold_seed_valid = (
-            hold_seed_raw is not None
-            and not isinstance(hold_seed_raw, bool)
-            and str(hold_seed_raw).strip()
+            hold_seed_raw is not None and not isinstance(hold_seed_raw, bool) and str(hold_seed_raw).strip()
         )
         hold_seed = str(hold_seed_raw) if hold_seed_valid else None
         if draw_mode == "class_stratified":
@@ -7748,6 +8025,8 @@ def execute(
                 quote_reward=str(getattr(a, "quote_reward", "v2") or "v2"),
                 dry=bool(a.dry),
                 device_sync=bundle.get("sync"),
+                mode=bundle.get("mode"),
+                state=bundle.get("state"),
             )
 
         confirm_runner = _v11_confirm_runner
@@ -7832,6 +8111,20 @@ def execute(
                     "overridden": list((resume_state or {}).get("_overridden") or []),
                 }
             )
+        review_resumes = list(lineage.get("review_resumes") or [])
+        review_reason = getattr(a, "resume_after_review", None)
+        if review_reason and str(review_reason).strip():
+            review_resumes.append(
+                {
+                    "chunk_dir": a.out.name,
+                    "resumed_from": Path(a.resume_from).name if a.resume_from is not None else None,
+                    "step": start_step,
+                    "reason": str(review_reason).strip(),
+                    "stopped_for_review": (resume_state or {}).get("stopped_for_review"),
+                }
+            )
+        if review_resumes:
+            lineage["review_resumes"] = review_resumes
         a.out.mkdir(parents=True, exist_ok=True)
         header_doc: dict[str, Any] = {
             **train_header,
@@ -7841,6 +8134,9 @@ def execute(
             "forked_or_rewound": bool(lineage["forked_or_rewound"]),
             "override_reasons": lineage["override_reasons"],
         }
+        if review_reason or review_resumes:
+            header_doc["resume_after_review"] = str(review_reason).strip() if review_reason else None
+            header_doc["review_resumes"] = review_resumes
         if exploratory_info is not None:
             header_doc["exploratory"] = dict(exploratory_info)
         (a.out / f"s2-{a.path}-train-header.json").write_text(
@@ -7952,7 +8248,8 @@ def execute(
                     _create_exclusive(_free_name(resume_state["_resume_dir"], "CUT"), cut_record)
 
         def periodic_save(next_step_now: int, ending: bool) -> None:
-            if ending or next_step_now % state_every_updates(a) != 0:
+            is_sec_ckpt = bool(is_v11 and int(next_step_now) == S2V11.secondary_checkpoint_update)
+            if ending or (next_step_now % state_every_updates(a) != 0 and not is_sec_ckpt):
                 return
             mark_consumed(next_step_now)
             save_train_state(
@@ -7974,6 +8271,7 @@ def execute(
                 path=a.path,
                 lineage=lineage,
                 exploratory=exploratory_info,
+                secondary_checkpoint=(resume_state or {}).get("secondary_checkpoint"),
             )
 
         def run_it() -> tuple[list[dict], dict | None, bool]:
@@ -8207,11 +8505,7 @@ def execute(
             training_run
             and race_lost is None
             and not oom
-            and (
-                stopped is None
-                or bool(stopped.get("triggered_rules"))
-                or bool(stopped.get("canary_stop"))
-            )
+            and (stopped is None or bool(stopped.get("triggered_rules")) or bool(stopped.get("canary_stop")))
         ):
             # the final save claims the previous chunk first, as a periodic save does
             try:
@@ -8232,7 +8526,11 @@ def execute(
             if not sa_path.exists():
                 append_save_all(sa_path, ())
             save_all_sha = hashlib.sha256(sa_path.read_bytes()).hexdigest()
-        eval_summary_doc = evaluation_summary(eval_records, advantage_mode=adv_mode)
+        eval_summary_doc = evaluation_summary(
+            eval_records,
+            advantage_mode=adv_mode,
+            quote_matcher=S2V11.matcher if is_v11 else "rule2",
+        )
         write_eval_summary(eval_summary_doc)
         peak = sampler.peak_mib if sampler is not None else None
         flags_in_use = {**active_flags(a), **stress_meta, **draw_record}
@@ -8260,9 +8558,7 @@ def execute(
         result = readout(
             steps,
             peak_mib=peak,
-            steps_requested=(
-                len(prompts) if rollout_only else (requested_now if training_run else a.steps)
-            ),
+            steps_requested=(len(prompts) if rollout_only else (requested_now if training_run else a.steps)),
             stopped=stopped,
             oom=oom,
             cut=cut,
@@ -8326,6 +8622,7 @@ def execute(
             if not steps_path.exists():
                 steps_path.write_bytes(b"")
             halted = train_progress.get("halted")
+            stopped_for_review = train_progress.get("stopped_for_review")
             state_ok = (
                 not oom
                 and race_lost is None
@@ -8355,10 +8652,30 @@ def execute(
                     path=a.path,
                     lineage=lineage,
                     exploratory=exploratory_info,
+                    stopped_for_review=stopped_for_review,
+                    secondary_checkpoint=(resume_state or {}).get("secondary_checkpoint"),
                 )[0]
                 if state_ok
                 else None
             )
+            sec_ckpt_doc: dict[str, Any] | None = None
+            lsd_final = latest_state_dir(a.out)
+            if lsd_final is not None:
+                try:
+                    st_final = json.loads((lsd_final / "state.json").read_text(encoding="utf-8"))
+                    if isinstance(st_final.get("secondary_checkpoint"), dict):
+                        sec_ckpt_doc = dict(st_final["secondary_checkpoint"])
+                except (OSError, ValueError):
+                    pass
+            if sec_ckpt_doc is not None:
+                header_doc["secondary_checkpoint"] = sec_ckpt_doc
+                header_doc["update_60_state_path"] = sec_ckpt_doc.get("state_path")
+                header_doc["update_60_adapter_sha256"] = sec_ckpt_doc.get("adapter_sha256")
+                (a.out / f"s2-{a.path}-train-header.json").write_text(
+                    json.dumps(header_doc, indent=1),
+                    encoding="utf-8",
+                    newline="\n",
+                )
             gh_path = a.out / f"s2-{a.path}-guard-history.jsonl.gz"
             cr_path = a.out / f"s2-{a.path}-critic-retries.jsonl.gz"
             training_block = {
@@ -8370,7 +8687,14 @@ def execute(
                 "steps_total": int(a.steps),
                 "chunk_stop": train_progress.get("chunk_stop"),
                 "halted": halted,
+                "stopped_for_review": stopped_for_review,
                 "resumed_from": resumed_from_rec,
+                "resume_after_review": (
+                    str(getattr(a, "resume_after_review", None)).strip()
+                    if getattr(a, "resume_after_review", None)
+                    else None
+                ),
+                "review_resumes": list(lineage.get("review_resumes") or []),
                 "header_sha256": hashlib.sha256(
                     (a.out / f"s2-{a.path}-train-header.json").read_bytes()
                 ).hexdigest(),
@@ -8397,6 +8721,10 @@ def execute(
                     else None
                 ),
             }
+            if sec_ckpt_doc is not None:
+                training_block["secondary_checkpoint"] = sec_ckpt_doc
+                training_block["update_60_state_path"] = sec_ckpt_doc.get("state_path")
+                training_block["update_60_adapter_sha256"] = sec_ckpt_doc.get("adapter_sha256")
             if exploratory_info is not None:
                 training_block["exploratory"] = dict(exploratory_info)
         receipt = build_receipt(
@@ -8425,6 +8753,16 @@ def execute(
         )
         if training_block is not None:
             receipt["training"] = training_block
+            if training_block.get("stopped_for_review") is not None:
+                receipt["stopped_for_review"] = training_block["stopped_for_review"]
+            if training_block.get("resume_after_review") is not None:
+                receipt["resume_after_review"] = training_block["resume_after_review"]
+            if training_block.get("review_resumes"):
+                receipt["review_resumes"] = training_block["review_resumes"]
+            if training_block.get("secondary_checkpoint") is not None:
+                receipt["secondary_checkpoint"] = training_block["secondary_checkpoint"]
+                receipt["update_60_state_path"] = training_block.get("update_60_state_path")
+                receipt["update_60_adapter_sha256"] = training_block.get("update_60_adapter_sha256")
         if exploratory_info is not None:
             receipt["exploratory"] = dict(exploratory_info)
         if is_v11:
@@ -8494,7 +8832,13 @@ class _TrackExplicitAction(argparse.Action):
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--path", choices=("hf", "llamacpp"), default="hf")
-    ap.add_argument("--steps", type=int, default=STEPS, help="a value other than 20 makes the run S2-LIMITED")
+    ap.add_argument(
+        "--steps",
+        type=int,
+        default=STEPS,
+        action=_TrackExplicitAction,
+        help="a value other than 20 makes the run S2-LIMITED",
+    )
     ap.add_argument(
         "--prompts",
         type=int,
@@ -8624,12 +8968,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--draw",
         choices=DRAW_MODES,
         default="first",
+        action=_TrackExplicitAction,
         help="prompt draw mode: 'first' (default, sorted prefix), 'uniform' (seeded sample), or 'kband'",
     )
     ap.add_argument(
         "--draw-seed",
         type=int,
         default=None,
+        action=_TrackExplicitAction,
         help="integer seed for --draw uniform or --draw kband",
     )
     ap.add_argument(
@@ -8887,6 +9233,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     ap.add_argument(
+        "--resume-after-review",
+        default=None,
+        help=(
+            "training run: resume from a chunk that stopped for review (STOP-AND-REPORT) "
+            "with a non-empty review reason recorded in the train header and s2-hf.json"
+        ),
+    )
+    ap.add_argument(
         "--state-every-updates",
         type=int,
         default=None,
@@ -8919,7 +9273,16 @@ def apply_dry_defaults(a: argparse.Namespace) -> argparse.Namespace:
     """A dry rehearsal is 2 steps of G = 2 on a short completion cap, unless the caller says otherwise."""
     if a.path != "hf":
         raise SystemExit("--dry rehearses the Hugging Face path only")
-    a.steps = 2 if a.steps == STEPS else a.steps
+    if getattr(a, "s2_v11", False):
+        if not getattr(a, "_steps_explicit", False) and a.steps == STEPS:
+            a.steps = S2V11.primary_horizon_updates
+        if getattr(a, "stop_after_updates", None) is None and (
+            getattr(a, "arm", None) is not None
+            or any(getattr(a, attr, None) is not None for _, attr in TRAIN_ONLY_FLAGS)
+        ):
+            a.stop_after_updates = 2
+    else:
+        a.steps = 2 if a.steps == STEPS else a.steps
     a.g = 2 if a.g == G else a.g
     a.max_new = 24 if a.max_new == MAX_NEW_TOKENS else a.max_new
     return a

@@ -6,24 +6,23 @@ Every constant in ``S2V11`` is bound to ``docs/runs/2026-11-08-smoke-s2-v1.1-pre
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import hashlib
+import importlib.util
 import json
 import math
-from pathlib import Path
 import random
 import re
-from typing import Any, Iterable, Mapping, Sequence
-
+import sys
 import unicodedata
-
-import quote_matcher_m1 as _m1
-import quote_matcher_m2 as _m2
-import quote_rule as _qr
-
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
 
 PREREG_V11_RELPATH = "docs/runs/2026-11-08-smoke-s2-v1.1-prereg.md"
 PREREG_V11_SHA256 = "9b2db4cf3c6e9eca415aa021a276cacccde2f1aac2c72be215e84e64c2962554"
+QUOTE_RULE_AUDITED_FILENAME_V11 = "quote_rule_audited_1aae2469.py"
+QUOTE_RULE_AUDITED_SHA256_V11 = "1aae2469ef9ab5a4fb21346c5271b032565c4321c2bfb22592d2229e7d09eae7"
 
 # §3 Pinned pre-pass and training-pool ID-set SHA-256 digests (`v11-baselines-result.json`, commit 9a2b4b22)
 PASS_A_SHA256_V11 = "feee81ff8897cda5824c4877ce597232d7291e2f80a32d3a16a56a9c06aafa69"  # §3 Pass A (`run-prepass/s2-hf-prepass.jsonl`)
@@ -39,12 +38,15 @@ class S2V11Config:
 
     # Document identity
     prereg_version: str = "1.1"  # §1 title
-    prereg_sha256: str = "9b2db4cf3c6e9eca415aa021a276cacccde2f1aac2c72be215e84e64c2962554"  # §1 sealed sha256
+    prereg_sha256: str = (
+        "9b2db4cf3c6e9eca415aa021a276cacccde2f1aac2c72be215e84e64c2962554"  # §1 sealed sha256
+    )
 
     # §4.1 Matcher M2a
     matcher: str = "M2a"  # §4.1
     quote_matcher_m2_sha256: str = "98780f92893e0e3ad4e4f9394e1c81a2f7e7f94a8b3331aed3ee217114d0ea29"  # §4.1
     quote_matcher_m1_sha256: str = "57064f46ff0f39ec26522e3d3d52ccb4c7f96300729f9a79052e05dfc842b42c"  # §6
+    quote_rule_audited_sha256: str = QUOTE_RULE_AUDITED_SHA256_V11  # §4.1 audited quote_rule at ab0e554
 
     # §4.2 Wrong-label positive-advantage clamp from update 1
     clamp_wrong_positive_from_update: int = 1  # §4.2
@@ -91,7 +93,9 @@ class S2V11Config:
     fuse_a_confirm_min_delta_over_step0: int = 2  # §5.5
     fuse_a_keep_cusum_on_confirm_negative: bool = True  # §5.5
     gold_unsupported_train_items: int = 184  # §3 / §5.5
-    gold_unsupported_ids_sha256: str = GOLD_UNSUPPORTED_IDS_SHA256_V11  # §3 / §5.5 sha256 of sorted 184 gold-unsupported ids joined by `\n`
+    gold_unsupported_ids_sha256: str = (
+        GOLD_UNSUPPORTED_IDS_SHA256_V11  # §3 / §5.5 sha256 of sorted 184 gold-unsupported ids joined by `\n`
+    )
     mcnemar_one_sided_alpha: float = 0.05  # §5.5
     share_184_pass_in_same_window: bool = True  # §5.5
     confirm_cap_per_run: int = 3  # §5.5
@@ -237,7 +241,9 @@ def parse_sealed_prereg_v11(text: str) -> dict[str, Any]:
     can_iii_m = _must(r"- \(iii\) \u2265 (\d+) in one window")
     can_iv_m = _must(r"- \(iv\) above ([0-9.]+);")
     can_vi_m = _must(r"- \(vi\) below (\d+) chars\.")
-    can_v_m = _must(r"\| \(v\) wrong-label positive advantage after the clamp \| \u2014 \| (\d+) by construction \|")
+    can_v_m = _must(
+        r"\| \(v\) wrong-label positive advantage after the clamp \| \u2014 \| (\d+) by construction \|"
+    )
 
     s7_pri_m = _must(r"\*\*Primary:\*\* the full (\d+)-update horizon")
     s7_sec_m = _must(r"\*\*Secondary:\*\* a common checkpoint at update (\d+)")
@@ -246,6 +252,7 @@ def parse_sealed_prereg_v11(text: str) -> dict[str, Any]:
     here = Path(__file__).resolve().parent
     m1_sha = hashlib.sha256((here / "quote_matcher_m1.py").read_bytes()).hexdigest()
     m2_sha = hashlib.sha256((here / "quote_matcher_m2.py").read_bytes()).hexdigest()
+    qr_sha = hashlib.sha256((here / QUOTE_RULE_AUDITED_FILENAME_V11).read_bytes()).hexdigest()
 
     return {
         "prereg_version": ver_m.group(1),
@@ -253,6 +260,7 @@ def parse_sealed_prereg_v11(text: str) -> dict[str, Any]:
         "matcher": matcher_m.group(1),
         "quote_matcher_m2_sha256": m2_sha,
         "quote_matcher_m1_sha256": m1_sha,
+        "quote_rule_audited_sha256": qr_sha,
         "clamp_wrong_positive_from_update": int(clamp_m.group(1)),
         "clamp_wrong_positive_ceil": float(clamp_m.group(2)),
         "constant_loss_denominator": int(denom_m.group(1).replace(",", "")),
@@ -306,6 +314,188 @@ def parse_sealed_prereg_v11(text: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# §4.1 Lazy isolated M1/M2 matcher loader and 4-file SHA-256 verification
+# ---------------------------------------------------------------------------
+
+
+_V11_MATCHER_CACHE: tuple[Any, Any, Any] | None = None
+
+
+def verify_v11_sealed_files(
+    *,
+    repo_root: Path | None = None,
+    verifier_dir: Path | None = None,
+    cfg: S2V11Config = S2V11,
+) -> dict[str, str]:
+    """Verify the SHA-256 digests of the 4 pinned S2 v1.1 files with distinct error codes."""
+    vdir = Path(verifier_dir).resolve() if verifier_dir is not None else Path(__file__).resolve().parent
+    rroot = Path(repo_root).resolve() if repo_root is not None else vdir.parents[1]
+    prereg_path = (
+        rroot / PREREG_V11_RELPATH
+        if (rroot / PREREG_V11_RELPATH).is_file()
+        else (rroot if rroot.is_file() else rroot / PREREG_V11_RELPATH)
+    )
+    if not prereg_path.is_file():
+        raise ValueError(
+            f"S2_V11_PREREG_SHA256_MISMATCH: missing {prereg_path} "
+            f"(expected {cfg.prereg_sha256}, got <missing>)"
+        )
+    prereg_sha = hashlib.sha256(prereg_path.read_bytes()).hexdigest()
+    if prereg_sha != cfg.prereg_sha256:
+        raise ValueError(
+            f"S2_V11_PREREG_SHA256_MISMATCH: Sealed prereg SHA-256 mismatch at {prereg_path}: "
+            f"expected {cfg.prereg_sha256}, got {prereg_sha}"
+        )
+
+    m1_path = vdir / "quote_matcher_m1.py"
+    if not m1_path.is_file():
+        raise ValueError(
+            f"S2_V11_M1_SHA256_MISMATCH: missing {m1_path} "
+            f"(expected {cfg.quote_matcher_m1_sha256}, got <missing>)"
+        )
+    m1_sha = hashlib.sha256(m1_path.read_bytes()).hexdigest()
+    if m1_sha != cfg.quote_matcher_m1_sha256:
+        raise ValueError(
+            f"S2_V11_M1_SHA256_MISMATCH: quote_matcher_m1.py SHA-256 mismatch at {m1_path}: "
+            f"expected {cfg.quote_matcher_m1_sha256}, got {m1_sha}"
+        )
+
+    m2_path = vdir / "quote_matcher_m2.py"
+    if not m2_path.is_file():
+        raise ValueError(
+            f"S2_V11_M2_SHA256_MISMATCH: missing {m2_path} "
+            f"(expected {cfg.quote_matcher_m2_sha256}, got <missing>)"
+        )
+    m2_sha = hashlib.sha256(m2_path.read_bytes()).hexdigest()
+    if m2_sha != cfg.quote_matcher_m2_sha256:
+        raise ValueError(
+            f"S2_V11_M2_SHA256_MISMATCH: quote_matcher_m2.py SHA-256 mismatch at {m2_path}: "
+            f"expected {cfg.quote_matcher_m2_sha256}, got {m2_sha}"
+        )
+
+    qr_path = vdir / QUOTE_RULE_AUDITED_FILENAME_V11
+    if not qr_path.is_file():
+        raise ValueError(
+            f"S2_V11_QUOTE_RULE_SHA256_MISMATCH: missing {qr_path} "
+            f"(expected {cfg.quote_rule_audited_sha256}, got <missing>)"
+        )
+    qr_sha = hashlib.sha256(qr_path.read_bytes()).hexdigest()
+    if qr_sha != cfg.quote_rule_audited_sha256:
+        raise ValueError(
+            f"S2_V11_QUOTE_RULE_SHA256_MISMATCH: {QUOTE_RULE_AUDITED_FILENAME_V11} SHA-256 mismatch at {qr_path}: "
+            f"expected {cfg.quote_rule_audited_sha256}, got {qr_sha}"
+        )
+
+    return {
+        "prereg_sha256": prereg_sha,
+        "quote_matcher_m1_sha256": m1_sha,
+        "quote_matcher_m2_sha256": m2_sha,
+        "quote_rule_audited_sha256": qr_sha,
+    }
+
+
+def _load_module_from_file(mod_name: str, file_path: Path) -> Any:
+    spec = importlib.util.spec_from_file_location(mod_name, file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load module {mod_name} from {file_path}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def load_v11_matchers(
+    *,
+    force_reload: bool = False,
+    verify_shas: bool = True,
+    repo_root: Path | None = None,
+    verifier_dir: Path | None = None,
+    cfg: S2V11Config = S2V11,
+) -> tuple[Any, Any, Any]:
+    """Verify the 4 pinned S2 v1.1 files and load M1/M2 bound to ``quote_rule_audited_1aae2469``.
+
+    Restores ``sys.modules["quote_rule"]`` and ``sys.path`` on exit so the default ``quote_rule``
+    remains untouched and ``quote_matcher_m1.quote_found.__module__ == "quote_rule_audited_1aae2469"``.
+    """
+    global _V11_MATCHER_CACHE
+    vdir = Path(verifier_dir).resolve() if verifier_dir is not None else Path(__file__).resolve().parent
+    if verify_shas:
+        verify_v11_sealed_files(repo_root=repo_root, verifier_dir=vdir, cfg=cfg)
+
+    use_default_dir = verifier_dir is None and repo_root is None and cfg == S2V11
+    if _V11_MATCHER_CACHE is not None and not force_reload and use_default_dir:
+        _, cached_m1, _ = _V11_MATCHER_CACHE
+        mod_name = getattr(getattr(cached_m1, "quote_found", None), "__module__", None)
+        if mod_name == "quote_rule_audited_1aae2469":
+            return _V11_MATCHER_CACHE
+
+    orig_sys_path = list(sys.path)
+    has_orig_qr = "quote_rule" in sys.modules
+    orig_qr_mod = sys.modules.get("quote_rule")
+    try:
+        audited_qr = _load_module_from_file(
+            "quote_rule_audited_1aae2469",
+            vdir / QUOTE_RULE_AUDITED_FILENAME_V11,
+        )
+        sys.modules["quote_rule"] = audited_qr
+        m1_mod = _load_module_from_file("quote_matcher_m1", vdir / "quote_matcher_m1.py")
+        m2_mod = _load_module_from_file("quote_matcher_m2", vdir / "quote_matcher_m2.py")
+    finally:
+        sys.path[:] = orig_sys_path
+        if has_orig_qr and orig_qr_mod is not None:
+            sys.modules["quote_rule"] = orig_qr_mod
+        else:
+            sys.modules.pop("quote_rule", None)
+
+    m1_qr_mod = getattr(getattr(m1_mod, "quote_found", None), "__module__", None)
+    if m1_qr_mod != "quote_rule_audited_1aae2469":
+        raise ValueError(
+            "S2_V11_QUOTE_RULE_MODULE_MISMATCH: expected "
+            f"quote_matcher_m1.quote_found.__module__ == 'quote_rule_audited_1aae2469', got {m1_qr_mod!r}"
+        )
+    bundle = (audited_qr, m1_mod, m2_mod)
+    if use_default_dir:
+        _V11_MATCHER_CACHE = bundle
+    return bundle
+
+
+def _get_v11_matchers() -> tuple[Any, Any, Any]:
+    if _V11_MATCHER_CACHE is not None:
+        return _V11_MATCHER_CACHE
+    return load_v11_matchers(verify_shas=True)
+
+
+def quote_found_m1(quote: str, passages: str | Sequence[str | dict]) -> bool:
+    """Lazy wrapper around ``quote_matcher_m1.quote_found_m1`` bound to ``quote_rule_audited_1aae2469``."""
+    _, m1_mod, _ = _get_v11_matchers()
+    return bool(m1_mod.quote_found_m1(quote, passages))
+
+
+def quote_found_m2a(quote: str, passages: str | Sequence[str | dict]) -> bool:
+    """Lazy wrapper around ``quote_matcher_m2.quote_found_m2a`` bound to ``quote_rule_audited_1aae2469``."""
+    _, _, m2_mod = _get_v11_matchers()
+    return bool(m2_mod.quote_found_m2a(quote, passages))
+
+
+def normalise_m2a(text: str, *, is_quote: bool = False) -> str:
+    """Lazy wrapper around ``quote_matcher_m2.normalise_m2a``."""
+    _, _, m2_mod = _get_v11_matchers()
+    return str(m2_mod.normalise_m2a(text, is_quote=is_quote))
+
+
+def quote_credit_m2a(
+    quotes: Sequence[str],
+    passages: str | Sequence[str | dict],
+    *,
+    verdict: str,
+    correct: bool,
+) -> float:
+    """Lazy wrapper around ``quote_matcher_m2.quote_credit_m2a`` bound to ``quote_rule_audited_1aae2469``."""
+    _, _, m2_mod = _get_v11_matchers()
+    return float(m2_mod.quote_credit_m2a(quotes, passages, verdict=verdict, correct=correct))
+
+
+# ---------------------------------------------------------------------------
 # §4.1 Raw-passage span locator and §6 canary helpers (mirrors v11-baselines-2.py)
 # ---------------------------------------------------------------------------
 
@@ -316,6 +506,7 @@ _MD_TABLE_SEP_RE = re.compile(r"^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?\
 def _unmarked_with_map(p: str) -> tuple[str, list[int]]:
     if not p:
         return "", []
+    _qr, _, _ = _get_v11_matchers()
     work = p[:-1] if p.endswith("\n") else p
     parts = work.split("\n")
     out_chars: list[str] = []
@@ -350,6 +541,7 @@ def _unmarked_with_map(p: str) -> tuple[str, list[int]]:
 
 
 def _norm_tier0_with_map(text: str, base_map: list[int] | None = None) -> tuple[str, list[int]]:
+    _qr, _, _ = _get_v11_matchers()
     if base_map is None:
         base_map = list(range(len(text)))
     ws_set = _qr.RUST_WHITESPACE_CHARS
@@ -380,6 +572,7 @@ def _norm_tier0_with_map(text: str, base_map: list[int] | None = None) -> tuple[
 
 
 def _norm_tier1_with_map(text: str, base_map: list[int] | None = None) -> tuple[str, list[int]]:
+    _, _m1, _ = _get_v11_matchers()
     if base_map is None:
         base_map = list(range(len(text)))
     s1_chars: list[str] = []
@@ -431,6 +624,7 @@ def _norm_tier1_with_map(text: str, base_map: list[int] | None = None) -> tuple[
 
 
 def _norm_m2a_with_map(text: str, base_map: list[int] | None = None) -> tuple[str, list[int]]:
+    _, _m1, _m2 = _get_v11_matchers()
     if base_map is None:
         base_map = list(range(len(text)))
     s1_chars: list[str] = []
@@ -561,6 +755,7 @@ def locate_raw_span_m2a(
     passages: str | Sequence[str | dict],
 ) -> tuple[int, int, int, str] | None:
     """Locate the raw passage span ``(passage_idx, raw_start, raw_end, tier)`` for an M2a-accepted quote."""
+    _qr, _m1, _m2 = _get_v11_matchers()
     ps = _qr.as_passages(passages)
     if not quote or not ps:
         return None
@@ -720,6 +915,7 @@ def locate_raw_span_m2a(
 
 def _check_balanced_brackets(s: str, *, ignore_literals: bool = False) -> bool:
     """Check whether ``()``, ``[]``, ``{}`` are balanced in ``s`` (§6 iv)."""
+    _, _, _m2 = _get_v11_matchers()
     stack: list[str] = []
     pairs = {"(": ")", "[": "]", "{": "}"}
     closers = {")": "(", "]": "[", "}": "{"}
@@ -742,6 +938,7 @@ def _check_balanced_brackets(s: str, *, ignore_literals: bool = False) -> bool:
 
 def _check_span_boundary(raw_p: str, rs: int, re_: int) -> dict[str, bool]:
     """Check whether a matched raw span crosses a paragraph or Markdown table boundary (§6 ii)."""
+    _qr, _m1, _ = _get_v11_matchers()
     span = raw_p[rs:re_]
     para_break = bool(_m1._PARA_BREAK_RE.search(span))
     has_md_table_in_p = bool(_MD_TABLE_SEP_RE.search(raw_p)) or (
@@ -758,6 +955,7 @@ def _check_span_boundary(raw_p: str, rs: int, re_: int) -> dict[str, bool]:
 
 def _check_span_edge_slicing(raw_p: str, rs: int, re_: int, quote: str) -> dict[str, bool]:
     """Check whether a matched raw span sliced off a leading sign/escape (§6 iii)."""
+    _, _m1, _ = _get_v11_matchers()
     prev_ch = raw_p[rs - 1] if rs > 0 else ""
     first_ch = raw_p[rs] if rs < len(raw_p) else ""
     last_ch = raw_p[re_ - 1] if 0 < re_ <= len(raw_p) else ""
@@ -781,10 +979,7 @@ def _check_span_edge_slicing(raw_p: str, rs: int, re_: int, quote: str) -> dict[
     stripped_prefix = s_t1[:st]
     stripped_suffix = s_t1[en:]
     q_sign_stripped = (
-        st > 0
-        and st < len(s_t1)
-        and s_t1[st].isdigit()
-        and s_t1[st - 1] in "+-\u00b1~\u20ac$\u00a3\u00a5#"
+        st > 0 and st < len(s_t1) and s_t1[st].isdigit() and s_t1[st - 1] in "+-\u00b1~\u20ac$\u00a3\u00a5#"
     )
     q_escape_stripped = ("\\" in stripped_prefix) or ("\\" in stripped_suffix)
     return {
@@ -792,7 +987,10 @@ def _check_span_edge_slicing(raw_p: str, rs: int, re_: int, quote: str) -> dict[
         "raw_sign_before_digit": raw_sign_before_digit,
         "q_sign_stripped": q_sign_stripped,
         "q_escape_stripped": q_escape_stripped,
-        "any_sign_or_escape": raw_escape_slice or raw_sign_before_digit or q_sign_stripped or q_escape_stripped,
+        "any_sign_or_escape": raw_escape_slice
+        or raw_sign_before_digit
+        or q_sign_stripped
+        or q_escape_stripped,
     }
 
 
@@ -817,6 +1015,7 @@ def compute_window_canaries_v11(
     post_clamp_wrong_positive_count: int = 0,
 ) -> dict[str, Any]:
     """Compute the 6 per-window M2a canary metrics defined in §6 of the sealed spec."""
+    _qr, _m1, _m2 = _get_v11_matchers()
     total_quotes = len(quote_records)
     m1_ok_all = 0
     m2a_ok_all = 0
@@ -908,20 +1107,14 @@ def evaluate_canary_rollback_v11(
         and float(canaries.get("boundary_crossing_rate", 0.0)) > cfg.canary_boundary_crossing_max_rate
     )
     v_edge_slice = (
-        int(canaries.get("sign_escape_edge_slice_count", 0))
-        >= cfg.canary_sign_escape_edge_slice_min_count
+        int(canaries.get("sign_escape_edge_slice_count", 0)) >= cfg.canary_sign_escape_edge_slice_min_count
     )
     v_unbalanced = (
         m2a_quotes > 0
-        and float(canaries.get("unbalanced_brackets_rate", 0.0))
-        > cfg.canary_unbalanced_brackets_max_rate
+        and float(canaries.get("unbalanced_brackets_rate", 0.0)) > cfg.canary_unbalanced_brackets_max_rate
     )
     p10_val = canaries.get("accepted_quote_norm_len_p10")
-    v_p10 = (
-        m2a_quotes > 0
-        and p10_val is not None
-        and float(p10_val) < cfg.canary_quote_len_p10_min_chars
-    )
+    v_p10 = m2a_quotes > 0 and p10_val is not None and float(p10_val) < cfg.canary_quote_len_p10_min_chars
 
     violations = {
         "shadow_m1_pass_rate": bool(v_shadow_m1),
@@ -1044,11 +1237,7 @@ def _index_prepass_records(
     if isinstance(records, Mapping):
         out_map: dict[str, Mapping[str, Any]] = {}
         for k, rec in records.items():
-            if (
-                not isinstance(rec, Mapping)
-                or "k_correct" not in rec
-                or "cannot_tell" not in rec
-            ):
+            if not isinstance(rec, Mapping) or "k_correct" not in rec or "cannot_tell" not in rec:
                 raise ValueError(
                     f"S2_V11_{pass_label}_INVALID_RECORD: record for {k!r} missing 'k_correct' or 'cannot_tell'"
                 )
@@ -1115,21 +1304,14 @@ def load_prepass_records_v11(
             raise ValueError(
                 f"S2_V11_{pass_label}_CORRUPT_JSON: invalid JSON on line {line_no} of {p.name}"
             ) from exc
-        if (
-            not isinstance(obj, dict)
-            or "id" not in obj
-            or "k_correct" not in obj
-            or "cannot_tell" not in obj
-        ):
+        if not isinstance(obj, dict) or "id" not in obj or "k_correct" not in obj or "cannot_tell" not in obj:
             raise ValueError(
                 f"S2_V11_{pass_label}_INVALID_RECORD: line {line_no} of {p.name} missing "
                 f"'id', 'k_correct', or 'cannot_tell'"
             )
         cid = str(obj["id"])
         if cid in records_by_id:
-            raise ValueError(
-                f"S2_V11_{pass_label}_DUPLICATE_ID: duplicate record for id {cid!r} in {p.name}"
-            )
+            raise ValueError(f"S2_V11_{pass_label}_DUPLICATE_ID: duplicate record for id {cid!r} in {p.name}")
         k_val = obj["k_correct"]
         ct_val = obj["cannot_tell"]
         if isinstance(k_val, bool) or not isinstance(k_val, int) or k_val < 0:
@@ -1202,9 +1384,7 @@ def build_v11_canary_sets(
     b_by_id = _index_prepass_records(pass_b, pass_label="PASS_B")
     hold_set = {str(x).strip() for x in (holdout_ids or ()) if str(x).strip()}
 
-    source_items: Sequence[Mapping[str, Any]] = (
-        items if items is not None else list(a_by_id.values())
-    )
+    source_items: Sequence[Mapping[str, Any]] = items if items is not None else list(a_by_id.values())
     gold_unsup_set: set[str] = set()
     canary_c_set: set[str] = set()
     for it in source_items:
@@ -1246,5 +1426,3 @@ def build_v11_canary_sets(
     if strict:
         validate_v11_canary_sets(out, cfg=cfg)
     return out
-
-
