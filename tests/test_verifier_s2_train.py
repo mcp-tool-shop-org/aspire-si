@@ -3471,6 +3471,7 @@ class TestS2V11DryAndDefaultUnchanged:
                 quote_reward="v2",
                 quote_matcher=quote_matcher,
             )
+
         r_rule2 = s2._call_reward_fn(rb_default, reply_sup, row_sup, 4, False, quote_matcher="rule2")
         r_m2a = s2._call_reward_fn(rb_v11, reply_sup, row_sup, 4, False, quote_matcher="M2a")
         assert r_rule2 == pytest.approx(-0.2)
@@ -3582,7 +3583,22 @@ class TestS2V11DryAndDefaultUnchanged:
         qr_dst.write_bytes(orig_qr + b"\n")
         with pytest.raises(ValueError, match=r"S2_V11_QUOTE_RULE_SHA256_MISMATCH.*expected 1aae2469"):
             v11cfg.load_v11_matchers(force_reload=True, repo_root=fake_rroot, verifier_dir=fake_vdir)
+        qr_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_QUOTE_RULE_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
         qr_dst.write_bytes(orig_qr)
+        m2_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_M2_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        m2_dst.write_bytes(orig_m2)
+        m1_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_M1_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        m1_dst.write_bytes(orig_m1)
+        prereg_dst.unlink()
+        with pytest.raises(ValueError, match=r"S2_V11_PREREG_SHA256_MISMATCH.*<missing>"):
+            v11cfg.verify_v11_sealed_files(repo_root=fake_rroot, verifier_dir=fake_vdir)
+        prereg_dst.write_bytes(orig_bytes)
 
         # Verify module isolation and immunity to a poisoned quote_rule.py on sys.path[0]
         passage = "def compute_total(items, tax_rate): return sum(items)"
@@ -3591,6 +3607,80 @@ class TestS2V11DryAndDefaultUnchanged:
         assert m1_mod.quote_found.__module__ == "quote_rule_audited_1aae2469"
         assert s2.quote_found.__module__ == "quote_rule"
         res_clean = m2_mod.quote_found_m2a(quote_str, [passage])
+
+        # Exercise all functions in quote_rule_audited_1aae2469 to verify audited rule behavior
+        assert qr_mod.rust_lines("") == []
+        assert qr_mod.rust_lines("a\r\nb\n") == ["a", "b"]
+        assert qr_mod.strip_markers("+ // comment text") == "comment text"
+        assert qr_mod.strip_markers("++ not diff") == "++ not diff"
+        assert qr_mod.as_passages("single") == ["single"]
+        assert qr_mod.as_passages([{"text": "dict_text"}, "str_text"]) == ["dict_text", "str_text"]
+        assert qr_mod.quote_found("", [passage]) is False
+        assert qr_mod.quote_found("shortLine", ["shortLine\notherLine"]) is True
+        assert qr_mod.quote_credit_v2([passage], [passage], verdict="supported", correct=False) == 0.0
+        assert (
+            qr_mod.quote_credit_v2(
+                [
+                    "",
+                    passage,
+                    passage,
+                    "def compute_total(items, tax_rate):",
+                    "shortLine",
+                    "not_found_quote_12345",
+                    "1234567",
+                ],
+                [passage, "shortLine\n1234567"],
+                verdict="supported",
+                correct=True,
+            )
+            >= 0.05
+        )
+        assert (
+            qr_mod.quote_credit_v2(
+                ["shortLine"],
+                ["shortLine"],
+                verdict="unsupported",
+                correct=True,
+            )
+            == 0.0
+        )
+        assert qr_mod._spans_overlap_25pct((0, 0, 10), (1, 0, 10)) is False
+        assert qr_mod._spans_overlap_25pct((0, 0, 10), (0, 20, 30)) is False
+        assert qr_mod._spans_overlap_25pct((0, 0, 10), (0, 5, 15)) is True
+        assert qr_mod.classify_quote_rung(passage, [passage]) == "rule_2"
+        assert qr_mod.classify_quote_rung("", [passage]) == "unmatched"
+        assert qr_mod.classify_quote_rung("sum", [passage]) == "no_minimum"
+        assert qr_mod.classify_quote_rung(passage.upper(), [passage]) == "case"
+        assert (
+            qr_mod.classify_quote_rung("def compute_total items tax_rate return sum items", [passage])
+            == "punctuation"
+        )
+        assert (
+            qr_mod.classify_quote_rung("def compute_total ... return sum(items)", [passage])
+            == "ellipsis_split"
+        )
+        assert qr_mod.classify_quote_rung("...not_in_passage...", [passage]) == "unmatched"
+        assert (
+            qr_mod.classify_quote_rung("first part second part", ["first part", "second part"])
+            == "joined_passages"
+        )
+        assert (
+            qr_mod.classify_quote_rung(
+                "alpha beta gamma delta epsilon zeta",
+                ["   ", "alpha beta gamma delta epsilon"],
+            )
+            == "fuzzy"
+        )
+        assert (
+            qr_mod.classify_quote_rung(
+                "alpha beta gamma delta epsilon",
+                ["prefix alpha beta gamma delta extra suffix"],
+            )
+            == "fuzzy"
+        )
+        assert qr_mod.classify_quote_rung("completely unrelated words xyz", [passage]) == "unmatched"
+        assert qr_mod.quote_is_relevant("compute_total sums items", "compute_total") is True
+        assert qr_mod.quote_is_relevant("only the and", "other words") is False
 
         poison_dir = tmp_path / "poison_sys_path"
         poison_dir.mkdir()
