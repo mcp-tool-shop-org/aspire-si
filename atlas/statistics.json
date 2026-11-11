@@ -70,7 +70,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "examples",
-      "qualifyingSourceCommits": 62,
+      "qualifyingSourceCommits": 61,
       "rebaseline": null
     },
     {
@@ -138,7 +138,7 @@
       "confidence": "full",
       "highWater": null,
       "name": "tests",
-      "qualifyingSourceCommits": 68,
+      "qualifyingSourceCommits": 67,
       "rebaseline": null
     }
   ],
@@ -467,7 +467,7 @@
       },
       {
         "commits": 19,
-        "lines": 468,
+        "lines": 467,
         "path": "atlas/README.md"
       },
       {
@@ -477,17 +477,17 @@
       },
       {
         "commits": 19,
-        "lines": 1556,
+        "lines": 1562,
         "path": "atlas/page.json"
       },
       {
         "commits": 19,
-        "lines": 6154,
+        "lines": 6160,
         "path": "atlas/statistics.json"
       },
       {
         "commits": 19,
-        "lines": 15980,
+        "lines": 16004,
         "path": "atlas/structure.json"
       },
       {
@@ -951,8 +951,8 @@
         "path": "examples/verifier-distill/s2_v11_config.py"
       },
       {
-        "commits": 2,
-        "lines": 1516,
+        "commits": 1,
+        "lines": 1372,
         "path": "examples/verifier-distill/sim_guard_chain.py"
       },
       {
@@ -1621,8 +1621,8 @@
         "path": "tests/test_verifier_s2.py"
       },
       {
-        "commits": 2,
-        "lines": 1752,
+        "commits": 1,
+        "lines": 1402,
         "path": "tests/test_verifier_s2_guard_sim.py"
       },
       {
@@ -1641,9 +1641,9 @@
     "level": "low",
     "reason": "fewer than 25 source files reach 10 revisions in the window"
   },
-  "generatedAt": "2026-11-11T06:41:26.428Z",
+  "generatedAt": "2026-11-11T22:07:16.513Z",
   "generatedFrom": {
-    "commit": "944e1a26b157abc6f0697db40c63283468a87eb9"
+    "commit": "85269aaceaa099aad8db5fad0efe7a2569347713"
   },
   "pairs": [
     {
@@ -1937,16 +1937,16 @@
     "floor": "fallen",
     "floorHeld": false,
     "floorTrigger": "revision-depth",
-    "headDate": "2026-11-10T23:32:54-05:00",
+    "headDate": "2026-11-11T07:41:33-05:00",
     "inScopeFiles": 296,
     "pinnedStart": null,
     "priorFloor": "fallen",
-    "qualifyingCommits": 113,
+    "qualifyingCommits": 112,
     "qualifyingMinimum": 30,
     "revisions": 5,
     "shared": 10,
     "sharedFloorUsed": 3,
-    "since": "2026-05-15T04:32:54.000Z",
+    "since": "2026-05-15T12:41:33.000Z",
     "sourceExtensions": [
       ".js",
       ".mjs",
