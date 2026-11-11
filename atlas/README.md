@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-11-11 from commit 5407b37 by Atlas 1.24.0.
+Mapped at 2026-11-11 from commit 944e1a2 by Atlas 1.24.0.
 
 ## What this is
 
@@ -8,10 +8,9 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (184 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-11-09 (93ba618)
+## What changed since 2026-11-11 (5407b37)
 
-- examples/verifier-distill/ is now also read by tests/test_verifier_s2_guard_sim.py.
-- 2 files added and 4 changed content, across 4 parts.
+Nothing structural changed since 2026-11-11; 2 files changed content.
 
 ## What comes in
 

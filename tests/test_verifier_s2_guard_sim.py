@@ -1237,7 +1237,7 @@ def test_s2_direct_halt_and_ct_drift_and_cusum_helper() -> None:
     assert s2_out.runner_calls == 0
     assert s2_out.confirmations_used == 0
 
-    # Positive ct_drift_per_update alone drives Fuse A confirmation
+    # Positive ct_drift_per_update alone drives confirmed cannot_tell-collapse halts (Fuse A / U1)
     drift_params = sim.validate_and_resolve_parameters(
         {
             "step0_canary_c_supported_prob": 0.0,
@@ -1246,12 +1246,22 @@ def test_s2_direct_halt_and_ct_drift_and_cusum_helper() -> None:
             "p_flip_better": 0.0,
             "ct_drift_per_update": 0.05,
             "seed": 2718,
-            "n_runs": 2,
+            "n_runs": 12,
         }
     )
     drift_out = sim.simulate_end_to_end_run(pool, drift_params, run_seed=2718)
     assert drift_out.halted
-    assert drift_out.verdict == "S2-TRAIN-HALT-FUSE_A-CONFIRMED"
+    assert drift_out.halt_update == 10
+    assert drift_out.confirmations_used == 1
+    assert drift_out.verdict in ("S2-TRAIN-HALT-FUSE_A-CONFIRMED", "S2-TRAIN-HALT-U1-CONFIRMED")
+    drift_agg = sim.run_end_to_end_mode(drift_params)
+    assert drift_agg["runs_halted"] == 12
+    assert (
+        drift_agg["verdict_counts"]["S2-TRAIN-HALT-FUSE_A-CONFIRMED"]
+        + drift_agg["verdict_counts"]["S2-TRAIN-HALT-U1-CONFIRMED"]
+        == 12
+    )
+    assert drift_agg["verdict_counts"]["S2-TRAIN-HALT-FUSE_A-CONFIRMED"] > 0
 
     # Direct CUSUM helper check
     s1, tripped1 = sim.evaluate_cusum_window_step(0.0, 1, S2V11.fuse_a_k, S2V11.fuse_a_h)
@@ -1349,7 +1359,8 @@ def test_each_required_test_fails_when_named_behaviour_removed(
         with pytest.raises(AssertionError, match="SWITCH_CUSUM_RESET"):
             test_negative_confirmation_keeps_cusum_and_switch_changes_only_that()
 
-    # 8. Label changed -> fails at SUMMARY_LABEL_MISMATCH.
+    # 8. Label changed -> fails at SUMMARY_LABEL_MISMATCH (drain prior stdout from #1 first).
+    capsys.readouterr()
     with monkeypatch.context() as mp:
         mp.setattr(sim, "RESULT_LABEL", "unlabeled output")
         with pytest.raises(AssertionError, match="SUMMARY_LABEL_MISMATCH"):
@@ -1358,6 +1369,7 @@ def test_each_required_test_fails_when_named_behaviour_removed(
             )
 
     # 9. Float added to printed summary -> label passes; fails at summary_line[1] float check.
+    capsys.readouterr()
     def _summary_with_float(result: Any, *, wall_s: float) -> str:
         lines = orig_format_summary(result, wall_s=wall_s).splitlines()
         parsed = json.loads(lines[1])
@@ -1373,6 +1385,7 @@ def test_each_required_test_fails_when_named_behaviour_removed(
             )
 
     # 10. Float added to result file -> summary passes; fails at result-file float check.
+    capsys.readouterr()
     def _result_with_float(mode: str, params: Any = None, *, base_sha: str = sim.DEFAULT_BASE_SHA) -> dict[str, Any]:
         res = orig_run_sim(mode, params, base_sha=base_sha)
         res["extra_float_metric"] = 0.375

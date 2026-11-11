@@ -4942,6 +4942,7 @@
             "run_simulation",
             "simulate_end_to_end_run",
             "validate_and_resolve_parameters",
+            "validate_output_file_path",
             "validate_param_file_path",
             "write_result_file"
           ],
@@ -4949,82 +4950,42 @@
             {
               "in": "build_synthetic_pool",
               "kind": "raise",
-              "line": 143
+              "line": 182
             },
             {
               "in": "build_synthetic_pool",
               "kind": "raise",
-              "line": 145
+              "line": 184
             },
             {
               "in": "build_synthetic_pool",
               "kind": "raise",
-              "line": 147
+              "line": 186
             },
             {
-              "in": "validate_param_file_path",
+              "in": "_check_single_path_parts",
               "kind": "raise",
-              "line": 240
+              "line": 278
             },
             {
-              "in": "validate_param_file_path",
+              "in": "_check_single_path_parts",
               "kind": "raise",
-              "line": 244
+              "line": 284
             },
             {
               "in": "_validate_prob",
               "kind": "raise",
-              "line": 252
+              "line": 309
             },
             {
               "in": "validate_and_resolve_parameters",
               "kind": "raise",
-              "line": 264
+              "line": 321
             },
             {
               "in": "validate_and_resolve_parameters",
               "kind": "raise",
-              "line": 299
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 303
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 306
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 311
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 325
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 333
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 342
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 347
-            },
-            {
-              "in": "validate_and_resolve_parameters",
-              "kind": "raise",
-              "line": 352
+              "line": 356
             },
             {
               "in": "validate_and_resolve_parameters",
@@ -5034,29 +4995,84 @@
             {
               "in": "validate_and_resolve_parameters",
               "kind": "raise",
-              "line": 365
+              "line": 363
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 368
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 382
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 390
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 399
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 404
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 409
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 417
+            },
+            {
+              "in": "validate_and_resolve_parameters",
+              "kind": "raise",
+              "line": 422
+            },
+            {
+              "in": "_item_verdict_probs",
+              "kind": "raise",
+              "line": 497
             },
             {
               "in": "run_simulation",
               "kind": "raise",
-              "line": 1029
+              "line": 1220
             },
             {
               "in": "write_result_file",
               "kind": "raise",
-              "line": 1040
+              "line": 1232
+            },
+            {
+              "in": "main",
+              "kind": "except",
+              "line": 1349
             },
             {
               "in": "main",
               "kind": "raise",
-              "line": 1154
+              "line": 1350
+            },
+            {
+              "in": "main",
+              "kind": "raise",
+              "line": 1356
             },
             {
               "kind": "raise",
-              "line": 1170
+              "line": 1372
             }
           ],
-          "hash": "87934a1896667cc5ac4373671bf1efe599eb14dcc4644dfb2bbc78fa70ba3f35",
+          "hash": "fbb3f46eca1cc6c8af5013f49b8c2953aaa67c4f25ed932c84375cf35f2f9925",
           "importsFiles": [
             "examples/verifier-distill/s2_draw.py",
             "examples/verifier-distill/s2_grpo_smoke.py",
@@ -6981,28 +6997,36 @@
         {
           "exports": [
             "test_cap_reaches_unconfirmed_halt_without_fourth_pass",
+            "test_confirmation_pass_uses_separate_stream_and_memory_from_training",
+            "test_draw_seed_uses_at_least_64_bits",
             "test_each_required_test_fails_when_named_behaviour_removed",
             "test_ensure_verifier_dir_on_path_idempotent",
             "test_every_result_file_and_summary_carries_label_and_counts_only",
             "test_forced_certain_shift_confirms",
-            "test_item_verdict_probs_all_kinds_states_and_regimes",
+            "test_forced_looks_drives_real_ct_collapse_guard",
+            "test_item_verdict_probs_exact_triples_including_step0_bad",
             "test_look_correlation_and_same_step_t0_idempotence",
+            "test_main_refuses_forbidden_out_path_and_writes_nothing",
+            "test_model_assumptions_constant_docstring_and_result_files",
             "test_negative_confirmation_keeps_cusum_and_switch_changes_only_that",
             "test_parameter_validation_and_forbidden_paths",
+            "test_path_guard_refuses_clean_link_to_forbidden_target",
+            "test_path_guard_refuses_forbidden_name_after_other_text",
+            "test_path_guard_refuses_relative_path_in_forbidden_cwd",
+            "test_rollout_independence_renamed_and_old_name_refused",
             "test_s2_direct_halt_and_ct_drift_and_cusum_helper",
             "test_same_seed_gives_identical_result_file",
             "test_shared_pass_adds_one_to_counter_not_two",
+            "test_shift_target_both_bad_verdicts_renamed_and_pinned",
             "test_write_result_file_rejects_missing_or_wrong_label",
             "test_zero_flip_probabilities_no_run_trips"
           ],
-          "hash": "7cc1d53fb7b3b0c659dca8ff50eb0de562253e3eec2e47e2963324f614cf466b",
+          "hash": "dce19be4883314bcdbb03ac87908f496f6d4a47bd81ef56c6a1c0ef047c7832f",
           "importOrder": [
             "examples/verifier-distill/sim_guard_chain.py",
-            "examples/verifier-distill/s2_v11_config.py",
-            "examples/verifier-distill/s2_grpo_smoke.py"
+            "examples/verifier-distill/s2_v11_config.py"
           ],
           "importsFiles": [
-            "examples/verifier-distill/s2_grpo_smoke.py",
             "examples/verifier-distill/s2_v11_config.py",
             "examples/verifier-distill/sim_guard_chain.py"
           ],
@@ -7722,7 +7746,7 @@
   ],
   "engine": "1.24.0",
   "generatedFrom": {
-    "commit": "5407b37077609fba91312dc98ef461453309f306",
+    "commit": "944e1a26b157abc6f0697db40c63283468a87eb9",
     "tracked": 291
   },
   "landings": [
