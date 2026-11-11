@@ -1,20 +1,16 @@
 # aspire-si: how it works
 
-Mapped at 2026-11-09 from commit 93ba618 by Atlas 1.24.0.
+Mapped at 2026-11-11 from commit 944e1a2 by Atlas 1.24.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (182 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (184 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-11-08 (ab0e554)
+## What changed since 2026-11-11 (5407b37)
 
-- examples/verifier-distill/ is now also read by examples/verifier-distill/s2_grpo_smoke.py.
-- examples/verifier-distill/quote_matcher_m1.py is now read by examples/verifier-distill/s2_grpo_smoke.py and examples/verifier-distill/s2_v11_config.py.
-- examples/verifier-distill/quote_matcher_m2.py is now read by examples/verifier-distill/s2_grpo_smoke.py and examples/verifier-distill/s2_v11_config.py.
-- And 2 more new writers and readers of places.
-- 6 files added and 14 changed content, across 5 parts.
+Nothing structural changed since 2026-11-11; 2 files changed content.
 
 ## What comes in
 
@@ -50,7 +46,7 @@ CI writes nothing this map can see.
 ## What tends to change together
 
 - **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 10 commits, inside the examples part.
-- **examples/verifier-distill/s2_grpo_smoke.py** and **tests/test_verifier_s2.py** changed together in 15 of 22 commits, and the tests part imports the examples part.
+- **examples/verifier-distill/s2_grpo_smoke.py** and **tests/test_verifier_s2.py** changed together in 15 of 19 commits, and the tests part imports the examples part.
 - **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
 1 file changed together with its own test, as expected.
@@ -90,7 +86,7 @@ Read those in order to follow one pull request end to end.
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 3 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `examples/verifier-distill/s2_v11_config.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
 - 13 writes and 36 reads use paths built at run time and are not named here.
-- 63 writes and 98 reads go to a path their caller passes, not to this repository.
+- 64 writes and 100 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 
