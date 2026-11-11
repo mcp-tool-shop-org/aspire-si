@@ -17,7 +17,7 @@
           "path": ".github/dependabot.yml"
         },
         {
-          "hash": "d695529d5d7dbfe627daa320425b873746eecadb1b15dbababd50f7bde6e0b9e",
+          "hash": "cc63f903476f82de5f97c2c076f0d03d10e528c95d1ddc5adc441ec16c98e8e8",
           "path": ".github/workflows/ci.yml"
         },
         {
@@ -1955,7 +1955,7 @@
       "unresolvedSites": 0
     },
     {
-      "dynamicReads": 28,
+      "dynamicReads": 24,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 10,
@@ -5089,14 +5089,14 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 82,
+          "reads": 86,
           "where": [
             "caller"
           ],
           "writes": 59
         }
       ],
-      "outsideReads": 82,
+      "outsideReads": 86,
       "outsideWrites": 59,
       "role": "code",
       "testRunners": [
@@ -7021,7 +7021,7 @@
             "test_write_result_file_rejects_missing_or_wrong_label",
             "test_zero_flip_probabilities_no_run_trips"
           ],
-          "hash": "dce19be4883314bcdbb03ac87908f496f6d4a47bd81ef56c6a1c0ef047c7832f",
+          "hash": "73ec504b0f61e118065e5d9280444c5287a277a47d239cce3b44b7ebdfb1311d",
           "importOrder": [
             "examples/verifier-distill/sim_guard_chain.py",
             "examples/verifier-distill/s2_v11_config.py"
@@ -7744,9 +7744,9 @@
       "to": "integrations"
     }
   ],
-  "engine": "1.24.0",
+  "engine": "1.26.0",
   "generatedFrom": {
-    "commit": "944e1a26b157abc6f0697db40c63283468a87eb9",
+    "commit": "85269aaceaa099aad8db5fad0efe7a2569347713",
     "tracked": 291
   },
   "landings": [
