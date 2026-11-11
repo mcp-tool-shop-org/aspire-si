@@ -1249,11 +1249,14 @@ def test_s2_direct_halt_and_ct_drift_and_cusum_helper() -> None:
             "n_runs": 12,
         }
     )
+    # Under the uint64 draw_seed change (sim_guard_chain.py:819), FUSE_A does not trip in window 1
+    # for run_seed 2718 (fuse_a_s = 2.789 < 3.25), so U1 trips alone and confirms.
     drift_out = sim.simulate_end_to_end_run(pool, drift_params, run_seed=2718)
     assert drift_out.halted
     assert drift_out.halt_update == 10
+    assert drift_out.confirm_trips_total == 1
     assert drift_out.confirmations_used == 1
-    assert drift_out.verdict in ("S2-TRAIN-HALT-FUSE_A-CONFIRMED", "S2-TRAIN-HALT-U1-CONFIRMED")
+    assert drift_out.verdict == "S2-TRAIN-HALT-U1-CONFIRMED"
     drift_agg = sim.run_end_to_end_mode(drift_params)
     assert drift_agg["runs_halted"] == 12
     assert (
