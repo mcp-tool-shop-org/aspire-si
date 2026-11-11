@@ -5,6 +5,22 @@ Simulates synthetic runs of 197 updates (4 groups per update, 8 answers per grou
 gold-unsupported items), driving the pinned ``CtCollapseGuard`` and ``S2V11`` functions without
 loading any model or touching a GPU.
 
+Model assumptions (also exported as ``MODEL_ASSUMPTIONS`` and written to ``model_assumptions``):
+- shift_target='both_bad_verdicts' shifts gold-unsupported items toward 'supported'
+  (1 - worse_cannot_tell_fraction) and 'cannot_tell' (worse_cannot_tell_fraction), moves
+  gold-supported items toward 'unsupported' (1 - worse_cannot_tell_fraction) and 'cannot_tell'
+  (worse_cannot_tell_fraction), and moves gold-cannot_tell items toward 'supported'
+  (1 - worse_cannot_tell_fraction).
+- At rollout_independence=0 every answer in a group copies the item's latent verdict, and at
+  rollout_independence=1 all answers in a group are independent draws from the item's verdict
+  probabilities.
+- Clean canary C items and non-canary gold-unsupported items share one set of post-step-0 flip
+  probabilities.
+- T=0 confirmation passes draw from their own random stream and keep their own look-correlation
+  memory without mutating training rollout state.
+- look_correlation applies per look and does not depend on the number of updates elapsed between
+  looks.
+
 All default parameter values are synthetic placeholders ("placeholder, not measured").
 Every result file and every printed summary carries the label "sensitivity map, placeholder inputs".
 """
@@ -15,7 +31,7 @@ import argparse
 import json
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -46,7 +62,6 @@ from s2_grpo_smoke import (  # noqa: E402
 )
 from s2_v11_config import (  # noqa: E402
     S2V11,
-    mcnemar_one_sided_exact_p,
     update_poisson_cusum,
 )
 
@@ -55,7 +70,7 @@ PLACEHOLDER_NOTE = "placeholder, not measured"
 DEFAULT_BASE_SHA = "5407b37077609fba91312dc98ef461453309f306"
 MODES = ("forced_looks", "end_to_end", "shift_grid")
 CUSUM_NEGATIVE_POLICIES = ("keep", "reset")
-SHIFT_TARGETS = ("cannot_tell", "supported", "both")
+SHIFT_TARGETS = ("cannot_tell", "supported", "both_bad_verdicts")
 CONFIRM_RULES = ("FUSE_A", "CHANNEL_B", "U1")
 ALL_END_TO_END_VERDICTS = (
     "S2-TRAIN-COMPLETE",
@@ -68,7 +83,31 @@ ALL_END_TO_END_VERDICTS = (
     "S2-TRAIN-HALT-U1-CAP",
 )
 
-_FORBIDDEN_PARAM_DIR_PREFIXES = (
+MODEL_ASSUMPTIONS: tuple[str, ...] = (
+    (
+        "shift_target='both_bad_verdicts' shifts gold-unsupported items toward 'supported' "
+        "(1 - worse_cannot_tell_fraction) and 'cannot_tell' (worse_cannot_tell_fraction), moves "
+        "gold-supported items toward 'unsupported' (1 - worse_cannot_tell_fraction) and 'cannot_tell' "
+        "(worse_cannot_tell_fraction), and moves gold-cannot_tell items toward 'supported' "
+        "(1 - worse_cannot_tell_fraction)."
+    ),
+    (
+        "At rollout_independence=0 every answer in a group copies the item's latent verdict, and at "
+        "rollout_independence=1 all answers in a group are independent draws from the item's verdict "
+        "probabilities."
+    ),
+    (
+        "Clean canary C items and non-canary gold-unsupported items share one set of post-step-0 flip "
+        "probabilities."
+    ),
+    (
+        "T=0 confirmation passes draw from their own random stream and keep their own look-correlation "
+        "memory without mutating training rollout state."
+    ),
+    "look_correlation applies per look and does not depend on the number of updates elapsed between looks.",
+)
+
+_FORBIDDEN_PATH_SUBSTRINGS = (
     "run-training",
     "sealed_store",
     "critic-s",
@@ -103,7 +142,7 @@ DEFAULT_PARAMETERS: dict[str, Any] = {
     "p_flip_better": 0.25,  # placeholder, not measured
     "ct_drift_per_update": 0.0,  # placeholder, not measured
     "look_correlation": 0.6,  # placeholder, not measured
-    "group_dispersion": 0.25,  # placeholder, not measured
+    "rollout_independence": 0.25,  # placeholder, not measured
     "cusum_on_confirm_negative": (
         "keep" if S2V11.fuse_a_keep_cusum_on_confirm_negative else "reset"
     ),  # placeholder, not measured (matches s2_v11_config.py:94)
@@ -112,7 +151,7 @@ DEFAULT_PARAMETERS: dict[str, Any] = {
     "flip_worse_grid": [0.0, 0.005, 0.01, 0.02],  # placeholder, not measured
     "flip_better_grid": [0.25],  # placeholder, not measured
     "shift_grid": [0.0, 0.02, 0.05, 0.10, 0.20],  # placeholder, not measured
-    "shift_target": "both",  # placeholder, not measured
+    "shift_target": "both_bad_verdicts",  # placeholder, not measured
     "shift_start_update": 1,  # placeholder, not measured
     "seed": 20261110,  # placeholder, not measured
     "n_runs": 1000,  # placeholder, not measured
@@ -233,17 +272,35 @@ def get_group_lookup(group_size: int) -> dict[GroupLookupKey, GroupLookupEntry]:
     return cached
 
 
-def validate_param_file_path(path: Path) -> None:
-    """Refuse run outputs, JSONL files, state.json, or sealed/training directories."""
-    name_lower = path.name.lower()
+def _check_single_path_parts(candidate: Path, *, role: str, action: str) -> None:
+    name_lower = candidate.name.lower()
     if name_lower.endswith((".jsonl", ".jsonl.gz")) or name_lower == "state.json":
-        raise ValueError(f"refusing parameter path {path.name!r}: simulator never reads run output files")
-    for part in path.parts:
+        raise ValueError(
+            f"refusing {role} path {candidate.name!r}: simulator never {action} run output files"
+        )
+    for part in candidate.parts:
         part_lower = part.lower()
-        if any(part_lower.startswith(pref) for pref in _FORBIDDEN_PARAM_DIR_PREFIXES):
+        if any(sub in part_lower for sub in _FORBIDDEN_PATH_SUBSTRINGS):
             raise ValueError(
-                f"refusing parameter path under {part!r}: simulator never reads sealed or run directories"
+                f"refusing {role} path under {part!r}: simulator never {action} sealed or run directories"
             )
+
+
+def _validate_simulator_path(path: Path, *, role: str, action: str) -> None:
+    typed_path = Path(path)
+    resolved_path = typed_path.resolve()
+    _check_single_path_parts(resolved_path, role=role, action=action)
+    _check_single_path_parts(typed_path, role=role, action=action)
+
+
+def validate_param_file_path(path: Path) -> None:
+    """Refuse run outputs, JSONL files, state.json, or sealed/training directories on ``--params``."""
+    _validate_simulator_path(path, role="parameter", action="reads")
+
+
+def validate_output_file_path(path: Path) -> None:
+    """Refuse run outputs, JSONL files, state.json, or sealed/training directories on ``--out``."""
+    _validate_simulator_path(path, role="output", action="writes")
 
 
 def _validate_prob(name: str, val: float) -> float:
@@ -285,7 +342,7 @@ def validate_and_resolve_parameters(overrides: Mapping[str, Any] | None = None) 
         "worse_cannot_tell_fraction",
         "p_flip_better",
         "look_correlation",
-        "group_dispersion",
+        "rollout_independence",
     ):
         merged[prob_key] = _validate_prob(prob_key, merged[prob_key])
 
@@ -422,7 +479,22 @@ def _item_verdict_probs(
     shift_target: str,
     shift_start_update: int,
 ) -> tuple[float, float, float]:
-    """Return latent 3-verdict distribution ``(p_sup, p_unsup, p_ct)`` for one item at ``update_1based``."""
+    """Return latent 3-verdict distribution ``(p_sup, p_unsup, p_ct)`` for one item at ``update_1based``.
+
+    Rule:
+    - Step-0-good items move to the two non-gold verdicts according to ``p_flip_worse`` split by
+      ``(1 - w_ct, w_ct)``, plus active shift components and linear ``cannot_tell`` drift
+      ``ct_drift_per_update * update_1based`` (renormalizing the two bad rates if their sum >= 1).
+    - Step-0-bad items recover to the gold verdict with probability
+      ``p_good = clip(p_flip_better * (1 - tot_push), 0, 1)``, where ``tot_push`` is the clamped sum
+      of ``p_flip_worse``, active shift, and ``cannot_tell`` drift for that gold class. On
+      gold-unsupported and gold-supported items, the remaining ``1 - p_good`` bad mass can cross to
+      the other bad verdict at ``min(1, p_flip_worse * w_ct + d_ct + drift_ct)`` (toward
+      ``cannot_tell``) or ``min(1, p_flip_worse * (1 - w_ct) + d_other)`` (away from
+      ``cannot_tell``); on gold-``cannot_tell`` items, ``1 - p_good`` stays on the step-0 bad verdict.
+    """
+    if shift_target not in SHIFT_TARGETS:
+        raise ValueError(f"shift_target must be one of {SHIFT_TARGETS}, got {shift_target!r}")
     active_shift = shift_size if update_1based >= shift_start_update else 0.0
     drift_ct = ct_drift_per_update * update_1based
 
@@ -445,13 +517,13 @@ def _item_verdict_probs(
                 return r_sup / r_bad, 0.0, r_ct / r_bad
             return r_sup, 1.0 - r_bad, r_ct
 
-        tot_push = min(1.0, d_sup + d_ct + drift_ct)
+        tot_push = min(1.0, p_flip_worse + d_sup + d_ct + drift_ct)
         p_good = max(0.0, min(1.0, p_flip_better * (1.0 - tot_push)))
         rem = 1.0 - p_good
         if step0_verdict == 0:
-            to_ct = min(1.0, d_ct + drift_ct)
+            to_ct = min(1.0, p_flip_worse * w_ct + d_ct + drift_ct)
             return rem * (1.0 - to_ct), p_good, rem * to_ct
-        to_sup = min(1.0, d_sup)
+        to_sup = min(1.0, p_flip_worse * (1.0 - w_ct) + d_sup)
         return rem * to_sup, p_good, rem * (1.0 - to_sup)
 
     if kind == 2:
@@ -473,19 +545,19 @@ def _item_verdict_probs(
                 return 0.0, r_unsup / r_bad, r_ct / r_bad
             return 1.0 - r_bad, r_unsup, r_ct
 
-        tot_push = min(1.0, d_unsup + d_ct + drift_ct)
+        tot_push = min(1.0, p_flip_worse + d_unsup + d_ct + drift_ct)
         p_good = max(0.0, min(1.0, p_flip_better * (1.0 - tot_push)))
         rem = 1.0 - p_good
         if step0_verdict == 1:
-            to_ct = min(1.0, d_ct + drift_ct)
+            to_ct = min(1.0, p_flip_worse * w_ct + d_ct + drift_ct)
             return p_good, rem * (1.0 - to_ct), rem * to_ct
-        to_unsup = min(1.0, d_unsup)
+        to_unsup = min(1.0, p_flip_worse * (1.0 - w_ct) + d_unsup)
         return p_good, rem * to_unsup, rem * (1.0 - to_unsup)
 
     # Kind 3: gold cannot_tell: good = 2 (cannot_tell), other = 0 (supported) and 1 (unsupported)
     if shift_target == "supported":
         d_sup = active_shift
-    elif shift_target == "both":
+    elif shift_target == "both_bad_verdicts":
         d_sup = active_shift * (1.0 - w_ct)
     else:
         d_sup = 0.0
@@ -499,7 +571,8 @@ def _item_verdict_probs(
             return r_sup / r_other, r_unsup / r_other, 0.0
         return r_sup, r_unsup, 1.0 - r_other
 
-    p_good = max(0.0, min(1.0, p_flip_better * (1.0 - min(1.0, d_sup))))
+    tot_push = min(1.0, p_flip_worse + d_sup)
+    p_good = max(0.0, min(1.0, p_flip_better * (1.0 - tot_push)))
     rem = 1.0 - p_good
     if step0_verdict == 0:
         return rem, 0.0, p_good
@@ -507,7 +580,7 @@ def _item_verdict_probs(
 
 
 class LatentItemPoolState:
-    """Per-item 3-verdict latent states shared by training-window rollouts and T=0 confirmations."""
+    """Per-item 3-verdict latent states with separate training and T=0 confirmation streams."""
 
     def __init__(
         self,
@@ -515,6 +588,7 @@ class LatentItemPoolState:
         params: Mapping[str, Any],
         rng: np.random.Generator,
         *,
+        confirm_rng: np.random.Generator | None = None,
         p_flip_worse: float | None = None,
         p_flip_better: float | None = None,
         shift_size: float = 0.0,
@@ -522,21 +596,32 @@ class LatentItemPoolState:
         self.pool = pool
         self.rng = rng
         self.step0_verdicts = _draw_step0_states(pool, params, rng)
+        if confirm_rng is None:
+            confirm_seed = int(rng.integers(0, 1 << 63, dtype=np.uint64))
+            self.confirm_rng = np.random.default_rng(confirm_seed)
+        else:
+            self.confirm_rng = confirm_rng
+
         self.current_verdicts = self.step0_verdicts.copy()
         n = len(pool.item_ids)
         self.latent_u = np.zeros(n, dtype=np.float64)
         self.has_looked = np.zeros(n, dtype=bool)
-        self.last_confirm_step = np.full(n, -1, dtype=np.int32)
         self.current_probs = np.zeros((n, 3), dtype=np.float64)
         for idx in range(n):
             self.current_probs[idx, int(self.step0_verdicts[idx])] = 1.0
+
+        # Separate look-correlation memory and stream buffer for T=0 confirmation passes.
+        self.confirm_latent_u = np.zeros(n, dtype=np.float64)
+        self.confirm_has_looked = np.zeros(n, dtype=bool)
+        self.confirm_current_verdicts = self.step0_verdicts.copy()
+        self.last_confirm_step = np.full(n, -1, dtype=np.int32)
 
         self.p_flip_worse = float(params["p_flip_worse"] if p_flip_worse is None else p_flip_worse)
         self.w_ct = float(params["worse_cannot_tell_fraction"])
         self.p_flip_better = float(params["p_flip_better"] if p_flip_better is None else p_flip_better)
         self.ct_drift_per_update = float(params["ct_drift_per_update"])
         self.look_correlation = float(params["look_correlation"])
-        self.group_dispersion = float(params["group_dispersion"])
+        self.rollout_independence = float(params["rollout_independence"])
         self.shift_size = float(shift_size)
         self.shift_target = str(params["shift_target"])
         self.shift_start_update = int(params["shift_start_update"])
@@ -544,6 +629,8 @@ class LatentItemPoolState:
         # Pre-draw uniform buffers in chunks so scalar Python access has minimal overhead.
         self._buf = rng.random(4096).tolist()
         self._buf_idx = 0
+        self._confirm_buf: list[float] = []
+        self._confirm_buf_idx = 0
 
     def _next_u(self) -> float:
         if self._buf_idx >= len(self._buf):
@@ -551,6 +638,14 @@ class LatentItemPoolState:
             self._buf_idx = 0
         val = self._buf[self._buf_idx]
         self._buf_idx += 1
+        return val
+
+    def _next_confirm_u(self) -> float:
+        if self._confirm_buf_idx >= len(self._confirm_buf):
+            self._confirm_buf = self.confirm_rng.random(4096).tolist()
+            self._confirm_buf_idx = 0
+        val = self._confirm_buf[self._confirm_buf_idx]
+        self._confirm_buf_idx += 1
         return val
 
     def step0_baseline_items(self) -> dict[str, dict[str, Any]]:
@@ -568,7 +663,7 @@ class LatentItemPoolState:
         return out
 
     def look_item(self, idx: int, update_1based: int) -> tuple[int, float, float, float]:
-        """Advance item ``idx`` by one correlated look at ``update_1based`` and return ``(v, p0, p1, p2)``."""
+        """Advance training state for item ``idx`` by one look at ``update_1based``."""
         if not self.has_looked[idx]:
             u_val = self._next_u()
             self.latent_u[idx] = u_val
@@ -605,13 +700,48 @@ class LatentItemPoolState:
         self.current_probs[idx, 2] = p_ct
         return v_code, p_sup, p_unsup, p_ct
 
+    def _look_confirm_item(self, idx: int, update_1based: int) -> int:
+        """Advance confirmation stream for item ``idx`` without mutating training state."""
+        if not self.confirm_has_looked[idx]:
+            u_val = self._next_confirm_u()
+            self.confirm_latent_u[idx] = u_val
+            self.confirm_has_looked[idx] = True
+        else:
+            u_keep = self._next_confirm_u()
+            if u_keep < self.look_correlation:
+                u_val = float(self.confirm_latent_u[idx])
+            else:
+                u_val = self._next_confirm_u()
+                self.confirm_latent_u[idx] = u_val
+
+        p_sup, p_unsup, _ = _item_verdict_probs(
+            int(self.pool.item_kind[idx]),
+            int(self.step0_verdicts[idx]),
+            update_1based,
+            p_flip_worse=self.p_flip_worse,
+            w_ct=self.w_ct,
+            p_flip_better=self.p_flip_better,
+            ct_drift_per_update=self.ct_drift_per_update,
+            shift_size=self.shift_size,
+            shift_target=self.shift_target,
+            shift_start_update=self.shift_start_update,
+        )
+        if u_val < p_sup:
+            v_code = 0
+        elif u_val < p_sup + p_unsup:
+            v_code = 1
+        else:
+            v_code = 2
+        self.confirm_current_verdicts[idx] = v_code
+        return v_code
+
     def sample_training_group_counts(
         self, cid: str, update_1based: int, group_size: int
     ) -> tuple[int, int, int]:
         """Look at ``cid`` at ``update_1based`` and sample ``(n_sup, n_unsup, n_ct)``."""
         idx = self.pool.index_by_id[cid]
         v_code, p_sup, p_unsup, p_ct = self.look_item(idx, update_1based)
-        tau = self.group_dispersion
+        tau = self.rollout_independence
         r_sup = tau * p_sup + ((1.0 - tau) if v_code == 0 else 0.0)
         r_unsup = tau * p_unsup + ((1.0 - tau) if v_code == 1 else 0.0)
 
@@ -637,15 +767,15 @@ class LatentItemPoolState:
         return n_sup, n_unsup, n_ct
 
     def run_t0_confirmation_pass(self, item_ids: Sequence[str], step: int) -> dict[str, dict[str, Any]]:
-        """Produce a T=0 greedy pass over ``item_ids`` from the same per-item latent states."""
+        """Produce a T=0 greedy pass over ``item_ids`` using the confirmation stream and memory."""
         update_1based = int(step) + 1
         out: dict[str, dict[str, Any]] = {}
         for cid in item_ids:
             idx = self.pool.index_by_id[str(cid)]
             if int(self.last_confirm_step[idx]) == int(step):
-                v_code = int(self.current_verdicts[idx])
+                v_code = int(self.confirm_current_verdicts[idx])
             else:
-                v_code, _, _, _ = self.look_item(idx, update_1based)
+                v_code = self._look_confirm_item(idx, update_1based)
                 self.last_confirm_step[idx] = int(step)
             gold = self.pool.gold_by_id[str(cid)]
             v_str = _VERDICT_STR[v_code]
@@ -685,9 +815,10 @@ def simulate_end_to_end_run(
 ) -> EndToEndRunOutcome:
     """Simulate one 197-update run driving the pinned ``CtCollapseGuard`` class."""
     ss = np.random.SeedSequence(int(run_seed))
-    child_seeds = ss.spawn(2)
-    draw_seed = int(child_seeds[0].generate_state(1, dtype=np.uint32)[0])
-    rng = np.random.default_rng(child_seeds[1])
+    child_seeds = ss.spawn(3)
+    draw_seed = int(child_seeds[0].generate_state(1, dtype=np.uint64)[0])
+    train_rng = np.random.default_rng(child_seeds[1])
+    confirm_rng = np.random.default_rng(child_seeds[2])
 
     updates = int(params["updates"])
     groups_per_update = int(params["groups_per_update"])
@@ -697,7 +828,13 @@ def simulate_end_to_end_run(
     total_draws = updates * groups_per_update
 
     schedule, _ = build_class_stratified_schedule(pool.rows, total_draws, seed=draw_seed)
-    latent = LatentItemPoolState(pool, params, rng, shift_size=shift_size)
+    latent = LatentItemPoolState(
+        pool,
+        params,
+        train_rng,
+        confirm_rng=confirm_rng,
+        shift_size=shift_size,
+    )
     group_lookup = get_group_lookup(group_size)
 
     runner_counter = {"calls": 0}
@@ -791,31 +928,71 @@ def evaluate_cusum_window_step(prev_s: float, count: int, k: float, h: float) ->
     return next_s, next_s >= (h - 1e-12)
 
 
-def _evaluate_forced_pass(
-    step0_items: Mapping[str, Mapping[str, Any]],
-    pass_t: Mapping[str, Mapping[str, Any]],
-    canary_c_ids: Sequence[str],
-    gold_unsupported_ids: Sequence[str],
-) -> dict[str, bool]:
-    """Evaluate the pinned Fuse A, Channel B, and U1 confirmation rules on one T=0 pass."""
-    ct_step0 = sum(1 for cid in canary_c_ids if step0_items[cid]["verdict"] == "cannot_tell")
-    ct_now = sum(1 for cid in canary_c_ids if pass_t[cid]["verdict"] == "cannot_tell")
-    ct_inc = ct_now - ct_step0
-    fuse_a_ok = ct_now >= S2V11.fuse_a_confirm_min_ct and ct_inc >= S2V11.fuse_a_confirm_min_increase
+ConfirmRunnerFn = Callable[[Sequence[str], int, str], Mapping[str, Mapping[str, Any]]]
+_FORCED_CT_VERDICTS: tuple[str, ...] = ("cannot_tell",) * int(G)
+_FORCED_TRUE_FLAGS: tuple[bool, ...] = (True,) * int(G)
+_FORCED_FALSE_FLAGS: tuple[bool, ...] = (False,) * int(G)
+_FORCED_ZERO_ADV: tuple[float, ...] = (0.0,) * int(G)
 
-    out = {"FUSE_A": bool(fuse_a_ok)}
-    for rule, target_verdict in (("CHANNEL_B", "supported"), ("U1", "cannot_tell")):
-        b_worse = 0
-        c_better = 0
-        for cid in gold_unsupported_ids:
-            was_bad = step0_items[cid]["verdict"] == target_verdict
-            is_bad = pass_t[cid]["verdict"] == target_verdict
-            if (not was_bad) and is_bad:
-                b_worse += 1
-            elif was_bad and (not is_bad):
-                c_better += 1
-        p_val = mcnemar_one_sided_exact_p(b_worse, c_better)
-        out[rule] = bool((b_worse > c_better) and (p_val < S2V11.channel_b_confirm_alpha))
+
+def _evaluate_forced_look_via_guard(
+    pool: SyntheticPool,
+    step0_items: Mapping[str, Mapping[str, Any]],
+    confirm_runner: ConfirmRunnerFn,
+    step: int,
+) -> dict[str, bool]:
+    """Evaluate Fuse A, Channel B, and U1 at ``step`` by driving fresh real ``CtCollapseGuard`` instances."""
+    out: dict[str, bool] = {}
+
+    for rule in ("FUSE_A", "CHANNEL_B"):
+        guard = CtCollapseGuard(
+            window_groups=1,
+            mode="halt",
+            s2_v11=True,
+            canary_c_ids=pool.canary_c_ids,
+            gold_unsupported_ids=pool.gold_unsupported_ids,
+            confirm_runner=confirm_runner,
+        )
+        guard.record_step0_baseline(step0_items)
+        if rule == "FUSE_A":
+            guard.fuse_a_s = float(S2V11.fuse_a_h + S2V11.fuse_a_k)
+        else:
+            guard.channel_b_s = float(S2V11.channel_b_h + S2V11.channel_b_k)
+        stop = guard.record_group(
+            step=step,
+            group=0,
+            item_id=f"__forced_{rule.lower()}__",
+            gold_verdict="cannot_tell",
+            verdicts=_FORCED_CT_VERDICTS,
+            correct_flags=_FORCED_TRUE_FLAGS,
+            advantages_list=_FORCED_ZERO_ADV,
+            is_zero_variance=True,
+        )
+        out[rule] = stop is not None and stop.get("verdict") == f"S2-TRAIN-HALT-{rule}-CONFIRMED"
+
+    u1_groups = int(S2V11.u1_min_distinct_ct_items)
+    u1_guard = CtCollapseGuard(
+        window_groups=u1_groups,
+        mode="halt",
+        s2_v11=True,
+        canary_c_ids=pool.canary_c_ids,
+        gold_unsupported_ids=pool.gold_unsupported_ids,
+        confirm_runner=confirm_runner,
+    )
+    u1_guard.record_step0_baseline(step0_items)
+    u1_stop: dict[str, Any] | None = None
+    for idx in range(u1_groups):
+        u1_stop = u1_guard.record_group(
+            step=step,
+            group=idx,
+            item_id=f"__forced_u1_{idx}__",
+            gold_verdict="unsupported",
+            verdicts=_FORCED_CT_VERDICTS,
+            correct_flags=_FORCED_FALSE_FLAGS,
+            advantages_list=_FORCED_ZERO_ADV,
+            is_zero_variance=True,
+        )
+    out["U1"] = u1_stop is not None and u1_stop.get("verdict") == "S2-TRAIN-HALT-U1-CONFIRMED"
     return out
 
 
@@ -847,23 +1024,34 @@ def run_forced_looks_mode(
             confirmed_by_rule = {r: 0 for r in CONFIRM_RULES}
 
             for r_idx in range(n_runs):
-                rng = np.random.default_rng(run_seqs[r_idx])
+                run_children = run_seqs[r_idx].spawn(3)
+                train_rng = np.random.default_rng(run_children[1])
+                confirm_rng = np.random.default_rng(run_children[2])
                 latent = LatentItemPoolState(
                     pool,
                     resolved,
-                    rng,
+                    train_rng,
+                    confirm_rng=confirm_rng,
                     p_flip_worse=p_worse,
                     p_flip_better=p_better,
                 )
                 step0_items = latent.step0_baseline_items()
+
+                def _confirm_runner(
+                    ids: Sequence[str],
+                    step_arg: int = 0,
+                    _rule: str = "",
+                    _latent: LatentItemPoolState = latent,
+                ) -> Mapping[str, Mapping[str, Any]]:
+                    return _latent.run_t0_confirmation_pass(ids, int(step_arg))
+
                 ever_rule = {r: False for r in CONFIRM_RULES}
                 for upd in look_updates:
-                    pass_t = latent.run_t0_confirmation_pass(pool.gold_unsupported_ids, upd - 1)
-                    res = _evaluate_forced_pass(
+                    res = _evaluate_forced_look_via_guard(
+                        pool,
                         step0_items,
-                        pass_t,
-                        pool.canary_c_ids,
-                        pool.gold_unsupported_ids,
+                        _confirm_runner,
+                        upd - 1,
                     )
                     for r_name, did_confirm in res.items():
                         if did_confirm:
@@ -886,6 +1074,7 @@ def run_forced_looks_mode(
 
     return {
         "label": RESULT_LABEL,
+        "model_assumptions": list(MODEL_ASSUMPTIONS),
         "mode": "forced_looks",
         "base_sha": str(base_sha),
         "seed": master_seed,
@@ -940,6 +1129,7 @@ def run_end_to_end_mode(
 
     return {
         "label": RESULT_LABEL,
+        "model_assumptions": list(MODEL_ASSUMPTIONS),
         "mode": "end_to_end",
         "base_sha": str(base_sha),
         "seed": master_seed,
@@ -1009,6 +1199,7 @@ def run_shift_grid_mode(
 
     return {
         "label": RESULT_LABEL,
+        "model_assumptions": list(MODEL_ASSUMPTIONS),
         "mode": "shift_grid",
         "base_sha": str(base_sha),
         "seed": master_seed,
@@ -1036,21 +1227,26 @@ def run_simulation(
 
 def write_result_file(result: Mapping[str, Any], out_path: Path) -> None:
     """Write simulation ``result`` JSON with ``RESULT_LABEL`` guaranteed first."""
+    validate_output_file_path(out_path)
     if result.get("label") != RESULT_LABEL:
         raise ValueError(f"result missing required label {RESULT_LABEL!r}")
-    ordered = {"label": RESULT_LABEL, **{k: v for k, v in result.items() if k != "label"}}
+    ordered: dict[str, Any] = {"label": RESULT_LABEL}
+    if "model_assumptions" not in result:
+        ordered["model_assumptions"] = list(MODEL_ASSUMPTIONS)
+    for k, v in result.items():
+        if k != "label":
+            ordered[k] = v
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(ordered, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def format_printed_summary(result: Mapping[str, Any], *, wall_s: float) -> str:
-    """Format stdout summary with ``RESULT_LABEL`` on line 1 and integer counts only."""
+    """Format stdout summary with ``RESULT_LABEL`` on line 1, counts on line 2, and wall_s on line 3."""
     mode = str(result["mode"])
     summary_line: dict[str, Any] = {
         "mode": mode,
         "seed": result["seed"],
         "n_runs": result["n_runs"],
-        "wall_s": round(float(wall_s), 3),
     }
     if mode == "end_to_end":
         summary_line["runs_completed"] = result["runs_completed"]
@@ -1066,7 +1262,7 @@ def format_printed_summary(result: Mapping[str, Any], *, wall_s: float) -> str:
     else:
         summary_line["shift_cells"] = len(result["shift_cells"])
         summary_line["detected_counts"] = [c["detected_total"] for c in result["shift_cells"]]
-    return f"{RESULT_LABEL}\n{json.dumps(summary_line)}"
+    return f"{RESULT_LABEL}\n{json.dumps(summary_line)}\nwall_s: {float(wall_s):.3f}"
 
 
 def _parse_int_list(raw: str) -> list[int]:
@@ -1095,7 +1291,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--p-flip-better", type=float, default=None)
     ap.add_argument("--ct-drift-per-update", type=float, default=None)
     ap.add_argument("--look-correlation", type=float, default=None)
-    ap.add_argument("--group-dispersion", type=float, default=None)
+    ap.add_argument("--rollout-independence", type=float, default=None)
     ap.add_argument("--step0-canary-c-supported-prob", type=float, default=None)
     ap.add_argument("--step0-canary-c-cannot-tell-prob", type=float, default=None)
     ap.add_argument("--step0-unsup-supported-prob", type=float, default=None)
@@ -1123,7 +1319,7 @@ _CLI_PARAM_KEYS = (
     "p_flip_better",
     "ct_drift_per_update",
     "look_correlation",
-    "group_dispersion",
+    "rollout_independence",
     "step0_canary_c_supported_prob",
     "step0_canary_c_cannot_tell_prob",
     "step0_unsup_supported_prob",
@@ -1146,9 +1342,15 @@ _CLI_PARAM_KEYS = (
 def main(argv: Sequence[str] | None = None) -> int:
     """Run CLI simulation, write JSON result file, and print labeled summary."""
     args = build_parser().parse_args(argv)
+    try:
+        validate_output_file_path(args.out)
+        if args.params is not None:
+            validate_param_file_path(args.params)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     overrides: dict[str, Any] = {}
     if args.params is not None:
-        validate_param_file_path(args.params)
         loaded = json.loads(args.params.read_text(encoding="utf-8"))
         if not isinstance(loaded, dict):
             raise ValueError("parameter JSON file must contain a JSON object")
