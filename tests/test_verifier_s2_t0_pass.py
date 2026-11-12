@@ -686,7 +686,7 @@ def _adapter(fx, name="adapter"):
     return d
 
 
-def test_adapter_pass_records_file_shas_and_loads_frozen(fx):
+def test_adapter_pass_records_file_shas_and_loads_trainable_like_the_trainer(fx):
     ad = _adapter(fx)
     seen = {}
 
@@ -698,7 +698,8 @@ def test_adapter_pass_records_file_shas_and_loads_frozen(fx):
 
     a = _ns(_argv(fx, fx.tmp / "o", "--checkpoint", str(ad)))
     assert s2.execute(a, build=spy) == 0
-    assert seen["postpass"] is True and seen["trainable"] == 0  # loaded for a pass: frozen
+    # PR #201 review B1: loaded trainable, as the trainer held it, so restore_bf16 keeps the LoRA fp32
+    assert seen["postpass"] is False and seen["trainable"] > 0
     assert a.postpass is False  # the caller's namespace is untouched
     h = _header(fx.tmp / "o")
     assert h["checkpoint"] == str(ad)
@@ -708,6 +709,33 @@ def test_adapter_pass_records_file_shas_and_loads_frozen(fx):
     base = _adapter(fx, "adapter2")
     assert s2.checkpoint_file_shas(base) == s2.checkpoint_file_shas(ad)  # B = 0 saves are reproducible
     assert all(len(v) == 64 for v in h["adapter_files_sha256"].values())
+
+
+def test_restore_bf16_keeps_a_trainable_lora_fp32_but_casts_a_frozen_one(fx):
+    """The mechanism behind PR #201 review B1: restore_bf16 keys on requires_grad, not on the LoRA name."""
+    model = s2.dry_bundle(_ns(_argv(fx, fx.tmp / "scratch")))["model"]
+    lora = [p for n, p in model.named_parameters() if "lora_" in n]
+    assert lora and all(p.requires_grad for p in lora)
+    for p in lora:
+        p.data = p.data.float()
+    s2.restore_bf16(model)
+    assert all(p.dtype == torch.float32 for p in lora)  # trainable, as in the trainer: kept fp32
+    for p in lora:
+        p.requires_grad_(False)
+    s2.restore_bf16(model)
+    assert all(p.dtype == torch.bfloat16 for p in lora)  # a frozen (postpass-style) load would be cast
+
+
+def test_a_live_pass_refuses_a_lora_that_is_not_fp32(fx):
+    def bf16_lora(a):
+        return {
+            **s2.dry_bundle(a),
+            "dtype_census": {"trainable": {"bfloat16": 4}, "non_trainable": {"bfloat16": 9}},
+        }
+
+    with pytest.raises(SystemExit, match="T0_PASS_LORA_DTYPE"):
+        _live(fx, fx.tmp / "o", build=bf16_lora)
+    assert not (fx.tmp / "o" / s2.T0_PASS_ROWS).exists()
 
 
 def test_adapter_that_is_not_loaded_or_missing_refuses(fx):

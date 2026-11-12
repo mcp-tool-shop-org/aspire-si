@@ -9312,17 +9312,28 @@ def execute_t0_pass(
                 f"refusing to start (T0_PASS_HEADER_MISMATCH): {', '.join(diffs)} differ from the saved one"
             )
 
-    # the builder sees --postpass when an adapter is given, so it loads frozen (for_pass); nothing else does
+    # The adapter is loaded TRAINABLE, exactly as the trainer held it at that step (PR #201 review B1): a
+    # frozen load (`--postpass`, is_trainable=False) leaves the LoRA with requires_grad=False, and
+    # restore_bf16 then casts it to bf16, while the trainer's LoRA (and its in-run T=0 passes) stayed fp32.
+    # The pass itself runs in eval mode under the trainer's own `mode(False)`, so trainability changes no
+    # output; the unused AdamW allocates no state before a step. Base mode is unchanged (fresh LoRA, B = 0).
     bundle_args = argparse.Namespace(**vars(a))
-    if ckpt is not None:
-        bundle_args.postpass = True
+    bundle_args.postpass = False
     bundle = build(bundle_args)
     if ckpt is not None and not bundle.get("adapter_loaded"):
         raise SystemExit(
             "refusing to start (checkpoint_adapter_not_loaded): "
             "--t0-pass --checkpoint requires the adapter to be loaded into the model"
         )
-    header = {**core, "student_revision_resolved": bundle.get("revision")}
+    census = bundle.get("dtype_census")
+    if census is not None and not a.dry:
+        # The trainer's precision: every trainable (LoRA) parameter fp32, nothing trainable in bf16.
+        if set((census.get("trainable") or {}).keys()) - {"float32"}:
+            raise SystemExit(
+                "refusing to start (T0_PASS_LORA_DTYPE): trainable parameters are not all float32 "
+                f"({census.get('trainable')}); the trainer kept its LoRA in fp32"
+            )
+    header = {**core, "student_revision_resolved": bundle.get("revision"), "dtype_census": census}
     header["header_sha256"] = _t0_header_sha256(header)
     if saved is not None:
         diffs = _t0_header_diff(saved, header)

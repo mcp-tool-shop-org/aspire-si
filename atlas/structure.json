@@ -4631,25 +4631,30 @@
             {
               "in": "execute_t0_pass",
               "kind": "raise",
-              "line": 9321
+              "line": 9324
             },
             {
               "in": "execute_t0_pass",
               "kind": "raise",
-              "line": 9330
+              "line": 9332
             },
             {
               "in": "execute_t0_pass",
               "kind": "raise",
-              "line": 9346
+              "line": 9341
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9357
             },
             {
               "in": "apply_dry_defaults",
               "kind": "raise",
-              "line": 9874
+              "line": 9885
             }
           ],
-          "hash": "13f32861e27a617b0b2c7f600ba869f396462e4796934451ed4d7625fa5d45b9",
+          "hash": "422a4ba34940c2aeedb5ca46ac828b30bdcd43007d38d3a17e640be36d79b2cc",
           "importsFiles": [
             "examples/verifier-distill/quote_rule.py",
             "examples/verifier-distill/s2_draw.py",
@@ -5280,7 +5285,7 @@
       "testRunners": [
         "pytest"
       ],
-      "testedBy": 14,
+      "testedBy": 15,
       "unresolvedNamed": [
         {
           "path": "examples/verifier-distill/s2_v11_config.py",
@@ -7212,6 +7217,53 @@
           "testFramework": "pytest"
         },
         {
+          "exports": [
+            "fx",
+            "test_a_changed_resolved_revision_refuses_after_the_build",
+            "test_a_header_without_rows_resumes",
+            "test_a_live_pass_refuses_a_lora_that_is_not_fp32",
+            "test_a_pass_file_missing_an_item_refuses_before_anything_is_written",
+            "test_a_trained_adapter_changes_the_pass_and_the_base_pass_is_a_fresh_zero_adapter",
+            "test_adapter_pass_records_file_shas_and_loads_trainable_like_the_trainer",
+            "test_adapter_that_is_not_loaded_or_missing_refuses",
+            "test_batch_one_rows_equal_a_direct_run_v11_t0_pass_call",
+            "test_code_commit_arg_and_refusals",
+            "test_colab_dry_asks_nothing_of_the_machine",
+            "test_colab_refuses_without_a_gpu_in_non_dry_mode",
+            "test_colab_skips_the_rigs_preflight_and_records_nvidia_smi",
+            "test_conflicting_flags_refused",
+            "test_derived_ids_are_rechecked_even_if_the_builder_is_lenient",
+            "test_digest_mismatch_refuses",
+            "test_does_not_change_the_namespace_the_trainer_sees",
+            "test_dry_rows_equal_a_direct_dry_call_and_carry_no_text",
+            "test_each_row_is_fsynced_as_it_lands",
+            "test_header_holds_every_pin",
+            "test_item_set_is_u_union_c_and_digests_are_checked",
+            "test_mismatched_header_refuses",
+            "test_non_dry_max_new_must_be_the_trainers",
+            "test_other_refusals",
+            "test_require_frozen_stack_works_on_both_venues",
+            "test_restore_bf16_keeps_a_trainable_lora_fp32_but_casts_a_frozen_one",
+            "test_resume_after_a_kill_and_a_torn_write",
+            "test_rig_venue_keeps_the_preflight",
+            "test_rows_are_one_gzip_member_each",
+            "test_summary_is_counts_only_and_matches_the_rows",
+            "test_summary_of_a_partial_set_says_so",
+            "test_tampered_missing_and_foreign_files_refuse",
+            "test_the_dispatch_adds_nothing_to_a_training_run",
+            "test_the_trainers_own_step0_pass_is_the_same_call",
+            "test_v11_freezes_still_apply_in_the_mode"
+          ],
+          "hash": "741d81b53d7b62bec3f8bf0d460236feec54a16ad3d65a603665340c4e4bf2f9",
+          "importsFiles": [
+            "examples/verifier-distill/s2_grpo_smoke.py",
+            "examples/verifier-distill/s2_v11_config.py",
+            "tests/test_verifier_s2_train.py"
+          ],
+          "path": "tests/test_verifier_s2_t0_pass.py",
+          "testFramework": "pytest"
+        },
+        {
           "hash": "b48607452dbdbcec7c1261d54e06380b46fc721e16d2b0cd9d953486ea1f6402",
           "importOrder": [
             "examples/verifier-distill/s2_grpo_smoke.py",
@@ -7452,7 +7504,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 82
+          "files": 83
         }
       ],
       "readers": [],
@@ -7499,7 +7551,7 @@
         {
           "config": "pyproject.toml",
           "coverage": true,
-          "files": 82,
+          "files": 83,
           "job": "ci",
           "runner": "pytest",
           "step": "Run tests with coverage"
@@ -7924,8 +7976,8 @@
   ],
   "engine": "1.26.0",
   "generatedFrom": {
-    "commit": "4dc85f051686c37ecdc977e6c69015d6ee9a98b6",
-    "tracked": 291
+    "commit": "78ae66688aadf1905fe46cbd1b8ee32a7574cd1f",
+    "tracked": 292
   },
   "landings": [
     {
@@ -8160,6 +8212,12 @@
         },
         {
           "by": "tests/test_verifier_s2_guard_sim.py",
+          "call": "literal",
+          "confidence": "ast",
+          "fromTests": true
+        },
+        {
+          "by": "tests/test_verifier_s2_t0_pass.py",
           "call": "literal",
           "confidence": "ast",
           "fromTests": true
@@ -8452,6 +8510,6 @@
   "overlaps": [],
   "submodules": [],
   "symlinks": [],
-  "testFiles": 84,
+  "testFiles": 85,
   "unassigned": []
 }

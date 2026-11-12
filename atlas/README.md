@@ -1,16 +1,17 @@
 # aspire-si: how it works
 
-Mapped at 2026-11-12 from commit 4dc85f0 by Atlas 1.26.0.
+Mapped at 2026-11-12 from commit 78ae666 by Atlas 1.26.0.
 
 ## What this is
 
 ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope (written by a person)
 
-8 parts, mostly Python (184 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
+8 parts, mostly Python (185 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-11-11 (85269aa)
+## What changed since 2026-11-12 (4dc85f0)
 
-Nothing structural changed since 2026-11-11; 2 files changed content.
+- examples/verifier-distill/ is now also read by tests/test_verifier_s2_t0_pass.py.
+- 1 file added and 1 changed content, across 2 parts.
 
 ## What comes in
 
@@ -46,7 +47,7 @@ CI writes nothing this map can see.
 ## What tends to change together
 
 - **examples/sft-experiment/critic_heads.py** and **examples/sft-experiment/critic_heads_run.py** changed together in 8 of 10 commits, inside the examples part.
-- **examples/verifier-distill/s2_grpo_smoke.py** and **tests/test_verifier_s2.py** changed together in 15 of 19 commits, and the tests part imports the examples part.
+- **examples/verifier-distill/s2_grpo_smoke.py** and **tests/test_verifier_s2.py** changed together in 15 of 20 commits, and the tests part imports the examples part.
 - **aspire/config.py** and **aspire/trainer.py** changed together in 4 of 7 commits, inside the aspire part.
 
 1 file changed together with its own test, as expected.

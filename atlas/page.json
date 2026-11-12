@@ -41,24 +41,32 @@
   ],
   "changes": {
     "fileCounts": {
-      "added": 0,
-      "changed": 2,
+      "added": 1,
+      "changed": 1,
       "moved": 0,
       "parts": 2,
       "removed": 0
     },
     "items": [
       {
+        "kind": "landing",
+        "sentence": "examples/verifier-distill/ is now also read by tests/test_verifier_s2_t0_pass.py.",
+        "subjects": [
+          "examples/verifier-distill/",
+          "tests/test_verifier_s2_t0_pass.py"
+        ]
+      },
+      {
         "kind": "counts",
-        "sentence": "Nothing structural changed since 2026-11-11; 2 files changed content.",
+        "sentence": "1 file added and 1 changed content, across 2 parts.",
         "subjects": []
       }
     ],
     "since": {
-      "commit": "85269aaceaa099aad8db5fad0efe7a2569347713",
-      "generatedAt": "2026-11-11T22:07:16.513Z"
+      "commit": "4dc85f051686c37ecdc977e6c69015d6ee9a98b6",
+      "generatedAt": "2026-11-12T17:56:07.792Z"
     },
-    "unchanged": true
+    "unchanged": false
   },
   "changesTogether": [
     {
@@ -79,7 +87,7 @@
     {
       "a": "examples/verifier-distill/s2_grpo_smoke.py",
       "b": "tests/test_verifier_s2.py",
-      "either": 19,
+      "either": 20,
       "partLabels": [
         "examples",
         "tests"
@@ -113,9 +121,9 @@
     "Window: 180 days; a pair counts from 3 shared commits, since 4 source files reach 10 revisions; the floor rises to 10 when 25 do."
   ],
   "changesTogetherWithTests": 1,
-  "commit": "4dc85f051686c37ecdc977e6c69015d6ee9a98b6",
+  "commit": "78ae66688aadf1905fe46cbd1b8ee32a7574cd1f",
   "defaultBranch": "main",
-  "derived": "8 parts, mostly Python (184 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
+  "derived": "8 parts, mostly Python (185 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.",
   "doors": [
     {
       "checks": [
@@ -148,7 +156,7 @@
         {
           "boundary": "tests",
           "depth": 0,
-          "files": 82
+          "files": 83
         }
       ],
       "runs": [
@@ -272,7 +280,7 @@
   ],
   "engine": "1.26.0",
   "generated": [],
-  "generatedAt": "2026-11-12T17:56:07.792Z",
+  "generatedAt": "2026-11-12T18:13:38.319Z",
   "limits": [
     "3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.",
     "3 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `examples/verifier-distill/s2_v11_config.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.",
@@ -328,10 +336,10 @@
   ],
   "summary": "ASPIRE training system (student, critic, teachers) with a training-dynamics export for ScalarScope",
   "summaryFrom": "person",
-  "testFiles": 84,
+  "testFiles": 85,
   "testedBy": {
     "aspire": 49,
-    "examples": 14,
+    "examples": 15,
     "integrations": 21
   },
   "testedCodeParts": 3,
