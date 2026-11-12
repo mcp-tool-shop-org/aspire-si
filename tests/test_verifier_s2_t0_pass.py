@@ -694,12 +694,15 @@ def test_adapter_pass_records_file_shas_and_loads_trainable_like_the_trainer(fx)
         seen.update(postpass=a.postpass, checkpoint=a.checkpoint)
         b = s2.dry_bundle(a)
         seen["trainable"] = sum(p.numel() for p in b["model"].parameters() if p.requires_grad)
+        # re-review N1: the LoRA loaded from the saved adapter is fp32, as in the trainer
+        seen["lora_dtypes"] = {str(p.dtype) for n, p in b["model"].named_parameters() if "lora_" in n}
         return b
 
     a = _ns(_argv(fx, fx.tmp / "o", "--checkpoint", str(ad)))
     assert s2.execute(a, build=spy) == 0
     # PR #201 review B1: loaded trainable, as the trainer held it, so restore_bf16 keeps the LoRA fp32
     assert seen["postpass"] is False and seen["trainable"] > 0
+    assert seen["lora_dtypes"] == {"torch.float32"}
     assert a.postpass is False  # the caller's namespace is untouched
     h = _header(fx.tmp / "o")
     assert h["checkpoint"] == str(ad)
