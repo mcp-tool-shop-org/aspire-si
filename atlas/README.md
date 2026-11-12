@@ -1,6 +1,6 @@
 # aspire-si: how it works
 
-Mapped at 2026-11-11 from commit 85269aa by Atlas 1.26.0.
+Mapped at 2026-11-12 from commit 4dc85f0 by Atlas 1.26.0.
 
 ## What this is
 
@@ -8,7 +8,7 @@ ASPIRE training system (student, critic, teachers) with a training-dynamics expo
 
 8 parts, mostly Python (184 files), shell (11), CSS (2), TypeScript (2), Astro (1) and JavaScript (1). Work enters through 4 doors; the busiest is CI, which reaches 4 parts. It publishes to PyPI. It deploys a site to GitHub Pages. People run aspire.
 
-## What changed since 2026-11-11 (944e1a2)
+## What changed since 2026-11-11 (85269aa)
 
 Nothing structural changed since 2026-11-11; 2 files changed content.
 
@@ -85,8 +85,8 @@ Read those in order to follow one pull request end to end.
 
 - 3 import sites name a declared dependency that shares its name with a local module (openai); they are read as the dependency, which is not in this repository.
 - 3 imports could not be resolved: `aspire/cli.py` imports a path built at run time; `examples/verifier-distill/s2_v11_config.py` imports a path built at run time; `tests/test_cli_errors.py` imports a path built at run time.
-- 13 writes and 32 reads use paths built at run time and are not named here.
-- 64 writes and 104 reads go to a path their caller passes, not to this repository.
+- 13 writes and 33 reads use paths built at run time and are not named here.
+- 65 writes and 105 reads go to a path their caller passes, not to this repository.
 - 1 read goes to the home directory (.cache/), not to this repository.
 - Statistics confidence is low: fewer than 25 source files reach 10 revisions in the window.
 

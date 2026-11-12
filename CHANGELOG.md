@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `examples/verifier-distill/s2_grpo_smoke.py`: `--t0-pass` runs the S2 v1.1 greedy T=0, n=1 pass over Set U union C
+  (184 items, C inside U, batch 1) on the base model or a saved `--checkpoint` adapter, through the trainer's own
+  `run_v11_t0_pass`, so its outputs compare with the step-0 pass. It needs `--s2-v11` and `--pass-id`, refuses every
+  training and pass-mode flag, checks the U and C digests, and writes `s2-hf-t0pass.jsonl.gz` (one fsynced row per item,
+  with the model's text), `s2-hf-t0pass-header.json` (every pin) and a text-free `s2-hf-t0pass-summary.json`. A killed
+  run resumes by item against a sha-checked header. `--venue colab` skips the 5090 preflight and records `nvidia-smi`
+  instead. No trainer function changed. Coverage: 90.18% overall, floor 90 (CI enforces 90).
+
 ### Fixed
 
 - `examples/verifier-distill/quote_rule.py`: `classify_quote_rung` treats `[...]`, `[…]`, `. . .`, and `…` as

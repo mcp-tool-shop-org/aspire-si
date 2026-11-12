@@ -7751,6 +7751,8 @@ def execute(
     if getattr(a, "paired_estimators", None) is not None:
         run_paired_estimators_from_spec(Path(a.paired_estimators), a.out)
         return 0
+    if t0_pass_requested(a):
+        return execute_t0_pass(a, build=build, rig=rig)
     save_all_on, save_all_reason = validate_save_all_args(a)
     is_v11 = validate_s2_v11_args(a)
     rollout_only, descriptive_pass, prepass_seed_val, ckpt_sha = validate_pass_mode_args(a)
@@ -8842,6 +8844,556 @@ def execute(
             close()
 
 
+# -- the T=0 pass mode (--t0-pass): the trainer's step-0 greedy pass, on an adapter or the base ----------
+T0_PASS_ROWS = "s2-hf-t0pass.jsonl.gz"
+T0_PASS_HEADER = "s2-hf-t0pass-header.json"
+T0_PASS_SUMMARY = "s2-hf-t0pass-summary.json"
+T0_PASS_HEADER_SCHEMA = "s2-t0pass-header-v1"
+T0_PASS_SUMMARY_SCHEMA = "s2-t0pass-summary-v1"
+T0_PASS_VENUES = ("rig", "colab")
+T0_PASS_ID_RE = re.compile(r"[a-z0-9._-]{1,64}")
+T0_PASS_SETS = ("C", "U-only")
+T0_PASS_SET_MISMATCH_RE = re.compile(r"S2_V11_(GOLD_UNSUPPORTED|CANARY_C)_(SIZE|SHA256)_MISMATCH")
+
+
+def t0_pass_requested(a: argparse.Namespace) -> bool:
+    """Whether ``--t0-pass`` is on. The two flags that only mean something in that mode refuse without it."""
+    if bool(getattr(a, "t0_pass", False)):
+        return True
+    for flag, attr in (("--venue", "venue"), ("--code-commit", "code_commit")):
+        if getattr(a, attr, None) is not None:
+            raise SystemExit(f"refusing to start (T0_PASS_FLAG_WITHOUT_MODE): {flag} requires --t0-pass")
+    return False
+
+
+def validate_t0_pass_args(a: argparse.Namespace) -> str:
+    """Refuse every ``--t0-pass`` combination that is not the step-0 pass. Returns the venue."""
+    if not bool(getattr(a, "s2_v11", False)):
+        raise SystemExit("refusing to start (T0_PASS_REQUIRES_S2_V11): --t0-pass requires --s2-v11")
+    conflicts = [
+        flag
+        for flag, attr in (
+            ("--rollout-only", "rollout_only"),
+            ("--logging-pass", "logging_pass"),
+            ("--postpass", "postpass"),
+            ("--probe-memory", "probe_memory"),
+            ("--prompt-lengths", "prompt_lengths"),
+        )
+        if getattr(a, attr, False)
+    ]
+    conflicts += [flag for flag, attr in TRAIN_ONLY_FLAGS if getattr(a, attr, None) is not None]
+    if getattr(a, "arm", None) is not None:
+        conflicts.append("--arm")
+    if int(getattr(a, "stress_prefix", 0) or 0) > 0:
+        conflicts.append("--stress-prefix")
+    for flag, attr in (("--stop-after-new", "stop_after_new"), ("--replay-check", "replay_check")):
+        if getattr(a, attr, None) is not None:
+            conflicts.append(flag)
+    if conflicts:
+        raise SystemExit(
+            f"refusing to start (T0_PASS_CONFLICTING_FLAGS): --t0-pass cannot be combined with "
+            f"{', '.join(conflicts)}"
+        )
+    if getattr(a, "_steps_explicit", False):
+        raise SystemExit(
+            "refusing to start (T0_PASS_STEPS_FORBIDDEN): --t0-pass trains nothing; drop --steps"
+        )
+    draw_flags = [
+        flag
+        for flag, attr in (
+            ("--draw-seed", "draw_seed"),
+            ("--prepass-jsonl", "prepass_jsonl"),
+            ("--prepass-sha256", "prepass_sha256"),
+            ("--k-min", "k_min"),
+            ("--k-max", "k_max"),
+        )
+        if getattr(a, attr, None) is not None
+    ]
+    if str(getattr(a, "draw", "first") or "first") != "first" or getattr(a, "_draw_explicit", False):
+        draw_flags.insert(0, "--draw")
+    if draw_flags:
+        raise SystemExit(
+            f"refusing to start (T0_PASS_DRAW_FLAGS_FORBIDDEN): --t0-pass draws nothing; drop "
+            f"{', '.join(draw_flags)}"
+        )
+    if getattr(a, "path", "hf") != "hf":
+        raise SystemExit(
+            "refusing to start (T0_PASS_PATH_HF_ONLY): --t0-pass runs the Hugging Face path only"
+        )
+    pass_id = getattr(a, "pass_id", None)
+    if not isinstance(pass_id, str) or not T0_PASS_ID_RE.fullmatch(pass_id):
+        raise SystemExit(
+            "refusing to start (T0_PASS_ID_INVALID): --t0-pass requires --pass-id matching [a-z0-9._-]{1,64}"
+        )
+    venue = str(getattr(a, "venue", None) or "rig")
+    if venue not in T0_PASS_VENUES:
+        raise SystemExit(
+            f"refusing to start (T0_PASS_VENUE_INVALID): --venue must be one of {T0_PASS_VENUES}"
+        )
+    # the step-0 pass runs on the model the trainer builds: its dtype census and generate call decide the text
+    for flag, attr in (("--attention-mask", "attention_mask"), ("--bf16-restore", "bf16_restore")):
+        if not bool(getattr(a, attr, False)):
+            raise SystemExit(
+                f"refusing to start (T0_PASS_TRAINER_SETTING_MISSING): --t0-pass requires {flag}, "
+                f"as the trainer passes it"
+            )
+    if not a.dry and int(a.max_new) != MAX_NEW_TOKENS:
+        raise SystemExit(
+            f"refusing to start (T0_PASS_MAX_NEW_MISMATCH): --max-new is {MAX_NEW_TOKENS} in the trainer, "
+            f"got {a.max_new}"
+        )
+    # every other v1.1 freeze (sha pins, quote reward, no --no-save-all, holdout) is the trainer's own check,
+    # run in its pass-mode branch (no --train-seed) on a copy, so the trainer's namespace is not touched
+    probe = argparse.Namespace(**vars(a))
+    probe.rollout_only = True
+    validate_s2_v11_args(probe)
+    a.quote_reward = probe.quote_reward
+    return venue
+
+
+def t0_pass_item_sets(a: argparse.Namespace, rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """U and C exactly as ``execute`` derives them for a v1.1 run, then the item list (U union C)."""
+    try:
+        _check_header_not_descriptive(Path(a.pass_a_jsonl), expected_seeds=(0,))
+        _check_header_not_descriptive(Path(a.pass_b_jsonl), expected_seeds=(1,))
+        pass_a_recs, pass_a_sha = load_prepass_records_v11(
+            a.pass_a_jsonl, a.pass_a_sha256, pass_label="PASS_A", pinned_sha256=S2V11.pass_a_sha256
+        )
+        pass_b_recs, pass_b_sha = load_prepass_records_v11(
+            a.pass_b_jsonl, a.pass_b_sha256, pass_label="PASS_B", pinned_sha256=S2V11.pass_b_sha256
+        )
+        _, _, hold_meta = split_stratified_holdout(
+            rows,
+            (a.pass_a_jsonl, a.pass_a_sha256),
+            holdout_fraction=float(getattr(a, "holdout_fraction", HOLDOUT_DEFAULT_FRACTION)),
+            holdout_seed=str(getattr(a, "holdout_seed", None) or HOLDOUT_DEFAULT_SEED),
+        )
+        hold_set = set(hold_meta["holdout_ids"])
+        train_pool_rows = [
+            r
+            for r in rows
+            if r.get("split", PROMPT_SPLIT) == PROMPT_SPLIT and str(r.get("id", "")) not in hold_set
+        ]
+        sets = build_v11_canary_sets(
+            train_pool_rows, pass_a_recs, pass_b_recs, holdout_ids=hold_set, cfg=S2V11, strict=True
+        )
+    except ValueError as exc:
+        code = "T0_PASS_SET_DIGEST_MISMATCH: " if T0_PASS_SET_MISMATCH_RE.search(str(exc)) else ""
+        raise SystemExit(f"refusing to start ({code}{exc})") from exc
+    u_ids = sorted(str(x) for x in sets["gold_unsupported_ids"])
+    c_ids = sorted(str(x) for x in sets["canary_c_ids"])
+    u_sha, c_sha = ids_sha256_v11(u_ids), ids_sha256_v11(c_ids)
+    if u_sha != S2V11.gold_unsupported_ids_sha256 or c_sha != S2V11.canary_c_ids_sha256:
+        raise SystemExit(
+            "refusing to start (T0_PASS_SET_DIGEST_MISMATCH): "
+            "the derived U or C ids do not match the sealed digests"
+        )
+    if not set(c_ids) <= set(u_ids):
+        raise SystemExit("refusing to start (T0_PASS_SET_NOT_NESTED): C is not a subset of U")
+    item_ids = sorted(set(u_ids) | set(c_ids))
+    return {
+        "item_ids": item_ids,
+        "c_ids": set(c_ids),
+        "u_count": len(u_ids),
+        "c_count": len(c_ids),
+        "u_ids_sha256": u_sha,
+        "c_ids_sha256": c_sha,
+        "items_sha256": ids_sha256_v11(item_ids),
+        "pass_a_sha256": pass_a_sha,
+        "pass_b_sha256": pass_b_sha,
+    }
+
+
+def t0_pass_colab_gpu(smi: SmiRunner) -> dict[str, Any]:
+    """The Colab VM's one NVIDIA GPU (name, memory.total MiB, driver), or a named refusal (one call)."""
+    text = ask_smi(smi, ["--query-gpu=name,memory.total,driver_version", "--format=csv,noheader,nounits"])
+    gpus: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        parts = [x.strip() for x in line.split(",")]
+        try:
+            if len(parts) != 3 or not all(parts):
+                raise ValueError(line)
+            mem = int(float(parts[1]))
+        except ValueError as exc:
+            raise SystemExit(f"refusing to start: nvidia_smi_garbage: GPU line {line!r}") from exc
+        gpus.append({"name": parts[0], "memory_total_mib": mem, "driver": parts[2]})
+    if not gpus:
+        raise SystemExit("refusing to start (T0_PASS_NO_GPU): --venue colab found no GPU in nvidia-smi")
+    return require_single_nvidia_gpu(gpus)
+
+
+def t0_pass_code_commit(a: argparse.Namespace) -> str | None:
+    """``--code-commit`` if given, else this checkout's git HEAD; the two must agree when both are known."""
+    given = getattr(a, "code_commit", None)
+    if given is not None and not re.fullmatch(r"[0-9a-f]{40}", str(given)):
+        raise SystemExit("refusing to start (T0_PASS_CODE_COMMIT_INVALID): --code-commit is a 40-hex sha")
+    found = aspire_commit()
+    if given is not None and found is not None and given != found:
+        raise SystemExit(
+            f"refusing to start (T0_PASS_CODE_COMMIT_MISMATCH): --code-commit {given}, checkout is {found}"
+        )
+    sha = given or found
+    if sha is None and not a.dry:
+        raise SystemExit(
+            "refusing to start (T0_PASS_CODE_COMMIT_UNKNOWN): no git checkout here; pass --code-commit"
+        )
+    return sha
+
+
+def _t0_header_sha256(header: Mapping[str, Any]) -> str:
+    pins = {k: v for k, v in header.items() if k not in ("created_utc", "header_sha256")}
+    return hashlib.sha256(json.dumps(pins, sort_keys=True, ensure_ascii=True).encode("utf-8")).hexdigest()
+
+
+def _t0_header_diff(saved: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
+    """The keys of ``current`` (the new header, or its pre-build part) that ``saved`` holds differently."""
+    skip = ("created_utc", "header_sha256")
+    return sorted(k for k in current if k not in skip and saved.get(k) != current[k])
+
+
+def _t0_read_rows(path: Path) -> tuple[list[dict], int, int]:
+    """(rows, bytes_good, bytes_total): every complete gzip member of ``path``; a torn tail is left out."""
+    raw = Path(path).read_bytes()
+    rows: list[dict] = []
+    pos = 0
+    while pos < len(raw):
+        chunk = raw[pos:]
+        dec = zlib.decompressobj(wbits=31)
+        try:
+            data = dec.decompress(chunk)
+        except zlib.error as exc:
+            raise SystemExit(
+                f"refusing to start (T0_PASS_OUT_CORRUPT): {path.name} is not valid gzip"
+            ) from exc
+        if not dec.eof:
+            break  # a kill mid-write: the member is cut
+        try:
+            rows += [json.loads(ln) for ln in data.decode("utf-8").splitlines() if ln.strip()]
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"refusing to start (T0_PASS_OUT_CORRUPT): {path.name} holds a bad row") from exc
+        pos += len(chunk) - len(dec.unused_data)
+    return rows, pos, len(raw)
+
+
+def _t0_append_row(path: Path, row: Mapping[str, Any]) -> None:
+    """One gzip member per row, flushed and fsynced, so a killed VM loses at most the row in flight."""
+    member = gzip.compress((json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8"), mtime=0)
+    with open(path, "ab") as fh:
+        fh.write(member)
+        fh.flush()
+        os.fsync(fh.fileno())
+
+
+class _T0TextCapture:
+    """The tokenizer, passed through untouched, that keeps the last decoded completion: ``run_v11_t0_pass``
+    returns no text, and the studio keeps everything the model writes."""
+
+    def __init__(self, tok, max_new: int) -> None:
+        self._tok = tok
+        self._max_new = int(max_new)
+        self.captured: dict[str, Any] | None = None
+
+    def __getattr__(self, name: str):
+        return getattr(self._tok, name)
+
+    def __call__(self, *args, **kwargs):
+        return self._tok(*args, **kwargs)
+
+    def decode(self, ids, *args, **kwargs):
+        text = self._tok.decode(ids, *args, **kwargs)
+        seq = [int(t) for t in ids]
+        eos = _eos_token_ids(self._tok)
+        # the same cap test the pass applies to its own completion
+        hit_cap = len(seq) >= self._max_new and (not eos or not any(t in eos for t in seq))
+        self.captured = {"text": text, "completion_tokens": len(seq), "hit_cap": bool(hit_cap)}
+        return text
+
+
+def t0_pass_row(
+    *,
+    pass_id: str,
+    checkpoint: str,
+    set_name: str,
+    item: Mapping[str, Any],
+    captured: Mapping[str, Any] | None,
+    header_sha256: str,
+) -> dict[str, Any]:
+    """One output row: the pass's own fields, plus the text it did not return. A dry item has no text."""
+    if captured is None:
+        text = thinking = answer = completion_tokens = truncated = None
+        parse_status = "dry"
+    else:
+        text = str(captured["text"])
+        thinking, answer = split_reply(text)
+        completion_tokens = int(captured["completion_tokens"])
+        truncated = bool(captured["hit_cap"])
+        parse_status = "truncated" if truncated else ("ok" if parse_reply(text) is not None else "malformed")
+    return {
+        "kind": "t0_pass",
+        "pass_id": pass_id,
+        "checkpoint": checkpoint,
+        "item_id": str(item["item_id"]),
+        "set": set_name,
+        "gold_verdict": item.get("gold_verdict"),
+        "verdict": item.get("verdict"),
+        "correct": item.get("correct"),
+        "parse_status": parse_status,
+        "truncated": truncated,
+        "truncated_or_malformed": item.get("truncated_or_malformed"),
+        "completion_tokens": completion_tokens,
+        "text": text,
+        "thinking": thinking,
+        "answer": answer,
+        "temperature": item.get("temperature"),
+        "n_samples": item.get("n_samples"),
+        "mode": item.get("mode"),
+        "eval_mode": item.get("eval_mode"),
+        "grad_ckpt": item.get("grad_ckpt"),
+        "header_sha256": header_sha256,
+    }
+
+
+def t0_pass_summary(
+    rows: Sequence[Mapping[str, Any]], *, header: Mapping[str, Any], planned: int
+) -> dict[str, Any]:
+    """Counts only, per set and over all: items, verdicts, parse statuses, truncated, correct. No text."""
+
+    def counts(group: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+        verdicts: dict[str, int] = {}
+        statuses: dict[str, int] = {}
+        for r in group:
+            v, s = str(r.get("verdict")), str(r.get("parse_status"))
+            verdicts[v] = verdicts.get(v, 0) + 1
+            statuses[s] = statuses.get(s, 0) + 1
+        return {
+            "items": len(group),
+            "verdict_counts": dict(sorted(verdicts.items())),
+            "parse_status_counts": dict(sorted(statuses.items())),
+            "truncated": sum(1 for r in group if r.get("truncated") is True),
+            "correct": sum(1 for r in group if r.get("correct") is True),
+        }
+
+    sets = {name: counts([r for r in rows if r.get("set") == name]) for name in T0_PASS_SETS}
+    return {
+        "schema": T0_PASS_SUMMARY_SCHEMA,
+        "kind": "t0_pass_summary",
+        "pass_id": header.get("pass_id"),
+        "header_sha256": header.get("header_sha256"),
+        "planned_items": int(planned),
+        "done_items": len(rows),
+        "complete": len(rows) == int(planned),
+        "sets": sets,
+        "all": counts(list(rows)),
+    }
+
+
+def execute_t0_pass(
+    a: argparse.Namespace,
+    *,
+    build: Callable[[argparse.Namespace], dict],
+    rig=None,
+    smi: SmiRunner | None = None,
+) -> int:
+    """The step-0 greedy T=0, n=1 pass over U union C (batch 1) on the base model or ``--checkpoint``.
+
+    The items are derived as the trainer derives them (digests checked), each runs through ``run_v11_t0_pass``
+    unchanged, and every row is fsynced as it lands, so a killed run resumes by item."""
+    venue = validate_t0_pass_args(a)
+    pass_id = str(a.pass_id)
+    ckpt = getattr(a, "checkpoint", None)
+    ckpt_files_sha = checkpoint_file_shas(ckpt)
+    ckpt_sha = checkpoint_sha256(ckpt)
+    checkpoint_label = str(ckpt) if ckpt is not None else "base"
+    frozen_pip_freeze = getattr(a, "frozen_pip_freeze", None)
+    require_frozen = bool(
+        getattr(a, "require_frozen_stack", False)
+        or (not a.dry and (build is real_bundle or frozen_pip_freeze is not None))
+    )
+    if not a.dry or frozen_pip_freeze is not None or require_frozen:
+        frozen_env = check_frozen_env(frozen_pip_freeze, require_exact_versions=require_frozen)
+    else:
+        frozen_env = {
+            "stack_versions": {k: package_version(k) for k in FROZEN_STACK_VERSIONS},
+            "pip_freeze_sha256": None,
+        }
+    rows, gold_hashes = read_gold(a.gold)
+    rows_by_id = {str(r["id"]): r for r in rows}
+    sets = t0_pass_item_sets(a, rows)
+    item_ids: list[str] = sets["item_ids"]
+    code_commit = t0_pass_code_commit(a)
+
+    gpu_rec: dict[str, Any] | None = None
+    if a.dry:
+        if venue == "rig":
+            check_exclusive(dry_smi, source="dry: a canned nvidia-smi output, never the real one")
+    elif venue == "rig":
+        if rig is None:
+            raise SystemExit(
+                "refusing to start (T0_PASS_RIG_REQUIRED): --venue rig needs the rig's preflight"
+            )
+        pre = rig.preflight()
+        gpu_rec = {"name": pre.get("name"), "driver": pre.get("driver")}
+    else:
+        gpu_rec = t0_pass_colab_gpu(smi or getattr(rig, "smi", None) or run_smi)
+
+    core: dict[str, Any] = {
+        "schema": T0_PASS_HEADER_SCHEMA,
+        "kind": "t0_pass_header",
+        "pass_id": pass_id,
+        "checkpoint": checkpoint_label,
+        "adapter_files_sha256": ckpt_files_sha,
+        "adapter_sha256": ckpt_sha,
+        "venue": venue,
+        "gpu": gpu_rec,
+        "dry": bool(a.dry),
+        "code_commit": code_commit,
+        "script_sha256": script_sha256(),
+        "student": STUDENT,
+        "student_revision": a.revision,
+        "rnd_commit": a.rnd_commit,
+        "gold_sha256s": gold_hashes,
+        "prereg_version": S2V11.prereg_version,
+        "prereg_sha256": S2V11.prereg_sha256,
+        "pass_a_sha256": sets["pass_a_sha256"],
+        "pass_b_sha256": sets["pass_b_sha256"],
+        "gold_unsupported_count": sets["u_count"],
+        "gold_unsupported_ids_sha256": sets["u_ids_sha256"],
+        "canary_c_count": sets["c_count"],
+        "canary_c_ids_sha256": sets["c_ids_sha256"],
+        "item_count": len(item_ids),
+        "item_ids_sha256": sets["items_sha256"],
+        "max_new": int(a.max_new),
+        "quote_reward": str(a.quote_reward),
+        "attention_mask": bool(a.attention_mask),
+        "bf16_restore": bool(a.bf16_restore),
+        "frozen_stack": frozen_env["stack_versions"],
+        "frozen_pip_freeze_sha256": frozen_env["pip_freeze_sha256"],
+        "require_frozen_stack": bool(require_frozen),
+        "torch": package_version("torch"),
+        "transformers": package_version("transformers"),
+        "peft": package_version("peft"),
+        "python": platform.python_version(),
+    }
+    out = Path(a.out)
+    rows_path, header_path, summary_path = out / T0_PASS_ROWS, out / T0_PASS_HEADER, out / T0_PASS_SUMMARY
+    planned_event = {
+        "event": "t0_pass_planned",
+        "pass_id": pass_id,
+        "venue": venue,
+        "checkpoint": checkpoint_label,
+        "item_count": len(item_ids),
+        "c_count": sets["c_count"],
+        "u_only_count": len(item_ids) - sets["c_count"],
+        "outputs": [str(rows_path), str(header_path), str(summary_path)],
+    }
+    print(json.dumps(planned_event), flush=True)
+
+    saved: dict[str, Any] | None = None
+    if header_path.exists() or rows_path.exists():
+        if not header_path.exists():
+            raise SystemExit(
+                f"refusing to start (T0_PASS_HEADER_MISSING): {T0_PASS_ROWS} has no header beside it"
+            )
+        try:
+            saved = json.loads(header_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise SystemExit(
+                "refusing to start (T0_PASS_HEADER_CORRUPT): the saved header is not JSON"
+            ) from exc
+        if not isinstance(saved, dict) or saved.get("header_sha256") != _t0_header_sha256(saved):
+            raise SystemExit(
+                "refusing to start (T0_PASS_HEADER_CORRUPT): the saved header fails its own sha256"
+            )
+        diffs = _t0_header_diff(saved, core)
+        if diffs:
+            raise SystemExit(
+                f"refusing to start (T0_PASS_HEADER_MISMATCH): {', '.join(diffs)} differ from the saved one"
+            )
+
+    # the builder sees --postpass when an adapter is given, so it loads frozen (for_pass); nothing else does
+    bundle_args = argparse.Namespace(**vars(a))
+    if ckpt is not None:
+        bundle_args.postpass = True
+    bundle = build(bundle_args)
+    if ckpt is not None and not bundle.get("adapter_loaded"):
+        raise SystemExit(
+            "refusing to start (checkpoint_adapter_not_loaded): "
+            "--t0-pass --checkpoint requires the adapter to be loaded into the model"
+        )
+    header = {**core, "student_revision_resolved": bundle.get("revision")}
+    header["header_sha256"] = _t0_header_sha256(header)
+    if saved is not None:
+        diffs = _t0_header_diff(saved, header)
+        if diffs:
+            raise SystemExit(
+                f"refusing to start (T0_PASS_HEADER_MISMATCH): {', '.join(diffs)} differ from the saved one"
+            )
+    else:
+        out.mkdir(parents=True, exist_ok=True)
+        created = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        _write_json_atomic(header_path, {**header, "created_utc": created})
+
+    done_rows: list[dict] = []
+    if rows_path.exists():
+        done_rows, good, total = _t0_read_rows(rows_path)
+        planned_ids = set(item_ids)
+        seen: set[str] = set()
+        for r in done_rows:
+            rid = str(r.get("item_id"))
+            if r.get("header_sha256") != header["header_sha256"] or rid not in planned_ids or rid in seen:
+                raise SystemExit(
+                    f"refusing to start (T0_PASS_OUT_FOREIGN_ROW): row {rid!r} does not belong to this pass"
+                )
+            seen.add(rid)
+        if good < total:
+            os.truncate(rows_path, good)  # the torn member of a killed write
+        print(
+            json.dumps(
+                {"event": "t0_pass_resume", "done": len(done_rows), "torn_bytes_dropped": total - good}
+            ),
+            flush=True,
+        )
+    done_ids = {str(r["item_id"]) for r in done_rows}
+    all_rows = list(done_rows)
+
+    cap = _T0TextCapture(bundle["tok"], int(a.max_new))
+    for cid in item_ids:
+        if cid in done_ids:
+            continue
+        cap.captured = None
+        result = run_v11_t0_pass(
+            model=bundle["model"],
+            tok=cap,
+            rows_by_id=rows_by_id,
+            item_ids=[cid],
+            max_new=int(a.max_new),
+            render_fn=bundle.get("render"),
+            pass_attention_mask=bool(a.attention_mask),
+            quote_reward=str(a.quote_reward),
+            dry=bool(a.dry),
+            device_sync=bundle.get("sync"),
+            mode=bundle.get("mode"),
+            state=bundle.get("state"),
+        )
+        row = t0_pass_row(
+            pass_id=pass_id,
+            checkpoint=checkpoint_label,
+            set_name="C" if cid in sets["c_ids"] else "U-only",
+            item=result[cid],
+            captured=None if a.dry else cap.captured,
+            header_sha256=header["header_sha256"],
+        )
+        _t0_append_row(rows_path, row)
+        all_rows.append(row)
+    summary = t0_pass_summary(all_rows, header=header, planned=len(item_ids))
+    _write_json_atomic(summary_path, summary)
+    done_event = {k: summary[k] for k in ("planned_items", "done_items", "complete")}
+    print(json.dumps({"event": "t0_pass_done", "pass_id": pass_id, **done_event}), flush=True)
+    return 0
+
+
 class _TrackPromptsAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, values)
@@ -9290,6 +9842,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--s2-v11",
         action="store_true",
         help="seal all S2 v1.1 pre-registration parameters (M2a, constant loss denom 4514, CUSUM + T=0 confirm + 6 canaries)",
+    )
+    ap.add_argument(
+        "--t0-pass",
+        action="store_true",
+        help=(
+            "with --s2-v11: run the step-0 greedy T=0, n=1 pass over Set U union C (batch 1) on the base "
+            "model or --checkpoint, as the trainer's step-0 pass does; needs --pass-id; trains nothing"
+        ),
+    )
+    ap.add_argument(
+        "--venue",
+        choices=("rig", "colab"),
+        default=None,
+        help=(
+            "--t0-pass only: 'rig' (default) keeps the rig preflight; 'colab' records nvidia-smi "
+            "and refuses without a GPU"
+        ),
+    )
+    ap.add_argument(
+        "--code-commit",
+        default=None,
+        help="--t0-pass only: the 40-hex aspire-si commit to record when this copy is not a git checkout",
     )
     return ap
 

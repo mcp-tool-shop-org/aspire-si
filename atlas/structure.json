@@ -1955,7 +1955,7 @@
       "unresolvedSites": 0
     },
     {
-      "dynamicReads": 24,
+      "dynamicReads": 25,
       "dynamicSpawns": 0,
       "dynamicSpawnsInTests": 0,
       "dynamicWrites": 10,
@@ -3023,6 +3023,7 @@
             "evaluation_summary",
             "evidence_of",
             "execute",
+            "execute_t0_pass",
             "exit_status",
             "expandable_segments_supported",
             "file_record",
@@ -3090,6 +3091,12 @@
             "state_dirs",
             "state_every_updates",
             "stress_prompt_pool",
+            "t0_pass_code_commit",
+            "t0_pass_colab_gpu",
+            "t0_pass_item_sets",
+            "t0_pass_requested",
+            "t0_pass_row",
+            "t0_pass_summary",
             "terminate_and_wait",
             "tracked_archives",
             "train_rollout_seed",
@@ -3098,6 +3105,7 @@
             "validate_replay_check_args",
             "validate_s2_v11_args",
             "validate_save_all_args",
+            "validate_t0_pass_args",
             "validate_training_args",
             "verdict_line",
             "wait_ready",
@@ -4373,11 +4381,6 @@
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7784
-            },
-            {
-              "in": "execute",
-              "kind": "raise",
               "line": 7786
             },
             {
@@ -4393,85 +4396,260 @@
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7807
+              "line": 7792
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7843
+              "line": 7809
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7855
+              "line": 7845
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7921
+              "line": 7857
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7924
+              "line": 7923
+            },
+            {
+              "in": "execute",
+              "kind": "raise",
+              "line": 7926
             },
             {
               "in": "execute",
               "kind": "except",
-              "line": 7972
+              "line": 7974
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 7973
+              "line": 7975
             },
             {
               "in": "execute",
               "kind": "except",
-              "line": 8001
+              "line": 8003
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 8002
+              "line": 8004
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 8029
+              "line": 8031
             },
             {
               "in": "mark_consumed",
               "kind": "except",
-              "line": 8272
+              "line": 8274
             },
             {
               "in": "run_guarded",
               "kind": "except",
-              "line": 8509
+              "line": 8511
             },
             {
               "in": "execute",
               "kind": "except",
-              "line": 8538
+              "line": 8540
             },
             {
               "in": "execute",
               "kind": "except",
-              "line": 8693
+              "line": 8695
             },
             {
               "in": "execute",
               "kind": "raise",
-              "line": 8833
+              "line": 8835
+            },
+            {
+              "in": "t0_pass_requested",
+              "kind": "raise",
+              "line": 8865
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8872
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8893
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8898
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8915
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8920
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8925
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8930
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8936
+            },
+            {
+              "in": "validate_t0_pass_args",
+              "kind": "raise",
+              "line": 8941
+            },
+            {
+              "in": "t0_pass_item_sets",
+              "kind": "except",
+              "line": 8980
+            },
+            {
+              "in": "t0_pass_item_sets",
+              "kind": "raise",
+              "line": 8982
+            },
+            {
+              "in": "t0_pass_item_sets",
+              "kind": "raise",
+              "line": 8987
+            },
+            {
+              "in": "t0_pass_item_sets",
+              "kind": "raise",
+              "line": 8992
+            },
+            {
+              "in": "t0_pass_colab_gpu",
+              "kind": "raise",
+              "line": 9017
+            },
+            {
+              "in": "t0_pass_colab_gpu",
+              "kind": "except",
+              "line": 9019
+            },
+            {
+              "in": "t0_pass_colab_gpu",
+              "kind": "raise",
+              "line": 9020
+            },
+            {
+              "in": "t0_pass_colab_gpu",
+              "kind": "raise",
+              "line": 9023
+            },
+            {
+              "in": "t0_pass_code_commit",
+              "kind": "raise",
+              "line": 9031
+            },
+            {
+              "in": "t0_pass_code_commit",
+              "kind": "raise",
+              "line": 9034
+            },
+            {
+              "in": "t0_pass_code_commit",
+              "kind": "raise",
+              "line": 9039
+            },
+            {
+              "in": "_t0_read_rows",
+              "kind": "except",
+              "line": 9066
+            },
+            {
+              "in": "_t0_read_rows",
+              "kind": "raise",
+              "line": 9067
+            },
+            {
+              "in": "_t0_read_rows",
+              "kind": "except",
+              "line": 9074
+            },
+            {
+              "in": "_t0_read_rows",
+              "kind": "raise",
+              "line": 9075
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9233
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9296
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "except",
+              "line": 9301
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9302
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9306
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9311
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9321
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9330
+            },
+            {
+              "in": "execute_t0_pass",
+              "kind": "raise",
+              "line": 9346
             },
             {
               "in": "apply_dry_defaults",
               "kind": "raise",
-              "line": 9300
+              "line": 9874
             }
           ],
-          "hash": "08a86d6d4eea06d2f5b7e4b58595c041f1d1b5351831f6b305d75f966b3d699c",
+          "hash": "13f32861e27a617b0b2c7f600ba869f396462e4796934451ed4d7625fa5d45b9",
           "importsFiles": [
             "examples/verifier-distill/quote_rule.py",
             "examples/verifier-distill/s2_draw.py",
@@ -5089,15 +5267,15 @@
       "origin": "authored",
       "outsidePlaces": [
         {
-          "reads": 86,
+          "reads": 87,
           "where": [
             "caller"
           ],
-          "writes": 59
+          "writes": 60
         }
       ],
-      "outsideReads": 86,
-      "outsideWrites": 59,
+      "outsideReads": 87,
+      "outsideWrites": 60,
       "role": "code",
       "testRunners": [
         "pytest"
@@ -5713,7 +5891,7 @@
           "path": "ASPIRE-SPEC.md"
         },
         {
-          "hash": "d08806d4780fc538a9d7172013399970a132b74c78fb962dec11f0c4f77715fe",
+          "hash": "5cafd966ee05de124282d2315bf028189cc85f192356ee08dc26f73215914c55",
           "path": "CHANGELOG.md"
         },
         {
@@ -7746,7 +7924,7 @@
   ],
   "engine": "1.26.0",
   "generatedFrom": {
-    "commit": "85269aaceaa099aad8db5fad0efe7a2569347713",
+    "commit": "4dc85f051686c37ecdc977e6c69015d6ee9a98b6",
     "tracked": 291
   },
   "landings": [
